@@ -74,7 +74,7 @@ WITH uncategorized_txns AS (
           'key', tf_bank.key,
           'bucket_name', tf_bank.bucket_name,
           'url', tf_bank.url,
-          'type', tf_bank.type,
+          'type', tf_bank.mime_type,
           'size_bytes', tf_bank.size_bytes
         )
       ) FILTER (WHERE tf_bank.id IS NOT NULL),
@@ -88,9 +88,11 @@ WITH uncategorized_txns AS (
   LEFT JOIN coa ba_coa ON ba.coa_id = ba_coa.id
   JOIN companies c ON ba.company_id = c.id
   LEFT JOIN currencies rc ON c.reporting_currency_id = rc.id
-  LEFT JOIN transaction_files tf_bank ON tf_bank.source = 'bank' 
-    AND tf_bank.transaction_id = bt.id 
-    AND tf_bank.entry_id IS NULL 
+  LEFT JOIN file_attachments fa_bank ON fa_bank.source = 'bank'
+    AND fa_bank.transaction_id = bt.id
+    AND fa_bank.entry_id IS NULL
+    AND fa_bank.is_deleted = false
+  LEFT JOIN files tf_bank ON tf_bank.id = fa_bank.file_id
     AND tf_bank.is_deleted = false
   WHERE bt.is_deleted = false
     AND bt.ledger_transaction_id IS NULL
@@ -258,7 +260,7 @@ posted_txns AS (
           'key', COALESCE(tf_entry.key, tf_txn.key),
           'bucket_name', COALESCE(tf_entry.bucket_name, tf_txn.bucket_name),
           'url', COALESCE(tf_entry.url, tf_txn.url),
-          'type', COALESCE(tf_entry.type, tf_txn.type),
+          'type', COALESCE(tf_entry.mime_type, tf_txn.mime_type),
           'size_bytes', COALESCE(tf_entry.size_bytes, tf_txn.size_bytes)
         )
       ) FILTER (WHERE COALESCE(tf_entry.id, tf_txn.id) IS NOT NULL),
@@ -277,14 +279,18 @@ posted_txns AS (
   LEFT JOIN contacts ON le.contact_id = contacts.id
   LEFT JOIN coa ON le.coa_id = coa.id
   LEFT JOIN projects ON le.project_id = projects.id
-  -- Join transaction_files: prioritize entry-level files, fallback to transaction-level
-  LEFT JOIN transaction_files tf_entry ON tf_entry.source = 'ledger' 
-    AND tf_entry.transaction_id = lt.id 
-    AND tf_entry.entry_id = le.id 
+  -- Join files via file_attachments: prioritize entry-level files, fallback to transaction-level
+  LEFT JOIN file_attachments fa_entry ON fa_entry.source = 'ledger'
+    AND fa_entry.transaction_id = lt.id
+    AND fa_entry.entry_id = le.id
+    AND fa_entry.is_deleted = false
+  LEFT JOIN files tf_entry ON tf_entry.id = fa_entry.file_id
     AND tf_entry.is_deleted = false
-  LEFT JOIN transaction_files tf_txn ON tf_txn.source = 'ledger' 
-    AND tf_txn.transaction_id = lt.id 
-    AND tf_txn.entry_id IS NULL 
+  LEFT JOIN file_attachments fa_txn ON fa_txn.source = 'ledger'
+    AND fa_txn.transaction_id = lt.id
+    AND fa_txn.entry_id IS NULL
+    AND fa_txn.is_deleted = false
+  LEFT JOIN files tf_txn ON tf_txn.id = fa_txn.file_id
     AND tf_txn.is_deleted = false
   WHERE bt.is_deleted = false
     AND lt.is_deleted = false

@@ -12,22 +12,25 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 
 ## 📊 Current Implementation Status
 
-**Last Updated:** 2025-01-30
+**Last Updated:** 2026-01-31
 
 | Component                       | Status         | Completion |
 | ------------------------------- | -------------- | ---------- |
 | **Phase 1: Database Migration** | ✅ Complete    | 100%       |
-| **Phase 2: Backend API**        | 🔄 In Progress | ~50%       |
+| **Phase 2: Backend API**        | 🔄 In Progress | ~75%       |
 | - Core queries (list, get)      | ✅ Complete    | 100%       |
 | - Create journal                | ✅ Complete    | 100%       |
-| - Update/Post/Void/Reverse/Copy | ⏳ Pending     | 0%         |
-| - Controller & Routes           | ⏳ Pending     | 0%         |
+| - Update/Post/Void (drafts)     | ✅ Complete    | 100%       |
+| - Batch Post/Void (drafts)      | ✅ Complete    | 100%       |
+| - Reverse journal (posted)      | ✅ Complete    | 100%       |
+| - Copy journal                  | ✅ Complete    | 100%       |
+| - Controller & Routes           | ✅ Complete    | 100%       |
 | **Phase 3-5: Frontend**         | ⏳ Not Started | 0%         |
 | **Phase 6: Recurring Journals** | ⏳ Not Started | 0%         |
-| **Phase 7: Auto-Reversal Job**  | ⏳ Not Started | 0%         |
+| **Phase 7: Auto-Reversal Job**  | 🔄 In Progress | ~50%       |
 | **Phase 8: CSV Import**         | ⏳ Not Started | 0%         |
 
-**Next Steps:** Complete remaining Phase 2 backend functions + controller + routes before moving to frontend.
+**Next Steps:** Implement `copyJournal` + `importJournals`, finalize auto-reversal processing, then proceed to frontend.
 
 ---
 
@@ -44,7 +47,7 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 | Status actions            | Draft: edit, delete, post. Posted: view, copy, reverse. Voided: view, copy.                       | Standard accounting                                             |
 | Voiding semantics         | Draft: soft-delete. Posted: must reverse (creates reversing entry). "Void" for posted = reversal. | Cannot remove posted entries from the ledger without a reversal |
 | Contact vs project fields | **Contact at batch level. Project at entry level.**                                               | Contact is the counterparty; projects are line-level costing.   |
-| Attachments               | **Batch-level only.** Show in both Journal view and Ledger view (read-time inheritance).          | Clean UX; avoids line-level complexity in v1.                   |
+| Attachments               | **Batch-level only.** Show in both Journal view and Ledger view (read-time association).          | Clean UX; avoids line-level complexity in v1.                   |
 
 ---
 
@@ -215,11 +218,13 @@ Implemented schemas:
 | `getJournal()`               | ✅ DONE | **Modified from plan:** Removed audit trail (not needed for every fetch). Returns journal with entries (COA+project names), related journals (reversal/original). Uses `selectAliasedFields()` helper for consistency.                         |
 | `postJournalRecord()`        | ✅ DONE | **Enhanced from plan:** Fiscal period pre-check, sequence generation via `allocateSequence()`, pre-allocated UUIDs for journal-ledger links, file persistence via `persistTxnFiles()`, contact/project validation, robust logging with phases. |
 | `generateJournalReference()` | ✅ DONE | **Not in original plan.** Generates JE-YYYYMM-NNNN references using sequence-counter service. Handles both posted journals (auto-generate) and drafts with custom references.                                                                  |
-| `updateDraftJournal()`       | ⏳ TODO | Update draft in-place. Validate status, re-check balance, audit event.                                                                                                                                                                         |
-| `postDraftJournal()`         | ⏳ TODO | Post existing draft. Fiscal period pre-check, create ledger, update status.                                                                                                                                                                    |
-| `voidDraftJournal()`         | ⏳ TODO | Soft-delete draft + entries, audit event.                                                                                                                                                                                                      |
-| `reversePostedJournal()`     | ⏳ TODO | **Stub exists (commented out).** Create reversing journal, validate reversal date period, mark original as reversed.                                                                                                                           |
-| `copyJournal()`              | ⏳ TODO | Copy any journal to new draft, set `original_journal_id`.                                                                                                                                                                                      |
+| `updateDraftJournal()`       | ✅ DONE | Update draft in-place. Re-validates, replaces entries/files, writes audit event.                                                                                                                                                               |
+| `postDraftJournal()`         | ✅ DONE | Post existing draft. Fiscal period pre-check, create ledger, update status, writes audit event, schedules auto-reversal if applicable.                                                                                                         |
+| `voidDraftJournal()`         | ✅ DONE | Soft-delete draft + entries, audit event.                                                                                                                                                                                                      |
+| `postDraftJournalsBatch()`   | ✅ DONE | Batch post existing drafts. Supports `partial` (default) and `all_or_nothing` modes.                                                                                                                                                           |
+| `voidDraftJournalsBatch()`   | ✅ DONE | Batch void existing drafts. Supports `partial` (default) and `all_or_nothing` modes.                                                                                                                                                           |
+| `reverseJournalRecord()`     | ✅ DONE | Reverse posted journal (creates reversing entry). Drafts should use `voidDraftJournal()` instead.                                                                                                                                              |
+| `copyJournal()`              | ✅ DONE | Copy any journal to a new draft (defaults `date=today`, `reference=null`). If `includeFiles=true`, creates new attachments referencing the same underlying file rows.                                                                          |
 | `importJournals()`           | ⏳ TODO | Batch create drafts from CSV.                                                                                                                                                                                                                  |
 
 **Helper functions added:**
@@ -234,24 +239,27 @@ Implemented schemas:
 **Attachment behavior:**
 
 - ✅ Files stored via `persistTxnFiles()` with `source='journal'`, `transaction_id=journal_batch_id`
-- Files fetched separately via objects API (not returned in `getJournal()` response)
+- Files can be returned inline from `getJournal()` using `?includeFiles=true`
 
 ### 2c. Controller (`journals.controller.ts`)
 
-Standard Express handlers. Extract `companyId` from `req.params`, `userId` from `res.locals.userId`.
+Standard Express handlers. Extract `companyId` from `req.params`, `userId` from `req.user.id` (via `AuthRequest`).
 
 ### 2d. Routes (`journals.routes.ts`)
 
 ```
-GET    /                    — listJournals (paginated)
+POST   /query               — listJournals (page-based)
+POST   /query/cursor        — listJournals (cursor-based)
 GET    /:journalId          — getJournal
 POST   /                    — createJournal (draft or posted)
 PUT    /:journalId          — updateDraftJournal (draft only)
+PATCH  /batch/post          — postDraftJournalsBatch (draft → posted)
+PATCH  /batch/void          — voidDraftJournalsBatch (draft only)
 PATCH  /:journalId/post     — postDraftJournal (draft → posted)
 PATCH  /:journalId/void     — voidDraftJournal (draft only)
-PATCH  /:journalId/reverse  — reversePostedJournal (posted only)
+PATCH  /:journalId/reverse  — reverseJournalRecord (posted only)
 POST   /:journalId/copy     — copyJournal (any status)
-POST   /import              — importJournals (CSV)
+POST   /import              — importJournals (CSV) [TODO]
 ```
 
 **Period status check** (for frontend date hint):
@@ -420,7 +428,7 @@ Attachments (batch-level):
 Ledger view visibility (requirement):
 
 - Any files attached to a journal batch must show up when viewing the ledger transaction created from that journal.
-- Implementation approach (v1): when fetching ledger transaction details for `transaction_source='manual_journal'`, also fetch `transaction_files` for `source='journal'` and `transaction_id=source_transaction_id` (journal batch id), and merge them into the UI display.
+- Implementation approach (v1): when fetching ledger transaction details for `transaction_source='manual_journal'`, also fetch `file_attachments` (joined to `files`) for `source='journal'` and `transaction_id=source_transaction_id` (journal batch id), and merge them into the UI display.
 
 ### 5b. Reverse Posted Journal
 
@@ -652,7 +660,7 @@ Phases 6, 7, 8 are independent and can be parallelized after Phase 2 completion.
 9. **Fiscal calendar auto-creation:** Journal pre-checks and `/period-status` should ensure periods exist (silent server-side creation). Do not rely on `createLedgerRecord()` for this.
 10. **Date semantics (journals + ledger):** API accepts `YYYY-MM-DD` for journal dates and reversal dates. Persist as UTC-normalized date semantics (either DB `DATE` or timestamp at `00:00:00Z` consistently) so list ordering, uniqueness guards, and recurring/idempotency are stable.
 11. **Projects:** Project selection is per entry (optional). Reporting on projects is line-based (i.e., project views show only lines tagged to that project; totals may not "balance within project", which is expected).
-12. **Attachments shown in ledger:** Do not duplicate `transaction_files` rows (file keys are unique today). Instead, when viewing a ledger transaction sourced from a manual journal, fetch and show journal batch files alongside any ledger-native files (read-time inheritance).
+12. **Attachments shown in ledger:** When viewing a ledger transaction sourced from a manual journal, fetch and show journal batch files (via `file_attachments` + `files`) alongside any ledger-native files.
 
 ---
 

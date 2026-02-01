@@ -6,7 +6,10 @@ import {
   debitCredit,
   zDateYMD,
 } from '../../core/types/core.js';
-import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
+import {
+  createCamelCaseSchema,
+  createCamelCaseSchemaWithExclusions,
+} from '../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
@@ -83,6 +86,8 @@ const baseJournalBatch = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+export type BaseJournalBatch = z.infer<typeof baseJournalBatch>;
+
 const journalBatchData = z.object({
   ...baseJournalBatch.shape,
   status: journalBatchStatus.exclude(['voided']),
@@ -90,10 +95,49 @@ const journalBatchData = z.object({
   files: z.array(txnFileBase).optional(),
 });
 
-export const journalBatchDataCamel = createCamelCaseSchema(journalBatchData);
+export const journalBatchDataCamel = createCamelCaseSchemaWithExclusions(
+  journalBatchData,
+  { excludeKeys: ['metadata'] },
+);
 export type JournalBatchData = SnakeToCamelCaseObject<
   z.infer<typeof journalBatchData>
 >;
+
+// Update Draft Journal Input (draft only)
+const updateDraftJournalData = z.object({
+  ...journalBatchData.shape,
+  status: journalBatchStatus.extract(['draft']),
+});
+
+export const updateDraftJournalDataCamel = createCamelCaseSchemaWithExclusions(
+  updateDraftJournalData,
+  { excludeKeys: ['metadata'] },
+);
+export type UpdateDraftJournalData = SnakeToCamelCaseObject<
+  z.infer<typeof updateDraftJournalData>
+>;
+
+export const postDraftJournalsBatchBody = z.object({
+  journalIds: z.array(z.uuid()).min(1).max(200),
+  mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
+});
+export type PostDraftJournalsBatchBody = z.infer<
+  typeof postDraftJournalsBatchBody
+>;
+
+export const voidDraftJournalsBatchBody = z.object({
+  journalIds: z.array(z.uuid()).min(1).max(200),
+  voidReason: z.string().min(1).max(2048).nullable().optional(),
+  mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
+});
+export type VoidDraftJournalsBatchBody = z.infer<
+  typeof voidDraftJournalsBatchBody
+>;
+
+export const copyJournalBody = z.object({
+  includeFiles: z.coerce.boolean().optional().default(false),
+});
+export type CopyJournalBody = z.infer<typeof copyJournalBody>;
 
 const newJournalBatch = z.object({
   ...baseJournalBatch.shape,
@@ -266,9 +310,26 @@ export type LedgerTotals = {
   totalCredit: number;
 };
 
+export type JournalTransactionFile = {
+  id: string;
+  name: string;
+  key: string;
+  url: string;
+  type: string;
+  bucket_name: string;
+  size_bytes: string;
+  checksum: string | null;
+  provider: string | null;
+  region: string | null;
+  endpoint: string | null;
+  transaction_id: string;
+  entry_id: string | null;
+};
+
 export type GetJournalResponse = {
   journal: JournalListRow;
   entries: JournalDetailEntry[];
+  files?: JournalTransactionFile[];
   ledgerTotals?: LedgerTotals | null;
   relatedJournals: {
     reversalJournal?: RelatedJournalSummary | null;

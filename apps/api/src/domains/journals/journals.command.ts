@@ -1,14 +1,9 @@
 import { randomUUID } from 'crypto';
 import type { TxnFileInput } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
-import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
 import { toYMD } from '../../shared/index.js';
-import {
-  acquireAdvisoryXactLocks,
-  lockKeyCompany,
-} from '../../shared/services/advisoryLocks.service.js';
 import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
@@ -17,19 +12,31 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
-import { persistTxnFiles } from '../objects/txn-files/txn-files.service.js';
+import {
+  persistTxnFiles,
+  syncTxnFilesForTarget,
+} from '../objects/txn-files/txn-files.service.js';
 import { ensureAndFetchFiscalCalendar } from '../reporting/fiscal-calendar/index.js';
 import { scheduleJournalAutoReversal } from './auto-reversal.queue.js';
 import {
+  writeJournalCopyAudit,
   writeJournalCreateAudit,
+  writeJournalPostAudit,
   writeJournalReverseAudit,
+  writeJournalUpdateAudit,
   writeJournalVoidAudit,
 } from './journals.audit.js';
+import {
+  resolveJournalCompanyContext,
+  validateAndPrepareJournalInput,
+} from './journals.prepare.js';
+import { getJournal } from './journals.query.js';
 import { generateJournalReference } from './journals.reference.js';
-import { journalBatchDataCamel } from './journals.types.js';
-import { validateDebitCreditBalance } from './journals.utils.js';
+import {
+  journalBatchDataCamel,
+  updateDraftJournalDataCamel,
+} from './journals.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type { NewLedgerTransactionData } from '../ledgers/ledgers.types.js';
@@ -37,7 +44,182 @@ import type {
   JournalBatchData,
   NewJournalBatch,
   NewJournalEntry,
+  UpdateDraftJournalData,
 } from './journals.types.js';
+
+export async function copyJournal({
+  sourceJournalBatchId,
+  companyId,
+  userId,
+  includeFiles,
+  trx,
+}: {
+  sourceJournalBatchId: string;
+  companyId: string;
+  userId: string;
+  includeFiles?: boolean;
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    sourceJournalBatchId: string;
+    journalBatchId: string;
+    journalId: string;
+  }>
+> {
+  const startTime = Date.now();
+  const traceId = randomUUID();
+
+  const log = (
+    phase: string,
+    data?: Record<string, any>,
+    level: 'info' | 'error' = 'info',
+  ) => {
+    const duration_ms = Date.now() - startTime;
+    const fn = level === 'error' ? logger.error : logger.info;
+    fn(
+      {
+        traceId,
+        phase,
+        duration_ms,
+        sourceJournalBatchId,
+        companyId,
+        userId,
+        ...data,
+      },
+      `copyJournal:${phase}`,
+    );
+  };
+
+  log('starting', { includeFiles: Boolean(includeFiles) });
+
+  const exec = async (tx: Knex.Transaction) => {
+    const context = await resolveJournalCompanyContext({
+      companyId,
+      trx: tx,
+      traceId,
+    });
+
+    const sourceResult = await getJournal({
+      journalId: sourceJournalBatchId,
+      companyId,
+      includeDeleted: true,
+      includeFiles: Boolean(includeFiles),
+      trx: tx,
+    });
+
+    if (!sourceResult.success || !sourceResult.data) {
+      throw new AppError(
+        'Journal batch not found for company',
+        { traceId, sourceJournalBatchId, response: sourceResult },
+        false,
+        ErrorCode.NOT_FOUND,
+      );
+    }
+
+    const source = sourceResult.data.journal;
+    const sourceEntries = sourceResult.data.entries;
+    const sourceFiles = sourceResult.data.files ?? [];
+
+    const date = toYMD(new Date());
+
+    const metadata =
+      source.metadata && typeof source.metadata === 'object'
+        ? (source.metadata as Record<string, unknown>)
+        : undefined;
+
+    const created = await postJournalRecord({
+      data: {
+        date,
+        title: source.title,
+        description: source.description ?? undefined,
+        note: source.note ?? undefined,
+        status: 'draft',
+        reference: null,
+        contactId: source.contactId ?? null,
+        currencyId: source.currencyId,
+        autoReversalDate: null,
+        isRecurring: false,
+        recurringTemplateId: null,
+        originalJournalId: source.id,
+        metadata,
+        entries: sourceEntries.map((e) => ({
+          description: e.description,
+          side: e.side,
+          amount: e.amount,
+          coaId: e.coaId,
+          projectId: e.projectId ?? null,
+        })),
+      },
+      companyId,
+      userId,
+      trx: tx,
+    });
+
+    if (!created.success || !created.data) {
+      throw new AppError(
+        'Failed to copy journal',
+        { traceId, response: created },
+        false,
+        ErrorCode.GENERIC,
+      );
+    }
+
+    if (includeFiles && sourceFiles.length > 0) {
+      await tx.raw(
+        `INSERT INTO file_attachments (file_id, source, transaction_id, entry_id, attached_by_id)
+         SELECT fa.file_id, fa.source, ?, fa.entry_id, ?
+         FROM file_attachments fa
+         INNER JOIN files f ON f.id = fa.file_id
+         WHERE fa.source = 'journal'
+           AND fa.transaction_id = ?
+           AND fa.is_deleted = false
+           AND f.company_id = ?
+           AND f.is_deleted = false
+         ON CONFLICT (file_id, source, transaction_id, COALESCE(entry_id, '00000000-0000-0000-0000-000000000000'))
+         WHERE is_deleted = false
+         DO NOTHING`,
+        [
+          created.data.journalBatchId,
+          userId,
+          sourceJournalBatchId,
+          context.companyUUID,
+        ],
+      );
+    }
+
+    await writeJournalCopyAudit({
+      entityId: created.data.journalBatchId,
+      companyId: context.companyUUID,
+      actor: { type: 'user', userId },
+      payload: {
+        sourceJournalId: source.id,
+        includeFiles: Boolean(includeFiles),
+        entryCount: sourceEntries.length,
+        date,
+      },
+      trx: tx,
+    });
+
+    return {
+      sourceJournalBatchId: source.id,
+      journalBatchId: created.data.journalBatchId,
+      journalId: created.data.journalId,
+    };
+  };
+
+  try {
+    const result = trx ? await exec(trx) : await knexClient.transaction(exec);
+    return successResponse('Journal copied successfully', result);
+  } catch (error: unknown) {
+    log(
+      'error',
+      { error: error instanceof Error ? error.message : String(error) },
+      'error',
+    );
+    if (trx) throw error;
+    return errorResponse('Failed to copy journal', error);
+  }
+}
 
 export async function postJournalRecord({
   data,
@@ -113,116 +295,40 @@ export async function postJournalRecord({
     journalReference: string | null;
     ledgerTransactionId: string | null;
   }> => {
-    const validatedInput = journalBatchDataCamel.safeParse(data);
-    if (!validatedInput.success) {
-      log('input_validation_failed', {
-        traceId,
-        error: z.prettifyError(validatedInput.error),
-      });
-      throw new AppError(
-        `Invalid input: ${validatedInput.error.message}`,
-        z.prettifyError(validatedInput.error),
-      );
-    }
-
-    const { entries: je, files = [], ...batch } = validatedInput.data;
     const now = new Date();
 
-    const entries = je.filter((e) => e.amount !== 0);
-    if (entries.length !== je.length) {
+    const context = await resolveJournalCompanyContext({
+      companyId,
+      trx: txn,
+      traceId,
+    });
+    const companyUUID = context.companyUUID;
+
+    const prepared = await validateAndPrepareJournalInput({
+      data,
+      schema: journalBatchDataCamel,
+      context,
+      trx: txn,
+      traceId,
+    });
+
+    const batch = prepared.batch;
+    const entries = prepared.entries;
+    const files = prepared.files;
+
+    const journalCurrencyId = prepared.journalCurrencyId;
+    const exchangeRate = prepared.exchangeRate;
+    const isFx = prepared.isFx;
+
+    const contactId = prepared.contactId;
+    const isRecurring = prepared.isRecurring;
+    const recurringTemplateId = prepared.recurringTemplateId;
+
+    if (entries.length !== data.entries.length) {
       log('zero_amount_filtered', {
-        originalCount: je.length,
-        filteredCount: je.length - entries.length,
+        originalCount: data.entries.length,
+        filteredCount: data.entries.length - entries.length,
       });
-    }
-    if (entries.some((e) => e.amount < 0)) {
-      throw new AppError('Journal entry amounts must be positive', {
-        traceId,
-      });
-    }
-
-    if (entries.length < 2) {
-      throw new AppError(
-        'At least two journal entries with non-zero amount are required',
-        { traceId },
-      );
-    }
-
-    // Validate debit/credit balance
-    // Simple function that sums debits and credits and checks equality
-    const balanceValidation = validateDebitCreditBalance(entries);
-    if (!balanceValidation.isValid) {
-      log('validation_failed', {
-        error: balanceValidation.error,
-        totalDebits: balanceValidation.totalDebits,
-        totalCredits: balanceValidation.totalCredits,
-      });
-      throw new AppError(
-        `Journal entries are not balanced: ${balanceValidation.error}`,
-        { traceId },
-      );
-    }
-
-    // Get company UUID and reporting currency
-    const company =
-      (await txn('companies')
-        .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
-        .where('is_deleted', false)
-        .first<{ id: string; reporting_currency_id: string }>(
-          'id',
-          'reporting_currency_id',
-        )) ?? null;
-
-    if (!company?.id || !company?.reporting_currency_id) {
-      throw new Error(`Company not found: ${companyId}`);
-    }
-
-    const companyUUID = company.id as string;
-    const reportingCurrencyId = company.reporting_currency_id as string;
-    const journalCurrencyId = batch.currency_id || reportingCurrencyId;
-    const isFx = journalCurrencyId !== reportingCurrencyId;
-
-    await acquireAdvisoryXactLocks(txn, [lockKeyCompany(companyUUID)]);
-
-    const currency = await txn('currencies')
-      .where('id', journalCurrencyId)
-      .where('is_deleted', false)
-      .first<{ id: string }>('id');
-
-    if (!currency) {
-      throw new AppError(`Invalid currency ID: ${journalCurrencyId}`, {
-        traceId,
-      });
-    }
-
-    let exchangeRate = 1;
-    if (isFx) {
-      if (batch.exchange_rate != null) {
-        exchangeRate = Number(batch.exchange_rate);
-        log('fx_rate_resolved', { source: 'input', exchangeRate });
-      } else {
-        const rate = await determineExchangeRate({
-          date: batch.date,
-          fromCurrencyId: journalCurrencyId,
-          toCurrencyId: reportingCurrencyId,
-        });
-
-        if (!rate) {
-          throw new AppError('Failed to determine exchange rate', {
-            traceId,
-            journalCurrencyId,
-            reportingCurrencyId,
-            date: batch.date,
-          });
-        }
-
-        exchangeRate = rate;
-        log('fx_rate_resolved', { source: 'lookup', exchangeRate });
-      }
-    }
-
-    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
-      throw new AppError('Invalid exchange rate', { traceId, exchangeRate });
     }
 
     // Ensure fiscal period is open for the journal date if posting
@@ -241,105 +347,10 @@ export async function postJournalRecord({
       });
     }
 
-    const contactId = batch.contact_id ?? null;
-    if (contactId) {
-      // Validate contact exists and is active for this company
-      const contact = await txn('contacts')
-        .where('id', contactId)
-        .where('company_id', companyUUID)
-        .where('is_deleted', false)
-        .where('is_active', true)
-        .first<{ id: string }>('id');
-
-      if (!contact) {
-        throw new Error(`Invalid or inactive contact ID: ${contactId}`);
-      }
-    }
-
-    const isRecurring = batch.is_recurring ?? false;
-    if (isRecurring && !batch.recurring_template_id) {
-      throw new AppError(
-        'Recurring journals must include recurring_template_id',
-        { traceId },
-      );
-    }
-    if (!isRecurring && batch.recurring_template_id) {
-      throw new AppError(
-        'recurring_template_id provided but is_recurring is false',
-        { traceId },
-      );
-    }
-
-    const uniqueCoaIds = new Set<string>();
-    const uniqueProjectIds = new Set<string>();
-
-    for (const entry of entries) {
-      if (!entry.coa_id) {
-        throw new Error('One or more journal entries are missing a COA ID');
-      }
-      uniqueCoaIds.add(entry.coa_id);
-
-      if (entry.project_id) {
-        uniqueProjectIds.add(entry.project_id);
-      }
-    }
-
-    const coaIdsArray = Array.from(uniqueCoaIds);
-    const projectIdsArray = Array.from(uniqueProjectIds);
-
-    // Validate all COAs exist in this company and are active
-    const coas = await txn('coa')
-      .where('company_id', companyUUID)
-      .whereIn('id', coaIdsArray)
-      .where('is_deleted', false)
-      .where('is_active', true)
-      .select('id');
-
-    if (coas.length !== coaIdsArray.length) {
-      const foundIds = new Set(coas.map((c) => c.id));
-      const missing = coaIdsArray.filter((id) => !foundIds.has(id));
-      throw new Error(`Invalid or inactive COA IDs: ${missing.join(', ')}`);
-    }
-
-    // Validate all projects exist in this company and are active
-    if (projectIdsArray.length > 0) {
-      const projects = await txn('projects')
-        .where('company_id', companyUUID)
-        .whereIn('id', projectIdsArray)
-        .where('is_deleted', false)
-        .where('is_active', true)
-        .select('id');
-
-      if (projects.length !== projectIdsArray.length) {
-        const foundIds = new Set(projects.map((p) => p.id));
-        const missing = projectIdsArray.filter((id) => !foundIds.has(id));
-        throw new Error(
-          `Invalid or inactive Project IDs: ${missing.join(', ')}`,
-        );
-      }
-    }
-
     // Resolve reference + sequence
-    let journalReference: string | null = batch.reference?.trim() ?? null;
-    if (journalReference === '') journalReference = null;
+    let journalReference: string | null = prepared.journalReference;
     let sequenceMonth: string | null = null;
     let sequenceNumber: number | null = null;
-
-    if (journalReference) {
-      const existingRef = await txn('journal_batches')
-        .where('company_id', companyUUID)
-        .where('reference', journalReference)
-        .where('is_deleted', false)
-        .first<{ id: string }>('id');
-
-      if (existingRef) {
-        throw new AppError('Journal reference already exists', {
-          traceId,
-          journalReference,
-          existingJournalBatchId: existingRef.id,
-        });
-      }
-    }
 
     if (batch.status === 'posted') {
       const ref = await generateJournalReference({
@@ -377,7 +388,7 @@ export async function postJournalRecord({
 
       // Both is_recurring and recurring_template_id should be set together
       is_recurring: isRecurring,
-      recurring_template_id: isRecurring ? batch.recurring_template_id : null,
+      recurring_template_id: isRecurring ? recurringTemplateId : null,
 
       metadata: batch.metadata,
       created_at: now,
@@ -550,8 +561,8 @@ export async function postJournalRecord({
         isFx,
         exchangeRate: isFx ? exchangeRate : null,
         entryCount: entries.length,
-        totalDebits: balanceValidation.totalDebits!,
-        totalCredits: balanceValidation.totalCredits!,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
         contactId,
         isRecurring,
         ledgerTransactionId,
@@ -624,6 +635,1109 @@ export async function postJournalRecord({
       throw mapPostJournalError(error);
     }
     return errorResponse('Failed to post journal', mapPostJournalError(error));
+  }
+}
+
+export async function updateDraftJournal({
+  journalBatchId,
+  data,
+  companyId,
+  userId,
+  trx,
+}: {
+  journalBatchId: string;
+  data: UpdateDraftJournalData;
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    journalBatchId: string;
+    journalId: string;
+    journalReference: string | null;
+  }>
+> {
+  const traceId = randomUUID();
+  const startTime = Date.now();
+
+  const log = (
+    phase: string,
+    data?: Record<string, any>,
+    level: 'info' | 'error' = 'info',
+  ) => {
+    const duration_ms = Date.now() - startTime;
+    const fn = level === 'error' ? logger.error : logger.info;
+    fn(
+      {
+        traceId,
+        phase,
+        duration_ms,
+        companyId,
+        journalBatchId,
+        ...data,
+      },
+      `[${traceId}] DraftJournalUpdate.${phase} (${duration_ms}ms)`,
+    );
+  };
+
+  log('started', {
+    entriesCount: data.entries?.length || 0,
+    filesCount: data.files?.length || 0,
+  });
+
+  // If client includes `files`, treat it as "replace attachments".
+  // If omitted, leave existing attachments untouched.
+  const shouldReplaceFiles = Object.prototype.hasOwnProperty.call(
+    data,
+    'files',
+  );
+
+  const exec = async (
+    txn: Knex.Transaction,
+  ): Promise<{
+    journalBatchId: string;
+    journalId: string;
+    journalReference: string | null;
+  }> => {
+    const now = new Date();
+    const context = await resolveJournalCompanyContext({
+      companyId,
+      trx: txn,
+      traceId,
+    });
+    const companyUUID = context.companyUUID;
+
+    const existingBatch = await txn('journal_batches')
+      .where('id', journalBatchId)
+      .where('company_id', companyUUID)
+      .where('is_deleted', false)
+      .forUpdate()
+      .first<{
+        id: string;
+        status: string;
+        reference: string | null;
+        ledger_transaction_id: string | null;
+      }>('id', 'status', 'reference', 'ledger_transaction_id');
+
+    if (!existingBatch) {
+      throw new AppError(
+        'Draft journal not found',
+        { traceId, journalBatchId },
+        false,
+        ErrorCode.NOT_FOUND,
+      );
+    }
+
+    if (existingBatch.status !== 'draft') {
+      throw new AppError(
+        'Only draft journals can be updated',
+        { traceId, journalBatchId, status: existingBatch.status },
+        false,
+        ErrorCode.OPERATION_NOT_ALLOWED,
+      );
+    }
+
+    if (existingBatch.ledger_transaction_id) {
+      throw new AppError(
+        'Draft journal has a ledger transaction and cannot be updated',
+        {
+          traceId,
+          journalBatchId,
+          ledgerTransactionId: existingBatch.ledger_transaction_id,
+        },
+        false,
+        ErrorCode.OPERATION_NOT_ALLOWED,
+      );
+    }
+
+    const prepared = await validateAndPrepareJournalInput({
+      data,
+      schema: updateDraftJournalDataCamel,
+      context,
+      trx: txn,
+      traceId,
+      journalBatchIdForRefUniqCheck: journalBatchId,
+    });
+
+    const batch = prepared.batch;
+    const entries = prepared.entries;
+    const files = prepared.files;
+
+    if (entries.length !== data.entries.length) {
+      log('zero_amount_filtered', {
+        originalCount: data.entries.length,
+        filteredCount: data.entries.length - entries.length,
+      });
+    }
+
+    // Update journal batch (force draft invariants)
+    await txn('journal_batches')
+      .where('id', journalBatchId)
+      .update({
+        sequence_month: null,
+        sequence_number: null,
+        status: 'draft',
+        ledger_transaction_id: null,
+
+        reference: prepared.journalReference,
+        company_id: companyUUID,
+        currency_id: prepared.journalCurrencyId,
+        exchange_rate: prepared.exchangeRate,
+
+        date: batch.date,
+        title: batch.title,
+        description: batch.description,
+        contact_id: prepared.contactId,
+
+        note: batch.note,
+        auto_reversal_date: batch.auto_reversal_date,
+        original_journal_id: batch.original_journal_id ?? null,
+
+        is_recurring: prepared.isRecurring,
+        recurring_template_id: prepared.isRecurring
+          ? prepared.recurringTemplateId
+          : null,
+
+        metadata: batch.metadata,
+
+        updated_at: now,
+        updated_by_id: userId,
+      });
+
+    // Replace entries (soft-delete old + insert new)
+    const deletedEntriesCount = await txn('journal_entries')
+      .where('journal_batch_id', journalBatchId)
+      .where('is_deleted', false)
+      .update({
+        is_deleted: true,
+        deleted_at: now,
+        updated_at: now,
+      });
+
+    const entriesToInsert: NewJournalEntry[] = entries.map((entry) => ({
+      journal_batch_id: journalBatchId,
+      description: entry.description,
+      side: entry.side,
+      amount: Math.abs(entry.amount),
+      coa_id: entry.coa_id,
+      project_id: entry.project_id ?? null,
+      created_at: now,
+      updated_at: now,
+    }));
+
+    await txn('journal_entries').insert(entriesToInsert);
+    log('entries_replaced', {
+      entriesCount: entriesToInsert.length,
+      deletedEntriesCount,
+    });
+
+    const filesToPersist: TxnFileInput[] = files.map((file) => ({
+      ...file,
+      source: 'journal',
+      transaction_id: journalBatchId,
+      entry_id: null,
+    }));
+
+    if (shouldReplaceFiles) {
+      await syncTxnFilesForTarget({
+        companyId,
+        userId,
+        source: 'journal',
+        transactionId: journalBatchId,
+        entryId: null,
+        files: filesToPersist,
+        mode: 'replace',
+        trx: txn,
+      });
+
+      log('files_synced', {
+        filesCount: filesToPersist.length,
+        mode: 'replace',
+      });
+    } else if (filesToPersist.length > 0) {
+      await persistTxnFiles({
+        data: filesToPersist,
+        companyId,
+        userId,
+        trx: txn,
+      });
+
+      log('files_persisted', { filesCount: filesToPersist.length });
+    }
+
+    await writeJournalUpdateAudit({
+      entityId: journalBatchId,
+      companyId: companyUUID,
+      actor: { type: 'user', userId },
+      payload: {
+        previousStatus: 'draft',
+        reference: prepared.journalReference,
+        currencyId: prepared.journalCurrencyId,
+        isFx: prepared.isFx,
+        exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
+        entryCount: entries.length,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId: prepared.contactId,
+        isRecurring: prepared.isRecurring,
+      },
+      trx: txn,
+    });
+
+    log('audit_event_created', { action: 'journal.update' });
+
+    return {
+      journalBatchId,
+      journalId: journalBatchId,
+      journalReference: prepared.journalReference,
+    };
+  };
+
+  try {
+    if (trx) {
+      const result = await exec(trx);
+      return successResponse('Draft journal updated successfully', result);
+    }
+    const result = await knexClient.transaction(exec);
+    return successResponse('Draft journal updated successfully', result);
+  } catch (error) {
+    log(
+      'error',
+      {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      'error',
+    );
+    if (trx) throw mapPostJournalError(error);
+    return errorResponse(
+      'Failed to update draft journal',
+      mapPostJournalError(error),
+    );
+  }
+}
+
+export async function voidDraftJournal({
+  journalBatchId,
+  companyId,
+  userId,
+  voidReason,
+  trx,
+}: {
+  journalBatchId: string;
+  companyId: string;
+  userId: string;
+  voidReason?: string | null;
+  trx?: Knex.Transaction;
+}): Promise<ApiResponse<Record<string, never>>> {
+  const startTime = Date.now();
+  const traceId = randomUUID();
+
+  const log = (
+    phase: string,
+    data?: Record<string, any>,
+    level: 'info' | 'error' = 'info',
+  ) => {
+    const duration_ms = Date.now() - startTime;
+    const fn = level === 'error' ? logger.error : logger.info;
+    fn(
+      {
+        traceId,
+        phase,
+        duration_ms,
+        journalBatchId,
+        companyId,
+        userId,
+        ...data,
+      },
+      `voidDraftJournal:${phase}`,
+    );
+  };
+
+  log('starting');
+
+  const exec = async (tx: Knex.Transaction): Promise<Record<string, never>> => {
+    const companyUUID = await getCompanyUUID(companyId, tx);
+
+    const journalBatch = await tx('journal_batches')
+      .where('id', journalBatchId)
+      .where('company_id', companyUUID)
+      .where('is_deleted', false)
+      .forUpdate()
+      .first<{
+        id: string;
+        status: string;
+        reference: string | null;
+      }>('id', 'status', 'reference');
+
+    if (!journalBatch) {
+      throw new AppError(
+        'Journal batch not found for company',
+        { traceId, journalBatchId, companyId },
+        false,
+        ErrorCode.NOT_FOUND,
+      );
+    }
+
+    if (journalBatch.status !== 'draft') {
+      throw new AppError(
+        'Only draft journals can be voided',
+        { traceId, journalBatchId, status: journalBatch.status },
+        false,
+        ErrorCode.OPERATION_NOT_ALLOWED,
+      );
+    }
+
+    const now = new Date();
+
+    await tx('journal_batches').where('id', journalBatchId).update({
+      status: 'voided',
+      updated_by_id: userId,
+      is_deleted: true,
+      updated_at: now,
+      deleted_at: now,
+      voided_at: now,
+    });
+
+    await tx('journal_entries')
+      .where('journal_batch_id', journalBatchId)
+      .update({
+        is_deleted: true,
+        updated_at: now,
+        deleted_at: now,
+      });
+
+    await writeJournalVoidAudit({
+      entityId: journalBatchId,
+      companyId: companyUUID,
+      actor: { type: 'user', userId },
+      payload: {
+        previousStatus: 'draft',
+        reference: journalBatch.reference ?? null,
+        voidReason: voidReason ?? null,
+      },
+      notes: `Draft journal batch voided by user ${userId}${voidReason ? `: ${voidReason}` : ''}`,
+      trx: tx,
+    });
+
+    return {};
+  };
+
+  try {
+    if (trx) {
+      const result = await exec(trx);
+      return successResponse('Draft journal batch voided successfully', result);
+    }
+    const result = await knexClient.transaction(exec);
+    return successResponse('Draft journal batch voided successfully', result);
+  } catch (error) {
+    log(
+      'error',
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      'error',
+    );
+    if (trx) throw error;
+    return errorResponse('Failed to void draft journal batch', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      traceId,
+    });
+  }
+}
+
+export async function postDraftJournal({
+  journalBatchId,
+  companyId,
+  userId,
+  trx,
+}: {
+  journalBatchId: string;
+  companyId: string;
+  userId: string;
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    journalBatchId: string;
+    journalId: string;
+    journalReference: string;
+    ledgerTransactionId: string;
+  }>
+> {
+  const startTime = Date.now();
+  const traceId = randomUUID();
+
+  const log = (
+    phase: string,
+    data?: Record<string, any>,
+    level: 'info' | 'error' = 'info',
+  ) => {
+    const duration_ms = Date.now() - startTime;
+    const fn = level === 'error' ? logger.error : logger.info;
+    fn(
+      {
+        traceId,
+        phase,
+        duration_ms,
+        journalBatchId,
+        companyId,
+        userId,
+        ...data,
+      },
+      `postDraftJournal:${phase}`,
+    );
+  };
+
+  log('starting');
+
+  const exec = async (
+    tx: Knex.Transaction,
+  ): Promise<{
+    journalBatchId: string;
+    journalId: string;
+    journalReference: string;
+    ledgerTransactionId: string;
+  }> => {
+    const now = new Date();
+    const context = await resolveJournalCompanyContext({
+      companyId,
+      trx: tx,
+      traceId,
+    });
+
+    const journalBatch = await tx('journal_batches')
+      .where('id', journalBatchId)
+      .where('company_id', context.companyUUID)
+      .where('is_deleted', false)
+      .forUpdate()
+      .first<{
+        id: string;
+        date: string;
+        title: string;
+        description: string | null;
+        status: string;
+        reference: string | null;
+        currency_id: string;
+        exchange_rate: string | number;
+        contact_id: string | null;
+        is_recurring: boolean;
+        recurring_template_id: string | null;
+        ledger_transaction_id: string | null;
+        note: string | null;
+        auto_reversal_date: string | null;
+        original_journal_id: string | null;
+        metadata: unknown | null;
+      }>();
+
+    if (!journalBatch) {
+      throw new AppError(
+        'Journal batch not found for company',
+        { traceId, journalBatchId, companyId },
+        false,
+        ErrorCode.NOT_FOUND,
+      );
+    }
+
+    if (journalBatch.status !== 'draft') {
+      throw new AppError(
+        'Only draft journals can be posted',
+        { traceId, journalBatchId, status: journalBatch.status },
+        false,
+        ErrorCode.OPERATION_NOT_ALLOWED,
+      );
+    }
+
+    if (journalBatch.ledger_transaction_id) {
+      throw new AppError(
+        'Draft journal has a ledger transaction and cannot be posted',
+        {
+          traceId,
+          journalBatchId,
+          ledgerTransactionId: journalBatch.ledger_transaction_id,
+        },
+        false,
+        ErrorCode.OPERATION_NOT_ALLOWED,
+      );
+    }
+
+    const journalEntries = await tx('journal_entries')
+      .where('journal_batch_id', journalBatchId)
+      .where('is_deleted', false)
+      .orderBy('created_at', 'asc')
+      .select<
+        {
+          id: string;
+          description: string | null;
+          side: 'debit' | 'credit';
+          amount: string | number;
+          coa_id: string;
+          project_id: string | null;
+          ledger_entry_id: string | null;
+          ledger_entry_fs_date: string | null;
+        }[]
+      >('id', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id', 'ledger_entry_fs_date');
+
+    if (journalEntries.length < 2) {
+      throw new AppError(
+        'At least two journal entries are required to post a draft journal',
+        { traceId, journalBatchId, entryCount: journalEntries.length },
+      );
+    }
+
+    if (
+      journalEntries.some(
+        (e) => e.ledger_entry_id != null || e.ledger_entry_fs_date != null,
+      )
+    ) {
+      throw new AppError(
+        'Draft journal already has ledger links and cannot be posted',
+        { traceId, journalBatchId },
+        false,
+        ErrorCode.OPERATION_NOT_ALLOWED,
+      );
+    }
+
+    // Validate + normalize based on persisted draft fields
+    const metadata =
+      journalBatch.metadata &&
+      typeof journalBatch.metadata === 'object' &&
+      !Array.isArray(journalBatch.metadata)
+        ? (journalBatch.metadata as Record<string, unknown>)
+        : undefined;
+
+    const inputForValidation: JournalBatchData = {
+      status: 'posted',
+      reference: journalBatch.reference,
+      date: toYMD(journalBatch.date),
+      title: journalBatch.title,
+      description: journalBatch.description ?? undefined,
+      contactId: journalBatch.contact_id ?? null,
+      currencyId: journalBatch.currency_id,
+      exchangeRate:
+        journalBatch.exchange_rate != null
+          ? Number(journalBatch.exchange_rate)
+          : undefined,
+      isRecurring: journalBatch.is_recurring,
+      recurringTemplateId: journalBatch.recurring_template_id ?? null,
+      note: journalBatch.note ?? undefined,
+      autoReversalDate: journalBatch.auto_reversal_date
+        ? toYMD(journalBatch.auto_reversal_date)
+        : undefined,
+      originalJournalId: journalBatch.original_journal_id ?? null,
+      metadata,
+      entries: journalEntries.map((e) => ({
+        description: e.description ?? '',
+        side: e.side,
+        amount: Number(e.amount),
+        coaId: e.coa_id,
+        projectId: e.project_id ?? null,
+      })),
+    };
+
+    const prepared = await validateAndPrepareJournalInput({
+      data: inputForValidation,
+      schema: journalBatchDataCamel,
+      context,
+      trx: tx,
+      traceId,
+      journalBatchIdForRefUniqCheck: journalBatchId,
+    });
+
+    // Fiscal period check (posting always)
+    await ensureAndFetchFiscalCalendar({
+      companyId: context.companyUUID,
+      startYMD: toYMD(journalBatch.date),
+      endYMD: toYMD(journalBatch.date),
+      fetchTypes: ['monthly'],
+      trx: tx,
+    });
+
+    // Allocate sequence + determine final reference
+    const ref = await generateJournalReference({
+      companyId: context.companyUUID,
+      journalDate: toYMD(journalBatch.date),
+      trx: tx,
+    });
+
+    const finalReference = prepared.journalReference?.trim()
+      ? prepared.journalReference.trim()
+      : ref.reference;
+
+    const entryFsDate = toYMD(journalBatch.date);
+    const idResult = await tx.raw<{
+      rows: Array<{ id: string }>;
+    }>('SELECT uuid_generate_v7() as id FROM generate_series(1, ?)', [
+      journalEntries.length,
+    ]);
+    const ledgerEntryIds = idResult?.rows?.map((row) => row.id) ?? [];
+    if (ledgerEntryIds.length !== journalEntries.length) {
+      throw new AppError('Failed to allocate ledger entry IDs', {
+        traceId,
+        expected: journalEntries.length,
+        received: ledgerEntryIds.length,
+      });
+    }
+
+    const entryMappings = journalEntries.map((entry, index) => ({
+      journalEntryId: entry.id,
+      ledgerEntryId: ledgerEntryIds[index]!,
+      fsDate: entryFsDate,
+      entry: prepared.entries[index]!,
+    }));
+
+    const ledgerPayload: NewLedgerTransactionData = {
+      date: journalBatch.date,
+      transaction_source: 'manual_journal',
+      categorization_source: 'manual',
+      description: journalBatch.title,
+      note: journalBatch.note ?? null,
+      contact_id: journalBatch.contact_id ?? null,
+      source_transaction_id: journalBatchId,
+      source_transaction_currency_id: prepared.journalCurrencyId,
+      transactions: entryMappings.map((m) => ({
+        id: m.ledgerEntryId,
+        fs_date: m.fsDate,
+        coa_id: m.entry.coa_id,
+        source_currency_id: prepared.journalCurrencyId,
+        source_amount:
+          m.entry.side === 'debit'
+            ? Math.abs(m.entry.amount)
+            : -Math.abs(m.entry.amount),
+        description: m.entry.description ?? null,
+        project_id: m.entry.project_id ?? null,
+        custom_exchange_rate: prepared.isFx ? prepared.exchangeRate : undefined,
+      })),
+    } as const;
+
+    const ledgerResult = await createLedgerRecord({
+      data: ledgerPayload,
+      companyId,
+      userId,
+      trx: tx,
+    });
+
+    if (
+      !ledgerResult.success ||
+      !ledgerResult.data ||
+      !('ledgerTransactionId' in ledgerResult.data)
+    ) {
+      throw new AppError('Failed to create ledger transaction', {
+        traceId,
+        error: ledgerResult.error,
+      });
+    }
+
+    const ledgerTransactionId = ledgerResult.data.ledgerTransactionId as string;
+
+    // Update batch + link entries
+    await tx('journal_batches').where('id', journalBatchId).update({
+      status: 'posted',
+      reference: finalReference,
+      sequence_month: ref.sequenceMonth,
+      sequence_number: ref.sequenceNumber,
+      ledger_transaction_id: ledgerTransactionId,
+      updated_at: now,
+      updated_by_id: userId,
+    });
+
+    const valuesSql = entryMappings.map(() => '(?, ?, ?)').join(', ');
+    const valuesBindings = entryMappings.flatMap((m) => [
+      m.journalEntryId,
+      m.ledgerEntryId,
+      m.fsDate,
+    ]);
+
+    await tx.raw(
+      `UPDATE journal_entries AS je
+       SET ledger_entry_id = v.ledger_entry_id::uuid,
+           ledger_entry_fs_date = v.ledger_entry_fs_date::date,
+           updated_at = ?
+       FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id, ledger_entry_fs_date)
+       WHERE je.id = v.journal_entry_id::uuid`,
+      [now, ...valuesBindings],
+    );
+
+    await writeJournalPostAudit({
+      entityId: journalBatchId,
+      companyId: context.companyUUID,
+      actor: { type: 'user', userId },
+      payload: {
+        previousStatus: 'draft',
+        reference: finalReference,
+        currencyId: prepared.journalCurrencyId,
+        isFx: prepared.isFx,
+        exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
+        entryCount: prepared.entries.length,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId: prepared.contactId,
+        isRecurring: prepared.isRecurring,
+        ledgerTransactionId,
+        sequenceMonth: ref.sequenceMonth,
+        sequenceNumber: ref.sequenceNumber,
+      },
+      trx: tx,
+    });
+
+    return {
+      journalBatchId,
+      journalId: journalBatchId,
+      journalReference: finalReference,
+      ledgerTransactionId,
+    };
+  };
+
+  try {
+    let autoReversalDate: string | null = null;
+
+    const result = trx
+      ? await exec(trx)
+      : await knexClient.transaction(async (tx) => {
+          const posted = await exec(tx);
+          const row = await tx('journal_batches')
+            .where('id', journalBatchId)
+            .first<{ auto_reversal_date: string | null }>('auto_reversal_date');
+          autoReversalDate = row?.auto_reversal_date ?? null;
+          return posted;
+        });
+
+    if (!trx && autoReversalDate) {
+      scheduleJournalAutoReversal({
+        journalBatchId,
+        companyId,
+        reversalDate: autoReversalDate,
+      }).catch((error) =>
+        log(
+          'auto_reversal_schedule_failed',
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'error',
+        ),
+      );
+    }
+
+    return successResponse('Draft journal posted successfully', result);
+  } catch (error) {
+    log(
+      'error',
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      'error',
+    );
+    if (trx) throw mapPostJournalError(error);
+    return errorResponse(
+      'Failed to post draft journal',
+      mapPostJournalError(error),
+    );
+  }
+}
+
+export async function postDraftJournalsBatch({
+  companyId,
+  userId,
+  journalIds,
+  mode,
+  trx,
+}: {
+  companyId: string;
+  userId: string;
+  journalIds: string[];
+  mode: 'partial' | 'all_or_nothing';
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    results: Array<{
+      journalId: string;
+      success: boolean;
+      journalReference?: string;
+      ledgerTransactionId?: string;
+      code?: string;
+      message?: string;
+      error?: unknown;
+    }>;
+    summary: { total: number; posted: number; failed: number };
+  }>
+> {
+  const uniqueIds: string[] = [];
+  const seen = new Set<string>();
+  for (const id of journalIds) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      uniqueIds.push(id);
+    }
+  }
+
+  if (uniqueIds.length === 0) {
+    return errorResponse('At least one journalId is required', undefined, {
+      code: ErrorCode.INVALID_INPUT,
+    });
+  }
+
+  if (mode === 'partial') {
+    const results: Array<{
+      journalId: string;
+      success: boolean;
+      journalReference?: string;
+      ledgerTransactionId?: string;
+      code?: string;
+      message?: string;
+      error?: unknown;
+    }> = [];
+
+    for (const journalId of uniqueIds) {
+      try {
+        const res = await postDraftJournal({
+          journalBatchId: journalId,
+          companyId,
+          userId,
+          trx,
+        });
+
+        if (res.success && res.data) {
+          results.push({
+            journalId,
+            success: true,
+            journalReference: res.data.journalReference,
+            ledgerTransactionId: res.data.ledgerTransactionId,
+          });
+        } else {
+          results.push({
+            journalId,
+            success: false,
+            code: res.code,
+            message: res.message,
+            error: res.error,
+          });
+        }
+      } catch (error: unknown) {
+        results.push({
+          journalId,
+          success: false,
+          code: ErrorCode.GENERIC,
+          message: 'Failed to post draft journal',
+          error,
+        });
+      }
+    }
+
+    const posted = results.filter((r) => r.success).length;
+    const failed = results.length - posted;
+    return successResponse('Batch processed', {
+      results,
+      summary: { total: results.length, posted, failed },
+    });
+  }
+
+  let failedJournalId: string | null = null;
+
+  try {
+    const results: Array<{
+      journalId: string;
+      success: boolean;
+      journalReference?: string;
+      ledgerTransactionId?: string;
+    }> = [];
+
+    const exec = async (tx: Knex.Transaction) => {
+      for (const journalId of uniqueIds) {
+        failedJournalId = journalId;
+        const res = await postDraftJournal({
+          journalBatchId: journalId,
+          companyId,
+          userId,
+          trx: tx,
+        });
+        if (!res.success || !res.data) {
+          throw new AppError(
+            'Failed to post draft journal',
+            { journalId, response: res },
+            false,
+            ErrorCode.GENERIC,
+          );
+        }
+        results.push({
+          journalId,
+          success: true,
+          journalReference: res.data.journalReference,
+          ledgerTransactionId: res.data.ledgerTransactionId,
+        });
+      }
+    };
+
+    if (trx) {
+      await exec(trx);
+    } else {
+      await knexClient.transaction(exec);
+    }
+
+    // Auto-reversal scheduling handled after commit (only when we control the txn)
+    if (!trx) {
+      const rows = await knexClient('journal_batches')
+        .whereIn('id', uniqueIds)
+        .select<
+          { id: string; auto_reversal_date: string | null }[]
+        >('id', 'auto_reversal_date');
+
+      for (const row of rows) {
+        if (!row.auto_reversal_date) continue;
+        scheduleJournalAutoReversal({
+          journalBatchId: row.id,
+          companyId,
+          reversalDate: row.auto_reversal_date,
+        }).catch(() => {});
+      }
+    }
+
+    return successResponse('Batch posted successfully', {
+      results,
+      summary: { total: results.length, posted: results.length, failed: 0 },
+    });
+  } catch (error: unknown) {
+    if (trx) throw error;
+    return errorResponse(
+      'Failed to post draft journals',
+      error,
+      failedJournalId ? { metadata: { failedJournalId } } : undefined,
+    );
+  }
+}
+
+export async function voidDraftJournalsBatch({
+  companyId,
+  userId,
+  journalIds,
+  voidReason,
+  mode,
+  trx,
+}: {
+  companyId: string;
+  userId: string;
+  journalIds: string[];
+  voidReason?: string | null;
+  mode: 'partial' | 'all_or_nothing';
+  trx?: Knex.Transaction;
+}): Promise<
+  ApiResponse<{
+    results: Array<{
+      journalId: string;
+      success: boolean;
+      code?: string;
+      message?: string;
+      error?: unknown;
+    }>;
+    summary: { total: number; voided: number; failed: number };
+  }>
+> {
+  const uniqueIds: string[] = [];
+  const seen = new Set<string>();
+  for (const id of journalIds) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      uniqueIds.push(id);
+    }
+  }
+
+  if (uniqueIds.length === 0) {
+    return errorResponse('At least one journalId is required', undefined, {
+      code: ErrorCode.INVALID_INPUT,
+    });
+  }
+
+  if (mode === 'partial') {
+    const results: Array<{
+      journalId: string;
+      success: boolean;
+      code?: string;
+      message?: string;
+      error?: unknown;
+    }> = [];
+
+    for (const journalId of uniqueIds) {
+      try {
+        const res = await voidDraftJournal({
+          journalBatchId: journalId,
+          companyId,
+          userId,
+          voidReason,
+          trx,
+        });
+
+        results.push(
+          res.success
+            ? { journalId, success: true }
+            : {
+                journalId,
+                success: false,
+                code: res.code,
+                message: res.message,
+                error: res.error,
+              },
+        );
+      } catch (error: unknown) {
+        results.push({
+          journalId,
+          success: false,
+          code: ErrorCode.GENERIC,
+          message: 'Failed to void draft journal',
+          error,
+        });
+      }
+    }
+
+    const voided = results.filter((r) => r.success).length;
+    const failed = results.length - voided;
+    return successResponse('Batch processed', {
+      results,
+      summary: { total: results.length, voided, failed },
+    });
+  }
+
+  let failedJournalId: string | null = null;
+
+  try {
+    const results: Array<{ journalId: string; success: boolean }> = [];
+
+    const exec = async (tx: Knex.Transaction) => {
+      for (const journalId of uniqueIds) {
+        failedJournalId = journalId;
+        const res = await voidDraftJournal({
+          journalBatchId: journalId,
+          companyId,
+          userId,
+          voidReason,
+          trx: tx,
+        });
+        if (!res.success) {
+          throw new AppError(
+            'Failed to void draft journal',
+            { journalId, response: res },
+            false,
+            ErrorCode.GENERIC,
+          );
+        }
+        results.push({ journalId, success: true });
+      }
+    };
+
+    if (trx) {
+      await exec(trx);
+    } else {
+      await knexClient.transaction(exec);
+    }
+
+    return successResponse('Batch voided successfully', {
+      results,
+      summary: { total: results.length, voided: results.length, failed: 0 },
+    });
+  } catch (error: unknown) {
+    if (trx) throw error;
+    return errorResponse(
+      'Failed to void draft journals',
+      error,
+      failedJournalId ? { metadata: { failedJournalId } } : undefined,
+    );
   }
 }
 

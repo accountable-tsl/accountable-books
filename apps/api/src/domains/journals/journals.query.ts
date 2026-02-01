@@ -517,11 +517,15 @@ export async function getJournal({
   journalId,
   companyId,
   includeLedgerTotals = false,
+  includeFiles = false,
+  includeDeleted = false,
   trx,
 }: {
   journalId: string;
   companyId: string;
   includeLedgerTotals?: boolean;
+  includeFiles?: boolean;
+  includeDeleted?: boolean;
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<GetJournalResponse>> {
   const traceId = randomUUID();
@@ -541,25 +545,95 @@ export async function getJournal({
     );
     const computedFields = [
       db.raw(
-        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.is_deleted = false AND je.side = 'debit'), 0) as "totalDebit"`,
+        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'debit' AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0) as "totalDebit"`,
       ),
       db.raw(
-        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.is_deleted = false AND je.side = 'credit'), 0) as "totalCredit"`,
+        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'credit' AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0) as "totalCredit"`,
       ),
     ];
 
-    const journal = (await db
+    const journalQb = db
       .from({ jb: JOURNAL_BATCHES })
       .leftJoin({ c: CONTACTS }, 'c.id', 'jb.contact_id')
       .innerJoin({ cur: CURRENCIES }, 'cur.id', 'jb.currency_id')
       .where('jb.id', journalId)
       .where('jb.company_id', companyUUID)
-      .where('jb.is_deleted', false)
       .select([...journalHeaderSelectFields, ...computedFields])
-      .first()) as unknown as GetJournalResponse['journal'] | undefined;
+      .first();
+
+    if (!includeDeleted) {
+      journalQb.where('jb.is_deleted', false);
+    }
+
+    const journal = (await journalQb) as unknown as
+      | GetJournalResponse['journal']
+      | undefined;
 
     if (!journal) {
       return errorResponse(`Journal not found: ${journalId}`, { traceId });
+    }
+
+    let files: GetJournalResponse['files'] | undefined;
+    if (includeFiles) {
+      const rows = await db
+        .from({ fa: 'file_attachments' })
+        .innerJoin({ f: 'files' }, 'f.id', 'fa.file_id')
+        .where('fa.source', 'journal')
+        .where('fa.transaction_id', journalId)
+        .where('fa.is_deleted', false)
+        .where('f.company_id', companyUUID)
+        .where('f.is_deleted', false)
+        .select<
+          {
+            id: string;
+            name: string;
+            key: string;
+            url: string;
+            type: string;
+            bucket_name: string;
+            size_bytes: string | number | bigint;
+            checksum: string | null;
+            provider: string | null;
+            region: string | null;
+            endpoint: string | null;
+            transaction_id: string;
+            entry_id: string | null;
+          }[]
+        >(
+          db.raw(`fa.id as "id"`),
+          db.raw(`f.name as "name"`),
+          db.raw(`f.key as "key"`),
+          db.raw(`f.url as "url"`),
+          db.raw(`f.mime_type as "type"`),
+          db.raw(`f.bucket_name as "bucket_name"`),
+          db.raw(`f.size_bytes as "size_bytes"`),
+          db.raw(`f.checksum as "checksum"`),
+          db.raw(`f.provider as "provider"`),
+          db.raw(`f.region as "region"`),
+          db.raw(`f.endpoint as "endpoint"`),
+          db.raw(`fa.transaction_id as "transaction_id"`),
+          db.raw(`fa.entry_id as "entry_id"`),
+        )
+        .orderBy([
+          { column: 'fa.attached_at', order: 'asc' },
+          { column: 'fa.id', order: 'asc' },
+        ]);
+
+      files = rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        key: r.key,
+        url: r.url,
+        type: r.type,
+        bucket_name: r.bucket_name,
+        size_bytes: String(r.size_bytes),
+        checksum: r.checksum ?? null,
+        provider: r.provider ?? null,
+        region: r.region ?? null,
+        endpoint: r.endpoint ?? null,
+        transaction_id: r.transaction_id,
+        entry_id: r.entry_id ?? null,
+      }));
     }
 
     const entriesRaw = (await db
@@ -569,8 +643,15 @@ export async function getJournal({
       .leftJoin({ p: 'projects' }, 'p.id', 'je.project_id')
       .where('je.journal_batch_id', journalId)
       .where('jb.company_id', companyUUID)
-      .where('jb.is_deleted', false)
-      .where('je.is_deleted', false)
+      .andWhere((w) => {
+        w.where((active) =>
+          active.whereNot('jb.status', 'voided').where('je.is_deleted', false),
+        ).orWhere((voided) =>
+          voided
+            .where('jb.status', 'voided')
+            .whereRaw('je.deleted_at = jb.deleted_at'),
+        );
+      })
       .where('coa.is_deleted', false)
       .where('coa.company_id', companyUUID)
       .select([
@@ -681,6 +762,7 @@ export async function getJournal({
     return successResponse('Journal retrieved successfully', {
       journal,
       entries,
+      files,
       ledgerTotals,
       relatedJournals,
     });
