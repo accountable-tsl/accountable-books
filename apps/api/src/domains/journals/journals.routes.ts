@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { getPeriodStatusController } from '../reporting/fiscal-calendar/period-status.controller.js';
 import {
   copyJournalController,
   getJournalController,
@@ -26,6 +27,7 @@ router.patch('/:journalId/post', postDraftJournalController);
 router.patch('/:journalId/void', voidDraftJournalController);
 router.patch('/:journalId/reverse', reverseJournalController);
 router.post('/:journalId/copy', copyJournalController);
+router.get('/period-status', getPeriodStatusController);
 router.get('/:journalId', getJournalController);
 
 export default router;

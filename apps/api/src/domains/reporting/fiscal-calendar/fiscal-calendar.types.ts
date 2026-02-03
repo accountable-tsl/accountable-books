@@ -65,6 +65,22 @@ export interface FiscalPeriodValidation {
   warnings: string[];
 }
 
+export const periodStatusQuery = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+export type PeriodStatusQuery = z.infer<typeof periodStatusQuery>;
+
+export type PeriodStatusResponse = {
+  status: FiscalCalendarStatus;
+  periodInfo?: {
+    periodType: FiscalPeriodType;
+    fiscalYear: number;
+    periodNumber: number;
+    startDate: string;
+    endDate: string;
+  };
+};
+
 // Job data interfaces for fiscal calendar queue
 export type FiscalCalendarJobType =
   | 'generate-calendar'

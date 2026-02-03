@@ -1301,3 +1301,57 @@ export async function ensureAndFetchFiscalCalendar({
 
   return { rows };
 }
+
+/**
+ * Returns the fiscal period status for a specific date.
+ *
+ * Intended for UI hints like "this date is in a locked period" before attempting
+ * to post journals/ledger transactions.
+ *
+ * This function is non-throwing with respect to period status (closed/locked):
+ * it will return the status rather than raising, but it will still throw for
+ * invalid inputs or missing company.
+ */
+export async function getPeriodStatusForDate({
+  companyId,
+  date,
+  trx,
+}: {
+  companyId: string;
+  date: string; // YYYY-MM-DD
+  trx?: Knex.Transaction;
+}): Promise<{
+  status: FiscalCalendarStatus;
+  periodInfo?: {
+    periodType: FiscalPeriodType;
+    fiscalYear: number;
+    periodNumber: number;
+    startDate: string;
+    endDate: string;
+  };
+}> {
+  const { rows } = await ensureAndFetchFiscalCalendar({
+    companyId,
+    startYMD: date,
+    endYMD: date,
+    fetchTypes: ['monthly'],
+    requireMonthlyOpen: false,
+    trx,
+  });
+
+  const monthly = rows.find((p) => p.period_type === 'monthly') ?? rows[0];
+  if (!monthly) {
+    throw new Error(`No fiscal period found for date ${date}`);
+  }
+
+  return {
+    status: monthly.status,
+    periodInfo: {
+      periodType: monthly.period_type,
+      fiscalYear: monthly.fiscal_year,
+      periodNumber: monthly.period_number,
+      startDate: monthly.start_date,
+      endDate: monthly.end_date,
+    },
+  };
+}

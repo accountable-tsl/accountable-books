@@ -28,6 +28,7 @@ import journalsRoutes from './domains/journals/journals.routes.js';
 import ledgersRoutes from './domains/ledgers/ledgers.routes.js';
 import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
+import periodStatusRoutes from './domains/reporting/fiscal-calendar/period-status.routes.js';
 import { loadRoles } from './domains/roles/roles.model.js';
 import settingsRoutes from './domains/settings/settings.routes.js';
 import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
@@ -165,6 +166,7 @@ export async function setupApp() {
   app.use('/api/:companyId/bank-accounts/transactions', bankTransactionRoutes);
   app.use('/api/bank-feed-providers', bankFeedProvidersRoutes);
   app.use('/api/:companyId', usersCompaniesRolesRoutes);
+  app.use('/api/:companyId', periodStatusRoutes);
 
   app.use('/api/:companyId/categorization', categorizationRoutes);
   app.use('/api/:companyId/coa', coaRoutes);

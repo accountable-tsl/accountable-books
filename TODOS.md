@@ -43,6 +43,7 @@
 - [ ] Add all ISO 4217 currency codes to currencies table
 - [ ] Add concurrency to deploy-staging.yml: { group: staging, cancel-in-progress: true }
 - [ ] When implementing payments, do not do stripe only. Make sure to have a fallback ready by default
+- [ ] Make sure we are not allowing users to add heavy files and where relevant necessary, don't load large or many files into memory
 
 ### LATER (Future Versions / Nice-to-Have)
 

@@ -1,233 +1,57 @@
 import type { Worker } from 'bullmq';
 
-import { startBalanceRecalcWorker } from '../../domains/balances/index.js';
-import { startAutopostWorker } from '../../domains/categorization/autopost/autopost.worker.js';
-import {
-  startEnrichmentWorker,
-  startMLPredictionWorker,
-  startRuleRunnerWorker,
-} from '../../domains/categorization/index.js';
-import { startFiscalCalendarWorker } from '../../domains/reporting/fiscal-calendar/index.js';
-import { startJournalAutoReversalWorker } from '../../domains/journals/auto-reversal.worker.js';
-import { startEmailWorker } from '../../features/communications/email/index.js';
-import { startTransactionSyncWorker } from '../../integrations/banking/index.js';
-import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
-
-export interface WorkerConfig {
-  email: {
-    concurrency: number;
-  };
-  transactionSync: {
-    concurrency: number;
-  };
-  partitionMaintenance: {
-    concurrency: number;
-  };
-  balanceRecalc: {
-    concurrency: number;
-  };
-  fiscalCalendar: {
-    concurrency: number;
-  };
-  enrichment: {
-    concurrency: number;
-  };
-  ruleRunner: {
-    concurrency: number;
-  };
-  mlPrediction: {
-    concurrency: number;
-  };
-  autopost: {
-    concurrency: number;
-  };
-  journalAutoReversal: {
-    concurrency: number;
-  };
-}
-
-// Default worker configuration
-const DEFAULT_WORKER_CONFIG: WorkerConfig = {
-  email: {
-    concurrency: Number(process.env.EMAIL_WORKER_CONCURRENCY) || 5,
-  },
-  transactionSync: {
-    concurrency: Number(process.env.TRANSACTION_SYNC_CONCURRENCY) || 3,
-  },
-  partitionMaintenance: {
-    concurrency: Number(process.env.PARTITION_MAINTENANCE_CONCURRENCY) || 1,
-  },
-  balanceRecalc: {
-    concurrency: Number(process.env.BALANCE_RECALC_CONCURRENCY) || 5,
-  },
-  fiscalCalendar: {
-    concurrency: Number(process.env.FISCAL_CALENDAR_CONCURRENCY) || 3,
-  },
-  enrichment: {
-    concurrency: Number(process.env.ENRICHMENT_WORKER_CONCURRENCY) || 10,
-  },
-  ruleRunner: {
-    concurrency: Number(process.env.RULE_RUNNER_CONCURRENCY) || 5,
-  },
-  mlPrediction: {
-    concurrency: Number(process.env.ML_WORKER_CONCURRENCY) || 5,
-  },
-  autopost: {
-    concurrency: Number(process.env.AUTOPOST_WORKER_CONCURRENCY) || 5,
-  },
-  journalAutoReversal: {
-    concurrency: Number(process.env.JOURNAL_AUTO_REVERSAL_CONCURRENCY) || 1,
-  },
-};
+import { WORKER_REGISTRY } from '../registry.js';
 
 // Active workers tracking
 const activeWorkers: Map<string, Worker> = new Map();
 
 /**
  * Start all configured workers
- * @param config Optional worker configuration override
  * @returns Array of started workers
  */
-export async function startAllWorkers(
-  config: Partial<WorkerConfig> = {},
-): Promise<Worker[]> {
-  const workerConfig = { ...DEFAULT_WORKER_CONFIG, ...config };
+export async function startAllWorkers(): Promise<Worker[]> {
   const workers: Worker[] = [];
 
-  // Start email worker
-  try {
-    const emailWorker = startEmailWorker();
-    activeWorkers.set('email', emailWorker);
-    workers.push(emailWorker);
-    console.log('📧 Email worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start email worker:', error);
-    throw error;
+  console.log(`🚀 Starting ${WORKER_REGISTRY.length} workers...`);
+
+  for (const definition of WORKER_REGISTRY) {
+    const {
+      name,
+      factory,
+      config,
+      critical = false,
+      label,
+      icon = '🔧',
+    } = definition;
+
+    try {
+      console.log(`${icon} Starting ${name} worker...`);
+
+      let worker: Worker;
+      if (config) {
+        // Concurrency logic: Env var > Default value
+        const concurrency =
+          Number(process.env[config.envVar]) || config.defaultValue;
+        worker = factory(concurrency);
+      } else {
+        worker = factory();
+      }
+
+      activeWorkers.set(name, worker);
+      workers.push(worker);
+      console.log(`✅ ${label} started successfully`);
+    } catch (error) {
+      console.error(`❌ Failed to start ${name} worker:`, error);
+      if (critical) {
+        throw error;
+      }
+      console.log(`⚠️  Continuing without ${name} worker`);
+    }
   }
 
-  // Start transaction sync worker
-  try {
-    const syncWorker = startTransactionSyncWorker(
-      workerConfig.transactionSync.concurrency,
-    );
-    activeWorkers.set('transactionSync', syncWorker);
-    workers.push(syncWorker);
-    console.log('💳 Transaction sync worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start transaction sync worker:', error);
-    throw error;
-    // Throw, this is mission critical
-  }
-
-  // Start partition maintenance worker
-  try {
-    const partitionWorker = startPartitionMaintenanceWorker();
-    activeWorkers.set('partitionMaintenance', partitionWorker);
-    workers.push(partitionWorker);
-    console.log('🗂️ Partition maintenance worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start partition maintenance worker:', error);
-    // Don't throw for partition maintenance as it's not critical for MVP
-  }
-
-  // Start balance recalculation worker (always enabled - core functionality)
-  try {
-    console.log('⚖️  Starting balance recalculation worker...');
-    const balanceWorker = startBalanceRecalcWorker();
-    activeWorkers.set('balanceRecalc', balanceWorker);
-    workers.push(balanceWorker);
-    console.log('✅ Balance recalculation worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start balance recalculation worker:', error);
-    // Balance recalc is core functionality, so throw the error
-    throw error;
-  }
-
-  // Start fiscal calendar worker (core functionality for period management)
-  try {
-    console.log('📅 Starting fiscal calendar worker...');
-    const fiscalCalendarWorker = startFiscalCalendarWorker(
-      workerConfig.fiscalCalendar.concurrency,
-    );
-    activeWorkers.set('fiscalCalendar', fiscalCalendarWorker);
-    workers.push(fiscalCalendarWorker);
-    console.log('✅ Fiscal calendar worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start fiscal calendar worker:', error);
-    // Fiscal calendar is core functionality, so throw the error
-    throw error;
-  }
-
-  // Start enrichment worker (transaction enrichment for categorization)
-  try {
-    console.log('🔍 Starting enrichment worker...');
-    const enrichmentWorker = startEnrichmentWorker();
-    activeWorkers.set('enrichment', enrichmentWorker);
-    workers.push(enrichmentWorker);
-    console.log('✅ Enrichment worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start enrichment worker:', error);
-    // Enrichment is not critical for core operations, so just log the error
-    console.log('⚠️  Continuing without enrichment worker');
-  }
-
-  // Start rule runner worker (required for categorization automation)
-  try {
-    console.log('⚙️  Starting rule runner worker...');
-    const ruleRunnerWorker = startRuleRunnerWorker(
-      workerConfig.ruleRunner.concurrency,
-    );
-    activeWorkers.set('ruleRunner', ruleRunnerWorker);
-    workers.push(ruleRunnerWorker);
-    console.log('✅ Rule runner worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start rule runner worker:', error);
-    throw error;
-  }
-
-  // Start ML prediction worker (ML-based transaction categorization)
-  try {
-    console.log('🤖 Starting ML prediction worker...');
-    const mlPredictionWorker = startMLPredictionWorker(
-      workerConfig.mlPrediction.concurrency,
-    );
-    activeWorkers.set('mlPrediction', mlPredictionWorker);
-    workers.push(mlPredictionWorker);
-    console.log('✅ ML prediction worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start ML prediction worker:', error);
-    // ML is not critical for core operations, so just log the error
-    console.log('⚠️  Continuing without ML prediction worker');
-  }
-
-  // Start autopost worker (delayed autoposting of candidates)
-  try {
-    console.log('📤 Starting autopost worker...');
-    const autopostWorker = startAutopostWorker();
-    activeWorkers.set('autopost', autopostWorker);
-    workers.push(autopostWorker);
-    console.log('✅ Autopost worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start autopost worker:', error);
-    // Autopost is not critical for core operations, so just log the error
-    console.log('⚠️  Continuing without autopost worker');
-  }
-
-  // Start journal auto-reversal worker
-  try {
-    console.log('🧾 Starting journal auto-reversal worker...');
-    const journalAutoReversalWorker = startJournalAutoReversalWorker(
-      workerConfig.journalAutoReversal.concurrency,
-    );
-    activeWorkers.set('journalAutoReversal', journalAutoReversalWorker);
-    workers.push(journalAutoReversalWorker);
-    console.log('✅ Journal auto-reversal worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start journal auto-reversal worker:', error);
-    console.log('⚠️  Continuing without journal auto-reversal worker');
-  }
-
-  console.log(`✅ Started ${workers.length} workers successfully`);
+  console.log(
+    `✅ Started ${workers.length}/${WORKER_REGISTRY.length} workers successfully`,
+  );
   return workers;
 }
 
