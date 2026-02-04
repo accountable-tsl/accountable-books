@@ -47,7 +47,7 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 | Posted journal mutability | **Immutable.** No edit. Only Reverse & Copy.                                                                                             | Accounting standard. Strongest audit integrity.                 |
 | Draft balancing           | **Always balanced.** Zero-sum enforced even for drafts.                                                                                  | Less error-prone. User must balance before saving anything.     |
 | Navigation                | **Sub-page of Accounting** at `/ws/accounting/journals`                                                                                  | User preference                                                 |
-| Frequencies (recurring)   | **All**: daily, weekly, monthly, quarterly, yearly                                                                                       | Maximum flexibility. Document exact semantics in code + docs.   |
+| Frequencies (recurring)   | **v1**: daily, weekly, monthly, yearly (reject quarterly)                                                                                | Keep v1 simple. Document exact semantics in code + docs.        |
 | CSV grouping              | **Prefer reference_id, else date + title.**                                                                                              | Stable grouping + supports idempotency when provided            |
 | Currency (v1)             | **Single currency per journal batch (FX supported).** `currencyId` may differ from reporting; `exchangeRate` may be provided or derived. | Enables basic FX without per-line currency complexity           |
 | Status actions            | Draft: edit, delete, post. Posted: view, copy, reverse. Voided: view, copy.                                                              | Standard accounting                                             |
@@ -499,7 +499,7 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
 - `daily`: every calendar day
 - `weekly`: every 7 days (same weekday as `start_date`)
 - `monthly`: same day-of-month as `start_date` (if day doesn’t exist in a month, use month-end)
-- `quarterly`: every 3 months (same rule as monthly for day-of-month handling)
+- `quarterly`: **not supported in v1** (reject with 400 INVALID_INPUT)
 - `yearly`: same month/day as `start_date` (if Feb 29, use Feb 28 on non-leap years)
 
 **Files:**
@@ -543,7 +543,7 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
   - Title (narration template, supports placeholders)
   - Start Date (required)
   - End Date (optional — "Never expires" checkbox)
-  - Frequency dropdown (daily, weekly, monthly, quarterly, yearly)
+  - Frequency dropdown (daily, weekly, monthly, yearly)
   - Auto-post toggle
   - Same debit/credit entry table as regular journals
 - Actions: Edit, Activate/Pause, Close, Run Now

@@ -19,7 +19,7 @@ import {
   voidDraftJournal,
   voidDraftJournalsBatch,
 } from '../journals.command.js';
-import { getJournal } from '../journals.query.js';
+import { getJournal, getJournalsByPage } from '../journals.query.js';
 
 describe('postJournalRecord - Integration Tests', () => {
   let trx: Knex.Transaction;
@@ -146,6 +146,64 @@ describe('postJournalRecord - Integration Tests', () => {
     expect(batch.sequence_month).toBeNull();
     expect(batch.sequence_number).toBeNull();
     expect(batch.reference).toBe('DRAFT-MANUAL-REF');
+  });
+
+  it('lists voided journals with correct totals when includeDeleted=true', async () => {
+    const created = await postJournalRecord({
+      data: {
+        date: '2025-01-30',
+        title: 'Draft to Void',
+        status: 'draft',
+        currencyId: usdCurrencyId,
+        entries: [
+          {
+            description: 'Cash',
+            coaId: testCoaIds.cash,
+            amount: 123.45,
+            side: 'debit',
+          },
+          {
+            description: 'Expense',
+            coaId: testCoaIds.expense,
+            amount: 123.45,
+            side: 'credit',
+          },
+        ],
+      },
+      companyId: testCompanyId,
+      userId: testUserId,
+      trx,
+    });
+
+    expect(created.success).toBe(true);
+    const journalId = created.data!.journalBatchId;
+
+    const voided = await voidDraftJournal({
+      journalBatchId: journalId,
+      companyId: testCompanyId,
+      userId: testUserId,
+      trx,
+    });
+    expect(voided.success).toBe(true);
+
+    const listed = await getJournalsByPage({
+      userId: testUserId,
+      companyId: testCompanyId,
+      queryData: {
+        page: 1,
+        pageSize: 25,
+        includeDeleted: true,
+        sortBy: 'created_at',
+        sortDir: 'desc',
+      },
+      trx,
+    });
+
+    expect(listed.success).toBe(true);
+    const row = listed.data!.journals.find((j) => j.id === journalId);
+    expect(row).toBeTruthy();
+    expect(Number(row!.totalDebit)).toBeCloseTo(123.45, 2);
+    expect(Number(row!.totalCredit)).toBeCloseTo(123.45, 2);
   });
 
   it('uses provided FX rate for posted FX journal', async () => {

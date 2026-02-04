@@ -132,10 +132,28 @@ function buildJournalsBaseQuery(
 
   const computedFields = [
     db.raw(
-      `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.is_deleted = false AND je.side = 'debit'), 0) as "totalDebit"`,
+      `COALESCE((
+        SELECT SUM(amount)
+        FROM journal_entries je
+        WHERE je.journal_batch_id = jb.id
+          AND je.side = 'debit'
+          AND (
+            (jb.status <> 'voided' AND je.is_deleted = false)
+            OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+          )
+      ), 0) as "totalDebit"`,
     ),
     db.raw(
-      `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.is_deleted = false AND je.side = 'credit'), 0) as "totalCredit"`,
+      `COALESCE((
+        SELECT SUM(amount)
+        FROM journal_entries je
+        WHERE je.journal_batch_id = jb.id
+          AND je.side = 'credit'
+          AND (
+            (jb.status <> 'voided' AND je.is_deleted = false)
+            OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+          )
+      ), 0) as "totalCredit"`,
     ),
   ];
 
