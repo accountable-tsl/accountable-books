@@ -2,7 +2,7 @@
 
 > **AI-native accounting platform for accounting firms**
 
-Accountable Books is the MVP of our AI-native accounting suite. We ingest bank data via **Plaid** (US) and **Mono** (Nigeria), auto-categorize transactions using **ML with explainability**, draft journals & financials, and provide human review workflows for exceptions.
+Accountable Books is the MVP and wedge product for our AI-native accounting suite. We ingest bank data via **Plaid** (US) and **Mono** (Nigeria), auto-categorize transactions using **ML with explainability**, draft journals & financials, and provide human review workflows for exceptions.
 
 ## 🚀 Quick Start
 

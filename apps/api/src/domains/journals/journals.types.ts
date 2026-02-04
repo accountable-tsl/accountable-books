@@ -6,10 +6,7 @@ import {
   debitCredit,
   zDateYMD,
 } from '../../core/types/core.js';
-import {
-  createCamelCaseSchema,
-  createCamelCaseSchemaWithExclusions,
-} from '../../shared/utils/formatting.utils.js';
+import { createCamelCaseSchemaWithExclusions } from '../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
@@ -199,7 +196,7 @@ export type ListJournalsPageQuery = z.infer<typeof listJournalsPageQuery>;
 
 export const listJournalsCursorQuery = listJournalsFilters.extend({
   limit: z.coerce.number().int().positive().max(100).default(50),
-  cursor: z.string().min(1),
+  cursor: z.string().min(1).optional(),
 });
 
 export type ListJournalsCursorQuery = z.infer<typeof listJournalsCursorQuery>;
@@ -349,3 +346,121 @@ export type GenJournalReferenceResult = {
   sequenceNumber: number; // 1..N
   reference: string; // "JE-YYYYMM-NNNN"
 };
+
+// =============================================================================
+// CSV Import (Preflight + Import)
+// =============================================================================
+
+const csvString = z.preprocess((v) => {
+  if (v === null || v === undefined) return undefined;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    return t === '' ? undefined : t;
+  }
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return v;
+}, z.string().optional());
+
+const csvMoney = z.preprocess((v) => {
+  if (v === null || v === undefined) return undefined;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const t = v.trim();
+    if (t === '') return undefined;
+    const cleaned = t.replace(/,/g, '');
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : v;
+  }
+  return v;
+}, z.number().optional());
+
+/**
+ * Flat rows matching locked CSV headers.
+ * We intentionally keep everything optional at the schema level so the backend
+ * can return row-level errors in preflight instead of rejecting the request.
+ */
+export const journalImportCsvLine = z.object({
+  date: csvString,
+  title: csvString,
+  journal_reference: csvString,
+  description: csvString,
+  note: csvString,
+  currency_code: csvString,
+  auto_reversal_date: csvString,
+  line_description: csvString,
+  account_code: csvString,
+  account_name: csvString,
+  project_code: csvString,
+  project_name: csvString,
+  debit: csvMoney,
+  credit: csvMoney,
+});
+export type JournalImportCsvLine = z.infer<typeof journalImportCsvLine>;
+
+export const journalImportPreflightBody = z.object({
+  lines: z.array(journalImportCsvLine).max(5000),
+  overrides: z
+    .object({
+      accounts: z
+        .array(z.object({ key: z.string().min(1), coaId: z.uuid() }))
+        .optional(),
+      projects: z
+        .array(z.object({ key: z.string().min(1), projectId: z.uuid() }))
+        .optional(),
+      journals: z
+        .array(
+          z.object({
+            importKey: z.string().min(1),
+            contactId: z.uuid().nullish(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
+});
+export type JournalImportPreflightBody = z.infer<
+  typeof journalImportPreflightBody
+>;
+
+export const journalImportAction = z.enum(['draft', 'posted']);
+export type JournalImportAction = z.infer<typeof journalImportAction>;
+
+const journalImportDataSnake = z
+  .object({
+    reference: z.string().nullish(),
+    date: z.iso.date(),
+    title: z.string().min(1).max(512),
+    description: z.string().max(2048).optional(),
+    note: z.string().max(2048).optional(),
+
+    contact_id: z.uuid().nullish(),
+    currency_id: z.uuid().nullish(),
+    exchange_rate: z.number().positive().nullish(),
+    auto_reversal_date: z.iso.date().nullish(),
+
+    metadata: z.record(z.string(), z.unknown()).optional(),
+
+    entries: z.array(journalEntryInput).min(2),
+  })
+  .strict();
+
+export const journalImportDataCamel = createCamelCaseSchemaWithExclusions(
+  journalImportDataSnake,
+  { excludeKeys: ['metadata'] },
+);
+export type JournalImportData = SnakeToCamelCaseObject<
+  z.infer<typeof journalImportDataSnake>
+>;
+
+export const journalImportBody = z.object({
+  mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
+  journals: z.array(
+    z.object({
+      importKey: z.string().min(1).max(200),
+      action: journalImportAction,
+      data: journalImportDataCamel,
+    }),
+  ),
+});
+
+export type JournalImportBody = z.infer<typeof journalImportBody>;

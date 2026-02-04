@@ -1,6 +1,6 @@
 import type { TxnFileBase } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
-import z from 'zod';
+import { z } from 'zod';
 
 import {
   acquireAdvisoryXactLocks,
@@ -284,7 +284,6 @@ export async function validateAndPrepareJournalInput<
       .where('company_id', p.context.companyUUID)
       .whereIn('id', projectIds)
       .where('is_deleted', false)
-      .where('is_active', true)
       .select('id');
 
     if (projects.length !== projectIds.length) {

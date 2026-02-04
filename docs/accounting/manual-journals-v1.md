@@ -1,5 +1,7 @@
 # Manual Journals (v1) - Implementation Spec / Plan
 
+> Note: This document is an earlier draft. The current canonical spec and implementation status lives in `docs/accounting/manual-journals_v1.md`.
+
 Owner: Accounting workspace
 Status: Draft
 Last updated: 2026-01-28
@@ -37,7 +39,8 @@ Last updated: 2026-01-28
 
 These decisions avoid rework and ambiguity:
 
-1) Terminology / navigation
+1. Terminology / navigation
+
 - Option A (recommended): Two pages:
   - Manual Journals (actual posted/draft/voided journal batches)
   - Recurring Journals (templates)
@@ -45,13 +48,15 @@ These decisions avoid rework and ambiguity:
 - Option B: One page with a filter toggle `Type: Actual | Template` and a status filter that includes “Recurring”.
   - Tradeoff: simpler navigation, but harder mental model; list columns/actions differ.
 
-2) Header fields naming
+2. Header fields naming
+
 - Proposed mapping (minimal DB churn):
   - `journal_batches.title` = “Narration” (required, user-facing primary text)
   - `journal_batches.description` = optional additional description
   - `journal_entries.description` = per-line description (optional, defaults to narration)
 
-3) Posted journal mutability
+3. Posted journal mutability
+
 - Option A (recommended, accounting-standard):
   - Draft journals: editable; can be deleted permanently.
   - Posted journals: immutable; user can only (a) void-with-reversal (same date) or (b) reverse on a chosen open date.
@@ -61,13 +66,15 @@ These decisions avoid rework and ambiguity:
   - Allow editing posted journals by soft-deleting the old and creating a new posted journal (effectively a hidden reversal).
   - Tradeoff: user-friendly label, but dangerous if not implemented as an explicit reversal; also complicates audit meaning.
 
-4) Voiding semantics
+4. Voiding semantics
+
 - Proposed:
   - Draft: `delete` (hard delete) or `void` (soft delete) depending on preference; spec says “only draft can be deleted permanently”.
   - Posted: cannot be hard-deleted; must be reversed or voided via reversing entry.
 - Note: “Void without reversal” for a posted journal is not recommended because the ledger already contains the effect. If implemented, it must still create opposite ledger entries (that is a reversal).
 
-5) Closed period behavior on post / autopost
+5. Closed period behavior on post / autopost
+
 - Requirement: if user attempts to post into a closed/locked period, **save as draft** and notify.
 - Proposed consistent behavior:
   - Create the journal batch + entries (status = `draft`), record an audit event “post_blocked_period”, and return a warning to UI.
@@ -94,16 +101,19 @@ These decisions avoid rework and ambiguity:
 User needs “reversal date (optional) at creation time” (auto-reversal).
 
 Recommended additions to `journal_batches`:
+
 - `auto_reversal_date` (timestamp, nullable)
 - `auto_reversal_journal_id` (uuid, nullable, FK to `journal_batches.id`) OR reuse existing reversal linkage fields with clearer naming.
 
 Alternatives:
+
 - Store auto-reversal as a job record only (no DB column) and rely on audit logs to discover.
   - Tradeoff: harder to reason about state in UI and support.
 - Store auto-reversal data in `journal_batches.metadata`.
   - Tradeoff: no DB constraints/indexing; harder to query reliably.
 
 Also decide how “generated from template” is represented:
+
 - Preferred: use existing `recurring_template_id` on `journal_batches` for “this journal was generated from template X”.
 - If `journals.types.ts` has `generated_from_template_id`, either:
   - remove it (and use `recurring_template_id`), or
@@ -156,10 +166,12 @@ Base: `/api/:companyId/journals`
   - copy allowed even if original journal date is in a closed period (because new is draft)
 
 Bulk actions (optional but matches “from list view” requirement):
+
 - `PATCH /void` with `{ ids: string[] }`
 - `POST /copy` with `{ ids: string[] }` (returns new ids)
 
 Alternatives:
+
 - Combine `POST` + `PATCH /:id/post` and never allow `status=posted` on create.
   - Tradeoff: simplifies behavior, but more calls/UX steps.
 
@@ -179,29 +191,35 @@ Base: `/api/:companyId/recurring-journals`
 ### Double-entry balancing (must net to zero)
 
 Approach:
+
 - UI: show totals and block “Post” unless balanced.
 - API: enforce balance with `validateDebitCreditBalance()` (source of truth).
 
 Tradeoff:
+
 - Allow saving unbalanced drafts (some accounting apps do). This can reduce friction, but risks forgotten unbalanced drafts and makes posting-time errors more common.
 - Recommendation (v1): allow saving drafts even if unbalanced ONLY if explicitly desired; otherwise enforce balance even for drafts for simplicity.
 
 ### Currency (reporting currency only in v1)
 
 Approach:
+
 - Backend: ignore/forbid any `currency_id/currency_code/exchange_rate` different from company.reporting_currency_id.
 - Frontend: hide currency fields; show a read-only “Reporting currency: XXX”.
 
 Tradeoff:
+
 - Enforcing early prevents future multi-currency; but given v1 constraint, it avoids half-working FX behavior.
 
 ### Closed/locked fiscal periods
 
 Approach:
+
 - Reuse existing ledger constraint `period_not_locked` to decide whether a journal can be posted on a date.
 - Implement explicit pre-check for journal date before attempting ledger creation, so we can “save as draft” instead of rolling back.
 
 Rules:
+
 - Posting into closed/locked period:
   - create journal as draft; return warning: “Period is closed; journal saved as draft.”
 - Reversals:
@@ -224,6 +242,7 @@ Rules:
 Goal: explain “what happened, when, by who”, and support immutable accounting records.
 
 Approach:
+
 - Use `audit_events` for all journal lifecycle transitions:
   - create (draft)
   - update (draft)
@@ -235,6 +254,7 @@ Approach:
   - import
 
 Important: align `audit_events.action` enum with reality.
+
 - Option A (recommended): expand enum to include `void`, `reverse`, `copy`, `post_blocked_period`.
   - Tradeoff: migration needed, but data becomes self-describing.
 - Option B: map to existing actions:
@@ -249,6 +269,7 @@ Important: align `audit_events.action` enum with reality.
 Requirement: if a journal is posted with a reversal date, enqueue a job to create the opposite entries on that date.
 
 Approach options:
+
 - Option A (recommended): daily “reversal scan” job
   - Store `auto_reversal_date` on `journal_batches`.
   - Daily job finds due reversals where `auto_reversal_date <= now`, not yet reversed, and journal is posted.
@@ -258,11 +279,13 @@ Approach options:
   - Tradeoff: precise timing; but large volumes can stress Redis delayed set and makes recovery/idempotency trickier.
 
 Idempotency rules:
+
 - Reversal job must be safe to run twice: check “already reversed” and/or “auto_reversal_journal_id exists” before acting.
 
 ### Recurring journal generation
 
 Approach options:
+
 - Option A (recommended): periodic scan job
   - Every X minutes (or daily), find templates with `status=active` and `next_run_date <= now`.
   - Generate journal batches, then advance `next_run_date`.
@@ -272,6 +295,7 @@ Approach options:
   - Tradeoff: exact scheduling, but template changes require rescheduling and operational overhead.
 
 Closed-period handling:
+
 - If template is `autopost` but the run date is closed/locked:
   - create generated journal as `draft` and emit an audit event on the template and/or journal.
 
@@ -280,6 +304,7 @@ Closed-period handling:
 ### Journals list view
 
 Approach:
+
 - Use the existing table patterns (data-table components) with server-side pagination.
 - Filters:
   - status (draft/posted/voided)
@@ -293,6 +318,7 @@ Approach:
   - Reverse (posted only; opens modal to choose date + reason)
 
 Performance notes:
+
 - Use debounced search.
 - Return minimal list payload (no entries array on list endpoint).
 - Index `journal_batches(company_id, date desc)` and `journal_batches(company_id, status, date desc)` if needed.
@@ -300,6 +326,7 @@ Performance notes:
 ### New journal entry form
 
 Approach:
+
 - Header:
   - Date (required)
   - Reversal date (optional) with helper copy: “Creates an automatic reversing entry on this date.”
@@ -319,12 +346,14 @@ Approach:
   - When period closed: “Post” results in saved draft + inline warning toast/badge
 
 Alternatives:
+
 - Allow saving drafts without balancing and only require balance on post.
   - Tradeoff: more forgiving data entry; but increases posting failures and support burden.
 
 ### Journal detail view
 
 Approach:
+
 - Header shows:
   - code, date, status, narration, note
   - created by/created at, posted by/posted at (if available), reversed info
@@ -339,6 +368,7 @@ Approach:
 ### Recurring templates UI
 
 Approach:
+
 - Similar to “New journal” but with:
   - start date, end date/never expires
   - frequency (daily/weekly/monthly/yearly)
@@ -350,11 +380,13 @@ Approach:
 Scope: only regular (non-recurring) journals.
 
 Recommended v1 behavior:
+
 - Import creates **draft** journals only (even if balanced), then user reviews and posts.
   - Tradeoff: safer and prevents accidental posting into closed periods, but adds a step.
 - Alternative: allow “import & post” with the same closed-period downgrade behavior.
 
 CSV format proposal (simple):
+
 - One row per journal line; group by `journal_external_id` or `journal_code` in file.
 - Columns:
   - journal_date (required)
@@ -366,20 +398,24 @@ CSV format proposal (simple):
   - auto_reversal_date (optional; journal-level; repeated per line is OK)
 
 Import pipeline:
+
 - Parse -> validate -> group -> build payloads -> create drafts -> return results with per-row errors.
 
 UX:
+
 - Reuse existing spreadsheet importer patterns (used for bank txns/COA import).
 - Show mapping UI if headers differ (optional v1; can require exact headers initially).
 
 ## Implementation phases (ordered)
 
 ### Phase 0: Product + technical alignment (1-2 days)
+
 - Lock decisions: pages vs unified list, posted edit semantics, draft balancing, import behavior.
 - Confirm required fields and naming (“narration” mapping).
 - Identify any permissions model (role-based) required for posting/voiding/reversing.
 
 ### Phase 1: Backend MVP for manual journals (3-6 days)
+
 - Add/align DB columns for auto reversal and fix schema drift in types.
 - Fix `audit_events` action mismatch (migration + code alignment).
 - Implement `journals.routes.ts` + controller/service:
@@ -389,28 +425,33 @@ UX:
 - Add request validation (zod) consistent with existing patterns.
 
 ### Phase 2: Jobs for auto reversal + recurring generation scaffolding (2-4 days)
+
 - Add queue + worker for auto reversal (Option A scan job recommended).
 - Add queue + worker for recurring templates scan generation (even if UI isn’t ready yet).
 - Ensure idempotency (no double reversals, no double runs).
 
 ### Phase 3: Web UI for manual journals (5-10 days)
+
 - Journals list page (pagination/search/filter/sort + row actions).
 - New journal form (lines table + totals + save draft/post).
 - Journal details page (view + actions).
 - Toasts/inline messaging for closed period downgrade.
 
 ### Phase 4: Recurring templates end-to-end (4-8 days)
+
 - Backend CRUD for templates + entries.
 - Web UI for template list + create/edit.
 - Generation job produces journal batches with `recurring_template_id`.
 - Autopost vs draft behavior + closed-period downgrade.
 
 ### Phase 5: CSV import (3-6 days)
+
 - Backend endpoint to accept CSV upload + parse + create drafts.
 - Web importer UI + downloadable template.
 - Error reporting UX (per row / per journal).
 
 ### Phase 6: Hardening, tests, and performance (ongoing; 2-5 days)
+
 - Backend:
   - unit tests for validation/balancing
   - tests for closed-period downgrade
@@ -430,4 +471,3 @@ UX:
 - For recurring templates: should “start date” also be the first run date, and how do we compute `next_run_date`?
 - For recurring templates: should generated journals inherit `auto_reversal_date`?
 - CSV import: require account_code only, or support name matching (risk of ambiguity)?
-

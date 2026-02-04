@@ -6,18 +6,18 @@ Manual journals allow accountants to record transactions that don't flow through
 
 Covers: journal list, create/void/reverse/copy, recurring templates, auto-reversal, CSV import, audit trail, projects, and batch-level attachments.
 
-**Non-goals (v1):** Multi-currency journals, invoicing integration, partial reversals, per-entry (line-level) attachments, enforcing project/contact relationships.
+**Non-goals (v1):** Per-entry multi-currency (multiple currencies within a single journal), invoicing integration, partial reversals, per-entry (line-level) attachments, enforcing project/contact relationships.
 
 ---
 
 ## 📊 Current Implementation Status
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-02-04
 
 | Component                       | Status         | Completion |
 | ------------------------------- | -------------- | ---------- |
 | **Phase 1: Database Migration** | ✅ Complete    | 100%       |
-| **Phase 2: Backend API**        | 🔄 In Progress | ~75%       |
+| **Phase 2: Backend API**        | ✅ Complete    | 100%       |
 | - Core queries (list, get)      | ✅ Complete    | 100%       |
 | - Create journal                | ✅ Complete    | 100%       |
 | - Update/Post/Void (drafts)     | ✅ Complete    | 100%       |
@@ -25,29 +25,35 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 | - Reverse journal (posted)      | ✅ Complete    | 100%       |
 | - Copy journal                  | ✅ Complete    | 100%       |
 | - Controller & Routes           | ✅ Complete    | 100%       |
+| - CSV import endpoint           | ✅ Complete    | 100%       |
 | **Phase 3-5: Frontend**         | ⏳ Not Started | 0%         |
 | **Phase 6: Recurring Journals** | ⏳ Not Started | 0%         |
-| **Phase 7: Auto-Reversal Job**  | 🔄 In Progress | ~50%       |
-| **Phase 8: CSV Import**         | ⏳ Not Started | 0%         |
+| **Phase 7: Auto-Reversal Job**  | ✅ Complete    | ~90%       |
+| **Phase 8: CSV Import**         | 🟡 In Progress | ~40%       |
 
-**Next Steps:** Implement `copyJournal` + `importJournals`, finalize auto-reversal processing, then proceed to frontend.
+**Next Steps (recommended order):**
+
+1. Build the frontend CSV import UX (parse → preflight → review → import). See `docs/accounting/manual-journals_import_v1.md`.
+2. Start the frontend journals module (list + detail + create/post flow) and wire to the new API routes.
+3. Add an audit trail read endpoint (journal timeline) if needed by the UI.
+4. Implement recurring journals (templates + worker) after base UI is stable.
 
 ---
 
 ## Locked-in Product Decisions
 
-| Decision                  | Choice                                                                                            | Rationale                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Posted journal mutability | **Immutable.** No edit. Only Reverse & Copy.                                                      | Accounting standard. Strongest audit integrity.                 |
-| Draft balancing           | **Always balanced.** Zero-sum enforced even for drafts.                                           | Less error-prone. User must balance before saving anything.     |
-| Navigation                | **Sub-page of Accounting** at `/ws/accounting/journals`                                           | User preference                                                 |
-| Frequencies (recurring)   | **All**: daily, weekly, monthly, quarterly, yearly                                                | Maximum flexibility. Document exact semantics in code + docs.   |
-| CSV grouping              | **Prefer reference_id, else date + title.**                                                       | Stable grouping + supports idempotency when provided            |
-| Currency (v1)             | **Reporting currency only.** Hide currency fields. Exchange rate = 1.0                            | Avoids half-working FX                                          |
-| Status actions            | Draft: edit, delete, post. Posted: view, copy, reverse. Voided: view, copy.                       | Standard accounting                                             |
-| Voiding semantics         | Draft: soft-delete. Posted: must reverse (creates reversing entry). "Void" for posted = reversal. | Cannot remove posted entries from the ledger without a reversal |
-| Contact vs project fields | **Contact at batch level. Project at entry level.**                                               | Contact is the counterparty; projects are line-level costing.   |
-| Attachments               | **Batch-level only.** Show in both Journal view and Ledger view (read-time association).          | Clean UX; avoids line-level complexity in v1.                   |
+| Decision                  | Choice                                                                                                                                   | Rationale                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Posted journal mutability | **Immutable.** No edit. Only Reverse & Copy.                                                                                             | Accounting standard. Strongest audit integrity.                 |
+| Draft balancing           | **Always balanced.** Zero-sum enforced even for drafts.                                                                                  | Less error-prone. User must balance before saving anything.     |
+| Navigation                | **Sub-page of Accounting** at `/ws/accounting/journals`                                                                                  | User preference                                                 |
+| Frequencies (recurring)   | **All**: daily, weekly, monthly, quarterly, yearly                                                                                       | Maximum flexibility. Document exact semantics in code + docs.   |
+| CSV grouping              | **Prefer reference_id, else date + title.**                                                                                              | Stable grouping + supports idempotency when provided            |
+| Currency (v1)             | **Single currency per journal batch (FX supported).** `currencyId` may differ from reporting; `exchangeRate` may be provided or derived. | Enables basic FX without per-line currency complexity           |
+| Status actions            | Draft: edit, delete, post. Posted: view, copy, reverse. Voided: view, copy.                                                              | Standard accounting                                             |
+| Voiding semantics         | Draft: soft-delete. Posted: must reverse (creates reversing entry). "Void" for posted = reversal.                                        | Cannot remove posted entries from the ledger without a reversal |
+| Contact vs project fields | **Contact at batch level. Project at entry level.**                                                                                      | Contact is the counterparty; projects are line-level costing.   |
+| Attachments               | **Batch-level only.** Show in both Journal view and Ledger view (read-time association).                                                 | Clean UX; avoids line-level complexity in v1.                   |
 
 ---
 
@@ -88,8 +94,8 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 
 7. **File handling**
    - Integrated with existing `persistTxnFiles()` service
-   - Files stored separately (not returned in `getJournal()` response)
-   - Frontend fetches via objects API as needed
+   - Files can be returned from `getJournal()` via `?includeFiles=true`
+   - Draft update supports file replace vs merge semantics (see `syncTxnFilesForTarget()`)
 
 8. **Enhanced validation in `postJournalRecord()`**
    - Contact validation (must be active in company)
@@ -259,7 +265,7 @@ PATCH  /:journalId/post     — postDraftJournal (draft → posted)
 PATCH  /:journalId/void     — voidDraftJournal (draft only)
 PATCH  /:journalId/reverse  — reverseJournalRecord (posted only)
 POST   /:journalId/copy     — copyJournal (any status)
-POST   /import              — importJournals (CSV) [TODO]
+POST   /import              — importJournals (CSV) [TODO: not implemented/registered yet]
 ```
 
 **Period status check** (for frontend date hint):
@@ -298,6 +304,8 @@ app.use('/api/:companyId/journals', journalRoutes);
 ---
 
 ## Phase 3: Frontend — Module & List View
+
+**Status:** Not started. There is a legacy `apps/web/src/shared/services/JournalServices.ts` file, but its endpoints do not match the current API (it calls `GET /journals` and `PATCH /journals/void`, which do not exist). Treat it as stale until updated to use `/query`, `/batch/*`, and `/:journalId/*` routes.
 
 ### 3a. Module Structure
 
@@ -544,104 +552,77 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
 
 ## Phase 7: Auto-Reversal Job
 
-**Daily cron** (same pass as recurring journal worker or separate function in same schedule):
+**Implementation (current):** BullMQ queue + worker
 
-1. Query (date semantics): `SELECT * FROM journal_batches WHERE auto_reversal_date <= NOW() AND status = 'posted' AND reversed_at IS NULL AND reversal_journal_id IS NULL AND is_deleted = false`
-2. For each journal:
-   a. Ensure fiscal period exists for the reversal date, then check if it is open
-   b. If open: call `reversePostedJournal()` with the auto_reversal_date, update `reversal_journal_id`
-   c. If closed: log warning, skip (create audit event for tracking)
-3. **Idempotency:** `reversal_journal_id IS NULL` check + transaction-level locking prevents double processing.
-   - Select due journals with `FOR UPDATE SKIP LOCKED` (and update `reversal_journal_id` in the same transaction) to make concurrency safe.
+- Queue: `journal-auto-reversal` in `apps/api/src/domains/journals/auto-reversal.queue.ts`
+  - Job types:
+    - `scan-due` (daily cron): scans for due auto-reversals
+    - `reverse-one` (delayed): scheduled when a posted journal is created/posted with `auto_reversal_date`
+- Worker: `apps/api/src/domains/journals/auto-reversal.worker.ts`
+  - `scan-due` uses keyset pagination by `id` to process due journals in batches
+  - `reverse-one` validates eligibility and calls `reverseJournalRecord()`
+- Scheduling:
+  - Daily cron is registered in `apps/api/src/worker.ts` via `scheduleDailyJournalAutoReversalScan()` and `getJobSchedule('journalAutoReversal')`
+  - Per-journal delayed job is scheduled from journal posting flows via `scheduleJournalAutoReversal()`
+
+**What’s still missing / follow-ups:**
+
+- Period-closed handling for auto-reversal: today a closed/locked period will cause reversal to fail and be retried; consider making this a “skippable” failure + writing an audit event (e.g. `journal.auto_reversal_blocked_period`) so it’s observable and doesn’t spam retries.
+- Consider `FOR UPDATE SKIP LOCKED` selection for scans if you run multiple scan workers concurrently (current idempotency is still safe because reversal locks the row, but scan work can be duplicated and then skipped).
 
 **Files:**
 
-- Logic added to `apps/api/src/jobs/workers/recurring-journal.worker.ts` (or a dedicated `auto-reversal.worker.ts`)
+- `apps/api/src/domains/journals/auto-reversal.queue.ts`
+- `apps/api/src/domains/journals/auto-reversal.worker.ts`
+- `apps/api/src/jobs/registry.ts` (worker registration)
+- `apps/api/src/jobs/schedules.ts` + `apps/api/src/worker.ts` (cron schedule)
 
 ---
 
 ## Phase 8: CSV Import
 
-### 8a. Backend
+Canonical spec: `docs/accounting/manual-journals_import_v1.md`.
 
-**Endpoint:** `POST /api/:companyId/journals/import`
+### Backend (implemented)
 
-Accepts structured JSON (frontend parses CSV). Array of journal payloads.
+- `POST /api/:companyId/journals/import/preflight` groups flat rows → journals, resolves COA/projects, validates, returns preview + `canSaveDraft` / `canPost`.
+- `POST /api/:companyId/journals/import` writes journals (per journal `action: draft|posted`) with `mode: partial|all_or_nothing`.
+- Limits: max 5000 rows; grouping is by `journal_reference` (strict date/title match) else `(date,title)`.
 
-**Validation per journal:**
+### Frontend (still to do)
 
-- Required: date, title, at least 2 entries, entries must balance to zero
-- All account codes must resolve to valid, active COAs for this company
-- Period status is returned as metadata for user visibility:
-  - Draft import is allowed regardless of period status (drafts never hit the ledger)
-  - If the date is in a closed/locked period, include a warning so the user knows posting will be blocked until an open date is chosen
-- Currency defaults to reporting currency
-
-**Response:** `{ results: Array<{ index, success, journalId?, journalCode?, errors? }> }`
-
-### 8b. Frontend
-
-**CSV Import flow** (reuses existing spreadsheet importer patterns from bank transactions upload):
-
-1. User clicks "Import" button on journals list toolbar
-2. Dialog opens with:
-   - CSV file upload (drag & drop or file picker)
-   - Template download link (CSV with expected columns)
-3. Frontend parses CSV
-4. Preview table shows parsed journals with validation errors highlighted
-5. Summary: X valid journals, Y errors
-6. Submit sends valid journals to API as draft
-7. Success/error feedback with per-journal results
-
-**CSV columns:**
-
-```
-reference_id?, date, title, description, entry_description, account_code, debit, credit
-```
-
-Project support (optional v1):
-
-- If we include projects in v1 import, add `project_code?` or `project_name?` (prefer code) as an optional column.
-- Otherwise omit from template and keep project assignment manual in the UI.
-
-**Grouping:** Prefer `reference_id` if provided. Otherwise, rows sharing the same `date` + `title` are grouped into one journal batch.
-
-**Import creates drafts only.** User reviews and posts individually or in bulk.
-
-**Files:**
-
-- `apps/web/src/features/manage-journals/ui/journal-import-dialog.tsx` (new)
-- Backend validation in `journals.model.ts`
+- Build the import dialog + template download, parse CSV in a worker, call preflight, render review UI, then submit selected journals to import.
+- Support account/project resolution UX (overrides) and optional contact assignment during review.
 
 ---
 
 ## Implementation Order & Status
 
-| #   | Phase   | Scope                                    | Status             | Dependencies      |
-| --- | ------- | ---------------------------------------- | ------------------ | ----------------- |
-| 1   | Phase 1 | DB migration + schema drift fixes        | ✅ **DONE**        | None              |
-| 2   | Phase 2 | Backend CRUD API + fix postJournalRecord | 🔄 **IN PROGRESS** | Phase 1           |
-|     |         | - Types & schemas                        | ✅ Mostly done     |                   |
-|     |         | - `getJournalsByPage()`                  | ✅ Done            |                   |
-|     |         | - `getJournalsByCursor()` (bonus)        | ✅ Done            |                   |
-|     |         | - `getJournal()`                         | ✅ Done            |                   |
-|     |         | - `postJournalRecord()`                  | ✅ Done            |                   |
-|     |         | - `generateJournalReference()` (bonus)   | ✅ Done            |                   |
-|     |         | - `updateDraftJournal()`                 | ⏳ TODO            |                   |
-|     |         | - `postDraftJournal()`                   | ⏳ TODO            |                   |
-|     |         | - `voidDraftJournal()`                   | ⏳ TODO            |                   |
-|     |         | - `reversePostedJournal()`               | ⏳ TODO            |                   |
-|     |         | - `copyJournal()`                        | ⏳ TODO            |                   |
-|     |         | - `importJournals()`                     | ⏳ TODO            |                   |
-|     |         | - Controller & Routes                    | ⏳ TODO            |                   |
-| 3   | Phase 3 | Frontend module + list view              | ⏳ **TODO**        | Phase 2           |
-| 4   | Phase 4 | Frontend create journal form             | ⏳ **TODO**        | Phase 3           |
-| 5   | Phase 5 | Frontend detail, reverse, copy           | ⏳ **TODO**        | Phase 4           |
-| 6   | Phase 6 | Recurring journals (full stack + worker) | ⏳ **TODO**        | Phase 2           |
-| 7   | Phase 7 | Auto-reversal job                        | ⏳ **TODO**        | Phase 2           |
-| 8   | Phase 8 | CSV import (full stack)                  | ⏳ **TODO**        | Phase 2 + Phase 3 |
+| #   | Phase   | Scope                                    | Status      | Dependencies      |
+| --- | ------- | ---------------------------------------- | ----------- | ----------------- |
+| 1   | Phase 1 | DB migration + schema drift fixes        | ✅ **DONE** | None              |
+| 2   | Phase 2 | Backend CRUD API                         | ✅ **DONE** | Phase 1           |
+|     |         | - Types & schemas                        | ✅ Done     |                   |
+|     |         | - `getJournalsByPage()`                  | ✅ Done     |                   |
+|     |         | - `getJournalsByCursor()` (bonus)        | ✅ Done     |                   |
+|     |         | - `getJournal()`                         | ✅ Done     |                   |
+|     |         | - `postJournalRecord()`                  | ✅ Done     |                   |
+|     |         | - `generateJournalReference()` (bonus)   | ✅ Done     |                   |
+|     |         | - `updateDraftJournal()`                 | ✅ Done     |                   |
+|     |         | - `postDraftJournal()`                   | ✅ Done     |                   |
+|     |         | - `voidDraftJournal()`                   | ✅ Done     |                   |
+|     |         | - `reverseJournalRecord()`               | ✅ Done     |                   |
+|     |         | - `copyJournal()`                        | ✅ Done     |                   |
+|     |         | - Controller & Routes                    | ✅ Done     |                   |
+|     |         | - `importJournals()`                     | ⏳ TODO     |                   |
+| 3   | Phase 3 | Frontend module + list view              | ⏳ **TODO** | Phase 2           |
+| 4   | Phase 4 | Frontend create journal form             | ⏳ **TODO** | Phase 3           |
+| 5   | Phase 5 | Frontend detail, reverse, copy           | ⏳ **TODO** | Phase 4           |
+| 6   | Phase 6 | Recurring journals (full stack + worker) | ⏳ **TODO** | Phase 2           |
+| 7   | Phase 7 | Auto-reversal job                        | ✅ **DONE** | Phase 2           |
+| 8   | Phase 8 | CSV import (full stack)                  | ⏳ **TODO** | Phase 2 + Phase 3 |
 
-**Current focus:** Complete remaining Phase 2 backend functions (update, post, void, reverse, copy, import) + controller + routes
+**Current focus:** Frontend (Phases 3–5) + CSV import (Phase 8). Recurring (Phase 6) can follow once core UX is stable.
 
 Phases 6, 7, 8 are independent and can be parallelized after Phase 2 completion.
 
@@ -649,14 +630,14 @@ Phases 6, 7, 8 are independent and can be parallelized after Phase 2 completion.
 
 ## Key Constraints & Rules
 
-1. **V1: Reporting currency only.** `currency_id` = `companies.reporting_currency_id`. Exchange rate = 1.0. Hide currency fields in UI.
+1. **Single currency per journal batch.** FX is supported by setting `currencyId != reporting_currency_id` with an `exchangeRate` (provided or derived).
 2. **Zero-sum enforced always.** Both drafts and posted journals must balance. Tolerance: 0.0000000001.
-3. **Closed period handling (posting only).** User-facing flows that attempt to post (create with `status='posted'`, or post draft): reject with `PERIOD_CLOSED`, frontend asks user to save as draft / go back / cancel. Background jobs (recurring, auto-reversal): save as draft automatically + audit event.
+3. **Closed period handling (posting only).** Posting into a closed/locked month is rejected by fiscal calendar pre-checks. TODO: return a typed `ErrorCode` (instead of a generic error message) so the UI can handle this cleanly.
 4. **Posted journals are immutable.** No edit. Only reverse (with new journal) or copy (creates draft).
 5. **Audit trail on all mutations.** Via `audit_events` table. Events: create, update, post, post_blocked_period, void, reverse, copy, import.
 6. **Soft deletes.** `is_deleted = true`. Even "deleting" a draft is a soft-delete.
 7. **Balance recalculation** handled by `createLedgerRecord()` → `enqueueGLBalance()`. No extra calls needed from journal layer.
-8. **Advisory locks** handled inside `createLedgerRecord()`. No extra locking in journal layer.
+8. **Advisory locks**: journal mutations also acquire a per-company advisory transaction lock in `resolveJournalCompanyContext()` to reduce concurrency hazards during posting/reversal/copy.
 9. **Fiscal calendar auto-creation:** Journal pre-checks and `/period-status` should ensure periods exist (silent server-side creation). Do not rely on `createLedgerRecord()` for this.
 10. **Date semantics (journals + ledger):** API accepts `YYYY-MM-DD` for journal dates and reversal dates. Persist as UTC-normalized date semantics (either DB `DATE` or timestamp at `00:00:00Z` consistently) so list ordering, uniqueness guards, and recurring/idempotency are stable.
 11. **Projects:** Project selection is per entry (optional). Reporting on projects is line-based (i.e., project views show only lines tagged to that project; totals may not "balance within project", which is expected).
@@ -668,25 +649,34 @@ Phases 6, 7, 8 are independent and can be parallelized after Phase 2 completion.
 
 ### New Files
 
-- `apps/api/migrations/TIMESTAMP_add_journal_manual_columns.ts`
 - `apps/api/src/domains/journals/journals.controller.ts`
 - `apps/api/src/domains/journals/journals.routes.ts`
-- `apps/api/src/domains/journals/recurring-templates.model.ts`
-- `apps/api/src/domains/journals/recurring-templates.types.ts`
-- `apps/api/src/domains/journals/recurring-templates.controller.ts`
-- `apps/api/src/domains/journals/recurring-templates.routes.ts`
-- `apps/api/src/jobs/queues/recurring-journal.queue.ts`
-- `apps/api/src/jobs/workers/recurring-journal.worker.ts`
-- `apps/web/src/modules/accounting/journals/` (full module)
-- `apps/web/src/features/manage-journals/` (full feature)
+- `apps/api/src/domains/journals/journals.audit.ts`
+- `apps/api/src/domains/journals/journals.command.ts`
+- `apps/api/src/domains/journals/journals.prepare.ts`
+- `apps/api/src/domains/journals/journals.query.ts`
+- `apps/api/src/domains/journals/journals.reference.ts`
+- `apps/api/src/domains/journals/journals.types.ts`
+- `apps/api/src/domains/journals/journals.utils.ts`
+- `apps/api/src/domains/journals/auto-reversal.queue.ts`
+- `apps/api/src/domains/journals/auto-reversal.worker.ts`
+- `apps/api/src/domains/journals/__tests__/journals.command.test.ts`
+
+### Planned (not yet created)
+
+- `apps/api/src/domains/journals/recurring-templates.*` (recurring templates CRUD)
+- `apps/api/src/jobs/queues/recurring-journal.queue.ts` + worker (recurring runner)
+- `apps/web/src/modules/accounting/journals/` (frontend module)
+- `apps/web/src/features/manage-journals/` (journals feature UI)
 
 ### Modified Files
 
 - `apps/api/src/domains/journals/journals.model.ts` — add list/get/update/post/void/reverse/copy/import + fix closed-period behavior
 - `apps/api/src/domains/journals/journals.types.ts` — schema drift cleanup + new schemas
-- `apps/api/src/app.ts` — register journal + recurring-journal routes
-- `apps/api/src/jobs/workers/index.ts` — register recurring journal worker
-- `apps/api/src/worker.ts` — add daily cron schedule
+- `apps/api/src/app.ts` — register journal routes
+- `apps/api/src/jobs/registry.ts` — register journal auto-reversal worker
+- `apps/api/src/jobs/schedules.ts` — add journal auto-reversal cron config
+- `apps/api/src/worker.ts` — schedule daily journal auto-reversal scan
 - `apps/web/src/shared/routes/definitions/accounting.ts` — add journal routes
 - `apps/web/src/App.tsx` — add route elements
 - `apps/web/src/domains-pending-migration/accounting-ws/acc-ws.tsx` — add Journals quick-action

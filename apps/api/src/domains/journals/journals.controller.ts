@@ -1,5 +1,5 @@
 import { type Response } from 'express';
-import z from 'zod';
+import { z } from 'zod';
 
 import { type AuthRequest } from '../../features/auth/auth.types.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
@@ -8,9 +8,11 @@ import {
   getJournal,
   getJournalsByCursor,
   getJournalsByPage,
+  importJournals,
   postDraftJournal,
   postDraftJournalsBatch,
   postJournalRecord,
+  preflightJournalImport,
   reverseJournalRecord,
   updateDraftJournal,
   voidDraftJournal,
@@ -18,15 +20,21 @@ import {
 } from './journals.model.js';
 import {
   copyJournalBody,
+  journalImportBody,
+  journalImportPreflightBody,
   postDraftJournalsBatchBody,
   voidDraftJournalsBatchBody,
 } from './journals.types.js';
 
 export async function getJournalController(req: AuthRequest, res: Response) {
   try {
-    const userId = String(req.user?.id);
+    if (!req.user?.id || !req.params.companyId || !req.params.journalId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
     const companyId = String(req.params.companyId);
     const journalId = String(req.params.journalId);
+
     const includeLedgerTotals =
       String(req.query.includeLedgerTotals).toLowerCase() === 'true' ||
       String(req.query.includeLedgerTotals) === '1';
@@ -36,10 +44,6 @@ export async function getJournalController(req: AuthRequest, res: Response) {
     const includeDeleted =
       String(req.query.includeDeleted).toLowerCase() === 'true' ||
       String(req.query.includeDeleted) === '1';
-
-    if (!userId || !companyId || !journalId) {
-      return res.status(400).json(errorResponse('Bad Request'));
-    }
 
     const result = await getJournal({
       journalId,
@@ -62,13 +66,13 @@ export async function getJournalsByPageController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-    const queryData = req.body || {};
-
-    if (!userId || !companyId) {
+    if (!req.user?.id || !req.params.companyId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = req.user.id;
+    const companyId = String(req.params.companyId);
+    const queryData = req.body || {};
 
     const result = await getJournalsByPage({
       userId,
@@ -89,13 +93,13 @@ export async function getJournalsByCursorController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-    const queryData = req.body || {};
-
-    if (!userId || !companyId) {
+    if (!req.user?.id || !req.params.companyId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
+    const queryData = req.body || {};
 
     const result = await getJournalsByCursor({
       userId,
@@ -113,13 +117,13 @@ export async function getJournalsByCursorController(
 
 export async function postJournalController(req: AuthRequest, res: Response) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-    const data = req.body || {};
-
-    if (!userId || !companyId) {
+    if (!req.user?.id || !req.params.companyId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
+    const data = req.body || {};
 
     const result = await postJournalRecord({
       data,
@@ -140,14 +144,14 @@ export async function updateDraftJournalController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
+    if (!req.user?.id || !req.params.companyId || !req.params.journalId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
+    const userId = String(req.user.id);
     const companyId = String(req.params.companyId);
     const journalBatchId = String(req.params.journalId);
     const data = req.body || {};
-
-    if (!userId || !companyId || !journalBatchId) {
-      return res.status(400).json(errorResponse('Bad Request'));
-    }
 
     const result = await updateDraftJournal({
       journalBatchId,
@@ -169,13 +173,13 @@ export async function postDraftJournalController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-    const journalBatchId = String(req.params.journalId);
-
-    if (!userId || !companyId || !journalBatchId) {
+    if (!req.user?.id || !req.params.companyId || !req.params.journalId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
+    const journalBatchId = String(req.params.journalId);
 
     const result = await postDraftJournal({
       journalBatchId,
@@ -196,12 +200,12 @@ export async function postDraftJournalsBatchController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-
-    if (!userId || !companyId) {
+    if (!req.user?.id || !req.params.companyId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
 
     const parsed = postDraftJournalsBatchBody.safeParse(req.body ?? {});
 
@@ -233,12 +237,12 @@ export async function voidDraftJournalsBatchController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-
-    if (!userId || !companyId) {
+    if (!req.user?.id || !req.params.companyId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
 
     const parsed = voidDraftJournalsBatchBody.safeParse(req.body ?? {});
 
@@ -271,14 +275,14 @@ export async function reverseJournalController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
+    if (!req.user?.id || !req.params.companyId || !req.params.journalId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
+    const userId = String(req.user.id);
     const companyId = String(req.params.companyId);
     const journalBatchId = String(req.params.journalId);
     const { reversalReason, reversalDate } = req.body || {};
-
-    if (!userId || !companyId || !journalBatchId) {
-      return res.status(400).json(errorResponse('Bad Request'));
-    }
 
     const parsedReversalDate =
       reversalDate != null ? new Date(reversalDate) : undefined;
@@ -304,13 +308,13 @@ export async function reverseJournalController(
 
 export async function copyJournalController(req: AuthRequest, res: Response) {
   try {
-    const userId = String(req.user?.id);
-    const companyId = String(req.params.companyId);
-    const sourceJournalBatchId = String(req.params.journalId);
-
-    if (!userId || !companyId || !sourceJournalBatchId) {
+    if (!req.user?.id || !req.params.companyId || !req.params.journalId) {
       return res.status(400).json(errorResponse('Bad Request'));
     }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
+    const sourceJournalBatchId = String(req.params.journalId);
 
     const parsed = copyJournalBody.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -341,20 +345,90 @@ export async function voidDraftJournalController(
   res: Response,
 ) {
   try {
-    const userId = String(req.user?.id);
+    if (!req.user?.id || !req.params.companyId || !req.params.journalId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
+    const userId = String(req.user.id);
     const companyId = String(req.params.companyId);
     const journalBatchId = String(req.params.journalId);
     const { voidReason } = req.body || {};
-
-    if (!userId || !companyId || !journalBatchId) {
-      return res.status(400).json(errorResponse('Bad Request'));
-    }
 
     const result = await voidDraftJournal({
       journalBatchId,
       companyId,
       userId,
       voidReason,
+    });
+
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
+  } catch (error: unknown) {
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
+  }
+}
+
+export async function importJournalsPreflightController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    if (!req.user?.id || !req.params.companyId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
+
+    const parsed = journalImportPreflightBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json(
+        errorResponse('Invalid input', {
+          errors: z.flattenError(parsed.error),
+        }),
+      );
+    }
+
+    const result = await preflightJournalImport({
+      companyId,
+      userId,
+      body: parsed.data,
+    });
+
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
+  } catch (error: unknown) {
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
+  }
+}
+
+export async function importJournalsController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    if (!req.user?.id || !req.params.companyId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
+    const userId = String(req.user.id);
+    const companyId = String(req.params.companyId);
+
+    const parsed = journalImportBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return res.status(400).json(
+        errorResponse('Invalid input', {
+          errors: z.flattenError(parsed.error),
+        }),
+      );
+    }
+
+    const result = await importJournals({
+      companyId,
+      userId,
+      body: parsed.data,
     });
 
     return result.success

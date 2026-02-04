@@ -6,6 +6,8 @@ import {
   getJournalController,
   getJournalsByCursorController,
   getJournalsByPageController,
+  importJournalsController,
+  importJournalsPreflightController,
   postDraftJournalController,
   postDraftJournalsBatchController,
   postJournalController,
@@ -19,6 +21,8 @@ const router = express.Router({ mergeParams: true });
 
 router.post('/query', getJournalsByPageController);
 router.post('/query/cursor', getJournalsByCursorController);
+router.post('/import/preflight', importJournalsPreflightController);
+router.post('/import', importJournalsController);
 router.post('/', postJournalController);
 router.patch('/batch/post', postDraftJournalsBatchController);
 router.patch('/batch/void', voidDraftJournalsBatchController);
