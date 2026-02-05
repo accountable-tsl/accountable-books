@@ -3,13 +3,9 @@ import { JobScheduler, Worker } from 'bullmq';
 import pino from 'pino';
 
 import { getAllActiveCredentials } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
-import { getJobSchedule } from '../../../jobs/schedules.js';
 import { redis } from '../../../lib/redis.js';
 import { transactionSyncService } from '../services/transaction-sync.service.js';
-import {
-  scheduleDailySyncScan,
-  scheduleTransactionSync,
-} from './transaction-sync.queue.js';
+import { scheduleTransactionSync } from './transaction-sync.queue.js';
 
 const logger = pino();
 
@@ -362,21 +358,6 @@ export function startTransactionSyncWorker(concurrency = 3) {
 
   worker.on('ready', async () => {
     logger.info('Transaction sync worker ready with optimized Redis settings');
-
-    // Schedule the daily scan job on worker startup using environment-configured cron pattern
-    try {
-      const syncSchedule = getJobSchedule('transactionSyncDailyScan');
-      await scheduleDailySyncScan(syncSchedule.cron);
-      logger.info(
-        { cronPattern: syncSchedule.cron, tz: syncSchedule.tz },
-        'Daily sync scan job scheduled with cron pattern',
-      );
-    } catch (error) {
-      logger.error(
-        { error: error instanceof Error ? error.message : String(error) },
-        'Failed to schedule daily sync scan job',
-      );
-    }
   });
 
   worker.on('error', (err) => {

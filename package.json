@@ -20,7 +20,8 @@
     "demo:apply:basic": "pnpm -F @accountable-books/api run demo:apply:basic",
     "clean": "turbo run clean",
     "prepare": "is-ci || husky",
-    "worker": "pnpm -F @accountable-books/api run worker"
+    "worker": "pnpm -F @accountable-books/api run worker",
+    "scheduler": "pnpm -F @accountable-books/api run scheduler"
   },
   "keywords": [],
   "author": "Accountable Techserve Inc.",

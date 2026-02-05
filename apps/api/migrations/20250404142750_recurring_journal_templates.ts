@@ -39,11 +39,20 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('contacts')
       .onDelete('SET NULL');
 
+    table.text('template_timezone').notNullable();
+
     table.specificType('frequency', 'recurrence_frequency').notNullable();
     table.timestamp('start_date', { useTz: true }).notNullable();
     table.timestamp('end_date', { useTz: true }).nullable();
     table.timestamp('next_run_date', { useTz: true }).nullable();
     table.json('placeholder_vars').nullable(); // Input - [Day], [Week], [Month], [Year], [Week Year], [Month Year]
+
+    table.integer('auto_reversal_days').nullable();
+
+    table.timestamp('last_run_at', { useTz: true }).nullable();
+    table.timestamp('last_failed_at', { useTz: true }).nullable();
+    table.text('last_error').nullable();
+    table.integer('failure_count').notNullable().defaultTo(0);
 
     table
       .uuid('created_by_id')
@@ -54,9 +63,19 @@ export async function up(knex: Knex): Promise<void> {
     addStandardColumns(knex, table);
 
     table.index(['frequency', 'next_run_date'], 'rjt_frequency_nextrun_idx');
+    table.index(
+      ['company_id', 'status', 'next_run_date'],
+      'rjt_company_status_nextrun_idx',
+    );
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
+  await knex.raw(
+    `ALTER TABLE ${tableName} ADD CONSTRAINT rjt_template_tz_chk CHECK (template_timezone ~ '^[A-Za-z]+/[A-Za-z_]+$')`,
+  );
+  await knex.raw(
+    `ALTER TABLE ${tableName} ADD CONSTRAINT rjt_auto_reversal_days_chk CHECK (auto_reversal_days IS NULL OR auto_reversal_days >= 1)`,
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {

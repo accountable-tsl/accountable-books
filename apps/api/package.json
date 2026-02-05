@@ -52,6 +52,8 @@
     "demo:status": "pnpm run demo:status:local && pnpm run demo:status:test",
     "worker": "tsx src/worker.ts",
     "worker:dev": "tsx watch src/worker.ts",
+    "scheduler": "tsx src/scheduler.ts",
+    "scheduler:dev": "tsx watch src/scheduler.ts",
     "sentry:sourcemaps": "sentry-cli releases files \"$SENTRY_RELEASE\" upload-sourcemaps dist --rewrite && sentry-cli releases finalize \"$SENTRY_RELEASE\"",
     "slack": "tsx src/features/communications/slack.service.ts"
   },

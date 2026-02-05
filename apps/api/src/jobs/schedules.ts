@@ -5,6 +5,7 @@
 export type JobScheduleKey =
   | 'fiscalAutoExtend'
   | 'journalAutoReversal'
+  | 'recurringJournalScan'
   | 'partitionMaintenance'
   | 'partitionDrain'
   | 'transactionSyncDailyScan';
@@ -27,6 +28,12 @@ const SCHEDULES: Record<JobScheduleKey, JobSchedule> = {
     cron: '0 3 * * *',
     envVar: 'JOURNAL_AUTO_REVERSAL_CRON',
     description: 'Daily journal auto-reversal scan',
+    tz: 'UTC',
+  },
+  recurringJournalScan: {
+    cron: '0 * * * *',
+    envVar: 'RECURRING_JOURNAL_SCAN_CRON',
+    description: 'Hourly recurring journal template scan',
     tz: 'UTC',
   },
   partitionMaintenance: {

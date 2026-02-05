@@ -19,6 +19,7 @@ export enum QueueName {
   PARTITION_MAINTENANCE = 'partition-maintenance',
   AUTOPOST = 'categorization-autopost',
   JOURNAL_AUTO_REVERSAL = 'journal-auto-reversal',
+  RECURRING_JOURNAL = 'recurring-journal-templates',
 }
 
 /**

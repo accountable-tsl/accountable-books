@@ -16,9 +16,11 @@ import {
   voidDraftJournalController,
   voidDraftJournalsBatchController,
 } from './journals.controller.js';
+import recurringTemplatesRoutes from './recurring-templates.routes.js';
 
 const router = express.Router({ mergeParams: true });
 
+router.use('/templates', recurringTemplatesRoutes);
 router.post('/query', getJournalsByPageController);
 router.post('/query/cursor', getJournalsByCursorController);
 router.post('/import/preflight', importJournalsPreflightController);

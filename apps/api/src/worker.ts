@@ -5,14 +5,11 @@ import * as Sentry from '@sentry/node';
 import pino from 'pino';
 
 import { ENV, NODE_ENV } from './config/env.js';
-import { scheduleNightlyAutoExtend } from './domains/reporting/fiscal-calendar/index.js';
-import { scheduleDailyJournalAutoReversalScan } from './domains/journals/auto-reversal.queue.js';
 import {
   getWorkersStatus,
   startAllWorkers,
   stopAllWorkers,
 } from './jobs/workers/index.js';
-import { getJobSchedule } from './jobs/schedules.js';
 import { getRedisStats, initRedisMonitoring } from './lib/redis-monitor.js';
 import { initSentry } from './sentry.bootstrap.js';
 
@@ -35,7 +32,7 @@ async function main() {
   try {
     // Initialize Sentry for error tracking
     initSentry();
-    logger.info('🔧 Worker process starting...');
+    logger.info('🔧 Worker process starting (consumers only)...');
 
     // Initialize Redis monitoring
     initRedisMonitoring();
@@ -54,28 +51,6 @@ async function main() {
 
     // Start all configured workers
     const workers = await startAllWorkers();
-
-    // Schedule nightly fiscal calendar auto-extend job
-    const fiscalSchedule = getJobSchedule('fiscalAutoExtend');
-    await scheduleNightlyAutoExtend(
-      fiscalSchedule.cron,
-      fiscalSchedule.tz,
-    );
-    logger.info(
-      { cron: fiscalSchedule.cron, tz: fiscalSchedule.tz },
-      '📅 Scheduled nightly fiscal calendar auto-extend',
-    );
-
-    // Schedule daily journal auto-reversal scan
-    const reversalSchedule = getJobSchedule('journalAutoReversal');
-    await scheduleDailyJournalAutoReversalScan(
-      reversalSchedule.cron,
-      reversalSchedule.tz ?? 'UTC',
-    );
-    logger.info(
-      { cron: reversalSchedule.cron, tz: reversalSchedule.tz },
-      '🧾 Scheduled daily journal auto-reversal scan',
-    );
 
     // Log worker status
     const status = getWorkersStatus();

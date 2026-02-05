@@ -14,6 +14,8 @@ import { mlPredictionQueue } from '../domains/categorization/ml/ml-prediction.qu
 import { ruleRunnerQueue } from '../domains/categorization/rules/rule-runner.queue.js';
 import { journalAutoReversalQueue } from '../domains/journals/auto-reversal.queue.js';
 import { startJournalAutoReversalWorker } from '../domains/journals/auto-reversal.worker.js';
+import { recurringTemplatesQueue } from '../domains/journals/recurring-templates.queue.js';
+import { startRecurringTemplatesWorker } from '../domains/journals/recurring-templates.worker.js';
 import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { startFiscalCalendarWorker } from '../domains/reporting/fiscal-calendar/index.js';
 import { emailQueue } from '../features/communications/email/email.queue.js';
@@ -149,6 +151,17 @@ export const JOB_REGISTRY: JobDefinition[] = [
     icon: '🧾',
     config: {
       envVar: 'JOURNAL_AUTO_REVERSAL_CONCURRENCY',
+      defaultValue: 1,
+    },
+  },
+  {
+    name: 'recurringTemplates',
+    queue: recurringTemplatesQueue,
+    factory: (concurrency) => startRecurringTemplatesWorker(concurrency),
+    label: 'Recurring journal templates worker',
+    icon: '🗓️',
+    config: {
+      envVar: 'RECURRING_TEMPLATES_CONCURRENCY',
       defaultValue: 1,
     },
   },
