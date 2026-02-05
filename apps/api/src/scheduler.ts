@@ -27,6 +27,24 @@ const logger =
  */
 async function main() {
   try {
+    const flyProcessGroup = process.env.FLY_PROCESS_GROUP;
+    const schedulerDisabled =
+      process.env.ENABLE_SCHEDULER === 'false' ||
+      process.env.ENABLE_SCHEDULER === '0';
+
+    if (schedulerDisabled) {
+      logger.info('⏭️ Scheduler disabled via ENABLE_SCHEDULER=false');
+      process.exit(0);
+    }
+
+    if (flyProcessGroup && flyProcessGroup !== 'scheduler') {
+      logger.info(
+        { flyProcessGroup },
+        '⏭️ Scheduler process group mismatch; exiting',
+      );
+      process.exit(0);
+    }
+
     // Initialize Sentry for error tracking
     initSentry();
     logger.info('🗓️ Scheduler process starting...');

@@ -299,6 +299,8 @@ async function generateOccurrenceFromTemplate({
   runDateYMD,
   companyId,
   userId,
+  trigger,
+  triggeredByUserId,
 }: {
   trx: Knex.Transaction;
   template: any;
@@ -306,6 +308,8 @@ async function generateOccurrenceFromTemplate({
   runDateYMD: string;
   companyId: string;
   userId: string;
+  trigger: 'schedule' | 'manual';
+  triggeredByUserId?: string | null;
 }) {
   const tz = template.template_timezone;
   const renderedTitle = renderPlaceholders(
@@ -331,10 +335,17 @@ async function generateOccurrenceFromTemplate({
   const shouldPost =
     template.auto_post === true && periodStatus.status === 'open';
 
-  const metadata =
-    !shouldPost && template.auto_post
-      ? { post_blocked_period: true }
-      : undefined;
+  const metadata: Record<string, unknown> = {
+    recurring: {
+      templateId: template.id,
+      trigger,
+      ...(triggeredByUserId ? { triggeredByUserId } : {}),
+    },
+  };
+
+  if (!shouldPost && template.auto_post) {
+    metadata.post_blocked_period = true;
+  }
 
   const autoReversalDate = template.auto_reversal_days
     ? addDaysToYMD(runDateYMD, template.auto_reversal_days)
@@ -898,13 +909,13 @@ export async function previewRecurringTemplate({
 export async function runRecurringTemplateNow({
   companyId,
   templateId,
+  userId,
 }: {
   companyId: string;
   templateId: string;
+  userId: string;
 }): Promise<ApiResponse<{ template: any; journalId?: string }>> {
   try {
-    const systemUser = await getSystemUser({ deterministic: true });
-
     const result = await knexClient.transaction(async (trx) => {
       const context = await getCompanyContext(companyId, trx);
       if (!context)
@@ -970,7 +981,9 @@ export async function runRecurringTemplateNow({
         entries,
         runDateYMD,
         companyId: context.companyUUID,
-        userId: systemUser.id,
+        userId,
+        trigger: 'manual',
+        triggeredByUserId: userId,
       });
 
       const nextRunYMD = advanceRunDate({
@@ -1066,6 +1079,7 @@ export async function processDueRecurringTemplates({
           runDateYMD,
           companyId: template.company_id,
           userId: systemUser.id,
+          trigger: 'schedule',
         });
       } catch (error) {
         if (isUniqueConstraintError(error)) {

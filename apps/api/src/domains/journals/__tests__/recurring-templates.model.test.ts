@@ -7,6 +7,7 @@ import {
   getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
+import { knexClient } from '../../../db/knexClient.js';
 import {
   createRecurringTemplate,
   updateRecurringTemplateStatus,
@@ -58,11 +59,14 @@ describe('recurring templates model', () => {
   });
 
   afterEach(async () => {
-    for (const id of createdTemplateIds) {
-      await trx('recurring_journal_template_entries')
+    const idsToDelete = createdTemplateIds.splice(0, createdTemplateIds.length);
+    for (const id of idsToDelete) {
+      // These records are created via model methods that use the shared knexClient
+      // (not this test transaction), so cleanup must also use knexClient.
+      await knexClient('recurring_journal_template_entries')
         .where('template_id', id)
         .del();
-      await trx('recurring_journal_templates').where('id', id).del();
+      await knexClient('recurring_journal_templates').where('id', id).del();
     }
     await trx.rollback();
   });
@@ -129,8 +133,10 @@ describe('recurring templates model', () => {
     const template = createResult.data!.template;
     createdTemplateIds.push(template.id);
 
+    // Set up paused state with a future next_run_date using the main knex client
+    // (not the test transaction) to avoid deadlock with updateRecurringTemplateStatus
     const pausedRunDateYMD = '2026-03-01';
-    await trx('recurring_journal_templates')
+    await knexClient('recurring_journal_templates')
       .where('id', template.id)
       .update({
         status: 'paused',
@@ -178,6 +184,6 @@ describe('recurring templates model', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(String(result.error)).toContain('endDateYMD');
+    expect(JSON.stringify(result.error)).toContain('endDateYMD');
   });
 });

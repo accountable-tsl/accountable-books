@@ -174,8 +174,13 @@ export async function runRecurringTemplateNowController(
 
     const companyId = String(req.params.companyId);
     const templateId = String(req.params.templateId);
+    const userId = String(req.user.id);
 
-    const result = await runRecurringTemplateNow({ companyId, templateId });
+    const result = await runRecurringTemplateNow({
+      companyId,
+      templateId,
+      userId,
+    });
 
     return result.success
       ? res.status(200).json(result)

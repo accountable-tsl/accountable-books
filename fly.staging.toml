@@ -36,6 +36,7 @@ primary_region = "iad"  # Washington DC (US East)
 [processes]
   web = "node dist/src/server.js"
   worker = "node dist/src/worker.js"
+  scheduler = "node dist/src/scheduler.js"
 
 [http_service]
   internal_port = 5001
