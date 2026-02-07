@@ -12,6 +12,7 @@ const possibleDateFormats = z.enum([
   'dd/MM/yyyy',
   'MM/dd/yyyy',
   'yyyy-MM-dd',
+  'MMM dd, yyyy',
 ]);
 type PossibleDateFormats = z.infer<typeof possibleDateFormats>;
 

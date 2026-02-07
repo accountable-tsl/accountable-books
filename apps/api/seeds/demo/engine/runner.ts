@@ -309,6 +309,14 @@ export class DemoSeedRunner {
               .first()
               .then((r) => Number(r?.count) || 0);
             break;
+          case 'journals':
+            count = await this.knex('journal_batches')
+              .join('companies', 'journal_batches.company_id', 'companies.id')
+              .where('companies.is_demo_company', true)
+              .count('journal_batches.id as count')
+              .first()
+              .then((r) => Number(r?.count) || 0);
+            break;
           default:
             count = 0;
         }

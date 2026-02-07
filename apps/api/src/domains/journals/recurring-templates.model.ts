@@ -45,6 +45,14 @@ import type {
   RecurringTemplateStatusInput,
   RecurringTemplateUpdateInput,
 } from './recurring-templates.types.js';
+import type {
+  GetRecurringTemplateResponse,
+  PreviewRecurringTemplateResponse,
+  RecurringTemplateDetail,
+  RecurringTemplateDetailEntry,
+  RunRecurringTemplateNowResponse,
+  UpdateRecurringTemplateStatusResponse,
+} from '@accountable-books/contracts/schema';
 
 const TEMPLATES_TABLE = 'recurring_journal_templates';
 const ENTRIES_TABLE = 'recurring_journal_template_entries';
@@ -77,7 +85,7 @@ async function getCompanyContext(
   };
 }
 
-function mapTemplateRow(row: any) {
+function mapTemplateRow(row: any): RecurringTemplateDetail {
   const tz = row.template_timezone;
 
   const startDateYMD = row.start_date
@@ -105,7 +113,11 @@ function mapTemplateRow(row: any) {
     nextRunDateYMD,
     placeholderVars: row.placeholder_vars ?? null,
     currencyId: row.currency_id ?? null,
+    currencyCode: row.currency_code ?? null,
+    currencyName: row.currency_name ?? null,
+    currencySymbol: row.currency_symbol ?? null,
     contactId: row.contact_id ?? null,
+    contactName: row.contact_name ?? null,
     autoReversalDays: row.auto_reversal_days ?? null,
     lastRunAt: row.last_run_at ?? null,
     lastFailedAt: row.last_failed_at ?? null,
@@ -116,15 +128,25 @@ function mapTemplateRow(row: any) {
   };
 }
 
-function mapEntryRow(row: any) {
+function mapEntryRow(row: any): RecurringTemplateDetailEntry {
   return {
     id: row.id,
     description: row.description,
     side: row.transaction_side,
     amount: Number(row.amount),
     coaId: row.coa_id,
+    coaCode: row.coa_code ?? null,
+    coaName: row.coa_name ?? null,
     templateId: row.template_id,
   };
+}
+
+function templateEntriesDetailQuery(trx: Knex.Transaction, templateId: string) {
+  return trx(`${ENTRIES_TABLE} as rjte`)
+    .leftJoin('coa as c', 'c.id', 'rjte.coa_id')
+    .where('rjte.template_id', templateId)
+    .select('rjte.*', 'c.code as coa_code', 'c.name as coa_name')
+    .orderBy('rjte.id', 'asc');
 }
 
 function buildTemplateEntriesInsert({
@@ -157,7 +179,9 @@ async function validateContactId({
     .where('id', contactId)
     .where('company_id', companyUUID)
     .where('is_deleted', false)
-    .where('is_active', true)
+    .where((qb) => {
+      qb.where('status', 'active').orWhereNull('status');
+    })
     .first('id');
 
   if (!contact) {
@@ -392,7 +416,19 @@ export async function listRecurringTemplates({
 }: {
   companyId: string;
   queryData: Record<string, unknown>;
-}): Promise<ApiResponse<{ templates: any[]; pagination: any }>> {
+}): Promise<
+  ApiResponse<{
+    templates: RecurringTemplateDetail[];
+    pagination: {
+      currentPage: number;
+      pageSize: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }>
+> {
   const parsed = listRecurringTemplatesQuery.safeParse(queryData ?? {});
   if (!parsed.success) {
     return errorResponse(
@@ -452,7 +488,17 @@ export async function listRecurringTemplates({
       });
     });
 
-    return result as ApiResponse<{ templates: any[]; pagination: any }>;
+    return result as ApiResponse<{
+      templates: RecurringTemplateDetail[];
+      pagination: {
+        currentPage: number;
+        pageSize: number;
+        total: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrev: boolean;
+      };
+    }>;
   } catch (error) {
     return errorResponse('Failed to list recurring templates', error);
   }
@@ -464,7 +510,7 @@ export async function getRecurringTemplate({
 }: {
   companyId: string;
   templateId: string;
-}): Promise<ApiResponse<{ template: any; entries: any[] }>> {
+}): Promise<ApiResponse<GetRecurringTemplateResponse>> {
   try {
     const result = await knexClient.transaction(async (trx) => {
       const context = await getCompanyContext(companyId, trx);
@@ -473,10 +519,23 @@ export async function getRecurringTemplate({
           code: ErrorCode.NOT_FOUND,
         });
 
-      const template = await trx(TEMPLATES_TABLE)
-        .where('id', templateId)
-        .where('company_id', context.companyUUID)
-        .where('is_deleted', false)
+      const template = await trx(`${TEMPLATES_TABLE} as rjt`)
+        .innerJoin('companies as co', 'co.id', 'rjt.company_id')
+        .leftJoin('contacts as c', 'c.id', 'rjt.contact_id')
+        .innerJoin(
+          'currencies as cur',
+          trx.raw('cur.id = COALESCE(rjt.currency_id, co.reporting_currency_id)'),
+        )
+        .select(
+          'rjt.*',
+          'cur.code as currency_code',
+          'cur.name as currency_name',
+          'cur.symbol as currency_symbol',
+          'c.display_name as contact_name',
+        )
+        .where('rjt.id', templateId)
+        .where('rjt.company_id', context.companyUUID)
+        .where('rjt.is_deleted', false)
         .first();
 
       if (!template) {
@@ -485,10 +544,7 @@ export async function getRecurringTemplate({
         });
       }
 
-      const entries = await trx(ENTRIES_TABLE)
-        .where('template_id', templateId)
-        .select('*')
-        .orderBy('id', 'asc');
+      const entries = await templateEntriesDetailQuery(trx, templateId);
 
       return successResponse('Recurring template retrieved successfully', {
         template: mapTemplateRow(template),
@@ -496,7 +552,7 @@ export async function getRecurringTemplate({
       });
     });
 
-    return result as ApiResponse<{ template: any; entries: any[] }>;
+    return result as ApiResponse<GetRecurringTemplateResponse>;
   } catch (error) {
     return errorResponse('Failed to get recurring template', error);
   }
@@ -510,7 +566,7 @@ export async function createRecurringTemplate({
   companyId: string;
   userId: string;
   input: RecurringTemplateInput;
-}): Promise<ApiResponse<{ template: any; entries: any[] }>> {
+}): Promise<ApiResponse<GetRecurringTemplateResponse>> {
   try {
     const parsed = recurringTemplateInput.safeParse(input);
     if (!parsed.success) {
@@ -580,10 +636,7 @@ export async function createRecurringTemplate({
 
       await trx(ENTRIES_TABLE).insert(entriesInsert);
 
-      const entries = await trx(ENTRIES_TABLE)
-        .where('template_id', template.id)
-        .select('*')
-        .orderBy('id', 'asc');
+      const entries = await templateEntriesDetailQuery(trx, template.id);
 
       return successResponse('Recurring template created successfully', {
         template: mapTemplateRow(template),
@@ -591,7 +644,7 @@ export async function createRecurringTemplate({
       });
     });
 
-    return result as ApiResponse<{ template: any; entries: any[] }>;
+    return result as ApiResponse<GetRecurringTemplateResponse>;
   } catch (error) {
     return errorResponse('Failed to create recurring template', error);
   }
@@ -607,7 +660,7 @@ export async function updateRecurringTemplate({
   userId: string;
   templateId: string;
   input: RecurringTemplateUpdateInput;
-}): Promise<ApiResponse<{ template: any; entries: any[] }>> {
+}): Promise<ApiResponse<GetRecurringTemplateResponse>> {
   try {
     const parsed = recurringTemplateUpdateInput.safeParse(input);
     if (!parsed.success) {
@@ -708,10 +761,7 @@ export async function updateRecurringTemplate({
         }),
       );
 
-      const entries = await trx(ENTRIES_TABLE)
-        .where('template_id', templateId)
-        .select('*')
-        .orderBy('id', 'asc');
+      const entries = await templateEntriesDetailQuery(trx, templateId);
 
       return successResponse('Recurring template updated successfully', {
         template: mapTemplateRow(updated),
@@ -719,7 +769,7 @@ export async function updateRecurringTemplate({
       });
     });
 
-    return result as ApiResponse<{ template: any; entries: any[] }>;
+    return result as ApiResponse<GetRecurringTemplateResponse>;
   } catch (error) {
     return errorResponse('Failed to update recurring template', error);
   }
@@ -733,7 +783,7 @@ export async function updateRecurringTemplateStatus({
   companyId: string;
   templateId: string;
   input: RecurringTemplateStatusInput;
-}): Promise<ApiResponse<{ template: any }>> {
+}): Promise<ApiResponse<UpdateRecurringTemplateStatusResponse>> {
   const parsed = recurringTemplateStatusInput.safeParse(input);
   if (!parsed.success) {
     return errorResponse('Invalid input', z.treeifyError(parsed.error));
@@ -812,7 +862,7 @@ export async function updateRecurringTemplateStatus({
       });
     });
 
-    return result as ApiResponse<{ template: any }>;
+    return result as ApiResponse<UpdateRecurringTemplateStatusResponse>;
   } catch (error) {
     return errorResponse('Failed to update template status', error);
   }
@@ -824,7 +874,7 @@ export async function previewRecurringTemplate({
 }: {
   companyId: string;
   input: RecurringTemplatePreviewInput;
-}): Promise<ApiResponse<{ runDateYMD: string; rendered: any }>> {
+}): Promise<ApiResponse<PreviewRecurringTemplateResponse>> {
   const parsed = recurringTemplatePreviewInput.safeParse(input);
   if (!parsed.success) {
     return errorResponse('Invalid input', z.treeifyError(parsed.error));
@@ -881,13 +931,15 @@ export async function previewRecurringTemplate({
       );
 
       const renderedEntries = (data.entries ?? []).map((entry) => ({
-        ...entry,
         description:
           renderPlaceholders(
             entry.description,
             runDateYMD,
             context.defaultTimezone,
           ) ?? entry.description,
+        side: entry.side,
+        amount: entry.amount,
+        coaId: entry.coa_id,
       }));
 
       return successResponse('Recurring template preview generated', {
@@ -900,7 +952,7 @@ export async function previewRecurringTemplate({
       });
     });
 
-    return result as ApiResponse<{ runDateYMD: string; rendered: any }>;
+    return result as ApiResponse<PreviewRecurringTemplateResponse>;
   } catch (error) {
     return errorResponse('Failed to preview recurring template', error);
   }
@@ -914,7 +966,7 @@ export async function runRecurringTemplateNow({
   companyId: string;
   templateId: string;
   userId: string;
-}): Promise<ApiResponse<{ template: any; journalId?: string }>> {
+}): Promise<ApiResponse<RunRecurringTemplateNowResponse>> {
   try {
     const result = await knexClient.transaction(async (trx) => {
       const context = await getCompanyContext(companyId, trx);
@@ -1018,7 +1070,7 @@ export async function runRecurringTemplateNow({
       });
     });
 
-    return result as ApiResponse<{ template: any; journalId?: string }>;
+    return result as ApiResponse<RunRecurringTemplateNowResponse>;
   } catch (error) {
     return errorResponse('Failed to run recurring template', error);
   }

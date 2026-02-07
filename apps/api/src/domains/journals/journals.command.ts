@@ -75,7 +75,8 @@ export async function copyJournal({
     level: 'info' | 'error' = 'info',
   ) => {
     const duration_ms = Date.now() - startTime;
-    const fn = level === 'error' ? logger.error : logger.info;
+    const fn =
+      level === 'error' ? logger.error.bind(logger) : logger.info.bind(logger);
     fn(
       {
         traceId,
@@ -266,7 +267,8 @@ export async function postJournalRecord({
     level: 'info' | 'error' = 'info',
   ) => {
     const duration_ms = Date.now() - startTime;
-    const fn = level === 'error' ? logger.error : logger.info;
+    const fn =
+      level === 'error' ? logger.error.bind(logger) : logger.info.bind(logger);
     fn(
       {
         traceId,
@@ -666,7 +668,8 @@ export async function updateDraftJournal({
     level: 'info' | 'error' = 'info',
   ) => {
     const duration_ms = Date.now() - startTime;
-    const fn = level === 'error' ? logger.error : logger.info;
+    const fn =
+      level === 'error' ? logger.error.bind(logger) : logger.info.bind(logger);
     fn(
       {
         traceId,
@@ -939,7 +942,8 @@ export async function voidDraftJournal({
     level: 'info' | 'error' = 'info',
   ) => {
     const duration_ms = Date.now() - startTime;
-    const fn = level === 'error' ? logger.error : logger.info;
+    const fn =
+      level === 'error' ? logger.error.bind(logger) : logger.info.bind(logger);
     fn(
       {
         traceId,
@@ -1073,7 +1077,8 @@ export async function postDraftJournal({
     level: 'info' | 'error' = 'info',
   ) => {
     const duration_ms = Date.now() - startTime;
-    const fn = level === 'error' ? logger.error : logger.info;
+    const fn =
+      level === 'error' ? logger.error.bind(logger) : logger.info.bind(logger);
     fn(
       {
         traceId,
@@ -1765,7 +1770,8 @@ export async function reverseJournalRecord({
     level: 'info' | 'error' = 'info',
   ) => {
     const duration_ms = Date.now() - startTime;
-    const fn = level === 'error' ? logger.error : logger.info;
+    const fn =
+      level === 'error' ? logger.error.bind(logger) : logger.info.bind(logger);
     fn(
       {
         traceId,
@@ -1876,9 +1882,9 @@ export async function reverseJournalRecord({
       description: `Reversal: ${entry.description || journalBatch.title}`,
     }));
 
-    const effectiveReversalDate = reversalDate
-      ? toYMD(reversalDate)
-      : journalBatch.date;
+    const effectiveReversalDate = toYMD(
+      reversalDate ? reversalDate : journalBatch.date,
+    );
 
     const reversalResult = await postJournalRecord({
       data: {

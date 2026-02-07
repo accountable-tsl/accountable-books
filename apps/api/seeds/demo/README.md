@@ -7,7 +7,7 @@ Idempotent demo seeding system for 6 companies (3 US, 3 Nigeria) with comprehens
 - **Countries**: US and Nigeria
 - **Company Types**: Individual, Business, Accounting Firm (per country)
 - **Demo Companies**: bizDemoUS, firmDemoUS, indDemoUS, bizDemoNG, firmDemoNG, indDemoNG
-- **Steps**: User → Companies → Chart-of-Accounts → Contacts → Projects → Bank Accounts → Bank Transactions
+- **Steps**: User → Companies → Chart-of-Accounts → Contacts → Projects → Bank Accounts → Bank Transactions → Journals
 
 ## Quick Start
 
@@ -91,6 +91,7 @@ make demo-reverse      # Remove demo data
 5. **`012_projects`** - Sample projects (business/firm specific)
 6. **`015_bank_accounts`** - Bank accounts with linked COA entries
 7. **`016_bank_transactions`** - Synthetic bank transactions per company/account
+8. **`020_journals`** - Manual journal batches + recurring templates (seeded via domain commands)
 
 ### Key Features
 

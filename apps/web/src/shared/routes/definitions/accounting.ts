@@ -11,12 +11,26 @@ export const accounting = {
   // uploadBankTxn: route('/ws/accounting/upload-bank-txn', {
   //   label: 'Upload Bank Transaction',
   // }),
-  catEngine: route('/ws/cat-engine', {
+  catEngine: route('/ws/accounting/cat-engine', {
     label: 'Transactions',
     sidebarCollapsed: true,
   }),
-  transactions: route('/ws/transactions', {
+
+  transactions: route('/ws/accounting/transactions', {
     label: 'Transactions',
+    sidebarCollapsed: true,
+  }),
+
+  journals: route('/ws/accounting/journals', {
+    label: 'Journals',
+    sidebarCollapsed: true,
+  }),
+  journalsRecurring: route('/ws/accounting/journals/recurring', {
+    label: 'Recurring Journals',
+    sidebarCollapsed: true,
+  }),
+  journalsImport: route('/ws/accounting/journals/import', {
+    label: 'Import Journals',
     sidebarCollapsed: true,
   }),
   // addBankTxn: route("/ws/accounting/add-bank-txn", {

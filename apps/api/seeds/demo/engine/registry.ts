@@ -25,6 +25,10 @@ import {
   createDemoBankTransactions,
   deleteDemoBankTransactions,
 } from '../config/016_bank_transactions/bank-transactions.fn.js';
+import {
+  createDemoJournals,
+  deleteDemoJournals,
+} from '../config/020_journals/journals.fn.js';
 
 import type { DemoFilter } from '../shared/config.js';
 
@@ -79,5 +83,12 @@ export const SEED_STEPS: SeedStep[] = [
     // Depends on bank accounts + contacts existing
     createFn: createDemoBankTransactions,
     deleteFn: deleteDemoBankTransactions,
+  },
+  {
+    name: 'journals',
+    order: 8,
+    // Depends on COA + contacts + projects existing
+    createFn: createDemoJournals,
+    deleteFn: deleteDemoJournals,
   },
 ];

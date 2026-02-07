@@ -10,33 +10,27 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 
 ---
 
-## 📊 Current Implementation Status
+## Current Implementation Status
 
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-02-05
 
-| Component                       | Status         | Completion |
-| ------------------------------- | -------------- | ---------- |
-| **Phase 1: Database Migration** | ✅ Complete    | 100%       |
-| **Phase 2: Backend API**        | ✅ Complete    | 100%       |
-| - Core queries (list, get)      | ✅ Complete    | 100%       |
-| - Create journal                | ✅ Complete    | 100%       |
-| - Update/Post/Void (drafts)     | ✅ Complete    | 100%       |
-| - Batch Post/Void (drafts)      | ✅ Complete    | 100%       |
-| - Reverse journal (posted)      | ✅ Complete    | 100%       |
-| - Copy journal                  | ✅ Complete    | 100%       |
-| - Controller & Routes           | ✅ Complete    | 100%       |
-| - CSV import endpoint           | ✅ Complete    | 100%       |
-| **Phase 3-5: Frontend**         | ⏳ Not Started | 0%         |
-| **Phase 6: Recurring Journals** | ⏳ Not Started | 0%         |
-| **Phase 7: Auto-Reversal Job**  | ✅ Complete    | ~90%       |
-| **Phase 8: CSV Import**         | 🟡 In Progress | ~40%       |
+| Component                                | Status       | Notes |
+| ---------------------------------------- | ------------ | ----- |
+| Database migrations                      | Complete     | Manual journals + recurring templates tables/fields are in place. |
+| Backend: Manual journals API             | Complete     | List/get/create/update draft/post/void/reverse/copy implemented. |
+| Backend: CSV import API                  | Complete     | Preflight + import endpoints exist under `/api/:companyId/journals/import/*`. |
+| Backend: Recurring templates API + worker| Complete     | CRUD + preview + run-now + scheduled scan worker implemented under `/api/:companyId/journals/templates`. |
+| Ops: Scheduler process (repeatable jobs) | In progress  | Fly process group is defined; needs deploy + scaling verification per environment. |
+| Frontend: Journals UI                    | Not started  | List/detail/create/post/void/reverse/copy. |
+| Frontend: Recurring templates UI         | Not started  | Template list + create/edit + status + run-now. |
+| Frontend: CSV import UX                  | Not started  | Upload → preflight → review → import. |
 
 **Next Steps (recommended order):**
 
-1. Build the frontend CSV import UX (parse → preflight → review → import). See `docs/accounting/manual-journals_import_v1.md`.
-2. Start the frontend journals module (list + detail + create/post flow) and wire to the new API routes.
-3. Add an audit trail read endpoint (journal timeline) if needed by the UI.
-4. Implement recurring journals (templates + worker) after base UI is stable.
+1. Build the frontend journals module (list + detail + create/post flow) and wire to the API routes.
+2. Build the frontend recurring templates UI and wire to `/api/:companyId/journals/templates` (including preview + run-now).
+3. Build the frontend CSV import UX (upload → preflight → review → import). See `docs/accounting/manual-journals_import_v1.md`.
+4. Verify scheduler process deployment/scaling in staging + production (repeatable jobs registration).
 
 ---
 
@@ -207,7 +201,7 @@ Implemented schemas:
 - ✅ `JournalDetailEntry` — entry with COA and project names
 - ✅ `GetJournalResponse` — single journal response type
 - ✅ `RelatedJournalSummary` — related journal summary type
-- ⏳ `UpdateDraftInput`, `ReverseJournalInput`, `CopyJournalInput`, `ImportJournalsInput` — pending
+- ⏳ `UpdateDraftInput`, `ReverseJournalInput`, `CopyJournalInput` — pending
 
 **Implementation notes:**
 
@@ -231,7 +225,7 @@ Implemented schemas:
 | `voidDraftJournalsBatch()`   | ✅ DONE | Batch void existing drafts. Supports `partial` (default) and `all_or_nothing` modes.                                                                                                                                                           |
 | `reverseJournalRecord()`     | ✅ DONE | Reverse posted journal (creates reversing entry). Drafts should use `voidDraftJournal()` instead.                                                                                                                                              |
 | `copyJournal()`              | ✅ DONE | Copy any journal to a new draft (defaults `date=today`, `reference=null`). If `includeFiles=true`, creates new attachments referencing the same underlying file rows.                                                                          |
-| `importJournals()`           | ⏳ TODO | Batch create drafts from CSV.                                                                                                                                                                                                                  |
+| `importJournals()`           | ✅ DONE | CSV import (preflight + import) for regular (non-recurring) journals.                                                                                                                                                                         |
 
 **Helper functions added:**
 
@@ -256,6 +250,9 @@ Standard Express handlers. Extract `companyId` from `req.params`, `userId` from 
 ```
 POST   /query               — listJournals (page-based)
 POST   /query/cursor        — listJournals (cursor-based)
+GET    /period-status       — getPeriodStatus (for date hints)
+POST   /import/preflight    — importJournalsPreflight (CSV)
+POST   /import              — importJournals (CSV)
 GET    /:journalId          — getJournal
 POST   /                    — createJournal (draft or posted)
 PUT    /:journalId          — updateDraftJournal (draft only)
@@ -265,7 +262,6 @@ PATCH  /:journalId/post     — postDraftJournal (draft → posted)
 PATCH  /:journalId/void     — voidDraftJournal (draft only)
 PATCH  /:journalId/reverse  — reverseJournalRecord (posted only)
 POST   /:journalId/copy     — copyJournal (any status)
-POST   /import              — importJournals (CSV) [TODO: not implemented/registered yet]
 ```
 
 **Period status check** (for frontend date hint):
@@ -470,12 +466,13 @@ Each row's three-dot menu shows only valid actions:
 
 ### 6a. Backend — Recurring Journal CRUD
 
-**Separate base path:** `/api/:companyId/recurring-journals`
+**Base path:** `/api/:companyId/journals/templates`
 
 ```
 GET    /                    — listRecurringTemplates (paginated)
 GET    /:templateId         — getRecurringTemplate (with entries)
 POST   /                    — createRecurringTemplate
+POST   /preview             — previewRecurringTemplate (validates + renders placeholders)
 PUT    /:templateId         — updateRecurringTemplate
 PATCH  /:templateId/status  — activate / pause / close template
 POST   /:templateId/run     — run now (generate next occurrence immediately; useful for testing)
@@ -487,8 +484,9 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
 - `getRecurringTemplate()` — template + entries
 - `createRecurringTemplate()` — validate entries balance, store template + entries, compute `next_run_date`
 - `updateRecurringTemplate()` — update template + replace entries, recompute `next_run_date`
-- `updateTemplateStatus()` — activate/pause/close
-- `runTemplateNow()` — generate next journal immediately (calls into worker logic)
+- `updateRecurringTemplateStatus()` — activate/pause/close
+- `previewRecurringTemplate()` — validate COAs + balance, render placeholders for a given run date (or next eligible date)
+- `runRecurringTemplateNow()` — generate next journal immediately
 
 **`next_run_date` computation:** Given `start_date`, `frequency`, and current date, find next occurrence >= today. If past `end_date`, set to null.
 
@@ -512,28 +510,28 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
 
 ### 6b. Backend — Recurring Journal Worker
 
-**Daily cron job** (consistent with existing fiscal calendar nightly job pattern):
+**Repeatable scan job** (registered by the scheduler process; processed by the worker process):
 
-1. Runs daily (e.g., 3 AM company timezone or UTC)
-2. Query: `SELECT * FROM recurring_journal_templates WHERE status = 'active' AND next_run_date <= NOW() AND is_deleted = false`
-3. For each template:
+1. Scheduler registers a repeatable queue job (default hourly; `RECURRING_JOURNAL_SCAN_CRON`, tz `UTC`).
+2. Worker processes due templates safely under concurrency using row locking (`FOR UPDATE SKIP LOCKED`) inside a transaction.
+3. For each due template:
    a. Fetch template entries
-   b. Apply placeholder variables (`[Month]`, `[Year]`, `[Day]`, `[Week]`, `[Month Year]`, `[Week Year]` in title/descriptions)
-   c. Determine status: if `auto_post = true` → `'posted'`, else → `'draft'`
-   d. If `auto_post` and period is closed → save as `'draft'` + `post_blocked_period` audit event
+   b. Render placeholders in title/note/entry descriptions
+   c. Determine whether to auto-post:
+      - if `auto_post = true` and fiscal period is open → post
+      - else save as draft and set `metadata.post_blocked_period = true` when blocked by period
    e. Call `postJournalRecord()` with `is_recurring = true`, `recurring_template_id = template.id`
    f. Advance `next_run_date` by frequency
    g. If `next_run_date > end_date` (and end_date is set) → set template status to `'closed'`
-4. **Idempotency:** Check if a journal already exists for this template + run date before creating.
-   - Use a DB uniqueness guard: unique `(recurring_template_id, date)` for generated journals.
-   - Select templates due for processing with row locking (e.g., `FOR UPDATE SKIP LOCKED`) inside a transaction to avoid double-processing under concurrency.
+4. **Idempotency:** enforced by a partial unique DB index on `(recurring_template_id, date)` for recurring journals (`is_recurring = true`).
 
 **Files:**
 
-- `apps/api/src/jobs/queues/recurring-journal.queue.ts` (new)
-- `apps/api/src/jobs/workers/recurring-journal.worker.ts` (new)
-- `apps/api/src/jobs/workers/index.ts` (register worker)
-- `apps/api/src/worker.ts` (add cron schedule)
+- `apps/api/src/domains/journals/recurring-templates.queue.ts`
+- `apps/api/src/domains/journals/recurring-templates.worker.ts`
+- `apps/api/src/jobs/schedules.ts` + `apps/api/src/jobs/schedule-registry.ts` (repeatable job registration)
+- `apps/api/src/scheduler.ts` (scheduler process entrypoint)
+- `apps/api/src/worker.ts` + `apps/api/src/jobs/registry.ts` (worker registration)
 
 ### 6c. Frontend — Recurring Journals
 

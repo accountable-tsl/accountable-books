@@ -225,7 +225,9 @@ export async function validateAndPrepareJournalInput<
       .where('id', contactId)
       .where('company_id', p.context.companyUUID)
       .where('is_deleted', false)
-      .where('is_active', true)
+      .where((qb) => {
+        qb.where('status', 'active').orWhereNull('status');
+      })
       .first<{ id: string }>('id');
 
     if (!contact) {

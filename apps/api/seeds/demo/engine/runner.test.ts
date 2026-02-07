@@ -7,7 +7,7 @@ import { createDemoSeedRunner, DemoSeedRunner } from './runner.js';
 import type { DemoFilter } from '../shared/config.js';
 import type { RunnerOptions } from './runner.js';
 
-// Mock the registry with complete 7-step registry matching reality
+// Mock the registry
 vi.mock('./registry.js', () => {
   // Create mock functions inside the factory to avoid hoisting issues
   const mockCreateFns = {
@@ -18,6 +18,7 @@ vi.mock('./registry.js', () => {
     projects: vi.fn().mockResolvedValue(undefined),
     'bank-accounts': vi.fn().mockResolvedValue(undefined),
     'bank-transactions': vi.fn().mockResolvedValue(undefined),
+    journals: vi.fn().mockResolvedValue(undefined),
   };
 
   const mockDeleteFns = {
@@ -28,6 +29,7 @@ vi.mock('./registry.js', () => {
     projects: vi.fn().mockResolvedValue(undefined),
     'bank-accounts': vi.fn().mockResolvedValue(undefined),
     'bank-transactions': vi.fn().mockResolvedValue(undefined),
+    journals: vi.fn().mockResolvedValue(undefined),
   };
 
   return {
@@ -74,6 +76,12 @@ vi.mock('./registry.js', () => {
         createFn: mockCreateFns['bank-transactions'],
         deleteFn: mockDeleteFns['bank-transactions'],
       },
+      {
+        name: 'journals',
+        order: 8,
+        createFn: mockCreateFns.journals,
+        deleteFn: mockDeleteFns.journals,
+      },
     ],
   };
 });
@@ -111,7 +119,7 @@ describe('DemoSeedRunner', () => {
       expect(mockKnex.transaction).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith('🌱 Applying demo seeds...');
       expect(console.log).toHaveBeenCalledWith(
-        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions',
+        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions, journals',
       );
       expect(console.log).toHaveBeenCalledWith('   Filters:', 'none');
       expect(console.log).toHaveBeenCalledWith('   Mode: sequential');
@@ -203,7 +211,7 @@ describe('DemoSeedRunner', () => {
       expect(mockKnex.transaction).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith('🧹 Reversing demo seeds...');
       expect(console.log).toHaveBeenCalledWith(
-        '   Steps: bank-transactions, bank-accounts, projects, contacts, chart-of-accounts, companies, user',
+        '   Steps: journals, bank-transactions, bank-accounts, projects, contacts, chart-of-accounts, companies, user',
       );
       expect(console.log).toHaveBeenCalledWith('   Filters:', 'none');
       expect(console.log).toHaveBeenCalledWith('   Mode: sequential');
@@ -316,6 +324,9 @@ describe('DemoSeedRunner', () => {
           case 'bank_accounts':
             mockQuery.first.mockResolvedValue({ count: '12' });
             break;
+          case 'journal_batches':
+            mockQuery.first.mockResolvedValue({ count: '14' });
+            break;
           default:
             mockQuery.first.mockResolvedValue({ count: '0' });
         }
@@ -358,6 +369,9 @@ describe('DemoSeedRunner', () => {
       );
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('   bank-transactions'),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('   journals'),
       );
     });
 
@@ -404,7 +418,7 @@ describe('DemoSeedRunner', () => {
       await runner.apply(undefined, options);
 
       expect(console.log).toHaveBeenCalledWith(
-        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions',
+        '   Steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions, journals',
       );
     });
 
@@ -421,7 +435,7 @@ describe('DemoSeedRunner', () => {
       const options: RunnerOptions = { steps: ['unknown-step'] };
 
       await expect(runner.apply(undefined, options)).rejects.toThrow(
-        'Unknown step: unknown-step. Available steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions',
+        'Unknown step: unknown-step. Available steps: user, companies, chart-of-accounts, contacts, projects, bank-accounts, bank-transactions, journals',
       );
     });
   });
@@ -449,6 +463,7 @@ describe('DemoSeedRunner', () => {
         'projects',
         'bank-accounts',
         'bank-transactions',
+        'journals',
       ]);
     });
 

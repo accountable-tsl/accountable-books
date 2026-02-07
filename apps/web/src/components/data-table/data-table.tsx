@@ -66,6 +66,7 @@ export function DataTable<TData>({
       <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-md border">
         <Table
           ref={scrollRef}
+          className={cn(tableClass)}
           style={{
             ...columnSizeVars,
           }}

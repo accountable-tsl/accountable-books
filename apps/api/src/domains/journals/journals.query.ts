@@ -3,7 +3,6 @@ import type { Knex } from 'knex';
 import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
-import { toYMD } from '../../shared/index.js';
 import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
@@ -22,6 +21,7 @@ import type {
   GetJournalResponse,
   JournalDetailEntry,
   JournalListCursorResponse,
+  JournalListJournalRow,
   JournalListPageResponse,
   JournalListRow,
   JournalsCursor,
@@ -33,8 +33,11 @@ import type {
 
 const JOURNAL_BATCHES = 'journal_batches';
 const JOURNAL_ENTRIES = 'journal_entries';
+const RECURRING_TEMPLATES = 'recurring_journal_templates';
+const RECURRING_TEMPLATE_ENTRIES = 'recurring_journal_template_entries';
 const CONTACTS = 'contacts';
 const CURRENCIES = 'currencies';
+const COMPANIES = 'companies';
 
 // ============================================================================
 // Get Journals Query
@@ -66,9 +69,6 @@ const JournalListSelect = {
 
   ledgerTransactionId: 'jb.ledger_transaction_id',
 
-  isRecurring: 'jb.is_recurring',
-  recurringTemplateId: 'jb.recurring_template_id',
-
   autoReversalDate: 'jb.auto_reversal_date',
 
   reversalJournalId: 'jb.reversal_journal_id',
@@ -92,10 +92,59 @@ const JournalListSelect = {
   deletedAt: 'jb.deleted_at',
 };
 
+type JournalListRowDb = {
+  id: string;
+  companyId: string;
+  reference: string | null;
+  sequenceMonth: string | null;
+  sequenceNumber: number | null;
+  date: string;
+  title: string;
+  description: string | null;
+  note: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  currencyId: string;
+  currencyCode: string;
+  currencyName: string;
+  currencySymbol: string;
+  exchangeRate: string;
+  ledgerTransactionId: string | null;
+  autoReversalDate: string | null;
+  reversalJournalId: string | null;
+  originalJournalId: string | null;
+  reversedAt: string | null;
+  reversalReason: string | null;
+  reversedById: string | null;
+  voidedAt: string | null;
+  metadata: unknown | null;
+  createdAt: string;
+  createdById: string;
+  updatedAt: string;
+  updatedById: string | null;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  totalDebit: string;
+  totalCredit: string;
+  entriesCount: number;
+  kind: JournalListRow['kind'];
+  journalSource: 'one_off' | 'generated_from_template' | null;
+  status: 'draft' | 'posted' | 'voided' | null;
+  journalStatus: 'draft' | 'posted' | 'voided' | null;
+  templateId: string | null;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
+  nextRunDate: string | null;
+  autoPost: boolean | null;
+  templateStatus: 'draft' | 'active' | 'paused' | 'closed' | null;
+  generatedFromTemplateId: string | null;
+  generatedAt: string | null;
+  generatedScheduledForDate: string | null;
+};
+
 const SORT_COL: Record<SortBy, string> = {
-  created_at: 'jb.created_at',
-  date: 'jb.date',
-  reference: 'jb.reference',
+  created_at: 'jl."createdAt"',
+  date: 'jl."date"',
+  reference: 'jl."reference"',
 } as const;
 
 function selectAliasedFields(
@@ -107,111 +156,469 @@ function selectAliasedFields(
   );
 }
 
+function clampDayOfMonthUTC(
+  year: number,
+  month1Based: number,
+  day: number,
+): number {
+  const end = new Date(Date.UTC(year, month1Based, 0)).getUTCDate();
+  return Math.max(1, Math.min(day, end));
+}
+
+function toYMDUTC(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysUTC(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function resolveCurrentFiscalYearBounds({
+  today,
+  yearEndMonth,
+  yearEndDay,
+}: {
+  today: Date;
+  yearEndMonth: number;
+  yearEndDay: number;
+}) {
+  const year = today.getUTCFullYear();
+
+  const currentYearEndDay = clampDayOfMonthUTC(year, yearEndMonth, yearEndDay);
+  const currentYearEnd = new Date(
+    Date.UTC(year, yearEndMonth - 1, currentYearEndDay),
+  );
+
+  const fiscalYear =
+    toYMDUTC(today) > toYMDUTC(currentYearEnd) ? year + 1 : year;
+
+  const fyEndDay = clampDayOfMonthUTC(fiscalYear, yearEndMonth, yearEndDay);
+  const prevFyEndDay = clampDayOfMonthUTC(
+    fiscalYear - 1,
+    yearEndMonth,
+    yearEndDay,
+  );
+
+  const fyEnd = new Date(Date.UTC(fiscalYear, yearEndMonth - 1, fyEndDay));
+  const prevFyEnd = new Date(
+    Date.UTC(fiscalYear - 1, yearEndMonth - 1, prevFyEndDay),
+  );
+  const fyStart = addDaysUTC(prevFyEnd, 1);
+
+  return { dateFrom: toYMDUTC(fyStart), dateTo: toYMDUTC(fyEnd) };
+}
+
+async function resolveDefaultDateRangeForCompany({
+  companyUUID,
+  trx,
+}: {
+  companyUUID: string;
+  trx: Knex.Transaction;
+}): Promise<{ dateFrom: string; dateTo: string }> {
+  const company = await trx(COMPANIES)
+    .where('id', companyUUID)
+    .select('year_end_month', 'year_end_day')
+    .first<{ year_end_month: number | null; year_end_day: number | null }>();
+
+  const today = new Date();
+
+  if (
+    !company?.year_end_month ||
+    !company?.year_end_day ||
+    company.year_end_month < 1 ||
+    company.year_end_month > 12 ||
+    company.year_end_day < 1 ||
+    company.year_end_day > 31
+  ) {
+    const dateTo = toYMDUTC(today);
+    const dateFrom = toYMDUTC(addDaysUTC(today, -364));
+    return { dateFrom, dateTo };
+  }
+
+  return resolveCurrentFiscalYearBounds({
+    today,
+    yearEndMonth: company.year_end_month,
+    yearEndDay: company.year_end_day,
+  });
+}
+
+function mapJournalListRow(row: JournalListRowDb): JournalListRow {
+  if (row.kind === 'recurring_template') {
+    return {
+      id: row.id,
+      companyId: row.companyId,
+      kind: 'recurring_template',
+      templateId: row.templateId ?? row.id,
+      templateStatus: row.templateStatus ?? 'draft',
+      frequency: row.frequency ?? 'monthly',
+      nextRunDate: row.nextRunDate,
+      autoPost: row.autoPost === true,
+      reference: null,
+      sequenceMonth: null,
+      sequenceNumber: null,
+      date: row.date,
+      title: row.title,
+      description: row.description,
+      note: row.note,
+      contactId: row.contactId,
+      contactName: row.contactName,
+      currencyId: row.currencyId,
+      currencyCode: row.currencyCode,
+      currencyName: row.currencyName,
+      currencySymbol: row.currencySymbol,
+      exchangeRate: row.exchangeRate,
+      ledgerTransactionId: null,
+      autoReversalDate: null,
+      reversalJournalId: null,
+      originalJournalId: null,
+      reversedAt: null,
+      reversalReason: null,
+      reversedById: null,
+      voidedAt: null,
+      metadata: row.metadata,
+      createdAt: row.createdAt,
+      createdById: row.createdById,
+      updatedAt: row.updatedAt,
+      updatedById: row.updatedById,
+      isDeleted: row.isDeleted,
+      deletedAt: row.deletedAt,
+      totalDebit: row.totalDebit,
+      totalCredit: row.totalCredit,
+      entriesCount: row.entriesCount,
+    };
+  }
+
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    kind: 'journal',
+    journalSource: row.journalSource ?? 'one_off',
+    status: row.status ?? 'draft',
+    reference: row.reference,
+    sequenceMonth: row.sequenceMonth,
+    sequenceNumber: row.sequenceNumber,
+    date: row.date,
+    title: row.title,
+    description: row.description,
+    note: row.note,
+    contactId: row.contactId,
+    contactName: row.contactName,
+    currencyId: row.currencyId,
+    currencyCode: row.currencyCode,
+    currencyName: row.currencyName,
+    currencySymbol: row.currencySymbol,
+    exchangeRate: row.exchangeRate,
+    ledgerTransactionId: row.ledgerTransactionId,
+    autoReversalDate: row.autoReversalDate,
+    reversalJournalId: row.reversalJournalId,
+    originalJournalId: row.originalJournalId,
+    reversedAt: row.reversedAt,
+    reversalReason: row.reversalReason,
+    reversedById: row.reversedById,
+    voidedAt: row.voidedAt,
+    metadata: row.metadata,
+    createdAt: row.createdAt,
+    createdById: row.createdById,
+    updatedAt: row.updatedAt,
+    updatedById: row.updatedById,
+    isDeleted: row.isDeleted,
+    deletedAt: row.deletedAt,
+    totalDebit: row.totalDebit,
+    totalCredit: row.totalCredit,
+    entriesCount: row.entriesCount,
+    generatedFromTemplateId: row.generatedFromTemplateId,
+    generatedAt: row.generatedAt,
+    generatedScheduledForDate: row.generatedScheduledForDate,
+  };
+}
+
+function mapJournalDetailRow(row: JournalListRowDb): JournalListJournalRow {
+  const mapped = mapJournalListRow(row);
+  if (mapped.kind !== 'journal') {
+    throw new AppError('Expected journal row for detail response');
+  }
+  return mapped;
+}
+
 /**
- * Build base query for journals list with company scope, filters, search, and ordering
+ * Build base query for journals list with company scope, filters, search, and ordering.
+ * Source includes:
+ * - regular journals from journal_batches
+ * - recurring template rows from recurring_journal_templates
  */
 function buildJournalsBaseQuery(
   filters: ListJournalsFilters,
   companyUUID: string,
+  options?: { includeClassificationFilters?: boolean },
   trx?: Knex.Transaction,
 ): Knex.QueryBuilder {
   const db = trx || knexClient;
+  const includeClassificationFilters =
+    options?.includeClassificationFilters ?? true;
 
   const {
-    status,
+    journalStatuses,
+    templateStatuses,
+    journalSources,
+    kinds,
     dateFrom,
     dateTo,
     searchQuery,
-    isRecurring,
     contactId,
     currencyId,
     includeDeleted,
   } = filters;
 
-  const selectFields = selectAliasedFields(db, JournalListSelect);
-
-  const computedFields = [
-    db.raw(
-      `COALESCE((
-        SELECT SUM(amount)
-        FROM journal_entries je
-        WHERE je.journal_batch_id = jb.id
-          AND je.side = 'debit'
-          AND (
-            (jb.status <> 'voided' AND je.is_deleted = false)
-            OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
-          )
-      ), 0) as "totalDebit"`,
-    ),
-    db.raw(
-      `COALESCE((
-        SELECT SUM(amount)
-        FROM journal_entries je
-        WHERE je.journal_batch_id = jb.id
-          AND je.side = 'credit'
-          AND (
-            (jb.status <> 'voided' AND je.is_deleted = false)
-            OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
-          )
-      ), 0) as "totalCredit"`,
-    ),
-  ];
-
-  // Base query: scope by company and soft delete
-  const qb = db
+  const journalSelect = db
     .from({ jb: JOURNAL_BATCHES })
     .leftJoin({ c: CONTACTS }, 'c.id', 'jb.contact_id')
     .innerJoin({ cur: CURRENCIES }, 'cur.id', 'jb.currency_id')
-    .select([...selectFields, ...computedFields])
-    .where('jb.company_id', companyUUID);
+    .leftJoin(
+      { rjt: RECURRING_TEMPLATES },
+      'rjt.id',
+      'jb.recurring_template_id',
+    )
+    .where('jb.company_id', companyUUID)
+    .select([
+      ...selectAliasedFields(db, JournalListSelect),
+      db.raw(
+        `COALESCE((
+          SELECT SUM(amount)
+          FROM journal_entries je
+          WHERE je.journal_batch_id = jb.id
+            AND je.side = 'debit'
+            AND (
+              (jb.status <> 'voided' AND je.is_deleted = false)
+              OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+            )
+        ), 0) as "totalDebit"`,
+      ),
+      db.raw(
+        `COALESCE((
+          SELECT SUM(amount)
+          FROM journal_entries je
+          WHERE je.journal_batch_id = jb.id
+            AND je.side = 'credit'
+            AND (
+              (jb.status <> 'voided' AND je.is_deleted = false)
+              OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+            )
+        ), 0) as "totalCredit"`,
+      ),
+      db.raw(
+        `COALESCE((
+          SELECT COUNT(*)
+          FROM journal_entries je
+          WHERE je.journal_batch_id = jb.id
+            AND (
+              (jb.status <> 'voided' AND je.is_deleted = false)
+              OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+            )
+        ), 0)::int as "entriesCount"`,
+      ),
+      db.raw(`'journal'::text as "kind"`),
+      db.raw(
+        `CASE WHEN jb.recurring_template_id IS NOT NULL THEN 'generated_from_template' ELSE 'one_off' END as "journalSource"`,
+      ),
+      db.raw(`jb.status as "journalStatus"`),
+      db.raw(`NULL::recurring_journal_status as "templateStatus"`),
+      db.raw(`NULL::recurrence_frequency as "frequency"`),
+      db.raw(`NULL::date as "nextRunDate"`),
+      db.raw(`NULL::boolean as "autoPost"`),
+      db.raw(`NULL::uuid as "templateId"`),
+      db.raw(`jb.recurring_template_id as "generatedFromTemplateId"`),
+      db.raw(
+        `CASE WHEN jb.recurring_template_id IS NULL THEN NULL ELSE jb.created_at END as "generatedAt"`,
+      ),
+      db.raw(
+        `CASE WHEN jb.recurring_template_id IS NULL THEN NULL ELSE to_char(jb.date, 'YYYY-MM-DD') END as "generatedScheduledForDate"`,
+      ),
+      db.raw(`jb.search_text as "searchText"`),
+    ]);
+
+  const recurringTemplateSelect = db
+    .from({ rjt: RECURRING_TEMPLATES })
+    .innerJoin({ co: COMPANIES }, 'co.id', 'rjt.company_id')
+    .leftJoin({ c: CONTACTS }, 'c.id', 'rjt.contact_id')
+    .innerJoin(
+      { cur: CURRENCIES },
+      db.raw('cur.id = COALESCE(rjt.currency_id, co.reporting_currency_id)'),
+    )
+    .where('rjt.company_id', companyUUID)
+    .select([
+      db.raw(`rjt.id as "id"`),
+      db.raw(`rjt.company_id as "companyId"`),
+      db.raw(`NULL::text as "reference"`),
+      db.raw(`NULL::date as "sequenceMonth"`),
+      db.raw(`NULL::integer as "sequenceNumber"`),
+      db.raw(
+        `COALESCE(rjt.next_run_date::date, rjt.start_date::date, rjt.created_at::date) as "date"`,
+      ),
+      db.raw(`COALESCE(rjt.title, rjt.description) as "title"`),
+      db.raw(`rjt.description as "description"`),
+      db.raw(`NULL::journal_status as "status"`),
+      db.raw(`rjt.note as "note"`),
+      db.raw(`rjt.contact_id as "contactId"`),
+      db.raw(`c.display_name as "contactName"`),
+      db.raw(
+        `COALESCE(rjt.currency_id, co.reporting_currency_id) as "currencyId"`,
+      ),
+      db.raw(`cur.code as "currencyCode"`),
+      db.raw(`cur.name as "currencyName"`),
+      db.raw(`cur.symbol as "currencySymbol"`),
+      db.raw(`1::numeric as "exchangeRate"`),
+      db.raw(`NULL::uuid as "ledgerTransactionId"`),
+      db.raw(`NULL::date as "autoReversalDate"`),
+      db.raw(`NULL::uuid as "reversalJournalId"`),
+      db.raw(`NULL::uuid as "originalJournalId"`),
+      db.raw(`NULL::timestamptz as "reversedAt"`),
+      db.raw(`NULL::text as "reversalReason"`),
+      db.raw(`NULL::uuid as "reversedById"`),
+      db.raw(`NULL::timestamptz as "voidedAt"`),
+      db.raw(`NULL::jsonb as "metadata"`),
+      db.raw(`rjt.created_at as "createdAt"`),
+      db.raw(`rjt.created_by_id as "createdById"`),
+      db.raw(`rjt.updated_at as "updatedAt"`),
+      db.raw(`NULL::uuid as "updatedById"`),
+      db.raw(`rjt.is_deleted as "isDeleted"`),
+      db.raw(`rjt.deleted_at as "deletedAt"`),
+      db.raw(
+        `COALESCE((SELECT SUM(rjte.amount) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id AND rjte.transaction_side = 'debit'), 0) as "totalDebit"`,
+      ),
+      db.raw(
+        `COALESCE((SELECT SUM(rjte.amount) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id AND rjte.transaction_side = 'credit'), 0) as "totalCredit"`,
+      ),
+      db.raw(
+        `COALESCE((SELECT COUNT(*) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id), 0)::int as "entriesCount"`,
+      ),
+      db.raw(`'recurring_template'::text as "kind"`),
+      db.raw(`NULL::text as "journalSource"`),
+      db.raw(`NULL::journal_status as "journalStatus"`),
+      db.raw(`rjt.status as "templateStatus"`),
+      db.raw(`rjt.frequency as "frequency"`),
+      db.raw(`rjt.next_run_date::date as "nextRunDate"`),
+      db.raw(`rjt.auto_post as "autoPost"`),
+      db.raw(`rjt.id as "templateId"`),
+      db.raw(`NULL::uuid as "generatedFromTemplateId"`),
+      db.raw(`NULL::timestamptz as "generatedAt"`),
+      db.raw(`NULL::text as "generatedScheduledForDate"`),
+      db.raw(
+        `concat_ws(' ', rjt.title, rjt.description, rjt.note) as "searchText"`,
+      ),
+    ]);
+
+  const unifiedRows = journalSelect
+    .clone()
+    .unionAll([recurringTemplateSelect], true);
+  const qb = db.queryBuilder().from(unifiedRows.as('jl')) as Knex.QueryBuilder<
+    any,
+    any
+  >;
 
   if (!includeDeleted) {
-    qb.where('jb.is_deleted', false);
+    qb.where('jl.isDeleted', false);
   }
 
-  // Apply filters
-  if (status) {
-    qb.where('jb.status', status);
+  if (includeClassificationFilters && kinds?.length) {
+    qb.whereIn('jl.kind', kinds);
+  }
+
+  if (includeClassificationFilters && journalStatuses?.length) {
+    qb.where('jl.kind', 'journal').whereIn('jl.journalStatus', journalStatuses);
+  }
+
+  if (includeClassificationFilters && templateStatuses?.length) {
+    qb.where('jl.kind', 'recurring_template').whereIn(
+      'jl.templateStatus',
+      templateStatuses,
+    );
+  }
+
+  if (includeClassificationFilters && journalSources?.length) {
+    qb.where('jl.kind', 'journal').whereIn('jl.journalSource', journalSources);
   }
 
   if (dateFrom) {
-    qb.where('jb.date', '>=', dateFrom);
+    qb.where('jl.date', '>=', dateFrom);
   }
 
   if (dateTo) {
-    qb.where('jb.date', '<=', dateTo);
-  }
-
-  if (isRecurring !== undefined) {
-    qb.where('jb.is_recurring', isRecurring);
+    qb.where('jl.date', '<=', dateTo);
   }
 
   if (contactId) {
-    qb.where('jb.contact_id', contactId);
+    qb.where('jl.contactId', contactId);
   }
 
   if (currencyId) {
-    qb.where('jb.currency_id', currencyId);
+    qb.where('jl.currencyId', currencyId);
   }
 
   const q = searchQuery?.trim();
   if (q) {
     qb.where((w) => {
-      w.whereRaw('jb.search_text % ?', [q]).orWhereILike(
-        'jb.search_text',
+      w.whereRaw('jl."searchText" % ?', [q]).orWhereILike(
+        'jl.searchText',
         `%${q}%`,
       );
     });
   }
 
-  // Apply ordering
   const col = SORT_COL[filters.sortBy];
-  qb.orderBy([
-    { column: col, order: filters.sortDir },
-    { column: 'jb.id', order: filters.sortDir },
-  ]);
+  qb.orderByRaw(`${col} ${filters.sortDir}, jl.id ${filters.sortDir}`);
 
-  return qb;
+  return qb.select([
+    db.raw(`jl.id as "id"`),
+    db.raw(`jl."companyId" as "companyId"`),
+    db.raw(`jl.reference as "reference"`),
+    db.raw(`jl."sequenceMonth" as "sequenceMonth"`),
+    db.raw(`jl."sequenceNumber" as "sequenceNumber"`),
+    db.raw(`jl.date as "date"`),
+    db.raw(`jl.title as "title"`),
+    db.raw(`jl.description as "description"`),
+    db.raw(`jl.status as "status"`),
+    db.raw(`jl.note as "note"`),
+    db.raw(`jl."contactId" as "contactId"`),
+    db.raw(`jl."contactName" as "contactName"`),
+    db.raw(`jl."currencyId" as "currencyId"`),
+    db.raw(`jl."currencyCode" as "currencyCode"`),
+    db.raw(`jl."currencyName" as "currencyName"`),
+    db.raw(`jl."currencySymbol" as "currencySymbol"`),
+    db.raw(`jl."exchangeRate" as "exchangeRate"`),
+    db.raw(`jl."ledgerTransactionId" as "ledgerTransactionId"`),
+    db.raw(`jl."autoReversalDate" as "autoReversalDate"`),
+    db.raw(`jl."reversalJournalId" as "reversalJournalId"`),
+    db.raw(`jl."originalJournalId" as "originalJournalId"`),
+    db.raw(`jl."reversedAt" as "reversedAt"`),
+    db.raw(`jl."reversalReason" as "reversalReason"`),
+    db.raw(`jl."reversedById" as "reversedById"`),
+    db.raw(`jl."voidedAt" as "voidedAt"`),
+    db.raw(`jl.metadata as "metadata"`),
+    db.raw(`jl."createdAt" as "createdAt"`),
+    db.raw(`jl."createdById" as "createdById"`),
+    db.raw(`jl."updatedAt" as "updatedAt"`),
+    db.raw(`jl."updatedById" as "updatedById"`),
+    db.raw(`jl."isDeleted" as "isDeleted"`),
+    db.raw(`jl."deletedAt" as "deletedAt"`),
+    db.raw(`jl."totalDebit" as "totalDebit"`),
+    db.raw(`jl."totalCredit" as "totalCredit"`),
+    db.raw(`jl."entriesCount" as "entriesCount"`),
+    db.raw(`jl."kind" as "kind"`),
+    db.raw(`jl."journalSource" as "journalSource"`),
+    db.raw(`jl."templateStatus" as "templateStatus"`),
+    db.raw(`jl."frequency" as "frequency"`),
+    db.raw(`jl."nextRunDate" as "nextRunDate"`),
+    db.raw(`jl."autoPost" as "autoPost"`),
+    db.raw(`jl."templateId" as "templateId"`),
+    db.raw(`jl."generatedFromTemplateId" as "generatedFromTemplateId"`),
+    db.raw(`jl."generatedAt" as "generatedAt"`),
+    db.raw(`jl."generatedScheduledForDate" as "generatedScheduledForDate"`),
+  ]);
 }
 
 /**
@@ -249,7 +656,23 @@ export async function getJournalsByPage({
       throw new AppError(`Company not found: ${companyId}`, { traceId });
     }
 
-    const baseQuery = buildJournalsBaseQuery(filters, companyUUID, txn);
+    const defaultRange =
+      !filters.dateFrom && !filters.dateTo
+        ? await resolveDefaultDateRangeForCompany({ companyUUID, trx: txn })
+        : null;
+
+    const resolvedFilters: ListJournalsFilters = {
+      ...filters,
+      dateFrom: filters.dateFrom ?? defaultRange?.dateFrom,
+      dateTo: filters.dateTo ?? defaultRange?.dateTo,
+    };
+
+    const baseQuery = buildJournalsBaseQuery(
+      resolvedFilters,
+      companyUUID,
+      undefined,
+      txn,
+    );
 
     // total count
     const countRow = await baseQuery
@@ -267,10 +690,12 @@ export async function getJournalsByPage({
     const rows = (await baseQuery
       .clone()
       .limit(pageSize)
-      .offset(offset)) as unknown as JournalListRow[];
+      .offset(offset)) as unknown as JournalListRowDb[];
+
+    const journals = rows.map(mapJournalListRow);
 
     return {
-      journals: rows,
+      journals,
       pagination: { page, pageSize, total, totalPages },
       companyUUID,
     };
@@ -373,7 +798,7 @@ function applyKeysetCursor(
 
   // Composite key comparison: (sortColumn, id) for stable ordering
   qb.andWhere(
-    db.raw(`(${sortCol}, jb.id) ${op} (?, ?)`, [cursor.value, cursor.id]),
+    db.raw(`(${sortCol}, jl.id) ${op} (?, ?)`, [cursor.value, cursor.id]),
   );
 }
 
@@ -437,50 +862,167 @@ export async function getJournalsByCursor({
       throw new AppError(`Company not found: ${companyId}`, { traceId });
     }
 
-    const qb = buildJournalsBaseQuery(filters, companyUUID, txn);
+    const defaultRange =
+      !filters.dateFrom && !filters.dateTo
+        ? await resolveDefaultDateRangeForCompany({ companyUUID, trx: txn })
+        : null;
+
+    const resolvedFilters: ListJournalsFilters = {
+      ...filters,
+      dateFrom: filters.dateFrom ?? defaultRange?.dateFrom,
+      dateTo: filters.dateTo ?? defaultRange?.dateTo,
+    };
+
+    const qb = buildJournalsBaseQuery(
+      resolvedFilters,
+      companyUUID,
+      { includeClassificationFilters: true },
+      txn,
+    );
 
     // If sorting by reference, require reference to be non-null for deterministic keyset paging
-    if (filters.sortBy === 'reference') {
-      qb.whereNotNull('jb.reference');
+    if (resolvedFilters.sortBy === 'reference') {
+      qb.whereNotNull('jl.reference');
     }
 
     // Apply cursor condition
     if (cursorStr) {
       const cursor = decodeCursor(cursorStr, traceId);
-      applyKeysetCursor(qb, txn, filters, cursor);
+      applyKeysetCursor(qb, txn, resolvedFilters, cursor);
     }
 
     // limit+1
     const rows = (await qb
       .clone()
-      .limit(limit + 1)) as unknown as JournalListRow[];
+      .limit(limit + 1)) as unknown as JournalListRowDb[];
 
     const hasMore = rows.length > limit;
-    const journals = hasMore ? rows.slice(0, limit) : rows;
+    const listRows = (hasMore ? rows.slice(0, limit) : rows).map(
+      mapJournalListRow,
+    );
 
     // Build next cursor from the last returned row
     let nextCursor: string | null = null;
-    if (hasMore && journals.length) {
-      const last = journals[journals.length - 1];
-      const value = getSortValueFromRow(last, filters.sortBy, traceId);
+    if (hasMore && listRows.length) {
+      const last = listRows[listRows.length - 1];
+      const value = getSortValueFromRow(last, resolvedFilters.sortBy, traceId);
 
       nextCursor = encodeCursor({
         v: 1,
-        sortBy: filters.sortBy,
-        sortDir: filters.sortDir,
+        sortBy: resolvedFilters.sortBy,
+        sortDir: resolvedFilters.sortDir,
         value,
         id: last.id,
       });
     }
 
-    return { journals, nextCursor, hasMore, companyUUID };
+    const facetsQb = buildJournalsBaseQuery(
+      resolvedFilters,
+      companyUUID,
+      { includeClassificationFilters: false },
+      txn,
+    )
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .clearGroup()
+      .select([
+        txn.raw(`COUNT(*)::int as "allCount"`),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalStatus" = 'draft')::int as "draftCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalStatus" = 'posted')::int as "postedCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalStatus" = 'voided')::int as "voidedCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal')::int as "journalRowsCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'recurring_template')::int as "recurringTemplatesCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalSource" = 'one_off')::int as "oneOffCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalSource" = 'generated_from_template')::int as "generatedFromTemplateCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'recurring_template' AND jl."templateStatus" = 'draft')::int as "templateDraftCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'recurring_template' AND jl."templateStatus" = 'active')::int as "templateActiveCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'recurring_template' AND jl."templateStatus" = 'paused')::int as "templatePausedCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'recurring_template' AND jl."templateStatus" = 'closed')::int as "templateClosedCount"`,
+        ),
+      ])
+      .first<{
+        allCount: number;
+        draftCount: number;
+        postedCount: number;
+        voidedCount: number;
+        journalRowsCount: number;
+        recurringTemplatesCount: number;
+        oneOffCount: number;
+        generatedFromTemplateCount: number;
+        templateDraftCount: number;
+        templateActiveCount: number;
+        templatePausedCount: number;
+        templateClosedCount: number;
+      }>();
+
+    const facetRow = await facetsQb;
+
+    return {
+      rows: listRows,
+      nextCursor,
+      hasMore,
+      companyUUID,
+      facets: {
+        allCount: Number(facetRow?.allCount ?? 0),
+        journalStatusCounts: {
+          draft: Number(facetRow?.draftCount ?? 0),
+          posted: Number(facetRow?.postedCount ?? 0),
+          voided: Number(facetRow?.voidedCount ?? 0),
+        },
+        kindCounts: {
+          journals: Number(facetRow?.journalRowsCount ?? 0),
+          recurringTemplates: Number(facetRow?.recurringTemplatesCount ?? 0),
+        },
+        journalSourceCounts: {
+          oneOff: Number(facetRow?.oneOffCount ?? 0),
+          generatedFromTemplate: Number(
+            facetRow?.generatedFromTemplateCount ?? 0,
+          ),
+        },
+        recurringTemplateStatusCounts: {
+          draft: Number(facetRow?.templateDraftCount ?? 0),
+          active: Number(facetRow?.templateActiveCount ?? 0),
+          paused: Number(facetRow?.templatePausedCount ?? 0),
+          closed: Number(facetRow?.templateClosedCount ?? 0),
+        },
+      },
+      appliedFilters: {
+        dateFrom: resolvedFilters.dateFrom ?? null,
+        dateTo: resolvedFilters.dateTo ?? null,
+        kinds: resolvedFilters.kinds ?? null,
+        journalStatuses: resolvedFilters.journalStatuses ?? null,
+        templateStatuses: resolvedFilters.templateStatuses ?? null,
+        journalSources: resolvedFilters.journalSources ?? null,
+      },
+    };
   };
 
   try {
     const run = async (t: Knex.Transaction) => exec(t);
-    const { journals, nextCursor, hasMore, companyUUID } = trx
-      ? await exec(trx)
-      : await knexClient.transaction(run);
+    const { rows, nextCursor, hasMore, companyUUID, facets, appliedFilters } =
+      trx ? await exec(trx) : await knexClient.transaction(run);
 
     const duration = Date.now() - startTime;
     logger.info(
@@ -491,16 +1033,18 @@ export async function getJournalsByCursor({
         companyUUID,
         duration,
         limit,
-        count: journals.length,
+        count: rows.length,
         hasMore,
       },
       'getJournalsByCursor completed',
     );
 
     return successResponse('Journals retrieved successfully', {
-      journals,
+      rows,
       nextCursor,
       hasMore,
+      facets,
+      appliedFilters,
     });
   } catch (error) {
     if (trx) throw error;
@@ -535,8 +1079,8 @@ export async function getJournal({
   journalId,
   companyId,
   includeLedgerTotals = false,
-  includeFiles = false,
-  includeDeleted = false,
+  includeFiles = true,
+  includeDeleted = true,
   trx,
 }: {
   journalId: string;
@@ -568,12 +1112,38 @@ export async function getJournal({
       db.raw(
         `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'credit' AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0) as "totalCredit"`,
       ),
+      db.raw(
+        `COALESCE((SELECT COUNT(*) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0)::int as "entriesCount"`,
+      ),
+      db.raw(`'journal'::text as "kind"`),
+      db.raw(
+        `CASE WHEN jb.recurring_template_id IS NOT NULL THEN 'generated_from_template' ELSE 'one_off' END as "journalSource"`,
+      ),
+      db.raw(`jb.status as "status"`),
+      db.raw(`jb.status as "journalStatus"`),
+      db.raw(`jb.recurring_template_id as "generatedFromTemplateId"`),
+      db.raw(`NULL::uuid as "templateId"`),
+      db.raw(`NULL::recurrence_frequency as "frequency"`),
+      db.raw(`NULL::text as "nextRunDate"`),
+      db.raw(`NULL::boolean as "autoPost"`),
+      db.raw(`rjt.status as "templateStatus"`),
+      db.raw(
+        `CASE WHEN jb.recurring_template_id IS NULL THEN NULL ELSE jb.created_at END as "generatedAt"`,
+      ),
+      db.raw(
+        `CASE WHEN jb.recurring_template_id IS NULL THEN NULL ELSE to_char(jb.date, 'YYYY-MM-DD') END as "generatedScheduledForDate"`,
+      ),
     ];
 
     const journalQb = db
       .from({ jb: JOURNAL_BATCHES })
       .leftJoin({ c: CONTACTS }, 'c.id', 'jb.contact_id')
       .innerJoin({ cur: CURRENCIES }, 'cur.id', 'jb.currency_id')
+      .leftJoin(
+        { rjt: RECURRING_TEMPLATES },
+        'rjt.id',
+        'jb.recurring_template_id',
+      )
       .where('jb.id', journalId)
       .where('jb.company_id', companyUUID)
       .select([...journalHeaderSelectFields, ...computedFields])
@@ -583,13 +1153,14 @@ export async function getJournal({
       journalQb.where('jb.is_deleted', false);
     }
 
-    const journal = (await journalQb) as unknown as
-      | GetJournalResponse['journal']
+    const journalRow = (await journalQb) as unknown as
+      | JournalListRowDb
       | undefined;
 
-    if (!journal) {
+    if (!journalRow) {
       return errorResponse(`Journal not found: ${journalId}`, { traceId });
     }
+    const journal = mapJournalDetailRow(journalRow);
 
     let files: GetJournalResponse['files'] | undefined;
     if (includeFiles) {

@@ -14,6 +14,7 @@ describe('SEED_STEPS Registry', () => {
       'projects',
       'bank-accounts',
       'bank-transactions',
+      'journals',
     ];
     const actualSteps = SEED_STEPS.map((step) => step.name);
 
@@ -34,6 +35,7 @@ describe('SEED_STEPS Registry', () => {
       { name: 'projects', order: 5 },
       { name: 'bank-accounts', order: 6 },
       { name: 'bank-transactions', order: 7 },
+      { name: 'journals', order: 8 },
     ]);
   });
 
@@ -130,6 +132,7 @@ describe('Step Dependencies', () => {
       'projects',
       'bank-accounts',
       'bank-transactions',
+      'journals',
     ];
 
     dependentSteps.forEach((stepName) => {
@@ -145,6 +148,7 @@ describe('Step Dependencies', () => {
       'projects',
       'bank-accounts',
       'bank-transactions',
+      'journals',
     ];
 
     operationalSteps.forEach((stepName) => {
@@ -153,14 +157,12 @@ describe('Step Dependencies', () => {
     });
   });
 
-  test('bank-transactions should come last', () => {
-    const bankTransactionsStep = SEED_STEPS.find(
-      (s) => s.name === 'bank-transactions',
-    );
-    const otherSteps = SEED_STEPS.filter((s) => s.name !== 'bank-transactions');
+  test('journals should come last', () => {
+    const journalsStep = SEED_STEPS.find((s) => s.name === 'journals');
+    const otherSteps = SEED_STEPS.filter((s) => s.name !== 'journals');
 
     otherSteps.forEach((step) => {
-      expect(step.order).toBeLessThan(bankTransactionsStep!.order);
+      expect(step.order).toBeLessThan(journalsStep!.order);
     });
   });
 });
@@ -234,6 +236,7 @@ describe('Step Function Import Validation', () => {
       { name: 'projects', hasCreate: true, hasDelete: true },
       { name: 'bank-accounts', hasCreate: true, hasDelete: true },
       { name: 'bank-transactions', hasCreate: true, hasDelete: true },
+      { name: 'journals', hasCreate: true, hasDelete: true },
     ]);
   });
 });
@@ -254,8 +257,8 @@ describe('Registry Integration', () => {
     // When reversed, steps should be safe to delete in reverse order
     const reversedSteps = [...SEED_STEPS].reverse();
 
-    // Bank transactions should be deleted first (most dependent)
-    expect(reversedSteps[0].name).toBe('bank-transactions');
+    // Journals should be deleted first (most dependent)
+    expect(reversedSteps[0].name).toBe('journals');
 
     // Companies should be deleted near the end (after all dependents)
     const companiesIndex = reversedSteps.findIndex(

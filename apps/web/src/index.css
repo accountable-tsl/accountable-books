@@ -1,14 +1,17 @@
 /* @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap'); */
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/inter';
 @import '@fontsource-variable/ibm-plex-sans';
-
+@import '@fontsource-variable/jetbrains-mono';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: 'Inter Variable', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+  --font-serif: 'IBM Plex Sans Variable', serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -132,13 +135,13 @@
     height: 2px;
     width: 2px;
     background: transparent;
-    scrollbar-gutter: stable
+    scrollbar-gutter: stable;
   }
 
   .scrollbar-thin-2px::-webkit-scrollbar-thumb {
     background-color: var(--muted-foreground, #d1d5db);
     border-radius: 1px;
-    scrollbar-gutter: stable
+    scrollbar-gutter: stable;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -155,8 +158,8 @@
     font-size: 0.875rem;
     scroll-behavior: smooth;
     font-family:
-    'IBM Plex Sans Variable',
-    'Inter Variable',
+      'IBM Plex Sans Variable',
+      'Inter Variable',
       system-ui,
       -apple-system,
       Oxygen,
@@ -169,11 +172,9 @@
     overscroll-behavior: none;
   }
 
-  /* Override default font-size utilities
-  .text-sm {
-    font-size: 0.9rem;
-    line-height: 1.4;
-  } */
+  .text-ms {
+    font-size: 13px;
+  }
 }
 
 /* html {

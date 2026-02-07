@@ -1,23 +1,11 @@
+import {
+  recurrenceFrequency,
+  recurringTemplateStatus,
+} from '@accountable-books/contracts/schema';
 import { z } from 'zod';
 
 import { debitCredit, zDateYMD } from '../../core/types/core.js';
 import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
-
-export const recurrenceFrequency = z.enum([
-  'daily',
-  'weekly',
-  'monthly',
-  'yearly',
-]);
-export type RecurrenceFrequency = z.infer<typeof recurrenceFrequency>;
-
-export const recurringTemplateStatus = z.enum([
-  'draft',
-  'active',
-  'paused',
-  'closed',
-]);
-export type RecurringTemplateStatus = z.infer<typeof recurringTemplateStatus>;
 
 const amountSchema = z.number().refine(
   (n) => {

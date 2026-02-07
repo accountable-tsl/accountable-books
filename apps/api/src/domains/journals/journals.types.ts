@@ -1,4 +1,8 @@
-import { txnFileBase } from '@accountable-books/contracts/schema';
+import {
+  journalBatchStatus,
+  listJournalsCursorQuery as listJournalsCursorQueryContract,
+  txnFileBase,
+} from '@accountable-books/contracts/schema';
 import { z } from 'zod';
 
 import {
@@ -9,6 +13,17 @@ import {
 import { createCamelCaseSchemaWithExclusions } from '../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import type {
+  GetJournalResponse as ContractGetJournalResponse,
+  JournalBatchStatus as ContractJournalBatchStatus,
+  JournalDetailEntry as ContractJournalDetailEntry,
+  JournalListCursorResponse as ContractJournalListCursorResponse,
+  JournalListJournalRow as ContractJournalListJournalRow,
+  JournalListRow as ContractJournalListRow,
+  JournalTransactionFile as ContractJournalTransactionFile,
+  LedgerTotals as ContractLedgerTotals,
+  RelatedJournalSummary as ContractRelatedJournalSummary,
+} from '@accountable-books/contracts/schema';
 
 export const journalEntryInput = z.object({
   description: z.string(),
@@ -40,8 +55,7 @@ export const journalEntry = z.object({
 });
 export type JournalEntry = z.infer<typeof journalEntry>;
 
-const journalBatchStatus = z.enum(['draft', 'posted', 'voided']);
-export type JournalBatchStatus = z.infer<typeof journalBatchStatus>;
+export type JournalBatchStatus = ContractJournalBatchStatus;
 
 const baseJournalBatch = z.object({
   id: z.uuid().optional(),
@@ -157,23 +171,9 @@ export type JournalBatch = z.infer<typeof journalBatch>;
 // List Journals Query
 export const listJournalsFilters = z
   .object({
-    companyId: z.uuid().optional(), // required (or remove and inject from auth context)
-
-    status: journalBatchStatus.optional(),
-
-    dateFrom: z.iso.date().optional(),
-    dateTo: z.iso.date().optional(),
-
-    searchQuery: z.string().trim().min(1).max(200).optional(),
-
-    isRecurring: z.coerce.boolean().optional(),
-    contactId: z.uuid().optional(),
-    currencyId: z.uuid().optional(),
-
+    ...listJournalsCursorQueryContract.omit({ limit: true, cursor: true }).shape,
     includeDeleted: z.coerce.boolean().default(false),
-
-    sortBy: z.enum(['created_at', 'date', 'reference']).default('created_at'),
-
+    sortBy: z.enum(['created_at', 'date', 'reference']).default('date'),
     sortDir: z.enum(['asc', 'desc']).default('desc'),
   })
   .superRefine((v, ctx) => {
@@ -200,51 +200,8 @@ export const listJournalsCursorQuery = listJournalsFilters.extend({
 });
 
 export type ListJournalsCursorQuery = z.infer<typeof listJournalsCursorQuery>;
-export type JournalListRow = {
-  id: string;
-  companyId: string;
-  reference: string | null;
-  sequenceMonth: string | null;
-  sequenceNumber: number | null;
-  date: string;
-  title: string;
-  description: string | null;
-  status: string;
-  note: string | null;
-
-  // Contact details
-  contactId: string | null;
-  contactName: string | null;
-
-  // Currency details
-  currencyId: string;
-  currencyCode: string;
-  currencyName: string;
-  currencySymbol: string;
-  exchangeRate: string;
-
-  ledgerTransactionId: string | null;
-  isRecurring: boolean;
-  recurringTemplateId: string | null;
-  autoReversalDate: string | null;
-  reversalJournalId: string | null;
-  originalJournalId: string | null;
-  reversedAt: string | null;
-  reversalReason: string | null;
-  reversedById: string | null;
-  voidedAt: string | null;
-  metadata: unknown | null;
-  createdAt: string;
-  createdById: string;
-  updatedAt: string;
-  updatedById: string | null;
-  isDeleted: boolean;
-  deletedAt: string | null;
-
-  // Computed totals
-  totalDebit: string;
-  totalCredit: string;
-};
+export type JournalListRow = ContractJournalListRow;
+export type JournalListJournalRow = ContractJournalListJournalRow;
 
 export type JournalListPageResponse = {
   journals: JournalListRow[];
@@ -271,68 +228,12 @@ export const journalsCursor = z.object({
   id: z.uuid(),
 });
 export type JournalsCursor = z.infer<typeof journalsCursor>;
-
-export type JournalListCursorResponse = {
-  journals: JournalListRow[];
-  nextCursor: string | null;
-  hasMore: boolean;
-};
-
-// Get single journal detail types
-export type JournalDetailEntry = {
-  id: string;
-  description: string;
-  side: 'debit' | 'credit';
-  amount: number;
-  coaId: string;
-  coaCode: string;
-  coaName: string;
-  projectId: string | null;
-  projectName: string | null;
-  ledgerEntryId: string | null;
-  ledgerEntryFsDate: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type RelatedJournalSummary = {
-  id: string;
-  reference: string | null;
-  date: string;
-  title: string;
-};
-
-export type LedgerTotals = {
-  totalDebit: number;
-  totalCredit: number;
-};
-
-export type JournalTransactionFile = {
-  id: string;
-  name: string;
-  key: string;
-  url: string;
-  type: string;
-  bucket_name: string;
-  size_bytes: string;
-  checksum: string | null;
-  provider: string | null;
-  region: string | null;
-  endpoint: string | null;
-  transaction_id: string;
-  entry_id: string | null;
-};
-
-export type GetJournalResponse = {
-  journal: JournalListRow;
-  entries: JournalDetailEntry[];
-  files?: JournalTransactionFile[];
-  ledgerTotals?: LedgerTotals | null;
-  relatedJournals: {
-    reversalJournal?: RelatedJournalSummary | null;
-    originalJournal?: RelatedJournalSummary | null;
-  };
-};
+export type JournalListCursorResponse = ContractJournalListCursorResponse;
+export type JournalDetailEntry = ContractJournalDetailEntry;
+export type RelatedJournalSummary = ContractRelatedJournalSummary;
+export type LedgerTotals = ContractLedgerTotals;
+export type JournalTransactionFile = ContractJournalTransactionFile;
+export type GetJournalResponse = ContractGetJournalResponse;
 
 export const genJournalRefInput = z.object({
   companyId: z.uuid(),

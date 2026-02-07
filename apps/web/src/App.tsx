@@ -20,6 +20,7 @@ import { CatEngine } from '@/features/cat-engine';
 // import { CatEngine as CatEngineT } from '@/features/cat-engine-test';
 import { ConnectBank } from '@/features/connect-bank';
 import { PlaidOAuthCallback } from '@/features/connect-bank/ui/plaid-oauth-callback';
+import { JournalsListPage } from '@/features/manage-journals';
 import { UploadBankTransactions } from '@/features/upload-bank-transactions';
 import AppLayout from '@/layouts/AppLayout';
 import OnboardingLayout from '@/layouts/OnboardingLayout';
@@ -167,6 +168,11 @@ function AppRoutes() {
           <Route
             path={routes.accounting.transactions.relativePath}
             element={<CatEngine />}
+          />
+
+          <Route
+            path={routes.accounting.journals.relativePath}
+            element={<JournalsListPage />}
           />
         </Route>
         <Route path="*" element={<ErrorPage type="404" />} />

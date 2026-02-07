@@ -30,6 +30,8 @@ export interface DatePickerProps {
 
   open?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+
+  align?: 'start' | 'center' | 'end';
 }
 
 export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
@@ -47,6 +49,8 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
 
       open: controlledOpen,
       onOpenChange: controlledOnOpenChange,
+
+      align = 'start',
     },
     ref,
   ) => {
@@ -95,7 +99,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
               <ChevronDownIcon />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+          <PopoverContent className="w-auto overflow-hidden p-0" align={align}>
             <Calendar
               mode="single"
               selected={value ?? internalDate}

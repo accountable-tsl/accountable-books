@@ -155,7 +155,13 @@ export function AccountingWorkspace() {
     {
       icon: <Brain className="text-muted-foreground h-6 w-6" />,
       title: 'Categorization Engine',
-      actions: [{ label: 'Visit', icon: <ChevronRight className="h-4 w-4" />, onClick: () => navigate(tenantRoutes.accounting.catEngine()) }],
+      actions: [
+        {
+          label: 'Visit',
+          icon: <ChevronRight className="h-4 w-4" />,
+          onClick: () => navigate(tenantRoutes.accounting.catEngine()),
+        },
+      ],
       classNames: { actionsBox: 'grid-cols-1' },
     },
 

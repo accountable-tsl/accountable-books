@@ -36,3 +36,6 @@ export const labelRole = z.enum([
   'fallback', // Catch-all accounts for ambiguous transactions
 ]);
 export type LabelRole = z.infer<typeof labelRole>;
+
+export const debitCredit = z.enum(['debit', 'credit']);
+export type DebitCredit = z.infer<typeof debitCredit>;

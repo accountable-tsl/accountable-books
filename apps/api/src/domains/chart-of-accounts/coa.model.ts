@@ -375,7 +375,7 @@ export const fetchCompanyCoa = async ({
   };
 
   try {
-    const companyUUID = await getCompanyUUID(receivedCompanyId);
+    const companyUUID = await getCompanyUUID(receivedCompanyId, trx);
     if (!companyUUID) return errorResponse('Invalid company identifier');
 
     const hasFilters =
