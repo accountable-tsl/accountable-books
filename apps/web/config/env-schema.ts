@@ -76,6 +76,58 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     required: false,
     default: '10000',
   },
+
+  // ============================================================================
+  // AI RUNTIME (APP-LEVEL SHELL)
+  // ============================================================================
+  VITE_AI_ENABLED: {
+    description: 'Enable the app-level AI runtime + UI shell',
+    type: 'boolean',
+    required: false,
+    local: 'true',
+    staging: 'false',
+    production: 'false',
+  },
+
+  VITE_AI_DISABLED_DOMAINS: {
+    description:
+      'Comma-separated list of AI domains to disable in the UI shell',
+    type: 'string',
+    required: false,
+    local: '',
+    staging: '',
+    production: '',
+  },
+
+  VITE_AI_DISABLED_CAPABILITIES: {
+    description:
+      'Comma-separated list of AI capability IDs to disable in the UI shell',
+    type: 'string',
+    required: false,
+    local: '',
+    staging: '',
+    production: '',
+  },
+
+  VITE_AI_ENABLED_DOMAINS: {
+    description:
+      'Optional comma-separated allowlist of AI domains. When set, only these domains are enabled in the UI shell.',
+    type: 'string',
+    required: false,
+    local: '',
+    staging: '',
+    production: '',
+  },
+
+  VITE_AI_ENABLED_CAPABILITIES: {
+    description:
+      'Optional comma-separated allowlist of AI capability IDs. When set, only these capabilities are enabled in the UI shell.',
+    type: 'string',
+    required: false,
+    local: '',
+    staging: '',
+    production: '',
+  },
 } as const;
 
 // ==============================================================================

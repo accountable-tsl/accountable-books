@@ -11,9 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useJournalsInfinite } from '@/modules/accounting/journals';
+import { useRegisterAiDomain } from '@/modules/ai';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useSession } from '@session';
 
+import { journalsAiRegistration } from '../../ai/registration';
 import { JournalDetailPane } from '../components/journal-detail-pane';
 import { JournalVirtualList } from '../components/journal-virtual-list';
 import { JournalsListToolbar } from '../components/journals-list-toolbar';
@@ -35,6 +37,8 @@ type JournalSelection = { id: string; kind: JournalListRow['kind'] };
 const rowKey = (row: JournalSelection) => `${row.kind}:${row.id}`;
 
 export function JournalsListPage() {
+  useRegisterAiDomain(useMemo(() => journalsAiRegistration(), []));
+
   const { companyId, loading: sessionLoading } = useSession();
   const isMobile = useIsMobile();
 

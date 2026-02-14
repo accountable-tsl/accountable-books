@@ -32,6 +32,7 @@ import {
   useLedgerIntentManagerV2,
 } from '@/modules/accounting/categorization';
 import { useChartOfAccountsQuery } from '@/modules/accounting/chart-of-accounts';
+import { useRegisterAiDomain } from '@/modules/ai';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
@@ -39,6 +40,7 @@ import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { toYMD } from '@/shared/utils/date-utils';
 import { toast } from 'sonner';
 
+import { catEngineAiRegistration } from '../ai/registration';
 import { CatEngineAdvFilter } from './components/cat-engine-adv-filter';
 import {
   CenterCatEngineToolbar,
@@ -257,6 +259,8 @@ function transactionMatchesAccordionItem(
 }
 
 export function CatEngine() {
+  useRegisterAiDomain(useMemo(() => catEngineAiRegistration(), []));
+
   const { companyId, company, loading: isLoadingSession } = useSession();
   const [view, setView] = useState<'table' | 'group'>('table');
   const ROW_HEIGHT_KEY = `cat-engine-row-height-${companyId || 'default'}`;
