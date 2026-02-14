@@ -45,13 +45,13 @@ export function OnboardingRouter() {
   }
 
   if (!onboarding?.nextStepToComplete) {
-    return <ErrorPage />;
+    return <ErrorPage showHeader />;
   }
 
   const nextStepPath = getPathByStepKey(onboarding.nextStepToComplete);
 
   if (!nextStepPath) {
-    return <ErrorPage />;
+    return <ErrorPage showHeader />;
   }
 
   return (

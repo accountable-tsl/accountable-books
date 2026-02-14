@@ -144,7 +144,7 @@ export const ChartOfAccounts: React.FC = () => {
   }
 
   if (!companyId) {
-    return <ErrorPage type="default" />;
+    return <ErrorPage showHeader type="default" />;
   }
 
   // Mobile

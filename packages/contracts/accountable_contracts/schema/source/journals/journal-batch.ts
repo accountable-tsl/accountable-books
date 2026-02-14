@@ -9,6 +9,11 @@ import { debitCredit } from '../common/enums.js';
 export const journalBatchStatus = z.enum(['draft', 'posted', 'voided']);
 export type JournalBatchStatus = z.infer<typeof journalBatchStatus>;
 
+export const journalBatchSource = z.enum([
+  'one_off',
+  'generated_from_template',
+]);
+export type JournalBatchSource = z.infer<typeof journalBatchSource>;
 // =============================================================================
 // Journal Entry Schemas
 // =============================================================================
@@ -71,14 +76,18 @@ export const postDraftJournalsBatchBody = z.object({
   journalIds: z.array(z.string().uuid()).min(1).max(200),
   mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
 });
-export type PostDraftJournalsBatchBody = z.infer<typeof postDraftJournalsBatchBody>;
+export type PostDraftJournalsBatchBody = z.infer<
+  typeof postDraftJournalsBatchBody
+>;
 
 export const voidDraftJournalsBatchBody = z.object({
   journalIds: z.array(z.string().uuid()).min(1).max(200),
   voidReason: z.string().min(1).max(2048).nullable().optional(),
   mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
 });
-export type VoidDraftJournalsBatchBody = z.infer<typeof voidDraftJournalsBatchBody>;
+export type VoidDraftJournalsBatchBody = z.infer<
+  typeof voidDraftJournalsBatchBody
+>;
 
 export const copyJournalBody = z.object({
   includeFiles: z.boolean().optional().default(false),

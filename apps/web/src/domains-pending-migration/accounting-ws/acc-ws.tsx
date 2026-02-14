@@ -58,7 +58,7 @@ export function AccountingWorkspace() {
   }
 
   if (!tenantRoutes) {
-    return <ErrorPage type="default" />;
+    return <ErrorPage showHeader type="default" />;
   }
 
   const handleTxnRefresh = async (credentialId: string) => {

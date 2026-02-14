@@ -237,7 +237,7 @@ export async function validateAndPrepareJournalInput<
     }
   }
 
-  const isRecurring = rawBatch.is_recurring ?? false;
+  const isRecurring = rawBatch.journal_source === 'generated_from_template';
   const recurringTemplateId = rawBatch.recurring_template_id ?? null;
   if (isRecurring && !recurringTemplateId) {
     throw new AppError('Recurring journals must include recurringTemplateId', {

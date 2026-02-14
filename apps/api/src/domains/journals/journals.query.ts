@@ -129,6 +129,7 @@ type JournalListRowDb = {
   entriesCount: number;
   kind: JournalListRow['kind'];
   journalSource: 'one_off' | 'generated_from_template' | null;
+  isFx: boolean | null;
   status: 'draft' | 'posted' | 'voided' | null;
   journalStatus: 'draft' | 'posted' | 'voided' | null;
   templateId: string | null;
@@ -298,6 +299,7 @@ function mapJournalListRow(row: JournalListRowDb): JournalListRow {
     companyId: row.companyId,
     kind: 'journal',
     journalSource: row.journalSource ?? 'one_off',
+    isFx: row.isFx === true,
     status: row.status ?? 'draft',
     reference: row.reference,
     sequenceMonth: row.sequenceMonth,
@@ -354,12 +356,16 @@ function mapJournalDetailRow(row: JournalListRowDb): JournalListJournalRow {
 function buildJournalsBaseQuery(
   filters: ListJournalsFilters,
   companyUUID: string,
-  options?: { includeClassificationFilters?: boolean },
+  options?: {
+    includeClassificationFilters?: boolean;
+    includeAggregates?: boolean;
+  },
   trx?: Knex.Transaction,
 ): Knex.QueryBuilder {
   const db = trx || knexClient;
   const includeClassificationFilters =
     options?.includeClassificationFilters ?? true;
+  const includeAggregates = options?.includeAggregates ?? true;
 
   const {
     journalStatuses,
@@ -374,8 +380,71 @@ function buildJournalsBaseQuery(
     includeDeleted,
   } = filters;
 
+  const journalAggregateSelect = includeAggregates
+    ? [
+        db.raw(
+          `COALESCE((
+            SELECT SUM(amount)
+            FROM journal_entries je
+            WHERE je.journal_batch_id = jb.id
+              AND je.side = 'debit'
+              AND (
+                (jb.status <> 'voided' AND je.is_deleted = false)
+                OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+              )
+          ), 0) as "totalDebit"`,
+        ),
+        db.raw(
+          `COALESCE((
+            SELECT SUM(amount)
+            FROM journal_entries je
+            WHERE je.journal_batch_id = jb.id
+              AND je.side = 'credit'
+              AND (
+                (jb.status <> 'voided' AND je.is_deleted = false)
+                OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+              )
+          ), 0) as "totalCredit"`,
+        ),
+        db.raw(
+          `COALESCE((
+            SELECT COUNT(*)
+            FROM journal_entries je
+            WHERE je.journal_batch_id = jb.id
+              AND (
+                (jb.status <> 'voided' AND je.is_deleted = false)
+                OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+              )
+          ), 0)::int as "entriesCount"`,
+        ),
+      ]
+    : [
+        db.raw(`0::numeric as "totalDebit"`),
+        db.raw(`0::numeric as "totalCredit"`),
+        db.raw(`0::int as "entriesCount"`),
+      ];
+
+  const templateAggregateSelect = includeAggregates
+    ? [
+        db.raw(
+          `COALESCE((SELECT SUM(rjte.amount) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id AND rjte.transaction_side = 'debit'), 0) as "totalDebit"`,
+        ),
+        db.raw(
+          `COALESCE((SELECT SUM(rjte.amount) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id AND rjte.transaction_side = 'credit'), 0) as "totalCredit"`,
+        ),
+        db.raw(
+          `COALESCE((SELECT COUNT(*) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id), 0)::int as "entriesCount"`,
+        ),
+      ]
+    : [
+        db.raw(`0::numeric as "totalDebit"`),
+        db.raw(`0::numeric as "totalCredit"`),
+        db.raw(`0::int as "entriesCount"`),
+      ];
+
   const journalSelect = db
     .from({ jb: JOURNAL_BATCHES })
+    .innerJoin({ co: COMPANIES }, 'co.id', 'jb.company_id')
     .leftJoin({ c: CONTACTS }, 'c.id', 'jb.contact_id')
     .innerJoin({ cur: CURRENCIES }, 'cur.id', 'jb.currency_id')
     .leftJoin(
@@ -386,45 +455,10 @@ function buildJournalsBaseQuery(
     .where('jb.company_id', companyUUID)
     .select([
       ...selectAliasedFields(db, JournalListSelect),
-      db.raw(
-        `COALESCE((
-          SELECT SUM(amount)
-          FROM journal_entries je
-          WHERE je.journal_batch_id = jb.id
-            AND je.side = 'debit'
-            AND (
-              (jb.status <> 'voided' AND je.is_deleted = false)
-              OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
-            )
-        ), 0) as "totalDebit"`,
-      ),
-      db.raw(
-        `COALESCE((
-          SELECT SUM(amount)
-          FROM journal_entries je
-          WHERE je.journal_batch_id = jb.id
-            AND je.side = 'credit'
-            AND (
-              (jb.status <> 'voided' AND je.is_deleted = false)
-              OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
-            )
-        ), 0) as "totalCredit"`,
-      ),
-      db.raw(
-        `COALESCE((
-          SELECT COUNT(*)
-          FROM journal_entries je
-          WHERE je.journal_batch_id = jb.id
-            AND (
-              (jb.status <> 'voided' AND je.is_deleted = false)
-              OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
-            )
-        ), 0)::int as "entriesCount"`,
-      ),
+      ...journalAggregateSelect,
       db.raw(`'journal'::text as "kind"`),
-      db.raw(
-        `CASE WHEN jb.recurring_template_id IS NOT NULL THEN 'generated_from_template' ELSE 'one_off' END as "journalSource"`,
-      ),
+      db.raw(`jb.journal_source::text as "journalSource"`),
+      db.raw(`(jb.currency_id <> co.reporting_currency_id) as "isFx"`),
       db.raw(`jb.status as "journalStatus"`),
       db.raw(`NULL::recurring_journal_status as "templateStatus"`),
       db.raw(`NULL::recurrence_frequency as "frequency"`),
@@ -487,17 +521,10 @@ function buildJournalsBaseQuery(
       db.raw(`NULL::uuid as "updatedById"`),
       db.raw(`rjt.is_deleted as "isDeleted"`),
       db.raw(`rjt.deleted_at as "deletedAt"`),
-      db.raw(
-        `COALESCE((SELECT SUM(rjte.amount) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id AND rjte.transaction_side = 'debit'), 0) as "totalDebit"`,
-      ),
-      db.raw(
-        `COALESCE((SELECT SUM(rjte.amount) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id AND rjte.transaction_side = 'credit'), 0) as "totalCredit"`,
-      ),
-      db.raw(
-        `COALESCE((SELECT COUNT(*) FROM ${RECURRING_TEMPLATE_ENTRIES} rjte WHERE rjte.template_id = rjt.id), 0)::int as "entriesCount"`,
-      ),
+      ...templateAggregateSelect,
       db.raw(`'recurring_template'::text as "kind"`),
       db.raw(`NULL::text as "journalSource"`),
+      db.raw(`NULL::boolean as "isFx"`),
       db.raw(`NULL::journal_status as "journalStatus"`),
       db.raw(`rjt.status as "templateStatus"`),
       db.raw(`rjt.frequency as "frequency"`),
@@ -570,7 +597,13 @@ function buildJournalsBaseQuery(
   }
 
   const col = SORT_COL[filters.sortBy];
-  qb.orderByRaw(`${col} ${filters.sortDir}, jl.id ${filters.sortDir}`);
+  if (filters.sortBy === 'reference') {
+    qb.orderByRaw(
+      `(jl.reference IS NULL) asc, jl.reference ${filters.sortDir} NULLS LAST, jl.id ${filters.sortDir}`,
+    );
+  } else {
+    qb.orderByRaw(`${col} ${filters.sortDir}, jl.id ${filters.sortDir}`);
+  }
 
   return qb.select([
     db.raw(`jl.id as "id"`),
@@ -610,6 +643,7 @@ function buildJournalsBaseQuery(
     db.raw(`jl."entriesCount" as "entriesCount"`),
     db.raw(`jl."kind" as "kind"`),
     db.raw(`jl."journalSource" as "journalSource"`),
+    db.raw(`jl."isFx" as "isFx"`),
     db.raw(`jl."templateStatus" as "templateStatus"`),
     db.raw(`jl."frequency" as "frequency"`),
     db.raw(`jl."nextRunDate" as "nextRunDate"`),
@@ -673,9 +707,15 @@ export async function getJournalsByPage({
       undefined,
       txn,
     );
+    const countQuery = buildJournalsBaseQuery(
+      resolvedFilters,
+      companyUUID,
+      { includeAggregates: false },
+      txn,
+    );
 
     // total count
-    const countRow = await baseQuery
+    const countRow = await countQuery
       .clone()
       .clearSelect()
       .clearOrder()
@@ -796,6 +836,52 @@ function applyKeysetCursor(
   // DESC: get earlier rows (< cursor), ASC: get later rows (> cursor)
   const op = filters.sortDir === 'asc' ? '>' : '<';
 
+  if (filters.sortBy === 'reference') {
+    const cursorIsNull = cursor.isNull === true;
+
+    if (cursorIsNull) {
+      qb.andWhereRaw('jl.reference IS NULL');
+      qb.andWhere('jl.id', op, cursor.id);
+      return;
+    }
+
+    qb.andWhere((w) => {
+      w.whereRaw('jl.reference IS NULL').orWhere((w2) => {
+        w2.whereRaw('jl.reference IS NOT NULL');
+        w2.andWhere((w3) => {
+          if (filters.sortDir === 'asc') {
+            w3.where('jl.reference', '>', cursor.value).orWhere((w4) => {
+              w4.where('jl.reference', '=', cursor.value).andWhere(
+                'jl.id',
+                '>',
+                cursor.id,
+              );
+            });
+            return;
+          }
+          w3.where('jl.reference', '<', cursor.value).orWhere((w4) => {
+            w4.where('jl.reference', '=', cursor.value).andWhere(
+              'jl.id',
+              '<',
+              cursor.id,
+            );
+          });
+        });
+      });
+    });
+    return;
+  }
+
+  if (filters.sortBy === 'created_at') {
+    qb.andWhere(
+      db.raw(`(${sortCol}, jl.id) ${op} (?::timestamptz, ?)`, [
+        cursor.value,
+        cursor.id,
+      ]),
+    );
+    return;
+  }
+
   // Composite key comparison: (sortColumn, id) for stable ordering
   qb.andWhere(
     db.raw(`(${sortCol}, jl.id) ${op} (?, ?)`, [cursor.value, cursor.id]),
@@ -809,18 +895,15 @@ function applyKeysetCursor(
 function getSortValueFromRow(
   row: JournalListRow,
   sortBy: ListJournalsFilters['sortBy'],
-  traceId: string,
 ): string {
   switch (sortBy) {
     case 'created_at':
-      return String(row.createdAt);
+      return new Date(row.createdAt).toISOString();
     case 'date':
       return String(row.date);
     case 'reference':
       if (!row.reference || row.reference.length === 0) {
-        throw new AppError('Cannot build cursor: reference is null/empty', {
-          traceId,
-        });
+        return '';
       }
       return String(row.reference);
   }
@@ -830,7 +913,7 @@ function getSortValueFromRow(
  * List journals with cursor-based pagination
  * Returns header data only (no entries array)
  * Includes computed total debit/credit per journal
- * Cursor format: base64 encoded JSON with {sortCol, id}
+ * Cursor format: base64 encoded JSON with {sortCol, id, isNull}
  */
 export async function getJournalsByCursor({
   userId,
@@ -880,11 +963,6 @@ export async function getJournalsByCursor({
       txn,
     );
 
-    // If sorting by reference, require reference to be non-null for deterministic keyset paging
-    if (resolvedFilters.sortBy === 'reference') {
-      qb.whereNotNull('jl.reference');
-    }
-
     // Apply cursor condition
     if (cursorStr) {
       const cursor = decodeCursor(cursorStr, traceId);
@@ -905,7 +983,7 @@ export async function getJournalsByCursor({
     let nextCursor: string | null = null;
     if (hasMore && listRows.length) {
       const last = listRows[listRows.length - 1];
-      const value = getSortValueFromRow(last, resolvedFilters.sortBy, traceId);
+      const value = getSortValueFromRow(last, resolvedFilters.sortBy);
 
       nextCursor = encodeCursor({
         v: 1,
@@ -913,13 +991,17 @@ export async function getJournalsByCursor({
         sortDir: resolvedFilters.sortDir,
         value,
         id: last.id,
+        isNull:
+          resolvedFilters.sortBy === 'reference'
+            ? last.reference == null
+            : false,
       });
     }
 
     const facetsQb = buildJournalsBaseQuery(
       resolvedFilters,
       companyUUID,
-      { includeClassificationFilters: false },
+      { includeClassificationFilters: false, includeAggregates: false },
       txn,
     )
       .clone()
@@ -1116,9 +1198,8 @@ export async function getJournal({
         `COALESCE((SELECT COUNT(*) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0)::int as "entriesCount"`,
       ),
       db.raw(`'journal'::text as "kind"`),
-      db.raw(
-        `CASE WHEN jb.recurring_template_id IS NOT NULL THEN 'generated_from_template' ELSE 'one_off' END as "journalSource"`,
-      ),
+      db.raw(`jb.journal_source::text as "journalSource"`),
+      db.raw(`(jb.currency_id <> co.reporting_currency_id) as "isFx"`),
       db.raw(`jb.status as "status"`),
       db.raw(`jb.status as "journalStatus"`),
       db.raw(`jb.recurring_template_id as "generatedFromTemplateId"`),
@@ -1139,6 +1220,7 @@ export async function getJournal({
       .from({ jb: JOURNAL_BATCHES })
       .leftJoin({ c: CONTACTS }, 'c.id', 'jb.contact_id')
       .innerJoin({ cur: CURRENCIES }, 'cur.id', 'jb.currency_id')
+      .innerJoin({ co: COMPANIES }, 'co.id', 'jb.company_id')
       .leftJoin(
         { rjt: RECURRING_TEMPLATES },
         'rjt.id',

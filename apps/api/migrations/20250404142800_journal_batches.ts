@@ -39,7 +39,13 @@ export async function up(knex: Knex): Promise<void> {
       .defaultTo('draft')
       .notNullable();
 
-    table.boolean('is_recurring').notNullable().defaultTo(false);
+    // table.boolean('is_recurring').notNullable().defaultTo(false);
+    table
+      .string('journal_source')
+      .checkIn(['one_off', 'generated_from_template'])
+      .defaultTo('one_off')
+      .notNullable();
+
     table
       .uuid('recurring_template_id')
       .nullable()
@@ -152,7 +158,7 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(`
     CREATE UNIQUE INDEX journal_batch_recurring_idempotency_idx
       ON ${tableName} (recurring_template_id, date)
-      WHERE is_recurring = true
+      WHERE recurring_template_id IS NOT NULL
         AND is_deleted = false;
   `);
 
@@ -162,6 +168,15 @@ export async function up(knex: Knex): Promise<void> {
     CHECK (
       sequence_month IS NULL
       OR sequence_month = date_trunc('month', sequence_month)::date
+    );
+  `);
+
+  await knex.raw(`
+    ALTER TABLE journal_batches
+    ADD CONSTRAINT journal_batches_source_template_chk
+    CHECK (
+      (journal_source = 'generated_from_template' AND recurring_template_id IS NOT NULL)
+      OR (journal_source = 'one_off' AND recurring_template_id IS NULL)
     );
   `);
 

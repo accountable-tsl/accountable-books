@@ -1,4 +1,16 @@
+import type {
+  GetJournalResponse as ContractGetJournalResponse,
+  JournalBatchStatus as ContractJournalBatchStatus,
+  JournalDetailEntry as ContractJournalDetailEntry,
+  JournalListCursorResponse as ContractJournalListCursorResponse,
+  JournalListJournalRow as ContractJournalListJournalRow,
+  JournalListRow as ContractJournalListRow,
+  JournalTransactionFile as ContractJournalTransactionFile,
+  LedgerTotals as ContractLedgerTotals,
+  RelatedJournalSummary as ContractRelatedJournalSummary,
+} from '@accountable-books/contracts/schema';
 import {
+  journalBatchSource,
   journalBatchStatus,
   listJournalsCursorQuery as listJournalsCursorQueryContract,
   txnFileBase,
@@ -13,17 +25,6 @@ import {
 import { createCamelCaseSchemaWithExclusions } from '../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
-import type {
-  GetJournalResponse as ContractGetJournalResponse,
-  JournalBatchStatus as ContractJournalBatchStatus,
-  JournalDetailEntry as ContractJournalDetailEntry,
-  JournalListCursorResponse as ContractJournalListCursorResponse,
-  JournalListJournalRow as ContractJournalListJournalRow,
-  JournalListRow as ContractJournalListRow,
-  JournalTransactionFile as ContractJournalTransactionFile,
-  LedgerTotals as ContractLedgerTotals,
-  RelatedJournalSummary as ContractRelatedJournalSummary,
-} from '@accountable-books/contracts/schema';
 
 export const journalEntryInput = z.object({
   description: z.string(),
@@ -78,7 +79,8 @@ const baseJournalBatch = z.object({
 
   auto_reversal_date: z.iso.date().nullish(),
 
-  is_recurring: z.boolean().nullish(),
+  // is_recurring: z.boolean().nullish(),
+  journal_source: journalBatchSource.optional(),
   recurring_template_id: z.uuid().nullish(),
 
   created_by_id: z.uuid().nullish(),
@@ -171,8 +173,9 @@ export type JournalBatch = z.infer<typeof journalBatch>;
 // List Journals Query
 export const listJournalsFilters = z
   .object({
-    ...listJournalsCursorQueryContract.omit({ limit: true, cursor: true }).shape,
-    includeDeleted: z.coerce.boolean().default(false),
+    ...listJournalsCursorQueryContract.omit({ limit: true, cursor: true })
+      .shape,
+    includeDeleted: z.coerce.boolean(),
     sortBy: z.enum(['created_at', 'date', 'reference']).default('date'),
     sortDir: z.enum(['asc', 'desc']).default('desc'),
   })
@@ -215,18 +218,38 @@ export type JournalListPageResponse = {
 
 /**
  * Cursor payload (opaque to clients)
- * - value: last row's primary sort value
+ * - value: last row's primary sort value (empty string when reference is null)
  * - id: last row's id (tie-breaker)
+ * - isNull: whether the primary sort value is NULL (used for reference ordering)
  * - sortBy/sortDir: prevents misuse of cursor across different sorts
  * - v: cursor version for future compatibility
  */
-export const journalsCursor = z.object({
-  v: z.literal(1),
-  sortBy: z.enum(['created_at', 'date', 'reference']),
-  sortDir: z.enum(['asc', 'desc']),
-  value: z.string().min(1),
-  id: z.uuid(),
-});
+export const journalsCursor = z
+  .object({
+    v: z.literal(1),
+    sortBy: z.enum(['created_at', 'date', 'reference']),
+    sortDir: z.enum(['asc', 'desc']),
+    value: z.string(),
+    isNull: z.boolean().optional().default(false),
+    id: z.uuid(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.sortBy !== 'reference' && v.value.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['value'],
+        message: 'value must be non-empty for this sort',
+      });
+    }
+
+    if (v.sortBy === 'reference' && v.isNull !== true && v.value.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['value'],
+        message: 'value must be non-empty when reference is not null',
+      });
+    }
+  });
 export type JournalsCursor = z.infer<typeof journalsCursor>;
 export type JournalListCursorResponse = ContractJournalListCursorResponse;
 export type JournalDetailEntry = ContractJournalDetailEntry;

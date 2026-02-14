@@ -1,3 +1,11 @@
+import type {
+  GetRecurringTemplateResponse,
+  PreviewRecurringTemplateResponse,
+  RecurringTemplateDetail,
+  RecurringTemplateDetailEntry,
+  RunRecurringTemplateNowResponse,
+  UpdateRecurringTemplateStatusResponse,
+} from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
 import { formatInTimeZone } from 'date-fns-tz';
 import z from 'zod';
@@ -45,14 +53,6 @@ import type {
   RecurringTemplateStatusInput,
   RecurringTemplateUpdateInput,
 } from './recurring-templates.types.js';
-import type {
-  GetRecurringTemplateResponse,
-  PreviewRecurringTemplateResponse,
-  RecurringTemplateDetail,
-  RecurringTemplateDetailEntry,
-  RunRecurringTemplateNowResponse,
-  UpdateRecurringTemplateStatusResponse,
-} from '@accountable-books/contracts/schema';
 
 const TEMPLATES_TABLE = 'recurring_journal_templates';
 const ENTRIES_TABLE = 'recurring_journal_template_entries';
@@ -384,7 +384,7 @@ async function generateOccurrenceFromTemplate({
     status: shouldPost ? 'posted' : 'draft',
     autoReversalDate: autoReversalDate,
     note: renderedNote ?? null,
-    isRecurring: true,
+    journalSource: 'generated_from_template',
     recurringTemplateId: template.id,
     metadata,
     entries: renderedEntries.map((entry) => ({
@@ -524,7 +524,9 @@ export async function getRecurringTemplate({
         .leftJoin('contacts as c', 'c.id', 'rjt.contact_id')
         .innerJoin(
           'currencies as cur',
-          trx.raw('cur.id = COALESCE(rjt.currency_id, co.reporting_currency_id)'),
+          trx.raw(
+            'cur.id = COALESCE(rjt.currency_id, co.reporting_currency_id)',
+          ),
         )
         .select(
           'rjt.*',

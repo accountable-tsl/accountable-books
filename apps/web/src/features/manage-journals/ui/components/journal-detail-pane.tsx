@@ -15,9 +15,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,25 +41,20 @@ import {
   useUpdateRecurringTemplateStatus,
   useVoidJournal,
 } from '@/modules/accounting/journals';
-import {
-  Check,
-  Copy,
-  Eye,
-  Loader2,
-  Pause,
-  Pencil,
-  Play,
-  Repeat,
-  RotateCcw,
-  Save,
-  Send,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { Check, Eye, Repeat, Save, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { getJournalStatusBadgeVariant } from '../lib/journal-ui';
+import {
+  getAllowedActionsForJournal,
+  getAllowedActionsForTemplate,
+} from '../config/journal-actions';
 import { getShortcutModifierLabel } from '../lib/shortcut-ui';
+import { EmptyState } from './empty-state';
+import { JournalDetailHeader } from './journal-detail-header';
+
+import type { JournalAction, TemplateAction } from '../config/journal-actions';
+import type { JournalDetailHeaderAction } from './journal-detail-header';
 
 type EditableLine = {
   id: string;
@@ -180,24 +173,30 @@ function getRecurringState(
 export function JournalDetailPane({
   companyId,
   journalId,
+  journalIsFx = false,
   templateId,
   mockDetail,
   isCreatingNew,
   onCreatingNewChange,
   onJournalSelected,
+  onBack,
 }: {
   companyId: string;
   journalId: string | null;
+  journalIsFx?: boolean;
   templateId?: string | null;
   mockDetail?: GetJournalResponse | null;
   isCreatingNew: boolean;
   onCreatingNewChange: (value: boolean) => void;
   onJournalSelected: (journalId: string | null) => void;
+  onBack?: () => void;
 }) {
+  const isMobile = useIsMobile();
   const shortcutModifierLabel = getShortcutModifierLabel();
   const query = useJournal({
     companyId,
     journalId: journalId ?? '',
+    includeLedgerTotals: journalIsFx,
     includeFiles: true,
     includeDeleted: true,
     enabled: !!journalId && !mockDetail,
@@ -227,6 +226,9 @@ export function JournalDetailPane({
   const journal = detail?.journal ?? null;
 
   const [editing, setEditing] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<
+    'post' | 'void' | 'reverse' | null
+  >(null);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [memo, setMemo] = useState('');
@@ -636,22 +638,22 @@ export function JournalDetailPane({
 
   if (showEmptyState) {
     return (
-      <div className="flex h-full flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-        <p className="text-foreground text-sm font-medium">
-          No journal selected
-        </p>
-        <p className="text-muted-foreground text-xs">
-          Pick one from the list, or press{' '}
-          <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
-            {shortcutModifierLabel} Shift N
-          </kbd>{' '}
-          (or{' '}
-          <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
-            Alt N
-          </kbd>
-          ) to create a new entry.
-        </p>
-      </div>
+      <EmptyState
+        title="No journal selected"
+        description={
+          <>
+            Pick one from the list, or press{' '}
+            <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
+              {shortcutModifierLabel} Shift N
+            </kbd>{' '}
+            (or{' '}
+            <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
+              Alt N
+            </kbd>
+            ) to create a new entry.
+          </>
+        }
+      />
     );
   }
 
@@ -751,79 +753,76 @@ export function JournalDetailPane({
 
     if (!template) {
       return (
-        <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-sm">
-          Recurring template not found.
-        </div>
+        <EmptyState
+          title="Recurring journal not found."
+          description="Something went wrong, please try again or select another recurring journal."
+        />
       );
     }
 
+    const templateActionHandlers: Record<TemplateAction, () => void> = {
+      edit: () => {},
+      activate: () => {
+        if (updateRecurringTemplateStatusMutation.isPending) return;
+        void handleTemplateStatusChange('active');
+      },
+      pause: () => {
+        if (updateRecurringTemplateStatusMutation.isPending) return;
+        void handleTemplateStatusChange('paused');
+      },
+      resume: () => {
+        if (updateRecurringTemplateStatusMutation.isPending) return;
+        void handleTemplateStatusChange('active');
+      },
+      close: () => {
+        if (updateRecurringTemplateStatusMutation.isPending) return;
+        void handleTemplateStatusChange('closed');
+      },
+      run_now: () => {
+        if (updateRecurringTemplateStatusMutation.isPending) return;
+        if (template.status !== 'active') return;
+        if (runRecurringTemplateNowMutation.isPending) return;
+        void handleTemplateRunNow();
+      },
+      copy: () => {},
+    } satisfies Record<TemplateAction, () => void>;
+
+    const templateBaseActions = getAllowedActionsForTemplate(template);
+    const templateHeaderActions: JournalDetailHeaderAction[] = [
+      ...templateBaseActions.map((action) => ({
+        key: action.key,
+        label: action.action === 'run_now' ? 'Generate next' : action.label,
+        icon: action.icon,
+        className: action.className,
+        onClick: templateActionHandlers[action.action],
+      })),
+      {
+        key: 'preview',
+        label: 'Preview',
+        icon: Eye,
+        onClick: () => {
+          if (updateRecurringTemplateStatusMutation.isPending) return;
+          if (previewRecurringTemplateMutation.isPending) return;
+          void handleTemplatePreview();
+        },
+      },
+    ];
+
     return (
       <div className="flex h-full flex-1 flex-col overflow-auto">
-        <div className="flex items-center justify-between border-b px-5 py-2.5">
-          <div className="flex items-center gap-2.5">
-            <Badge variant="secondary">{template.status}</Badge>
+        <JournalDetailHeader
+          reference={null}
+          status={template.status}
+          leftAddon={
             <span className="bg-accent text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize">
               <Repeat className="h-3 w-3" />
               {template.frequency}
             </span>
-          </div>
-          <div className="flex items-center gap-1">
-            {template.status === 'active' ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => void handleTemplateStatusChange('paused')}
-                disabled={updateRecurringTemplateStatusMutation.isPending}
-              >
-                <Pause className="h-3.5 w-3.5" />
-                Pause
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => void handleTemplateStatusChange('active')}
-                disabled={updateRecurringTemplateStatusMutation.isPending}
-              >
-                <Play className="h-3.5 w-3.5" />
-                {template.status === 'paused' ? 'Resume' : 'Activate'}
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={() => void handleTemplateRunNow()}
-              disabled={
-                template.status !== 'active' ||
-                runRecurringTemplateNowMutation.isPending
-              }
-            >
-              {runRecurringTemplateNowMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              Generate next
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={() => void handleTemplatePreview()}
-              disabled={previewRecurringTemplateMutation.isPending}
-            >
-              {previewRecurringTemplateMutation.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Eye className="h-3.5 w-3.5" />
-              )}
-              Preview
-            </Button>
-          </div>
-        </div>
+          }
+          actions={templateHeaderActions}
+          onBack={onBack}
+          isMobile={isMobile}
+        />
 
         <div className="flex flex-col gap-5 p-5">
           <div className="flex flex-col gap-1.5">
@@ -915,9 +914,10 @@ export function JournalDetailPane({
 
   if (!isCreatingNew && !journal) {
     return (
-      <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-sm">
-        Journal not found.
-      </div>
+      <EmptyState
+        title="Journal not found."
+        description="Something went wrong, please try again or select another journal."
+      />
     );
   }
 
@@ -927,221 +927,184 @@ export function JournalDetailPane({
   const isVoided = !isCreatingNew && currentStatus === 'voided';
   const recurringInfo = getRecurringState(journal);
 
+  const journalActionHandlers = {
+    edit: () => {
+      if (isSaving) return;
+      setEditing(true);
+    },
+    post: () => {
+      if (isSaving) return;
+      if (!canPost || isSaving) return;
+      if (isCreatingNew) {
+        void handlePost();
+        return;
+      }
+      setConfirmDialog('post');
+    },
+    void: () => {
+      if (isSaving) return;
+      setConfirmDialog('void');
+    },
+    copy: () => {
+      if (isSaving) return;
+      void handleCopy();
+    },
+    reverse: () => {
+      if (isSaving) return;
+      setConfirmDialog('reverse');
+    },
+  } satisfies Record<JournalAction, () => void>;
+
+  const baseActions = getAllowedActionsForJournal(journal);
+  const visibleActions =
+    isDraft && !editing
+      ? baseActions.filter((action) => action.action !== 'post')
+      : baseActions;
+
+  const editHeaderActions: JournalDetailHeaderAction[] = [
+    {
+      key: 'save',
+      label: 'Save',
+      icon: Save,
+      onClick: () => {
+        if (isSaving) return;
+        if (canSave && !isSaving) void handleSave();
+      },
+    },
+    {
+      key: 'post',
+      label: 'Post',
+      icon: Send,
+      onClick: () => {
+        if (isSaving) return;
+        if (!canPost || isSaving) return;
+        if (isCreatingNew) {
+          void handlePost();
+          return;
+        }
+        setConfirmDialog('post');
+      },
+    },
+    {
+      key: 'cancel',
+      label: 'Cancel',
+      icon: X,
+      onClick: () => {
+        if (isSaving) return;
+        handleCancelEdit();
+      },
+    },
+  ];
+
+  const journalHeaderActions: JournalDetailHeaderAction[] =
+    isDraft && editing
+      ? editHeaderActions
+      : visibleActions.map((action) => ({
+          key: action.key,
+          label:
+            action.action === 'copy' && isVoided ? 'Copy as new' : action.label,
+          icon: action.icon,
+          className:
+            action.action === 'copy' && currentStatus === 'draft' && !editing
+              ? 'text-muted-foreground'
+              : action.className,
+          onClick: journalActionHandlers[action.action],
+        }));
+
   return (
     <div className="flex h-full flex-1 flex-col overflow-auto">
-      <div className="flex items-center justify-between border-b px-5 py-2.5">
-        <div className="flex items-center gap-2.5">
-          {journal?.reference && (
-            <span className="text-muted-foreground font-mono text-xs">
-              {journal.reference}
-            </span>
-          )}
-          <Badge variant={getJournalStatusBadgeVariant(currentStatus)}>
-            {currentStatus}
-          </Badge>
-          {recurringInfo.enabled && (
+      <AlertDialog
+        open={confirmDialog === 'post'}
+        onOpenChange={(open) => setConfirmDialog(open ? 'post' : null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Post this journal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Posted journals are immutable. You can reverse or copy them
+              afterward.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDialog(null);
+                void handlePost();
+              }}
+            >
+              Post journal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDialog === 'void'}
+        onOpenChange={(open) => setConfirmDialog(open ? 'void' : null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Void this journal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This marks the journal as voided. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDialog(null);
+                void handleVoid();
+              }}
+            >
+              Void journal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDialog === 'reverse'}
+        onOpenChange={(open) => setConfirmDialog(open ? 'reverse' : null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reverse this journal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This creates a new posted journal with opposite debits and
+              credits.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDialog(null);
+                void handleReverse();
+              }}
+            >
+              Create reversal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <JournalDetailHeader
+        reference={journal?.reference ?? null}
+        status={currentStatus}
+        leftAddon={
+          recurringInfo.enabled ? (
             <span className="bg-accent text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize">
               <Repeat className="h-3 w-3" />
               {recurringInfo.frequency}
             </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          {isDraft && editing && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                disabled={!canSave || isSaving}
-                onClick={() => void handleSave()}
-              >
-                <Save className="h-3.5 w-3.5" />
-                Save
-              </Button>
-              {isCreatingNew ? (
-                <Button
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  disabled={!canPost || isSaving}
-                  onClick={() => void handlePost()}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  Post
-                </Button>
-              ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      disabled={!canPost || isSaving}
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      Post
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Post this journal?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Posted journals are immutable. You can reverse or copy
-                        them afterward.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => void handlePost()}>
-                        Post journal
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-7 gap-1.5 text-xs"
-                onClick={handleCancelEdit}
-              >
-                <X className="h-3.5 w-3.5" />
-                Cancel
-              </Button>
-            </>
-          )}
-
-          {isDraft && !editing && !isCreatingNew && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => setEditing(true)}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-7 gap-1.5 text-xs"
-                onClick={() => void handleCopy()}
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copy
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive h-7 gap-1.5 text-xs"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Void
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Void this journal?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This marks the journal as voided. This action cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void handleVoid()}>
-                      Void journal
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
-
-          {isPosted && !editing && (
-            <>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1.5 text-xs"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Reverse
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reverse this journal?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This creates a new posted journal with opposite debits and
-                      credits.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void handleReverse()}>
-                      Create reversal
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 text-xs"
-                onClick={() => void handleCopy()}
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copy
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive h-7 gap-1.5 text-xs"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Void
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Void this journal?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This marks the journal as voided. This action cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void handleVoid()}>
-                      Void journal
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
-
-          {isVoided && !editing && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-xs"
-              onClick={() => void handleCopy()}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copy as new
-            </Button>
-          )}
-        </div>
-      </div>
+          ) : null
+        }
+        actions={journalHeaderActions}
+        onBack={onBack}
+        isMobile={isMobile}
+      />
 
       <div className="flex flex-col gap-5 p-5">
         {editing ? (

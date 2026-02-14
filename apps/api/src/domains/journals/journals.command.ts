@@ -1,5 +1,8 @@
 import { randomUUID } from 'crypto';
-import type { TxnFileInput } from '@accountable-books/contracts/schema';
+import type {
+  JournalBatchSource,
+  TxnFileInput,
+} from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
@@ -139,7 +142,7 @@ export async function copyJournal({
         contactId: source.contactId ?? null,
         currencyId: source.currencyId,
         autoReversalDate: null,
-        isRecurring: false,
+        journalSource: source.journalSource,
         recurringTemplateId: null,
         originalJournalId: source.id,
         metadata,
@@ -388,8 +391,8 @@ export async function postJournalRecord({
       auto_reversal_date: batch.auto_reversal_date,
       original_journal_id: batch.original_journal_id ?? null,
 
-      // Both is_recurring and recurring_template_id should be set together
-      is_recurring: isRecurring,
+      // journal_source and recurring_template_id must remain consistent.
+      journal_source: isRecurring ? 'generated_from_template' : 'one_off',
       recurring_template_id: isRecurring ? recurringTemplateId : null,
 
       metadata: batch.metadata,
@@ -796,7 +799,9 @@ export async function updateDraftJournal({
         auto_reversal_date: batch.auto_reversal_date,
         original_journal_id: batch.original_journal_id ?? null,
 
-        is_recurring: prepared.isRecurring,
+        journal_source: prepared.isRecurring
+          ? 'generated_from_template'
+          : 'one_off',
         recurring_template_id: prepared.isRecurring
           ? prepared.recurringTemplateId
           : null,
@@ -1125,7 +1130,7 @@ export async function postDraftJournal({
         currency_id: string;
         exchange_rate: string | number;
         contact_id: string | null;
-        is_recurring: boolean;
+        journal_source: JournalBatchSource;
         recurring_template_id: string | null;
         ledger_transaction_id: string | null;
         note: string | null;
@@ -1222,7 +1227,7 @@ export async function postDraftJournal({
         journalBatch.exchange_rate != null
           ? Number(journalBatch.exchange_rate)
           : undefined,
-      isRecurring: journalBatch.is_recurring,
+      journalSource: journalBatch.journal_source,
       recurringTemplateId: journalBatch.recurring_template_id ?? null,
       note: journalBatch.note ?? undefined,
       autoReversalDate: journalBatch.auto_reversal_date

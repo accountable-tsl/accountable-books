@@ -1,5 +1,4 @@
 import type { Knex } from 'knex';
-import type { JournalBatchData } from '../../../../src/domains/journals/journals.types.js';
 
 import {
   postJournalRecord,
@@ -13,7 +12,10 @@ import {
   todayYMDInTz,
   ymdToUtcDate,
 } from '../../../../src/domains/journals/recurring-templates.schedule.js';
-import { addDaysToYMD, toYMD } from '../../../../src/shared/utils/date.utils.js';
+import {
+  addDaysToYMD,
+  toYMD,
+} from '../../../../src/shared/utils/date.utils.js';
 import {
   getCompanyIdMap,
   getDemoUserMap,
@@ -25,6 +27,7 @@ import {
   RECURRING_TEMPLATE_SEEDS,
 } from './journals.data.js';
 
+import type { JournalBatchData } from '../../../../src/domains/journals/journals.types.js';
 import type { DemoFilter } from '../../shared/config.js';
 
 const SEED_TAG = 'demo';
@@ -239,10 +242,10 @@ export const createDemoJournals = async (
     }
 
     const reportingCurrencyId = companyRow.reportingCurrencyId as string;
-    const reportingCurrencyCode = (companyRow.reportingCurrencyCode as string)
-      .toUpperCase();
-    const defaultTimezone =
-      (companyRow.defaultTimezone as string) || 'Etc/UTC';
+    const reportingCurrencyCode = (
+      companyRow.reportingCurrencyCode as string
+    ).toUpperCase();
+    const defaultTimezone = (companyRow.defaultTimezone as string) || 'Etc/UTC';
 
     const contacts = (await trx('contacts')
       .where('company_id', companyId)
@@ -352,9 +355,7 @@ export const createDemoJournals = async (
       ];
 
       const useFx = Boolean(scenario.fx && fxSelection);
-      const currencyId = useFx
-        ? fxSelection!.currency.id
-        : reportingCurrencyId;
+      const currencyId = useFx ? fxSelection!.currency.id : reportingCurrencyId;
       const exchangeRate = useFx ? fxSelection!.exchangeRate : undefined;
 
       const result = await postJournalRecord({
@@ -369,7 +370,7 @@ export const createDemoJournals = async (
           currencyId,
           exchangeRate,
           autoReversalDate,
-          isRecurring: false,
+          journalSource: 'one_off',
           recurringTemplateId: null,
           metadata,
           entries,
@@ -417,13 +418,15 @@ export const createDemoJournals = async (
 
         const reversalId = reversal.data?.reversalJournalId;
         if (reversalId) {
-          await trx('journal_batches').where('id', reversalId).update({
-            metadata: {
-              seed: SEED_TAG,
-              scenario: 'reversal',
-              originalJournalId: result.data.journalBatchId,
-            },
-          });
+          await trx('journal_batches')
+            .where('id', reversalId)
+            .update({
+              metadata: {
+                seed: SEED_TAG,
+                scenario: 'reversal',
+                originalJournalId: result.data.journalBatchId,
+              },
+            });
         }
       }
     }
@@ -431,7 +434,10 @@ export const createDemoJournals = async (
     // Create recurring templates + example generated journals
     const todayInTz = todayYMDInTz(defaultTimezone);
 
-    for (const [templateIndex, template] of RECURRING_TEMPLATE_SEEDS.entries()) {
+    for (const [
+      templateIndex,
+      template,
+    ] of RECURRING_TEMPLATE_SEEDS.entries()) {
       const startYMD = addDaysToYMD(baseYMD, template.startOffsetDays);
       const nextRunYMD = computeNextAlignedRunDate({
         startYMD,
@@ -489,8 +495,7 @@ export const createDemoJournals = async (
       await trx('recurring_journal_template_entries').insert([
         {
           description:
-            template.entryDescriptionDebit ??
-            `${template.description} expense`,
+            template.entryDescriptionDebit ?? `${template.description} expense`,
           amount: template.amount,
           transaction_side: 'debit',
           placeholder_description_var: null,
@@ -499,8 +504,7 @@ export const createDemoJournals = async (
         },
         {
           description:
-            template.entryDescriptionCredit ??
-            `${template.description} offset`,
+            template.entryDescriptionCredit ?? `${template.description} offset`,
           amount: template.amount,
           transaction_side: 'credit',
           placeholder_description_var: null,
@@ -549,7 +553,7 @@ export const createDemoJournals = async (
           contactId: contact?.id ?? null,
           currencyId: reportingCurrencyId,
           autoReversalDate,
-          isRecurring: true,
+          journalSource: 'generated_from_template',
           recurringTemplateId: templateRow.id,
           metadata: {
             seed: SEED_TAG,
@@ -664,5 +668,4 @@ export const deleteDemoJournals = async (
       .whereIn('id', templateIds)
       .delete();
   }
-
 };

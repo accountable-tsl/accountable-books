@@ -193,6 +193,8 @@ describe('postJournalRecord - Integration Tests', () => {
         page: 1,
         pageSize: 25,
         includeDeleted: true,
+        dateFrom: '2025-01-01',
+        dateTo: '2025-12-31',
         sortBy: 'created_at',
         sortDir: 'desc',
       },

@@ -1,6 +1,5 @@
 import type { JournalListRow } from '@accountable-books/contracts/schema';
 import { FormattedAmount } from '@/components/FormattedAmount';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { safeFormatDate, toTitleCase } from '@/shared/utils/formatting-utils';
 import { AlertTriangle, Repeat } from 'lucide-react';
@@ -59,9 +58,11 @@ export function JournalListItem({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {!balanced && journal.kind === 'journal' && journal.status === 'draft' && (
-            <AlertTriangle className="text-destructive h-3 w-3" />
-          )}
+          {!balanced &&
+            journal.kind === 'journal' &&
+            journal.status === 'draft' && (
+              <AlertTriangle className="text-destructive h-3 w-3" />
+            )}
           <span className="text-muted-foreground font-mono text-sm tabular-nums">
             <FormattedAmount
               amount={journal.totalDebit}

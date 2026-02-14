@@ -1,5 +1,8 @@
 import type { DebitCredit } from '../common/enums.js';
-import type { JournalBatchStatus } from './journal-batch.js';
+import type {
+  JournalBatchSource,
+  JournalBatchStatus,
+} from './journal-batch.js';
 import type {
   RecurrenceFrequency,
   RecurringTemplateStatus,
@@ -10,8 +13,6 @@ import type {
 // =============================================================================
 
 export type JournalListKind = 'journal' | 'recurring_template';
-
-export type JournalBatchSource = 'one_off' | 'generated_from_template';
 
 export type JournalRecurringTemplateInfo = {
   templateId: string;
@@ -60,6 +61,7 @@ export type JournalListRowBase = {
 export type JournalListJournalRow = JournalListRowBase & {
   kind: 'journal';
   journalSource: JournalBatchSource;
+  isFx: boolean;
   status: JournalBatchStatus;
   reference: string | null;
   sequenceMonth: string | null;

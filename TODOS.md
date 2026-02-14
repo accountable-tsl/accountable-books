@@ -70,7 +70,11 @@
 - [ ] Consider adding chromatic or an alternative
 - [x] Plaid Webhook implementation
 - [ ] Storage cleanup plan (simple cron that deletes objects not referenced in DB after 24h) - journals, etc.
+- [ ] Once we're ready for lang and doc work, consider Google's oss langextract
 
 ---
 
 Advisory locks, REGEX, Concurrency, Garbage Collection
+
+GENERAL:
+AI should be _infrastructure you don't see_. Results appear where you're already looking. Input happens from one consistent spot. The app itself is intelligent -- there's no "AI mode."

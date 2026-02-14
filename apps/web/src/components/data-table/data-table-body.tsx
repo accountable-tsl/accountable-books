@@ -1,6 +1,7 @@
 import type { CustomTable } from '@/components/data-table/types/data-table';
 import type { RowViewerProps } from '@/components/data-table/types/row-click';
 import type { Cell, Row } from '@tanstack/react-table';
+import type { VirtualItem } from '@tanstack/react-virtual';
 import React from 'react';
 import { TableBody, TableCell, TableRow } from '@/components/CustomTable';
 import { RowViewer } from '@/components/data-table/row-view/row-viewer';
@@ -55,8 +56,11 @@ export function DataTableBody<TData>({
     overscan,
   });
 
+  const emptyVirtualItems = React.useMemo(() => [] as VirtualItem[], []);
   const virtualItems =
-    enableVirtual && scrollRef.current ? virtualizer.getVirtualItems() : [];
+    enableVirtual && scrollRef.current
+      ? virtualizer.getVirtualItems()
+      : emptyVirtualItems;
 
   const rowClick = table.customOptions?.rowClick;
   const rowClickEnabled = !!rowClick || false;

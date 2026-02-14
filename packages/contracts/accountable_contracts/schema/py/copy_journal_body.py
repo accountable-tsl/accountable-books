@@ -1,0 +1,5 @@
+from pydantic import BaseModel, Field
+from typing import Optional
+
+class CopyJournalBody(BaseModel):
+    includeFiles: Optional[bool] = Field(default=False)

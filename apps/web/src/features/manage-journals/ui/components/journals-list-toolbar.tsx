@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { isValidYMD, toYMD } from '@/shared/utils/date-utils';
 import { Plus, SlidersHorizontal, Upload } from 'lucide-react';
 
@@ -48,6 +49,7 @@ export function JournalsListToolbar({
   onCreateJournal,
   onImportClick,
   searchInputRef,
+  showStatusOptions = true,
 }: {
   status: JournalListStatusFilter;
   searchQuery: string;
@@ -69,7 +71,9 @@ export function JournalsListToolbar({
   onCreateJournal?: () => void;
   onImportClick?: () => void;
   searchInputRef?: RefObject<HTMLInputElement>;
+  showStatusOptions?: boolean;
 }) {
+  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
   const shortcutModifierLabel = getShortcutModifierLabel();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const parseYMDToLocalDate = useCallback((value: string): Date | undefined => {
@@ -114,7 +118,7 @@ export function JournalsListToolbar({
   const showShortcutHint = !isSearchFocused && searchQuery.trim().length === 0;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <Popover>
           <PopoverTrigger asChild>
@@ -146,7 +150,7 @@ export function JournalsListToolbar({
                     variant="outline"
                     numberOfMonths={1}
                     alignPopover="start"
-                    className='w-full'
+                    className="w-full"
                   />
                 </div>
               </div>
@@ -192,7 +196,7 @@ export function JournalsListToolbar({
                       ).map(({ key, label }) => (
                         <label
                           key={key}
-                          className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors"
+                          className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 transition-colors"
                         >
                           <Checkbox
                             checked={advancedStatusFilters.has(key)}
@@ -289,26 +293,34 @@ export function JournalsListToolbar({
         </Button>
       </div>
 
-      <div className="flex items-center justify-between gap-1 overflow-auto">
-        {statusOptions.map((option) => (
-          <button
-            type="button"
-            key={option.value}
-            onClick={() => onStatusChange(option.value)}
-            className={cn(
-              'rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors',
-              status === option.value
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-          >
-            {option.label}
-            <span className="ml-1 font-mono text-[10px] opacity-70">
-              {counts[option.value]}
-            </span>
-          </button>
-        ))}
-      </div>
+      {showStatusOptions && (
+        <div className="flex items-center justify-between gap-1 overflow-hidden whitespace-nowrap">
+          {statusOptions
+            .filter(
+              (option) =>
+                // Keep the option UNLESS (isTablet is true AND value is "voided")
+                !(isTablet && option.value === 'voided'),
+            )
+            .map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                onClick={() => onStatusChange(option.value)}
+                className={cn(
+                  'rounded px-1.5 py-0.5 text-[10px] font-medium capitalize transition-colors sm:px-2.5 sm:py-1 sm:text-xs',
+                  status === option.value
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                {option.label}
+                <span className="ml-1 font-mono text-[10px] opacity-70">
+                  {counts[option.value]}
+                </span>
+              </button>
+            ))}
+        </div>
+      )}
     </div>
   );
 }

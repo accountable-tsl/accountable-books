@@ -2,7 +2,6 @@ import type { JournalListRow } from '@accountable-books/contracts/schema';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +13,6 @@ import { cn } from '@/lib/utils';
 import { useJournalsInfinite } from '@/modules/accounting/journals';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useSession } from '@session';
-import { ArrowLeft } from 'lucide-react';
 
 import { JournalDetailPane } from '../components/journal-detail-pane';
 import { JournalVirtualList } from '../components/journal-virtual-list';
@@ -225,6 +223,8 @@ export function JournalsListPage() {
   );
   const selectedJournalDetailId =
     selectedRow?.kind === 'journal' ? selectedRow.id : null;
+  const selectedJournalIsFx =
+    selectedRow?.kind === 'journal' ? selectedRow.isFx : false;
   const selectedTemplateDetailId =
     selectedRow?.kind === 'recurring_template' ? selectedRow.id : null;
 
@@ -298,11 +298,11 @@ export function JournalsListPage() {
   if (query.isError) return <ErrorPage type="default" showHeader={false} />;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-400 flex-col gap-3 p-4">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 md:flex-row">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-450 flex-col gap-3">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:p-4 md:flex-row">
         <aside
           className={cn(
-            'flex min-h-0 w-full min-w-0 flex-col gap-3 md:w-80 md:shrink-0 lg:w-100',
+            'flex min-h-0 w-full min-w-0 flex-col gap-4 p-4 sm:p-0 md:w-80 md:shrink-0 lg:w-100',
             mobileShowDetail && 'hidden md:flex',
           )}
         >
@@ -353,6 +353,7 @@ export function JournalsListPage() {
             }}
             onImportClick={() => setImportDialogOpen(true)}
             searchInputRef={searchInputRef}
+            showStatusOptions={journals.length > 0}
           />
 
           <div className="min-h-0 flex-1">
@@ -392,31 +393,14 @@ export function JournalsListPage() {
 
         <div
           className={cn(
-            'bg-muted/50 dark:bg-background flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border',
+            'sm:bg-muted/50 sm:dark:bg-background flex min-h-0 flex-1 flex-col overflow-hidden rounded-md sm:border',
             !mobileShowDetail && 'hidden md:flex',
           )}
         >
-          {mobileShowDetail && (
-            <div className="flex items-center border-b px-3 py-2 md:hidden">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => {
-                  setMobileShowDetail(false);
-                  setIsCreatingNew(false);
-                  setSelectedRowKey(null);
-                }}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Button>
-            </div>
-          )}
-
           <JournalDetailPane
             companyId={companyId}
             journalId={selectedJournalDetailId}
+            journalIsFx={selectedJournalIsFx}
             templateId={selectedTemplateDetailId}
             isCreatingNew={isCreatingNew}
             onCreatingNewChange={setIsCreatingNew}
@@ -425,6 +409,11 @@ export function JournalsListPage() {
                 journalId ? rowKey({ kind: 'journal', id: journalId }) : null,
               )
             }
+            onBack={() => {
+              setMobileShowDetail(false);
+              setIsCreatingNew(false);
+              setSelectedRowKey(null);
+            }}
             mockDetail={null}
           />
         </div>
