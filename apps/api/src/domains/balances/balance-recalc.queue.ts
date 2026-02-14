@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import {
   executeQueueOperation,
+  queueBroker,
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
 import { redis } from '../../lib/redis.js';
@@ -170,6 +171,11 @@ const isMergeableState = (s: string) => MERGEABLE_STATES.has(s);
 export async function enqueueGLBalance(
   data: Omit<GLBalanceJobData, 'type'>,
 ): Promise<Job<GLBalanceJobData> | null> {
+  // In test/disabled-queue mode, skip Redis lookups entirely.
+  if (!queueBroker.shouldExecute()) {
+    return null;
+  }
+
   // Add type field for validation
   const dataWithType = { ...data, type: 'gl-balance' as const };
   const v = glBalanceJobDataSchema.safeParse(dataWithType);
@@ -266,6 +272,11 @@ export async function enqueueGLBalance(
 export async function enqueueBankBalance(
   data: Omit<BankBalanceJobData, 'type'>,
 ): Promise<Job<BankBalanceJobData> | null> {
+  // In test/disabled-queue mode, skip Redis lookups entirely.
+  if (!queueBroker.shouldExecute()) {
+    return null;
+  }
+
   // Add type field for validation
   const dataWithType = { ...data, type: 'bank-balance' as const };
   const v = bankBalanceJobDataSchema.safeParse(dataWithType);

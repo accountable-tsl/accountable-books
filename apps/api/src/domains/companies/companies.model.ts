@@ -297,9 +297,10 @@ export const createCompany = async (
       accounting_basis: sanitizedData.accounting_basis ?? 'modified_cash_basis',
       is_demo_company: sanitizedData.is_demo_company || false,
       industry:
-        sanitizedData.industry || sanitizedData.type === 'accounting_firm'
+        sanitizedData.industry ||
+        (sanitizedData.type === 'accounting_firm'
           ? 'professional_services'
-          : null,
+          : null),
       onboarding_state: onboardingState,
     };
 
