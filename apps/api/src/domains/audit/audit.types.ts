@@ -4,7 +4,11 @@ import { createCamelCaseSchemaWithExclusions } from '../../shared/index.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/index.js';
 
-export const auditEventEntityType = z.enum(['bank_transaction', 'journal']);
+export const auditEventEntityType = z.enum([
+  'bank_transaction',
+  'journal',
+  'ai',
+]);
 export type AuditEventEntityType = z.infer<typeof auditEventEntityType>;
 
 export const auditEventActorType = z.enum([

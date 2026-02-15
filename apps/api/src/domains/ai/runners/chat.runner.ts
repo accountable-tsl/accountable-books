@@ -6,9 +6,9 @@ import {
   streamText,
 } from 'ai';
 
-import type { RunParams } from './types.js';
+import type { RunnerResult, RunParams } from './types.js';
 
-export async function runChatRunner(params: RunParams): Promise<void> {
+export async function runChatRunner(params: RunParams): Promise<RunnerResult> {
   const { cap, messages, apiKey, res, req } = params;
 
   const modelMessages = await convertToModelMessages(messages);
@@ -24,4 +24,19 @@ export async function runChatRunner(params: RunParams): Promise<void> {
     response: res as ServerResponse,
     stream: result.toUIMessageStream(),
   });
+
+  // These promises resolve as the underlying stream is consumed (by the UI stream).
+  const [finishReason, rawFinishReason, usage, totalUsage] = await Promise.all([
+    result.finishReason,
+    result.rawFinishReason,
+    result.usage,
+    result.totalUsage,
+  ]);
+
+  return {
+    finishReason: String(finishReason),
+    rawFinishReason: rawFinishReason ?? undefined,
+    usage,
+    totalUsage,
+  };
 }

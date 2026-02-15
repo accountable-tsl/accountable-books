@@ -13,7 +13,9 @@ const router = express.Router({ mergeParams: true });
 // AI endpoints can be expensive; keep a conservative limiter by default.
 router.use(basicLimiter);
 
-router.post('/chat', checkCompanyId, chatAiController);
+router.use(checkCompanyId);
+
+router.post('/chat', chatAiController);
 
 // Deterministic approval execution endpoints (no LLM re-entry).
 router.post('/approvals/:approvalId/execute', executeApprovalController);

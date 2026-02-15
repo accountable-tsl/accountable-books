@@ -1,4 +1,4 @@
-import type { UIMessage } from 'ai';
+import type { LanguageModelUsage, UIMessage } from 'ai';
 import type { Request, Response } from 'express';
 
 import type { ResolvedCapability } from '../capabilities/registry.js';
@@ -15,6 +15,13 @@ export type RunParams = {
   req: Request;
 };
 
+export type RunnerResult = {
+  finishReason?: string;
+  rawFinishReason?: string;
+  usage?: LanguageModelUsage;
+  totalUsage?: LanguageModelUsage;
+};
+
 export type ChatRunner = {
-  run(params: RunParams): Promise<void>;
+  run(params: RunParams): Promise<RunnerResult>;
 };

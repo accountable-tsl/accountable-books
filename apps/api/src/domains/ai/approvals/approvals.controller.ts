@@ -26,7 +26,10 @@ export async function executeApprovalController(
       );
     }
 
-    const existing = getApproval(String(req.params.approvalId));
+    const companyId = String(req.params.companyId);
+    const approvalId = String(req.params.approvalId);
+
+    const existing = await getApproval({ approvalId, companyId });
     if (!existing) {
       return res.status(404).json(
         errorResponse('Not Found', undefined, {
@@ -34,15 +37,11 @@ export async function executeApprovalController(
         }),
       );
     }
-    if (existing.companyId !== String(req.params.companyId)) {
-      return res.status(403).json(
-        errorResponse('Forbidden', undefined, {
-          code: ErrorCode.OPERATION_NOT_ALLOWED,
-        }),
-      );
-    }
 
-    const { approval, result } = executeApproval(String(req.params.approvalId));
+    const { approval, result } = await executeApproval({
+      approvalId,
+      companyId,
+    });
 
     return res.status(200).json(
       successResponse('Approval executed', {
@@ -70,7 +69,10 @@ export async function rejectApprovalController(
       );
     }
 
-    const existing = getApproval(String(req.params.approvalId));
+    const companyId = String(req.params.companyId);
+    const approvalId = String(req.params.approvalId);
+
+    const existing = await getApproval({ approvalId, companyId });
     if (!existing) {
       return res.status(404).json(
         errorResponse('Not Found', undefined, {
@@ -78,15 +80,8 @@ export async function rejectApprovalController(
         }),
       );
     }
-    if (existing.companyId !== String(req.params.companyId)) {
-      return res.status(403).json(
-        errorResponse('Forbidden', undefined, {
-          code: ErrorCode.OPERATION_NOT_ALLOWED,
-        }),
-      );
-    }
 
-    const approval = rejectApproval(String(req.params.approvalId));
+    const approval = await rejectApproval({ approvalId, companyId });
 
     return res
       .status(200)

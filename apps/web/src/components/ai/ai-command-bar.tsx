@@ -390,6 +390,11 @@ export function AiCommandBar() {
     if (surfaceMode === 'docked') setDragPositionX(0);
   }, [surfaceMode]);
 
+  const handleFloatingDrag = (_e: unknown, data: { x: number; y: number }) => {
+    // Draggable is controlled (we pass `position`), so keep state in sync while dragging.
+    setDragPositionX(data.x);
+  };
+
   const handleFloatingDragStop = (
     _e: unknown,
     data: { node: HTMLElement; x: number; y: number },
@@ -421,6 +426,35 @@ export function AiCommandBar() {
       { body: { capabilityId: cap.capabilityId, domain: cap.domain } },
     );
   };
+
+  const persistentSuggestions = capabilities.length > 0 &&
+    messages.length > 0 && (
+      <div className="px-4 pt-2 pb-1">
+        <div
+          className="no-scrollbar overflow-x-auto"
+          style={{
+            maskImage:
+              'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
+            WebkitMaskImage:
+              'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
+          }}
+        >
+          <div className="flex gap-1.5">
+            {capabilities.slice(0, 6).map((cap) => (
+              <button
+                key={cap.capabilityId}
+                type="button"
+                className={SUGGESTION_CHIP}
+                onClick={() => handleSuggestionClick(cap)}
+                title={cap.description}
+              >
+                {cap.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
 
   const contentArea = (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -644,6 +678,7 @@ export function AiCommandBar() {
               axis="x"
               position={{ x: dragPositionX, y: 0 }}
               onStart={() => setIsDraggingFloating(true)}
+              onDrag={handleFloatingDrag}
               onStop={handleFloatingDragStop}
               handle=".ai-floating-drag-handle"
               nodeRef={draggableNodeRef}
@@ -677,7 +712,7 @@ export function AiCommandBar() {
                       isExpanded
                         ? cn(
                             PANEL_BASE,
-                            'max-h-[min(600px,50vh)] w-[min(550px,calc(100vw-3rem))]',
+                            'max-h-[min(600px,50vh)] w-[min(520px,calc(100vw-3rem))]',
                           )
                         : 'w-[min(550px,calc(100vw-2rem))]',
                     )}
@@ -799,26 +834,8 @@ export function AiCommandBar() {
                       </div>
                     )}
 
-                    {/* Expanded: suggestions (when no messages yet) */}
-                    {isExpanded &&
-                      capabilities.length > 0 &&
-                      messages.length === 0 && (
-                        <div className="px-4 pb-2">
-                          <div className="flex flex-wrap gap-2">
-                            {capabilities.slice(0, 6).map((cap) => (
-                              <button
-                                key={cap.capabilityId}
-                                type="button"
-                                className={SUGGESTION_CHIP}
-                                onClick={() => handleSuggestionClick(cap)}
-                                title={cap.description}
-                              >
-                                {cap.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    {/* Suggestions above input */}
+                    {persistentSuggestions}
 
                     {/* Input area */}
                     <div
@@ -1129,6 +1146,7 @@ export function AiCommandBar() {
             </div>
 
             {contentArea}
+            {persistentSuggestions}
             {inputArea('Enter to send')}
           </motion.div>
         )}
