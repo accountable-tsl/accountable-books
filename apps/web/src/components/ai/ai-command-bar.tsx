@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { aiRuntimeStore } from '@/modules/ai';
 import { authStore } from '@/modules/auth';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import {
@@ -38,6 +39,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import Draggable from 'react-draggable';
 import { z } from 'zod';
 
 function domainLabelFallback(domain: string) {
@@ -170,7 +172,9 @@ export function AiCommandBar() {
   );
   const setThreadMessages = aiRuntimeStore((s) => s.setThreadMessages);
 
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const draggableNodeRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const lastRunMetaRef = useRef<AiMessageMetadata | null>(null);
   const lastPatchedAssistantIdRef = useRef<string | null>(null);
@@ -379,6 +383,28 @@ export function AiCommandBar() {
   }, [messages, messageDomainFilter]);
   const isExpanded = messages.length > 0;
 
+  const [dragPositionX, setDragPositionX] = useState(0);
+  const [isDraggingFloating, setIsDraggingFloating] = useState(false);
+
+  useEffect(() => {
+    if (surfaceMode === 'docked') setDragPositionX(0);
+  }, [surfaceMode]);
+
+  const handleFloatingDragStop = (
+    _e: unknown,
+    data: { node: HTMLElement; x: number; y: number },
+  ) => {
+    setIsDraggingFloating(false);
+    const rect = data.node.getBoundingClientRect();
+    const dockThreshold = 120;
+    if (rect.right >= window.innerWidth - dockThreshold) {
+      dock('right');
+      setDragPositionX(0);
+    } else {
+      setDragPositionX(data.x);
+    }
+  };
+
   if (!hasAnyEnabledCapabilities) return null;
 
   const handleSuggestionClick = (cap: AiCapabilityUI) => {
@@ -583,6 +609,14 @@ export function AiCommandBar() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-60">
+      {/* Dock zone hint when dragging floating panel toward right */}
+      {surfaceMode === 'floating' && isDraggingFloating && (
+        <div className="pointer-events-none fixed top-0 right-0 bottom-0 z-50 flex w-24 items-center justify-center bg-blue-500/5 transition-opacity">
+          <span className="text-muted-foreground text-xs font-medium">
+            Drop to dock
+          </span>
+        </div>
+      )}
       {/* ── Floating panel + actions (flex siblings, no calc()) ───── */}
       <AnimatePresence>
         {surfaceMode === 'floating' && (
@@ -606,82 +640,293 @@ export function AiCommandBar() {
                   ),
             )}
           >
-            {/* Panel */}
-            <div
-              className={cn(
-                'flex flex-col overflow-hidden',
-                isExpanded
-                  ? cn(
-                      PANEL_BASE,
-                      'max-h-[min(600px,50vh)] w-[min(550px,calc(100vw-2rem))]',
-                    )
-                  : 'w-[min(550px,calc(100vw-2rem))]',
-              )}
+            <Draggable
+              axis="x"
+              position={{ x: dragPositionX, y: 0 }}
+              onStart={() => setIsDraggingFloating(true)}
+              onStop={handleFloatingDragStop}
+              handle=".ai-floating-drag-handle"
+              nodeRef={draggableNodeRef}
+              disabled={!isDesktop}
             >
-              {/* Expanded: domain chips */}
-              {isExpanded && domainChips}
-
-              {/* Expanded: message history */}
-              {isExpanded && messages.length > 0 && contentArea}
-
-              {/* Compact: horizontal suggestions + inline actions */}
-              {!isExpanded && (
-                <div className="mb-2 flex items-center gap-2">
-                  {capabilities.length > 0 && (
+              <div
+                ref={draggableNodeRef}
+                className={cn(
+                  'flex w-fit gap-2',
+                  launcherPlacement === 'bottom-center'
+                    ? isExpanded
+                      ? 'sm:pl-[32px]'
+                      : ''
+                    : isExpanded
+                      ? 'sm:flex-row-reverse'
+                      : '',
+                )}
+              >
+                <div className="relative">
+                  {/* Colab-style: drag from right edge only */}
+                  {isDesktop && (
                     <div
-                      className="no-scrollbar min-w-0 flex-1 overflow-x-auto"
-                      style={{
-                        maskImage:
-                          'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
-                        WebkitMaskImage:
-                          'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
-                      }}
-                    >
-                      <div className="flex gap-2">
-                        {capabilities.slice(0, 6).map((cap) => (
-                          <button
-                            key={cap.capabilityId}
-                            type="button"
-                            className={SUGGESTION_CHIP}
-                            onClick={() => handleSuggestionClick(cap)}
-                            title={cap.description}
-                          >
-                            {cap.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                      className="ai-floating-drag-handle absolute top-0 right-0 z-10 h-full w-5 cursor-grab active:cursor-grabbing"
+                      title="Drag to move or drag to right edge to dock"
+                    />
                   )}
-                  {/* Inline action buttons */}
-                  <div className="flex shrink-0 items-center gap-1">
+                  {/* Panel */}
+                  <div
+                    className={cn(
+                      'flex flex-col overflow-hidden',
+                      isExpanded
+                        ? cn(
+                            PANEL_BASE,
+                            'max-h-[min(600px,50vh)] w-[min(550px,calc(100vw-3rem))]',
+                          )
+                        : 'w-[min(550px,calc(100vw-2rem))]',
+                    )}
+                  >
+                    {/* Expanded: domain chips */}
+                    {isExpanded && domainChips}
+
+                    {/* Expanded: message history */}
+                    {isExpanded && messages.length > 0 && contentArea}
+
+                    {/* Compact: horizontal suggestions + inline actions */}
+                    {!isExpanded && (
+                      <div className="mb-2 flex items-center gap-2">
+                        {capabilities.length > 0 && (
+                          <div
+                            className="no-scrollbar min-w-0 flex-1 overflow-x-auto"
+                            style={{
+                              maskImage:
+                                'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
+                              WebkitMaskImage:
+                                'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
+                            }}
+                          >
+                            <div className="flex gap-2">
+                              {capabilities.slice(0, 6).map((cap) => (
+                                <button
+                                  key={cap.capabilityId}
+                                  type="button"
+                                  className={SUGGESTION_CHIP}
+                                  onClick={() => handleSuggestionClick(cap)}
+                                  title={cap.description}
+                                >
+                                  {cap.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Inline action buttons */}
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => close()}
+                            className={COMPACT_ACTION_BTN}
+                            title="Close"
+                          >
+                            <X className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dock('right')}
+                            className={cn(COMPACT_ACTION_BTN, 'hidden sm:flex')}
+                            title="Dock to side"
+                          >
+                            <Maximize2 className="size-3" />
+                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className={COMPACT_ACTION_BTN}
+                                title="More actions"
+                              >
+                                <MoreVertical className="size-3" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              sideOffset={10}
+                              className="z-150 w-48"
+                            >
+                              <DropdownMenuItem
+                                onClick={() => requestNewThread()}
+                              >
+                                <MessageSquarePlus className="mr-2 h-4 w-4" />
+                                New Chat
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <div className="text-muted-foreground flex flex-col gap-1 px-2 py-1.5 text-xs">
+                                <div className="text-[10px] uppercase">
+                                  Launcher
+                                </div>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setLauncherPlacement('bottom-center')
+                                    }
+                                    className={cn(
+                                      'flex flex-1 items-center gap-1 rounded-sm p-1 px-2 transition-colors',
+                                      launcherPlacement === 'bottom-center'
+                                        ? 'bg-blue-500/10 text-blue-500'
+                                        : 'bg-muted hover:bg-muted/80',
+                                    )}
+                                  >
+                                    <AlignCenter className="size-3" />
+                                    <span>Center</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setLauncherPlacement('bottom-right')
+                                    }
+                                    className={cn(
+                                      'flex flex-1 items-center gap-1 rounded-sm p-1 px-2 transition-colors',
+                                      launcherPlacement === 'bottom-right'
+                                        ? 'bg-blue-500/10 text-blue-500'
+                                        : 'bg-muted hover:bg-muted/80',
+                                    )}
+                                  >
+                                    <AlignRight className="size-3" />
+                                    <span>Right</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Expanded: suggestions (when no messages yet) */}
+                    {isExpanded &&
+                      capabilities.length > 0 &&
+                      messages.length === 0 && (
+                        <div className="px-4 pb-2">
+                          <div className="flex flex-wrap gap-2">
+                            {capabilities.slice(0, 6).map((cap) => (
+                              <button
+                                key={cap.capabilityId}
+                                type="button"
+                                className={SUGGESTION_CHIP}
+                                onClick={() => handleSuggestionClick(cap)}
+                                title={cap.description}
+                              >
+                                {cap.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Input area */}
+                    <div
+                      className={cn(
+                        'flex flex-col bg-inherit px-4 py-3',
+                        isExpanded ? '' : 'p-0',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'flex flex-col',
+                          isExpanded
+                            ? 'bg-muted/20 border-white/10'
+                            : 'bg-inherit p-0',
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'relative flex w-full rounded-xl border shadow-sm',
+                            isExpanded
+                              ? 'bg-background/50'
+                              : 'bg-background/90 border-border shadow-lg backdrop-blur-xl dark:border-white/10!',
+                          )}
+                        >
+                          <textarea
+                            ref={textareaRef}
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onCompositionStart={() => setIsComposing(true)}
+                            onCompositionEnd={() => setIsComposing(false)}
+                            className={cn(
+                              'placeholder:text-muted-foreground/60 w-full resize-none bg-transparent px-3 py-2 pr-10 text-sm outline-none',
+                            )}
+                            placeholder="What would you like to do?"
+                            rows={1}
+                            maxLength={2000}
+                          />
+                          <div
+                            className={cn(
+                              'absolute',
+                              'top-1/2 right-2 -translate-y-1/2',
+                            )}
+                          >
+                            <Button
+                              type="button"
+                              size="icon"
+                              className="h-7 w-7 cursor-pointer rounded-lg shadow-sm"
+                              onClick={() => void handleSubmit()}
+                              title="Send"
+                              disabled={!input.trim() || isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader className="size-4 animate-spin" />
+                              ) : (
+                                <ArrowUp className="size-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="text-muted-foreground/50 mt-1 px-1 text-[10px]">
+                          ⌘K to toggle
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions sidebar — only in expanded mode, desktop only */}
+                {isExpanded && (
+                  <div className="hidden flex-col gap-2 sm:flex">
                     <button
                       type="button"
                       onClick={() => close()}
-                      className={COMPACT_ACTION_BTN}
+                      className="group bg-background/90 hover:bg-background flex size-8 items-center justify-center rounded-full border border-white/10 shadow-sm backdrop-blur-md transition-colors dark:bg-black/80"
                       title="Close"
                     >
-                      <X className="size-3" />
+                      <X className="text-muted-foreground group-hover:text-foreground size-3" />
                     </button>
+
                     <button
                       type="button"
                       onClick={() => dock('right')}
-                      className={cn(COMPACT_ACTION_BTN, 'hidden sm:flex')}
+                      className="group bg-background/90 hover:bg-background flex size-8 items-center justify-center rounded-full border border-white/10 shadow-sm backdrop-blur-md transition-colors dark:bg-black/80"
                       title="Dock to side"
                     >
-                      <Maximize2 className="size-3" />
+                      <Maximize2 className="text-muted-foreground group-hover:text-foreground size-3" />
                     </button>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className={COMPACT_ACTION_BTN}
+                          className="group bg-background/90 hover:bg-background flex size-8 items-center justify-center rounded-full border border-white/10 shadow-sm backdrop-blur-md transition-colors dark:bg-black/80"
                           title="More actions"
                         >
-                          <MoreVertical className="size-3" />
+                          <MoreVertical className="text-muted-foreground group-hover:text-foreground size-3" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="end"
+                        side={
+                          launcherPlacement === 'bottom-right'
+                            ? 'left'
+                            : 'right'
+                        }
                         sideOffset={10}
                         className="z-150 w-48"
                       >
@@ -689,6 +934,7 @@ export function AiCommandBar() {
                           <MessageSquarePlus className="mr-2 h-4 w-4" />
                           New Chat
                         </DropdownMenuItem>
+
                         <DropdownMenuSeparator />
                         <div className="text-muted-foreground flex flex-col gap-1 px-2 py-1.5 text-xs">
                           <div className="text-[10px] uppercase">Launcher</div>
@@ -728,178 +974,9 @@ export function AiCommandBar() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                </div>
-              )}
-
-              {/* Expanded: suggestions (when no messages yet) */}
-              {isExpanded &&
-                capabilities.length > 0 &&
-                messages.length === 0 && (
-                  <div className="px-4 pb-2">
-                    <div className="flex flex-wrap gap-2">
-                      {capabilities.slice(0, 6).map((cap) => (
-                        <button
-                          key={cap.capabilityId}
-                          type="button"
-                          className={SUGGESTION_CHIP}
-                          onClick={() => handleSuggestionClick(cap)}
-                          title={cap.description}
-                        >
-                          {cap.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {/* Input area */}
-              <div
-                className={cn(
-                  'flex flex-col bg-inherit px-4 py-3',
-                  isExpanded ? '' : 'p-0',
-                )}
-              >
-                <div
-                  className={cn(
-                    'flex flex-col',
-                    isExpanded
-                      ? 'bg-muted/20 border-white/10'
-                      : 'bg-inherit p-0',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'relative flex w-full rounded-xl border shadow-sm',
-                      isExpanded
-                        ? 'bg-background/50'
-                        : 'bg-background/90 border-border shadow-lg backdrop-blur-xl dark:border-white/10!',
-                    )}
-                  >
-                    <textarea
-                      ref={textareaRef}
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      onCompositionStart={() => setIsComposing(true)}
-                      onCompositionEnd={() => setIsComposing(false)}
-                      className={cn(
-                        'placeholder:text-muted-foreground/60 w-full resize-none bg-transparent px-3 py-2 pr-10 text-sm outline-none',
-                      )}
-                      placeholder="What would you like to do?"
-                      rows={1}
-                      maxLength={2000}
-                    />
-                    <div
-                      className={cn(
-                        'absolute',
-                        'top-1/2 right-2 -translate-y-1/2',
-                      )}
-                    >
-                      <Button
-                        type="button"
-                        size="icon"
-                        className="h-7 w-7 cursor-pointer rounded-lg shadow-sm"
-                        onClick={() => void handleSubmit()}
-                        title="Send"
-                        disabled={!input.trim() || isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader className="size-4 animate-spin" />
-                        ) : (
-                          <ArrowUp className="size-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                {isExpanded && (
-                  <div className="text-muted-foreground/50 mt-1 px-1 text-[10px]">
-                    ⌘K to toggle
-                  </div>
                 )}
               </div>
-            </div>
-
-            {/* Actions sidebar — only in expanded mode, desktop only */}
-            {isExpanded && (
-              <div className="hidden flex-col gap-2 sm:flex">
-                <button
-                  type="button"
-                  onClick={() => close()}
-                  className="group bg-background/90 hover:bg-background flex size-8 items-center justify-center rounded-full border border-white/10 shadow-sm backdrop-blur-md transition-colors dark:bg-black/80"
-                  title="Close"
-                >
-                  <X className="text-muted-foreground group-hover:text-foreground size-3" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => dock('right')}
-                  className="group bg-background/90 hover:bg-background flex size-8 items-center justify-center rounded-full border border-white/10 shadow-sm backdrop-blur-md transition-colors dark:bg-black/80"
-                  title="Dock to side"
-                >
-                  <Maximize2 className="text-muted-foreground group-hover:text-foreground size-3" />
-                </button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="group bg-background/90 hover:bg-background flex size-8 items-center justify-center rounded-full border border-white/10 shadow-sm backdrop-blur-md transition-colors dark:bg-black/80"
-                      title="More actions"
-                    >
-                      <MoreVertical className="text-muted-foreground group-hover:text-foreground size-3" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    side={
-                      launcherPlacement === 'bottom-right' ? 'left' : 'right'
-                    }
-                    sideOffset={10}
-                    className="z-150 w-48"
-                  >
-                    <DropdownMenuItem onClick={() => requestNewThread()}>
-                      <MessageSquarePlus className="mr-2 h-4 w-4" />
-                      New Chat
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-                    <div className="text-muted-foreground flex flex-col gap-1 px-2 py-1.5 text-xs">
-                      <div className="text-[10px] uppercase">Launcher</div>
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setLauncherPlacement('bottom-center')}
-                          className={cn(
-                            'flex flex-1 items-center gap-1 rounded-sm p-1 px-2 transition-colors',
-                            launcherPlacement === 'bottom-center'
-                              ? 'bg-blue-500/10 text-blue-500'
-                              : 'bg-muted hover:bg-muted/80',
-                          )}
-                        >
-                          <AlignCenter className="size-3" />
-                          <span>Center</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLauncherPlacement('bottom-right')}
-                          className={cn(
-                            'flex flex-1 items-center gap-1 rounded-sm p-1 px-2 transition-colors',
-                            launcherPlacement === 'bottom-right'
-                              ? 'bg-blue-500/10 text-blue-500'
-                              : 'bg-muted hover:bg-muted/80',
-                          )}
-                        >
-                          <AlignRight className="size-3" />
-                          <span>Right</span>
-                        </button>
-                      </div>
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
+            </Draggable>
           </motion.div>
         )}
       </AnimatePresence>

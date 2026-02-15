@@ -33,10 +33,10 @@ setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + db + dem
 	@echo "$(GREEN)🚀 Setting up Accountable Books development environment...$(RESET)"
 	@echo "$(YELLOW)🐳 Starting infrastructure (DB + Redis)...$(RESET)"
 	@$(MAKE) db-up
-	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
-	@$(MAKE) db-migrate
 	@echo "$(YELLOW)📦 Installing Node.js dependencies...$(RESET)"
 	@pnpm install
+	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
+	@$(MAKE) db-migrate
 	
 	@echo "$(YELLOW)🔨 Building shared packages (utils + contracts)...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
@@ -69,7 +69,7 @@ dev: guard-nonprod ## Start all apps in development mode (Turbo)
 	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
 	@pnpm -F @accountable-books/contracts run build
-	@pnpm dev
+	@pnpm dev:core
 
 ##@ 🚀 Combined Workflows
 dev-full: guard-nonprod ## Start development with infrastructure (db + redis + turbo)
