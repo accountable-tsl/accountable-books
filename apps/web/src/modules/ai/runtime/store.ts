@@ -107,6 +107,7 @@ export const aiRuntimeStore = create<AiRuntimeState>()(
 
       messageDomainFilter: null,
       setMessageDomainFilter: (domain) => set({ messageDomainFilter: domain }),
+      setIsLoading: (loading) => set({ isLoading: loading }),
 
       setContext: (ctx) => set({ ctx }),
 
@@ -277,6 +278,49 @@ export const aiRuntimeStore = create<AiRuntimeState>()(
           };
           return {
             threads: { ...state.threads, [state.activeThreadId]: nextThread },
+          };
+        }),
+
+      upsertMessage: (msg: AiMessage) =>
+        set((state) => {
+          const cutoff = now() - MESSAGE_RETENTION_MS;
+          const thread = getActiveThread(state.threads, state.activeThreadId);
+          const pruned = pruneThreadMessages(thread, cutoff);
+          const idx = pruned.messages.findIndex((m) => m.id === msg.id);
+          const nextMessages =
+            idx >= 0
+              ? pruned.messages.map((m, i) =>
+                  i === idx
+                    ? {
+                        ...m,
+                        ...msg,
+                        // merge meta to avoid accidentally dropping tags
+                        meta: { ...(m.meta ?? {}), ...(msg.meta ?? {}) },
+                      }
+                    : m,
+                )
+              : [...pruned.messages, msg];
+          const nextThread: AiThread = {
+            ...pruned,
+            messages: nextMessages,
+            updatedAt: now(),
+          };
+          return {
+            threads: { ...state.threads, [state.activeThreadId]: nextThread },
+          };
+        }),
+
+      setThreadMessages: (threadId, messages) =>
+        set((state) => {
+          const cutoff = now() - MESSAGE_RETENTION_MS;
+          const nextThread: AiThread = {
+            id: threadId,
+            messages: messages.filter((m) => m.timestamp >= cutoff),
+            updatedAt: now(),
+          };
+          return {
+            threads: { ...state.threads, [threadId]: nextThread },
+            activeThreadId: state.activeThreadId ?? threadId,
           };
         }),
 

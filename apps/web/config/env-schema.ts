@@ -5,7 +5,7 @@
  * Generates only essential files: .env.local, .env.test, .env.example
  */
 
-import type { EnvSchema } from '@accountable-books/utils/env/types';
+import type { EnvSchema } from '@accountable-books/utils/env';
 
 // Target environments to generate files for
 export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
@@ -139,9 +139,7 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
  * Can be executed directly: tsx apps/web/config/env-schema.ts
  */
 export async function generateFiles() {
-  const { createEnvGenerator } = await import(
-    '@accountable-books/utils/env/cli'
-  );
+  const { createEnvGenerator } = await import('@accountable-books/utils/env');
   await createEnvGenerator('Web', WEB_ENV_SCHEMA, WEB_TARGET_ENVIRONMENTS);
 }
 

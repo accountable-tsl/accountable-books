@@ -1,4 +1,5 @@
 import type { AiCapabilityUI, AiDomainKey, AiMessage } from '@/modules/ai';
+import type { UIMessage } from 'ai';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -22,6 +23,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { aiRuntimeStore } from '@/modules/ai';
+import { authStore } from '@/modules/auth';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 import {
   AlignCenter,
   AlignRight,
@@ -34,6 +38,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { z } from 'zod';
 
 function domainLabelFallback(domain: string) {
   return domain.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
@@ -63,8 +68,6 @@ function pickCapability(
   return scored[0]?.c ?? caps[0] ?? null;
 }
 
-const EMPTY_MESSAGES: AiMessage[] = [];
-
 // Smooth deceleration for open, slightly faster for close
 const ENTER_TRANSITION = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const };
 const EXIT_TRANSITION = { duration: 0.15, ease: [0.4, 0, 1, 1] as const };
@@ -78,8 +81,68 @@ const SUGGESTION_CHIP =
 const COMPACT_ACTION_BTN =
   'flex size-7 items-center justify-center rounded-full border border-border bg-background/80 text-muted-foreground backdrop-blur-md transition-colors hover:bg-background hover:text-foreground';
 
+const aiMessageMetadataSchema = z
+  .object({
+    domain: z.string().min(1).optional(),
+    capabilityId: z.string().min(1).optional(),
+  })
+  .optional();
+type AiMessageMetadata = z.infer<typeof aiMessageMetadataSchema>;
+
+function uiMessageText(parts: any[]): string {
+  // AI SDK UIMessage parts are unions; we only need text for current UI.
+  return (parts ?? [])
+    .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
+    .map((p) => p.text)
+    .join('');
+}
+
+function toUiMessages(seed: AiMessage[]): UIMessage[] {
+  return seed.map((m) => ({
+    id: m.id,
+    role: m.role,
+    parts: [{ type: 'text', text: m.text }],
+    metadata: m.meta
+      ? {
+          domain: m.meta.domain,
+          capabilityId: m.meta.capabilityId,
+        }
+      : undefined,
+  }));
+}
+
+function toAiMessages(ui: UIMessage[]): AiMessage[] {
+  return (ui ?? [])
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .map((m) => {
+      const text = uiMessageText((m as any).parts ?? []);
+      const meta = (m as any).metadata as AiMessageMetadata | undefined;
+      const createdAt = (m as any).createdAt;
+      const timestamp =
+        createdAt instanceof Date
+          ? createdAt.getTime()
+          : typeof createdAt === 'string' || typeof createdAt === 'number'
+            ? new Date(createdAt).getTime()
+            : Date.now();
+      return {
+        id: String((m as any).id),
+        role: m.role as 'user' | 'assistant',
+        text,
+        timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+        meta: meta
+          ? {
+              domain: meta.domain as AiDomainKey | undefined,
+              capabilityId: meta.capabilityId,
+            }
+          : undefined,
+      };
+    })
+    .filter((m) => m.text.trim().length > 0);
+}
+
 export function AiCommandBar() {
   const policy = aiRuntimeStore((s) => s.policy);
+  const ctx = aiRuntimeStore((s) => s.ctx);
   const surfaceMode = aiRuntimeStore((s) => s.surfaceMode);
   const dockSide = aiRuntimeStore((s) => s.dockSide);
   const dockWidthPx = aiRuntimeStore((s) => s.dockWidthPx);
@@ -87,7 +150,6 @@ export function AiCommandBar() {
   const setLauncherPlacement = aiRuntimeStore((s) => s.setLauncherPlacement);
   const input = aiRuntimeStore((s) => s.input);
   const setInput = aiRuntimeStore((s) => s.setInput);
-  const isLoading = aiRuntimeStore((s) => s.isLoading);
   const close = aiRuntimeStore((s) => s.close);
   const dock = aiRuntimeStore((s) => s.dock);
   const undock = aiRuntimeStore((s) => s.undock);
@@ -97,7 +159,6 @@ export function AiCommandBar() {
   const setActiveDomain = aiRuntimeStore((s) => s.setActiveDomain);
   const isDomainEnabled = aiRuntimeStore((s) => s.isDomainEnabled);
   const isCapabilityEnabled = aiRuntimeStore((s) => s.isCapabilityEnabled);
-  const appendMessage = aiRuntimeStore((s) => s.appendMessage);
   const requestNewThread = aiRuntimeStore((s) => s.requestNewThread);
   const pendingConfirm = aiRuntimeStore((s) => s.pendingConfirm);
   const confirmPending = aiRuntimeStore((s) => s.confirmPending);
@@ -107,9 +168,43 @@ export function AiCommandBar() {
   const setMessageDomainFilter = aiRuntimeStore(
     (s) => s.setMessageDomainFilter,
   );
+  const setThreadMessages = aiRuntimeStore((s) => s.setThreadMessages);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isComposing, setIsComposing] = useState(false);
+  const lastRunMetaRef = useRef<AiMessageMetadata | null>(null);
+  const lastPatchedAssistantIdRef = useRef<string | null>(null);
+
+  const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL || '').replace(
+    /\/$/,
+    '',
+  );
+  const chatApi =
+    ctx?.companyId && backendBaseUrl
+      ? `${backendBaseUrl}/api/${ctx.companyId}/ai/chat`
+      : '';
+
+  const chatTransport = useMemo(() => {
+    // DefaultChatTransport uses fetch under the hood, but handles the AI SDK stream protocol.
+    // We use prepareSendMessagesRequest to attach CSRF on every request.
+    return new DefaultChatTransport({
+      api: chatApi || '/api/invalid-ai-chat',
+      credentials: 'include',
+      prepareSendMessagesRequest: ({ options }: any) => {
+        const csrfToken = authStore.getState().csrfToken;
+        const headers: Record<string, string> = {
+          ...(options.headers ?? {}),
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        };
+        return {
+          ...options,
+          api: chatApi || options.api,
+          credentials: 'include',
+          headers,
+        };
+      },
+    });
+  }, [chatApi]);
 
   const enabledRegistrations = useMemo(() => {
     const next = new Map(registrations);
@@ -144,6 +239,59 @@ export function AiCommandBar() {
       ? enabledDomains[0]
       : (activeDomain ?? undefined);
 
+  const initialChatMessages = useMemo(() => {
+    return toUiMessages(activeThread?.messages ?? []);
+    // Only re-seed when the thread id changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThreadId]);
+
+  const chat = useChat({
+    id: activeThreadId,
+    transport: chatTransport as any,
+    messages: initialChatMessages as any,
+    messageMetadataSchema: aiMessageMetadataSchema as any,
+    onFinish: ({ messages }: any) => {
+      // Persist the final transcript for this thread.
+      setThreadMessages(activeThreadId, toAiMessages(messages ?? []));
+    },
+  });
+
+  const isLoading = chat.status === 'submitted' || chat.status === 'streaming';
+  const chatMessages = chat.messages;
+  const chatStatus = chat.status;
+  const chatSetMessages = chat.setMessages;
+
+  // Backend doesn't attach per-message domain metadata yet; patch assistant messages
+  // client-side so filtering and labels remain usable.
+  useEffect(() => {
+    const meta = lastRunMetaRef.current;
+    if (!meta?.domain && !meta?.capabilityId) return;
+
+    const lastAssistant = [...(chatMessages ?? [])]
+      .reverse()
+      .find((m: any) => m.role === 'assistant');
+    if (!lastAssistant) return;
+    const id = String((lastAssistant as any).id);
+    if (lastPatchedAssistantIdRef.current === id) return;
+
+    const current = (lastAssistant as any).metadata as
+      | AiMessageMetadata
+      | undefined;
+    if (current?.domain || current?.capabilityId) {
+      lastPatchedAssistantIdRef.current = id;
+      return;
+    }
+
+    chatSetMessages((msgs: any[]) =>
+      msgs.map((m: any) =>
+        String(m.id) === id
+          ? { ...m, metadata: { ...(m.metadata ?? {}), ...meta } }
+          : m,
+      ),
+    );
+    lastPatchedAssistantIdRef.current = id;
+  }, [chatMessages, chatStatus, chatSetMessages]);
+
   useEffect(() => {
     if (surfaceMode === 'floating' || surfaceMode === 'docked') {
       setTimeout(() => textareaRef.current?.focus(), 50);
@@ -169,39 +317,34 @@ export function AiCommandBar() {
     const text = input.trim();
     if (!text || isLoading || isComposing) return;
 
-    appendMessage({
-      id: `m-${Date.now()}`,
-      role: 'user',
-      text,
-      timestamp: Date.now(),
-      meta: inferredContextDomain
-        ? { domain: inferredContextDomain }
-        : undefined,
-    });
-    setInput('');
-
     const caps = capabilities;
-    if (caps.length === 0) {
-      appendMessage({
-        id: `m-${Date.now()}-err`,
-        role: 'assistant',
-        text: "I'm sorry, I don't see any capabilities available on this page to help with that.",
-        timestamp: Date.now(),
-        meta: inferredContextDomain
-          ? { domain: inferredContextDomain }
-          : undefined,
-      });
-      return;
-    }
+    if (caps.length === 0) return;
 
-    const relevant = caps[0]; // fast mock
-    appendMessage({
-      id: `m-${Date.now()}-assist`,
-      role: 'assistant',
-      text: `I can help with that. I'll use the ${relevant.label} capability.`,
-      timestamp: Date.now(),
-      meta: { capabilityId: relevant.capabilityId, domain: relevant.domain },
-    });
+    if (!ctx?.companyId) return;
+
+    const relevant = pickCapability(caps, text);
+    if (!relevant) return;
+
+    setInput('');
+    lastRunMetaRef.current = {
+      domain: relevant.domain,
+      capabilityId: relevant.capabilityId,
+    };
+    await chat.sendMessage(
+      {
+        text,
+        metadata: {
+          domain: inferredContextDomain ?? relevant.domain,
+          capabilityId: relevant.capabilityId,
+        },
+      },
+      {
+        body: {
+          capabilityId: relevant.capabilityId,
+          domain: relevant.domain,
+        },
+      },
+    );
   };
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (
@@ -218,7 +361,9 @@ export function AiCommandBar() {
   };
 
   // ── Shared panel inner content ──────────────────────────────────────
-  const messages = activeThread?.messages ?? EMPTY_MESSAGES;
+  const messages = useMemo(() => {
+    return toAiMessages((chat.messages ?? []) as any);
+  }, [chat.messages]);
   const messageDomains = useMemo(() => {
     const set = new Set<AiDomainKey>();
     for (const m of messages) {
@@ -237,22 +382,18 @@ export function AiCommandBar() {
   if (!hasAnyEnabledCapabilities) return null;
 
   const handleSuggestionClick = (cap: AiCapabilityUI) => {
-    appendMessage({
-      id: `m-${Date.now()}`,
-      role: 'user',
-      text: cap.label,
-      timestamp: Date.now(),
-      meta: { capabilityId: cap.capabilityId, domain: cap.domain },
-    });
-    setTimeout(() => {
-      appendMessage({
-        id: `m-${Date.now()}-assist`,
-        role: 'assistant',
-        text: 'Backend propose/apply wiring comes next.',
-        timestamp: Date.now(),
-        meta: { capabilityId: cap.capabilityId, domain: cap.domain },
-      });
-    }, 300);
+    if (!ctx?.companyId) return;
+    lastRunMetaRef.current = {
+      domain: cap.domain,
+      capabilityId: cap.capabilityId,
+    };
+    void chat.sendMessage(
+      {
+        text: cap.label,
+        metadata: { domain: cap.domain, capabilityId: cap.capabilityId },
+      },
+      { body: { capabilityId: cap.capabilityId, domain: cap.domain } },
+    );
   };
 
   const contentArea = (
@@ -290,8 +431,8 @@ export function AiCommandBar() {
                   className={cn(
                     'rounded-2xl px-4 py-3 text-sm leading-relaxed',
                     m.role === 'user'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-muted/50 text-foreground',
+                      ? 'bg-primary/85 dark:bg-primary/50 text-white shadow-md'
+                      : 'bg-muted text-foreground',
                   )}
                 >
                   <div className="whitespace-pre-wrap">{m.text}</div>
@@ -338,7 +479,7 @@ export function AiCommandBar() {
   );
 
   const inputArea = (hintText: string) => (
-    <div className="bg-muted/20 border-t border-white/10 px-4 py-3">
+    <div className="bg-muted/20 border-white/10 px-4 py-3">
       <div className="bg-background/50 relative rounded-xl border border-white/10 shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20">
         <textarea
           ref={textareaRef}
@@ -347,6 +488,7 @@ export function AiCommandBar() {
           onKeyDown={handleKeyDown}
           onCompositionStart={() => setIsComposing(true)}
           onCompositionEnd={() => setIsComposing(false)}
+          onPointerDownCapture={(e) => e.stopPropagation()}
           className="placeholder:text-muted-foreground/60 w-full resize-none bg-transparent px-3 py-2 pr-10 text-sm outline-none"
           placeholder="What would you like to do?"
           rows={1}
@@ -355,12 +497,16 @@ export function AiCommandBar() {
           <Button
             type="button"
             size="icon"
-            className="h-7 w-7 rounded-lg bg-blue-600/90 text-white shadow-sm transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-7 w-7 rounded-lg shadow-sm transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
             onClick={() => void handleSubmit()}
             title="Send"
-            disabled={!input.trim()}
+            disabled={!input.trim() || isLoading}
           >
-            <ArrowUp className="size-4" />
+            {isLoading ? (
+              <Loader className="size-4 animate-spin" />
+            ) : (
+              <ArrowUp className="size-4" />
+            )}
           </Button>
         </div>
       </div>
@@ -372,13 +518,13 @@ export function AiCommandBar() {
 
   const domainChips = (
     <div className="bg-muted/20 flex flex-wrap items-center gap-1.5 border-b border-white/10 px-4 py-2">
-      <div className="mr-1 flex h-5 w-5 items-center justify-center rounded-full bg-linear-to-tr from-blue-600 to-cyan-500 text-[10px] font-bold text-white shadow-sm">
+      <div className="from-primary dark:from-primary/10 mr-1 flex h-6 w-6 items-center justify-center rounded-full bg-linear-to-tr to-blue-500 text-[10px] font-bold text-white shadow-sm">
         <Loader className="size-3" />
       </div>
       <button
         type="button"
         className={cn(
-          'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+          'rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
           activeDomain === null
             ? 'border-blue-500/50 bg-blue-500/10 text-blue-500'
             : 'text-muted-foreground hover:bg-muted/50 border-transparent bg-transparent',
@@ -395,7 +541,7 @@ export function AiCommandBar() {
           key={d.domain}
           type="button"
           className={cn(
-            'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+            'rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors',
             activeDomain === d.domain
               ? 'border-blue-500/50 bg-blue-500/10 text-blue-500'
               : 'text-muted-foreground hover:bg-muted/50 border-transparent bg-transparent',
@@ -448,9 +594,7 @@ export function AiCommandBar() {
             transition={ENTER_TRANSITION}
             className={cn(
               'pointer-events-auto absolute bottom-5.5 flex gap-2',
-              // Mobile: full width, centered panel, no sidebar offset
               'inset-x-0 justify-center px-2',
-              // Desktop: sized to content with sidebar
               launcherPlacement === 'bottom-center'
                 ? cn(
                     'sm:mx-auto sm:w-fit sm:justify-start sm:px-0',
@@ -619,7 +763,7 @@ export function AiCommandBar() {
                   className={cn(
                     'flex flex-col',
                     isExpanded
-                      ? 'bg-muted/20 border-t border-white/10'
+                      ? 'bg-muted/20 border-white/10'
                       : 'bg-inherit p-0',
                   )}
                 >
@@ -654,12 +798,16 @@ export function AiCommandBar() {
                       <Button
                         type="button"
                         size="icon"
-                        className="h-7 w-7 rounded-lg bg-blue-600/90 text-white shadow-sm transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="h-7 w-7 cursor-pointer rounded-lg shadow-sm"
                         onClick={() => void handleSubmit()}
                         title="Send"
-                        disabled={!input.trim()}
+                        disabled={!input.trim() || isLoading}
                       >
-                        <ArrowUp className="size-4" />
+                        {isLoading ? (
+                          <Loader className="size-4 animate-spin" />
+                        ) : (
+                          <ArrowUp className="size-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -929,7 +1077,7 @@ export function AiCommandBar() {
           )}
           title="Toggle AI (⌘K)"
         >
-          <div className="flex h-full w-full items-center justify-center rounded-full bg-linear-to-tr from-blue-600 to-cyan-500 text-white">
+          <div className="from-primary dark:from-background flex h-full w-full items-center justify-center rounded-full bg-linear-to-tr to-blue-500 text-white">
             <Loader className={cn('size-3', !visible ? 'spin-pause' : '')} />
           </div>
         </button>

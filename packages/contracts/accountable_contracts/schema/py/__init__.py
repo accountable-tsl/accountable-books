@@ -3,6 +3,37 @@ from .accounting_basis import AccountingBasis
 from .accrual_recommendation import AccrualRecommendation
 from .accrual_resolver_output import AccrualResolverOutput
 from .action_intent import ActionIntent
+from .ai_approval import AiApproval
+from .ai_approval_status import AiApprovalStatus
+from .ai_assistant_message import AiAssistantMessage
+from .ai_chat_assistant_delta_event import AiChatAssistantDeltaEvent
+from .ai_chat_assistant_message_event import AiChatAssistantMessageEvent
+from .ai_chat_effect_event import AiChatEffectEvent
+from .ai_chat_error_code import AiChatErrorCode
+from .ai_chat_error_event import AiChatErrorEvent
+from .ai_chat_event import AiChatEvent
+from .ai_chat_request import AiChatRequest
+from .ai_chat_tool_call_event import AiChatToolCallEvent
+from .ai_chat_tool_error_event import AiChatToolErrorEvent
+from .ai_chat_tool_result_event import AiChatToolResultEvent
+from .ai_effect import AiEffect
+from .ai_effect_approval_request import AiEffectApprovalRequest
+from .ai_effect_job_completed import AiEffectJobCompleted
+from .ai_effect_job_progress import AiEffectJobProgress
+from .ai_effect_job_started import AiEffectJobStarted
+from .ai_effect_proposal_form import AiEffectProposalForm
+from .ai_effect_proposal_preview import AiEffectProposalPreview
+from .ai_effect_ui_highlight import AiEffectUiHighlight
+from .ai_effect_ui_navigate import AiEffectUiNavigate
+from .ai_execute_approval_response import AiExecuteApprovalResponse
+from .ai_message import AiMessage
+from .ai_message_meta import AiMessageMeta
+from .ai_message_role import AiMessageRole
+from .ai_proposal import AiProposal
+from .ai_proposal_status import AiProposalStatus
+from .ai_propose_body import AiProposeBody
+from .ai_propose_response_data import AiProposeResponseData
+from .api_chat_request import ApiChatRequest
 from .bank_contact_stats_snapshot import BankContactStatsSnapshot
 from .base_rolling_stats import BaseRollingStats
 from .categorization_task_source import CategorizationTaskSource
@@ -56,4 +87,4 @@ from .txn_file_source import TxnFileSource
 from .void_draft_journals_batch_body import VoidDraftJournalsBatchBody
 from .void_journal_body import VoidJournalBody
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "CopyJournalBody", "DataMutationIntent", "DebitCredit", "EnrichedTransaction", "FinalPosting", "FiscalCalendarStatus", "FiscalPeriodType", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "JournalBatchInput", "JournalBatchSource", "JournalBatchStatus", "JournalEntryInput", "JournalFileInput", "JournalListRowKind", "JournalSource", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "ListJournalsCursorQuery", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "PostDraftJournalsBatchBody", "RankerEntry", "RankerExplanation", "ReasonEnum", "RecurrenceFrequency", "RecurringTemplateStatus", "ReportingFramework", "ReverseJournalBody", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileBase", "TxnFileInput", "TxnFileSource", "VoidDraftJournalsBatchBody", "VoidJournalBody"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "AiApproval", "AiApprovalStatus", "AiAssistantMessage", "AiChatAssistantDeltaEvent", "AiChatAssistantMessageEvent", "AiChatEffectEvent", "AiChatErrorCode", "AiChatErrorEvent", "AiChatEvent", "AiChatRequest", "AiChatToolCallEvent", "AiChatToolErrorEvent", "AiChatToolResultEvent", "AiEffect", "AiEffectApprovalRequest", "AiEffectJobCompleted", "AiEffectJobProgress", "AiEffectJobStarted", "AiEffectProposalForm", "AiEffectProposalPreview", "AiEffectUiHighlight", "AiEffectUiNavigate", "AiExecuteApprovalResponse", "AiMessage", "AiMessageMeta", "AiMessageRole", "AiProposal", "AiProposalStatus", "AiProposeBody", "AiProposeResponseData", "ApiChatRequest", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "CopyJournalBody", "DataMutationIntent", "DebitCredit", "EnrichedTransaction", "FinalPosting", "FiscalCalendarStatus", "FiscalPeriodType", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IntentActionType", "IntentSemanticEntry", "JournalBatchInput", "JournalBatchSource", "JournalBatchStatus", "JournalEntryInput", "JournalFileInput", "JournalListRowKind", "JournalSource", "LabelRole", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "ListJournalsCursorQuery", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "PostDraftJournalsBatchBody", "RankerEntry", "RankerExplanation", "ReasonEnum", "RecurrenceFrequency", "RecurringTemplateStatus", "ReportingFramework", "ReverseJournalBody", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileBase", "TxnFileInput", "TxnFileSource", "VoidDraftJournalsBatchBody", "VoidJournalBody"]

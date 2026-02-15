@@ -123,8 +123,12 @@ export type AiRuntimeState = {
   confirmPending: (confirm: boolean) => void;
 
   appendMessage: (msg: AiMessage) => void;
+  upsertMessage: (msg: AiMessage) => void;
+  setThreadMessages: (threadId: string, messages: AiMessage[]) => void;
   clearThread: (threadId: string) => void;
 
   messageDomainFilter: AiDomainKey | null;
   setMessageDomainFilter: (domain: AiDomainKey | null) => void;
+
+  setIsLoading: (loading: boolean) => void;
 };

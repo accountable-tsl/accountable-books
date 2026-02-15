@@ -97,6 +97,9 @@ importers:
       '@accountable-books/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@ai-sdk/openai':
+        specifier: ^3.0.2
+        version: 3.0.29(zod@4.3.6)
       '@aws-sdk/client-s3':
         specifier: ^3.883.0
         version: 3.975.0
@@ -118,6 +121,9 @@ importers:
       '@slack/bolt':
         specifier: ^4.4.0
         version: 4.6.0(@types/express@5.0.6)
+      ai:
+        specifier: ^6.0.8
+        version: 6.0.86(zod@4.3.6)
       axios:
         specifier: ^1.11.0
         version: 1.13.3
@@ -320,6 +326,9 @@ importers:
       '@accountable-books/utils':
         specifier: workspace:*
         version: link:../../packages/utils
+      '@ai-sdk/react':
+        specifier: ^3.0.88
+        version: 3.0.88(react@18.3.1)(zod@4.3.6)
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -458,6 +467,9 @@ importers:
       ag-grid-react:
         specifier: ^32.1.0
         version: 32.3.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      ai:
+        specifier: ^6.0.86
+        version: 6.0.86(zod@4.3.6)
       antd:
         specifier: ^5.22.3
         version: 5.29.3(date-fns@3.6.0)(luxon@3.7.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -821,6 +833,9 @@ importers:
 
   packages/utils:
     devDependencies:
+      '@types/node':
+        specifier: ^25.0.6
+        version: 25.0.10
       typescript:
         specifier: 5.9.2
         version: 5.9.2
@@ -831,6 +846,49 @@ packages:
       {
         integrity: sha512-ZnR3GSaH+/vJ0YlHau21FjfLYjMpYVIzTD8M8vIEQvIGxeOXyXdzCI140rrCY862p/C/BbzWsjc1dgnM9mkoTA==,
       }
+
+  '@ai-sdk/gateway@3.0.46':
+    resolution:
+      {
+        integrity: sha512-zH1UbNRjG5woOXXFOrVCZraqZuFTtmPvLardMGcgLkzpxKV0U3tAGoyWKSZ862H+eBJfI/Hf2yj/zzGJcCkycg==,
+      }
+    engines: { node: '>=18' }
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai@3.0.29':
+    resolution:
+      {
+        integrity: sha512-ugVTIVpuSLKTjzSPe1F1DWiblJT/lwrrHx0OZEKjpMk/EYP6j6VD/F7SJqM1dsqOJryeBCJWFbUzLNqc99PrMA==,
+      }
+    engines: { node: '>=18' }
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.15':
+    resolution:
+      {
+        integrity: sha512-8XiKWbemmCbvNN0CLR9u3PQiet4gtEVIrX4zzLxnCj06AwsEDJwJVBbKrEI4t6qE8XRSIvU2irka0dcpziKW6w==,
+      }
+    engines: { node: '>=18' }
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider@3.0.8':
+    resolution:
+      {
+        integrity: sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ==,
+      }
+    engines: { node: '>=18' }
+
+  '@ai-sdk/react@3.0.88':
+    resolution:
+      {
+        integrity: sha512-fsUsDP0S+AAmxwgzxYhn9MQKmnAg7AttV3yrSw3bvI5MVfl0LBD3ViRuGNqY8S1DkkDfEF4BLom/nkbD1zY4bQ==,
+      }
+    engines: { node: '>=18' }
+    peerDependencies:
+      react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
 
   '@alloc/quick-lru@5.2.0':
     resolution:
@@ -7128,6 +7186,13 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@vercel/oidc@3.1.0':
+    resolution:
+      {
+        integrity: sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w==,
+      }
+    engines: { node: '>= 20' }
+
   '@vitejs/plugin-react@4.7.0':
     resolution:
       {
@@ -7339,6 +7404,15 @@ packages:
         integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==,
       }
     engines: { node: '>=8' }
+
+  ai@6.0.86:
+    resolution:
+      {
+        integrity: sha512-U2W2LBCHA/pr0Ui7vmmsjBiLEzBbZF3yVHNy7Rbzn7IX+SvoQPFM5rN74hhfVzZoE8zBuGD4nLLk+j0elGacvQ==,
+      }
+    engines: { node: '>=18' }
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ajv-formats@3.0.1:
     resolution:
@@ -14192,6 +14266,14 @@ packages:
     peerDependencies:
       express: '>=4.0.0 || >=5.0.0-beta'
 
+  swr@2.4.0:
+    resolution:
+      {
+        integrity: sha512-sUlC20T8EOt1pHmDiqueUWMmRRX03W7w5YxovWX7VR2KHEPCTMly85x05vpkP5i6Bu4h44ePSMD9Tc+G2MItFw==,
+      }
+    peerDependencies:
+      react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   symbol-tree@3.2.4:
     resolution:
       {
@@ -14300,6 +14382,13 @@ packages:
         integrity: sha512-B71/4oyj61iNH0KeCamLuE2rmKuTO5byTOSVwECM5FA7TiAiAW+UqTKZ9ERueC4qvgSttUhdmq1mXC3kJqGX7A==,
       }
     engines: { node: '>=12.22' }
+
+  throttleit@2.1.0:
+    resolution:
+      {
+        integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==,
+      }
+    engines: { node: '>=18' }
 
   tildify@2.0.0:
     resolution:
@@ -15623,6 +15712,40 @@ packages:
 
 snapshots:
   '@acemir/cssom@0.9.31': {}
+
+  '@ai-sdk/gateway@3.0.46(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      '@vercel/oidc': 3.1.0
+      zod: 4.3.6
+
+  '@ai-sdk/openai@3.0.29(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      zod: 4.3.6
+
+  '@ai-sdk/provider-utils@4.0.15(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.0.6
+      zod: 4.3.6
+
+  '@ai-sdk/provider@3.0.8':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/react@3.0.88(react@18.3.1)(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      ai: 6.0.86(zod@4.3.6)
+      react: 18.3.1
+      swr: 2.4.0(react@18.3.1)
+      throttleit: 2.1.0
+    transitivePeerDependencies:
+      - zod
 
   '@alloc/quick-lru@5.2.0': {}
 
@@ -19610,14 +19733,14 @@ snapshots:
 
   '@slack/logger@4.0.0':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@slack/oauth@3.0.4':
     dependencies:
       '@slack/logger': 4.0.0
       '@slack/web-api': 7.13.0
       '@types/jsonwebtoken': 9.0.10
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
       jsonwebtoken: 9.0.3
     transitivePeerDependencies:
       - debug
@@ -19626,7 +19749,7 @@ snapshots:
     dependencies:
       '@slack/logger': 4.0.0
       '@slack/web-api': 7.13.0
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
       '@types/ws': 8.18.1
       eventemitter3: 5.0.4
       ws: 8.19.0
@@ -19641,7 +19764,7 @@ snapshots:
     dependencies:
       '@slack/logger': 4.0.0
       '@slack/types': 2.19.0
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
       '@types/retry': 0.12.0
       axios: 1.13.3
       eventemitter3: 5.0.4
@@ -20447,7 +20570,7 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/canvas-confetti@1.9.0': {}
 
@@ -20458,7 +20581,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/cookie-parser@1.4.10(@types/express@5.0.6)':
     dependencies:
@@ -20506,7 +20629,7 @@ snapshots:
 
   '@types/express-serve-static-core@5.1.1':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
       '@types/qs': 6.14.0
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -20545,7 +20668,7 @@ snapshots:
 
   '@types/mysql@2.15.27':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/node@20.19.30':
     dependencies:
@@ -20575,7 +20698,7 @@ snapshots:
 
   '@types/pg@8.15.6':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
       pg-protocol: 1.11.0
       pg-types: 2.2.0
 
@@ -20614,7 +20737,7 @@ snapshots:
 
   '@types/redis@2.8.32':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/resolve@1.20.2': {}
 
@@ -20622,12 +20745,12 @@ snapshots:
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/serve-static@2.2.0':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/statuses@2.0.6': {}
 
@@ -20652,7 +20775,7 @@ snapshots:
 
   '@types/tedious@4.0.14':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@types/trusted-types@2.0.7': {}
 
@@ -20660,7 +20783,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 20.19.30
+      '@types/node': 25.0.10
 
   '@typescript-eslint/eslint-plugin@8.54.0(@typescript-eslint/parser@8.54.0(eslint@9.33.0(jiti@2.6.1))(typescript@5.9.2))(eslint@9.33.0(jiti@2.6.1))(typescript@5.9.2)':
     dependencies:
@@ -20811,6 +20934,8 @@ snapshots:
 
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
+
+  '@vercel/oidc@3.1.0': {}
 
   '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@25.0.10)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0))':
     dependencies:
@@ -20984,6 +21109,14 @@ snapshots:
       clean-stack: 2.2.0
       indent-string: 4.0.0
     optional: true
+
+  ai@6.0.86(zod@4.3.6):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.46(zod@4.3.6)
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      '@opentelemetry/api': 1.9.0
+      zod: 4.3.6
 
   ajv-formats@3.0.1(ajv@8.17.1):
     optionalDependencies:
@@ -25495,6 +25628,12 @@ snapshots:
       express: 5.2.1
       swagger-ui-dist: 5.31.0
 
+  swr@2.4.0(react@18.3.1):
+    dependencies:
+      dequal: 2.0.3
+      react: 18.3.1
+      use-sync-external-store: 1.6.0(react@18.3.1)
+
   symbol-tree@3.2.4: {}
 
   tabbable@6.4.0: {}
@@ -25575,6 +25714,8 @@ snapshots:
       real-require: 0.2.0
 
   throttle-debounce@5.0.2: {}
+
+  throttleit@2.1.0: {}
 
   tildify@2.0.0: {}
 

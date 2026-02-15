@@ -11,6 +11,7 @@ import { specs, swaggerUi } from './docs/swagger.js';
 import { loadAccountMeta } from './domains/account/account.registry.js';
 import accountRoutes from './domains/account/account.routes.js';
 import firmRoutes from './domains/accountingFirms/firms.routes.js';
+import aiRoutes from './domains/ai/ai.routes.js';
 import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.routes.js';
 import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
@@ -168,6 +169,7 @@ export async function setupApp() {
   app.use('/api/:companyId', usersCompaniesRolesRoutes);
   app.use('/api/:companyId', periodStatusRoutes);
 
+  app.use('/api/:companyId/ai', aiRoutes);
   app.use('/api/:companyId/categorization', categorizationRoutes);
   app.use('/api/:companyId/coa', coaRoutes);
   app.use('/api/:companyId/ledgers', ledgersRoutes);

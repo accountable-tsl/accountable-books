@@ -1,0 +1,15 @@
+from pydantic import BaseModel, Field, constr
+from typing import Literal
+from enum import Enum
+
+class RiskEnum(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class AiEffectProposalPreview(BaseModel):
+    type: Literal["proposal.preview"]
+    proposalId: constr(min_length=1)
+    title: constr(min_length=1)
+    summary: constr(min_length=1)
+    risk: RiskEnum = Field(default="medium")

@@ -1,0 +1,6 @@
+from enum import Enum
+
+class AiApprovalStatus(str, Enum):
+    PENDING = "pending"
+    EXECUTED = "executed"
+    REJECTED = "rejected"

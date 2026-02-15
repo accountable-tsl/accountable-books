@@ -1,0 +1,7 @@
+from pydantic import BaseModel, constr
+from typing import Literal
+
+class AiEffectJobCompleted(BaseModel):
+    type: Literal["job.completed"]
+    jobId: constr(min_length=1)
+    resultSummary: constr(min_length=1)

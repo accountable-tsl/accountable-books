@@ -5,7 +5,7 @@
  * Generates only essential files: .env.local, .env.example
  */
 
-import type { EnvSchema } from '@accountable-books/utils/env/types';
+import type { EnvSchema } from '@accountable-books/utils/env';
 
 // Target environments to generate files for
 export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
@@ -108,7 +108,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
   DATABASE_URL: {
     description: 'Complete PostgreSQL connection string',
     type: 'secret',
-    local: `postgresql://user:password@localhost:5433/accountable_books'`,
+    local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
   DATABASE_URL_NOPOOL: {
@@ -436,6 +436,35 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'false',
   },
 
+  // ============================================================================
+  // AI (APP-LEVEL)
+  // ============================================================================
+  AI_ENABLED: {
+    description: 'Enable AI endpoints (app-level)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'false',
+    production: 'false',
+  },
+
+  OPENAI_API_KEY: {
+    description: 'OpenAI API key used by the AI orchestrator',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  OPENAI_MODEL: {
+    description:
+      'Default OpenAI model name for chat (capabilities may override)',
+    type: 'string',
+    required: false,
+    local: 'gpt-4o-mini',
+    staging: 'gpt-4o-mini',
+    production: 'gpt-4o-mini',
+  },
+
   BULLBOARD_USER: {
     description: 'Bull Board admin username',
     type: 'string',
@@ -610,9 +639,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
  * Can be executed directly: tsx apps/api/config/env-schema.ts
  */
 export async function generateFiles() {
-  const { createEnvGenerator } = await import(
-    '@accountable-books/utils/env/cli'
-  );
+  const { createEnvGenerator } = await import('@accountable-books/utils/env');
   await createEnvGenerator('API', API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS);
 }
 

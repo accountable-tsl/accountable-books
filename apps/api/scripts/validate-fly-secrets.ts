@@ -21,7 +21,7 @@ import type {
   Environment,
   EnvSchema,
   EnvVariableConfig,
-} from '@accountable-books/utils/env/types';
+} from '@accountable-books/utils/env';
 
 import { API_ENV_SCHEMA } from '../config/env-schema.js';
 
