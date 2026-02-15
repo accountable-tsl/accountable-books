@@ -395,6 +395,7 @@ export async function createLedgerRecordsBatch({
         sourceCurrencyId: sourceTxCurrencyId,
         reportingCurrencyId,
         bankTxnSystemRate: bankTxn?.system_exchange_rate,
+        trx: txn,
       });
 
       if (fxWarnings.length > 0) {

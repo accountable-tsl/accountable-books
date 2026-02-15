@@ -376,6 +376,7 @@ export async function createLedgerRecord({
       sourceCurrencyId: sourceTxCurrencyId,
       reportingCurrencyId,
       bankTxnSystemRate: bankTxn?.system_exchange_rate,
+      trx: txn,
     });
 
     // Store FX warnings to return to the caller

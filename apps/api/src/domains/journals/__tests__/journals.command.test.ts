@@ -209,6 +209,14 @@ describe('postJournalRecord - Integration Tests', () => {
   });
 
   it('uses provided FX rate for posted FX journal', async () => {
+    // Ensure a system FX rate exists in the same transaction to avoid external API fallback.
+    await trx('exchange_rates').insert({
+      date: '2025-01-20',
+      from_currency_id: ngnCurrencyId,
+      to_currency_id: usdCurrencyId,
+      rate: 0.001,
+    });
+
     const result = await postJournalRecord({
       data: {
         date: '2025-01-20',

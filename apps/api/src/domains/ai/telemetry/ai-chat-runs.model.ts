@@ -86,6 +86,7 @@ export async function finishChatRun(params: {
   usage?: LanguageModelUsage;
   finishedAt: Date;
   errorText?: string | null;
+  trx?: Knex.Transaction;
 }): Promise<{
   inputTokens: number | null;
   outputTokens: number | null;
@@ -94,7 +95,7 @@ export async function finishChatRun(params: {
   outputCostUsdMicros: number | null;
   totalCostUsdMicros: number | null;
 }> {
-  return await knexClient.transaction(async (trx) => {
+  const exec = async (trx: Knex.Transaction) => {
     const row = (await trx('ai_chat_runs')
       .where({ id: params.chatRunId, is_deleted: false })
       .forUpdate()
@@ -164,5 +165,8 @@ export async function finishChatRun(params: {
       outputCostUsdMicros,
       totalCostUsdMicros,
     };
-  });
+  };
+
+  if (params.trx) return await exec(params.trx);
+  return await knexClient.transaction(exec);
 }

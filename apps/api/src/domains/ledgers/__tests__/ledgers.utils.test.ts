@@ -347,6 +347,7 @@ describe('resolveFx', () => {
       reportingCurrencyId: 'usd-id',
     });
 
+    expect(result.systemExRate).toBe(1.15);
     expect(result.customExRate).toBe(1.18);
   });
 

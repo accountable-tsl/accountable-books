@@ -124,12 +124,14 @@ export async function resolveFx({
   sourceCurrencyId,
   reportingCurrencyId,
   bankTxnSystemRate,
+  trx,
 }: {
   ledgerTxDate: Date;
   entries: LedgerEntryInput[];
   sourceCurrencyId: string;
   reportingCurrencyId: string;
   bankTxnSystemRate?: number | null;
+  trx?: Knex.Transaction;
 }): Promise<{
   systemExRate: number;
   customExRate: number;
@@ -150,9 +152,15 @@ export async function resolveFx({
   const reportingCurr = await getCurrencyById(reportingCurrencyId);
   const sourceCurr = await getCurrencyById(sourceCurrencyId);
 
+  // CUSTOM RATES (one final custom rate or fallback to system)
+  const customRates = entries
+    .map((e) => e.custom_exchange_rate ?? null)
+    .filter((r) => r !== null) as number[];
+
+  const uniqueRates = new Set(customRates);
+
   // SYSTEM RATE (system -> bank override -> external lookup)
   let systemRate = 1;
-
   if (bankTxnSystemRate) {
     systemRate = bankTxnSystemRate;
   } else {
@@ -160,6 +168,7 @@ export async function resolveFx({
       date: toYMD(ledgerTxDate),
       fromCurrencyId: sourceCurrencyId,
       toCurrencyId: reportingCurrencyId,
+      trx,
     });
 
     if (!rate) {
@@ -179,19 +188,12 @@ export async function resolveFx({
     systemRate = rate;
   }
 
-  // CUSTOM RATES (one final custom rate or fallback to system)
-  const customRates = entries
-    .map((e) => e.custom_exchange_rate ?? null)
-    .filter((r) => r !== null) as number[];
-
-  const uniqueRates = new Set(customRates);
-
   let finalCustomRate = systemRate; // default fallback
   if (customRates.length === 1) {
     finalCustomRate = customRates[0];
   } else if (uniqueRates.size === 1 && customRates.length > 1) {
     // All identical
-    finalCustomRate = [...uniqueRates][0];
+    finalCustomRate = [...uniqueRates][0]!;
   } else if (uniqueRates.size > 1) {
     warnings.push(
       `Conflicting custom FX rates detected for ${sourceCurr.code} → ${reportingCurr.code} on ${toYMD(ledgerTxDate)}. Using system rate.`,

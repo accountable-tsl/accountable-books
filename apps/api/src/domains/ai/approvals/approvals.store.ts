@@ -110,8 +110,9 @@ export async function rejectApproval(params: {
 export async function executeApproval(params: {
   approvalId: string;
   companyId: string;
+  trx?: Knex.Transaction;
 }): Promise<{ approval: AiApproval; result?: unknown }> {
-  return await knexClient.transaction(async (trx) => {
+  const exec = async (trx: Knex.Transaction) => {
     const existing = (await trx(TABLE)
       .where({ id: params.approvalId, company_id: params.companyId })
       .andWhere({ is_deleted: false })
@@ -139,5 +140,8 @@ export async function executeApproval(params: {
     if (!row) throw new Error('Approval not found');
 
     return { approval: rowToApproval(row), result };
-  });
+  };
+
+  if (params.trx) return await exec(params.trx);
+  return await knexClient.transaction(exec);
 }

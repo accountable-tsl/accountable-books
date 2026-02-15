@@ -194,6 +194,7 @@ export async function validateAndPrepareJournalInput<
         date: rawBatch.date,
         fromCurrencyId: journalCurrencyId,
         toCurrencyId: p.context.reportingCurrencyId,
+        trx: p.trx,
       });
 
       if (!rate) {
