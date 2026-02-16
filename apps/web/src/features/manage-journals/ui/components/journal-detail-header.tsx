@@ -19,6 +19,13 @@ export type JournalDetailHeaderAction = {
   label: string;
   icon: LucideIcon;
   className?: string;
+  variant?:
+    | 'default'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'ghost'
+    | 'link';
   onClick: () => void;
 };
 
@@ -60,10 +67,10 @@ export function JournalDetailHeader({
             <button
               type="button"
               onClick={inlineMobileAction.onClick}
-              className="flex items-center justify-center gap-0.5 rounded-sm px-1.5 py-0.5 text-[10px]"
+              className="flex items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs"
             >
               {inlineMobileAction.icon && (
-                <inlineMobileAction.icon className="size-3" />
+                <inlineMobileAction.icon className="size-4" />
               )}
               {inlineMobileAction.label}
             </button>
@@ -73,9 +80,9 @@ export function JournalDetailHeader({
             <button
               type="button"
               onClick={onBack}
-              className="flex items-center justify-center gap-0.5 rounded-sm border px-1.5 py-0.5 text-[10px]"
+              className="flex items-center justify-center gap-1 rounded-md border px-2.5 py-1.5 text-xs"
             >
-              <ArrowLeft className="size-3" />
+              <ArrowLeft className="size-4" />
               Back
             </button>
           ) : null}
@@ -122,7 +129,7 @@ export function JournalDetailHeader({
             const Icon = action.icon;
             return (
               <Button
-                variant="ghost"
+                variant={action.variant || 'ghost'}
                 size="sm"
                 key={action.key}
                 onClick={action.onClick}
