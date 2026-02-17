@@ -51,9 +51,13 @@ import { useContacts } from '@/modules/contacts/model/hooks';
 import { getObjectUploadUrl, uploadFileToR2 } from '@/modules/objects/api';
 import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
 import {
+  Calendar,
+  CalendarX,
   Check,
+  CheckCircle,
   ChevronDown,
   ChevronLeft,
+  Clock,
   Eye,
   Loader2,
   Paperclip,
@@ -212,7 +216,8 @@ export function JournalDetailPane({
   onJournalSelected: (journalId: string | null) => void;
   onBack?: () => void;
 }) {
-  const isMobile = useIsMobile();
+  // Tablet/Hybrid range: 1024px - 1279px
+  const isMobile = useMediaQuery('(max-width: 1023px)');
   // Using 1280px as the desktop breakpoint for the spreadsheet-like view
   const isDesktop = useMediaQuery('(min-width: 1280px)');
   const shortcutModifierLabel = getShortcutModifierLabel();
@@ -277,8 +282,16 @@ export function JournalDetailPane({
 
   const [editing, setEditing] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<
-    'post' | 'void' | 'reverse' | 'suggest' | 'discard' | null
+    | 'post'
+    | 'void'
+    | 'reverse'
+    | 'suggest'
+    | 'discard'
+    | 'discard-for-new'
+    | null
   >(null);
+  const pendingNewRef = useRef(false);
+  const previousJournalIdRef = useRef<string | null>(null);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [contactId, setContactId] = useState<string | null>(null);
@@ -298,6 +311,7 @@ export function JournalDetailPane({
     useState<RecurringFrequency>('monthly');
   const [recurringNextDate, setRecurringNextDate] = useState('');
   const [recurringAutoPost, setRecurringAutoPost] = useState(false);
+  const [recurringEndDate, setRecurringEndDate] = useState('');
   const [templatePreview, setTemplatePreview] = useState<{
     runDateYMD: string;
     title: string | null;
@@ -357,12 +371,96 @@ export function JournalDetailPane({
     return dr > cr ? 'credit' : 'debit';
   }, [lines]);
 
+  // --- HOISTED LOGIC FOR KEYBOARD SHORTCUTS ---
+  const totalDebit = useMemo(
+    () =>
+      lines
+        .filter((line) => line.side === 'debit')
+        .reduce((sum, line) => sum + line.amount, 0),
+    [lines],
+  );
+  const totalCredit = useMemo(
+    () =>
+      lines
+        .filter((line) => line.side === 'credit')
+        .reduce((sum, line) => sum + line.amount, 0),
+    [lines],
+  );
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+
+  const canSave =
+    title.trim().length > 0 &&
+    !!date &&
+    lines.length >= 2 &&
+    lines.every((line) => line.coaId && line.amount > 0);
+  const canPost = canSave && isBalanced;
+
+  const isSaving =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    postMutation.isPending ||
+    voidMutation.isPending ||
+    reverseMutation.isPending ||
+    copyMutation.isPending ||
+    updateRecurringTemplateStatusMutation.isPending ||
+    runRecurringTemplateNowMutation.isPending ||
+    previewRecurringTemplateMutation.isPending;
+
+  // Ref to hold the latest handleSave function (defined later)
+  const handleSaveRef = useRef<() => void>(() => {});
+
+  // Keyboard Shortcuts Effect (Safe here because before early returns)
+  useEffect(() => {
+    if (!editing) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      // Cmd + S -> Save Draft
+      if (isCmdOrCtrl && e.key === 's') {
+        e.preventDefault();
+        if (canSave && !isSaving) {
+          handleSaveRef.current();
+        }
+        return;
+      }
+
+      // Cmd + Enter -> Post
+      if (isCmdOrCtrl && e.key === 'Enter') {
+        e.preventDefault();
+        if (canPost && !isSaving) {
+          setConfirmDialog('post');
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editing, canSave, canPost, isSaving]);
+  // ---------------------------------------------
+
   useEffect(() => {
     setTemplatePreview(null);
   }, [templateId]);
 
   useEffect(() => {
     if (isCreatingNew) {
+      // If we're currently editing with changes, defer and show discard dialog
+      if (editing && !pendingNewRef.current) {
+        // Check if there are unsaved changes (for both new and existing journals)
+        const hasChanges =
+          title.trim().length > 0 ||
+          description.trim().length > 0 ||
+          lines.some((l) => l.amount > 0 || l.coaId || l.description);
+        if (hasChanges) {
+          pendingNewRef.current = true;
+          previousJournalIdRef.current = journalId;
+          setConfirmDialog('discard-for-new');
+          return;
+        }
+      }
+      pendingNewRef.current = false;
       setEditing(true);
       setTitle('');
       const now = new Date().toISOString().slice(0, 10);
@@ -375,6 +473,7 @@ export function JournalDetailPane({
       setRecurringFrequency('monthly');
       setRecurringNextDate(computeNextDate(now, 'monthly'));
       setRecurringAutoPost(false);
+      setRecurringEndDate('');
       setUploadingFiles([]);
       setAttachedFiles([]);
       setContactId(null);
@@ -412,46 +511,13 @@ export function JournalDetailPane({
     setAttachedFiles((journal.files as JournalFileInput[]) ?? []);
     setContactId(journal.contactId ?? null);
     setReference(journal.reference ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail?.entries, isCreatingNew, journal]);
 
   useEffect(() => {
     if (!editing || !recurringEnabled || !date) return;
     setRecurringNextDate(computeNextDate(date, recurringFrequency));
   }, [date, editing, recurringEnabled, recurringFrequency]);
-
-  const totalDebit = useMemo(
-    () =>
-      lines
-        .filter((line) => line.side === 'debit')
-        .reduce((sum, line) => sum + line.amount, 0),
-    [lines],
-  );
-  const totalCredit = useMemo(
-    () =>
-      lines
-        .filter((line) => line.side === 'credit')
-        .reduce((sum, line) => sum + line.amount, 0),
-    [lines],
-  );
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
-
-  const canSave =
-    title.trim().length > 0 &&
-    !!date &&
-    lines.length >= 2 &&
-    lines.every((line) => line.coaId && line.amount > 0);
-  const canPost = canSave && isBalanced;
-
-  const isSaving =
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    postMutation.isPending ||
-    voidMutation.isPending ||
-    reverseMutation.isPending ||
-    copyMutation.isPending ||
-    updateRecurringTemplateStatusMutation.isPending ||
-    runRecurringTemplateNowMutation.isPending ||
-    previewRecurringTemplateMutation.isPending;
 
   const payload = useMemo<JournalBatchInput>(
     () => ({
@@ -477,6 +543,7 @@ export function JournalDetailPane({
               nextDate:
                 recurringNextDate || computeNextDate(date, recurringFrequency),
               autoPost: recurringAutoPost,
+              endDate: recurringEndDate || null,
             }
           : {
               enabled: false,
@@ -498,6 +565,7 @@ export function JournalDetailPane({
       memo,
       recurringAutoPost,
       recurringEnabled,
+      recurringEndDate,
       recurringFrequency,
       recurringNextDate,
       title,
@@ -649,7 +717,9 @@ export function JournalDetailPane({
         }
       } catch (error) {
         console.error('File upload failed', error);
-        toast.error(`Failed to upload ${file.name}`);
+        toast.error(`Failed to upload ${file.name}`, {
+          position: isMobile ? 'top-center' : 'bottom-right',
+        });
       } finally {
         // Remove from pending
         setUploadingFiles((prev) => prev.filter((p) => p.id !== pendingId));
@@ -957,13 +1027,9 @@ export function JournalDetailPane({
           <>
             Pick one from the list, or press{' '}
             <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
-              {shortcutModifierLabel} Shift N
+              {shortcutModifierLabel} K
             </kbd>{' '}
-            (or{' '}
-            <kbd className="bg-muted rounded border px-1.5 py-0.5 font-mono text-[10px]">
-              Alt N
-            </kbd>
-            ) to create a new entry.
+            to ask AI for help.
           </>
         }
       />
@@ -1243,43 +1309,70 @@ export function JournalDetailPane({
       : baseActions;
 
   // Header actions for Edit Mode
-  const editHeaderActions: JournalDetailHeaderAction[] = [
-    {
-      key: 'save',
-      label: 'Save Draft',
-      icon: Save,
-      variant: 'secondary',
-      onClick: () => {
-        if (isSaving) return;
-        if (canSave && !isSaving) void handleSave();
-      },
-    },
-    {
-      key: 'post',
-      label: 'Post Journal',
-      icon: Send,
-      variant: 'default',
-      onClick: () => {
-        if (isSaving) return;
-        if (!canPost || isSaving) return;
-        if (isCreatingNew) {
-          void handlePost();
-          return;
-        }
-        setConfirmDialog('post');
-      },
-    },
-    {
-      key: 'cancel',
-      label: 'Cancel',
-      icon: X,
-      variant: 'ghost',
-      onClick: () => {
-        if (isSaving) return;
-        handleCancelEdit();
-      },
-    },
-  ];
+  const isRecurringNew = isCreatingNew && recurringEnabled;
+  const editHeaderActions: JournalDetailHeaderAction[] = isRecurringNew
+    ? [
+        {
+          key: 'save',
+          label: 'Save Template',
+          icon: Save,
+          variant: 'default',
+          onClick: () => {
+            if (isSaving) return;
+            if (canSave && !isSaving) void handleSave();
+          },
+        },
+        {
+          key: 'cancel',
+          label: 'Cancel',
+          icon: X,
+          variant: 'ghost',
+          onClick: () => {
+            if (isSaving) return;
+            handleCancelEdit();
+          },
+        },
+      ]
+    : [
+        {
+          key: 'save',
+          label: 'Save Draft',
+          icon: Save,
+          variant: 'secondary',
+          onClick: () => {
+            if (isSaving) return;
+            if (canSave && !isSaving) void handleSave();
+          },
+        },
+        {
+          key: 'post',
+          label: 'Post Journal',
+          icon: Send,
+          variant: 'default',
+          onClick: () => {
+            if (isSaving) return;
+            if (!canPost || isSaving) return;
+            if (isCreatingNew) {
+              void handlePost();
+              return;
+            }
+            setConfirmDialog('post');
+          },
+        },
+        {
+          key: 'cancel',
+          label: 'Cancel',
+          icon: X,
+          variant: 'ghost',
+          onClick: () => {
+            if (isSaving) return;
+            handleCancelEdit();
+          },
+        },
+      ];
+
+  // Keep handleSaveRef in sync (render-time assignment, not a hook)
+  handleSaveRef.current = handleSave;
 
   // For Mobile Edit mode, we move actions to the sticky footer
   const journalHeaderActions: JournalDetailHeaderAction[] =
@@ -1302,7 +1395,7 @@ export function JournalDetailPane({
           }));
 
   return (
-    <div className={`flex h-full flex-col overflow-hidden`}>
+    <div className="flex h-full flex-col overflow-hidden">
       <AlertDialog
         open={confirmDialog === 'post'}
         onOpenChange={(open) => setConfirmDialog(open ? 'post' : null)}
@@ -1403,6 +1496,73 @@ export function JournalDetailPane({
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={confirmDialog === 'discard-for-new'}
+        onOpenChange={(open) => {
+          if (!open) {
+            // User cancelled — revert the creating-new request
+            pendingNewRef.current = false;
+            onCreatingNewChange(false);
+            // Restore previously selected journal so we don't fall to empty state
+            if (previousJournalIdRef.current) {
+              onJournalSelected(previousJournalIdRef.current);
+              previousJournalIdRef.current = null;
+            }
+            setConfirmDialog(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Discard them and create a new journal?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                pendingNewRef.current = false;
+                onCreatingNewChange(false);
+                // Restore previously selected journal
+                if (previousJournalIdRef.current) {
+                  onJournalSelected(previousJournalIdRef.current);
+                  previousJournalIdRef.current = null;
+                }
+              }}
+            >
+              Keep editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // Proceed to new journal — reset form
+                pendingNewRef.current = false;
+                setConfirmDialog(null);
+                setEditing(true);
+                setTitle('');
+                const now = new Date().toISOString().slice(0, 10);
+                setDate(now);
+                setMemo('');
+                setDescription('');
+                setShowMoreDetails(false);
+                setLines([emptyLine('debit'), emptyLine('credit')]);
+                setRecurringEnabled(false);
+                setRecurringFrequency('monthly');
+                setRecurringNextDate(computeNextDate(now, 'monthly'));
+                setRecurringAutoPost(false);
+                setUploadingFiles([]);
+                setAttachedFiles([]);
+                setContactId(null);
+                setReference('');
+              }}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Discard & create new
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* HEADER SECTION (Static at top) */}
       <JournalDetailHeader
         reference={journal?.reference ?? null}
@@ -1418,6 +1578,7 @@ export function JournalDetailPane({
         actions={journalHeaderActions}
         onBack={handleBack}
         isMobile={isMobile}
+        showStatusLabel={!!!isRecurringNew}
       />
 
       {/* CONTENT SECTION (Scrollable) */}
@@ -1425,7 +1586,7 @@ export function JournalDetailPane({
         className={`flex flex-1 flex-col gap-5 overflow-y-auto p-5 ${isMobile ? 'gap-6 px-4' : ''}`}
       >
         {editing ? (
-          <div className="flex flex-col gap-6">
+          <div className="mx-auto flex w-full max-w-[1024px] flex-col gap-8">
             {/* Header: Title and Date */}
             <div className="flex flex-col gap-4">
               {/* Recurring toggle — visible pill on mobile, full card when enabled */}
@@ -1439,15 +1600,16 @@ export function JournalDetailPane({
                   Make recurring
                 </button>
               ) : (
-                <div className="border-border bg-card rounded-lg border p-4">
-                  <div className="flex items-center justify-between">
+                <div className="border-border bg-card/40 hover:border-primary/20 group relative overflow-hidden rounded-lg border p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+                  <div className="pointer-events-none absolute inset-0" />
+                  <div className="relative z-10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Repeat className="text-muted-foreground h-4 w-4" />
+                      <Repeat className="text-primary h-4 w-4" />
                       <Label
                         htmlFor="recurring-toggle"
-                        className="text-foreground cursor-pointer text-sm font-medium"
+                        className="text-foreground cursor-pointer text-sm font-semibold"
                       >
-                        Recurring
+                        Recurring Template
                       </Label>
                     </div>
                     <Switch
@@ -1457,88 +1619,196 @@ export function JournalDetailPane({
                     />
                   </div>
                   {recurringEnabled && (
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <Label className="text-muted-foreground text-[11px] font-medium">
-                          Frequency
-                        </Label>
-                        <Select
-                          value={recurringFrequency}
-                          onValueChange={(value) =>
-                            setRecurringFrequency(
-                              normalizeRecurringFrequency(value),
-                            )
-                          }
+                    <div className="mt-4 flex flex-col gap-1">
+                      <div
+                        className={`grid gap-x-6 gap-y-5 ${
+                          isMobile
+                            ? 'grid-cols-2'
+                            : isDesktop
+                              ? 'grid-cols-4 items-end'
+                              : 'grid-cols-3'
+                        }`}
+                      >
+                        {/* Frequency */}
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-medium tracking-wider uppercase">
+                            <Clock className="h-3 w-3" />
+                            Frequency
+                          </Label>
+                          <Select
+                            value={recurringFrequency}
+                            onValueChange={(value) =>
+                              setRecurringFrequency(
+                                normalizeRecurringFrequency(value),
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-9 w-full text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="weekly">Weekly</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="quarterly">
+                                Quarterly
+                              </SelectItem>
+                              <SelectItem value="yearly">Yearly</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Start Date */}
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-medium tracking-wider uppercase">
+                            <Calendar className="h-3 w-3" />
+                            Start Date
+                          </Label>
+                          <DatePicker
+                            value={
+                              date ? new Date(date + 'T00:00:00') : undefined
+                            }
+                            onChange={(d) =>
+                              setDate(d ? d.toISOString().slice(0, 10) : '')
+                            }
+                            showLabel={false}
+                            buttonVariant="outline"
+                            classNames={{ trigger: 'w-full h-9' }}
+                          />
+                        </div>
+
+                        {/* End Date */}
+                        <div
+                          className={`flex flex-col gap-1.5 ${isMobile ? 'col-span-2' : ''}`}
                         >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="quarterly">Quarterly</SelectItem>
-                            <SelectItem value="yearly">Yearly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Label className="text-muted-foreground text-[11px] font-medium">
-                          Next date
-                        </Label>
-                        <Input
-                          type="date"
-                          value={recurringNextDate}
-                          onChange={(event) =>
-                            setRecurringNextDate(event.target.value)
-                          }
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div className="col-span-2 flex items-center gap-2">
-                        <Switch
-                          id="auto-post-toggle"
-                          checked={recurringAutoPost}
-                          onCheckedChange={setRecurringAutoPost}
-                        />
-                        <Label
-                          htmlFor="auto-post-toggle"
-                          className="text-muted-foreground cursor-pointer text-xs"
+                          <Label className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-medium tracking-wider uppercase">
+                            <CalendarX className="h-3 w-3" />
+                            End Date{' '}
+                            <span className="px-1 leading-none font-normal normal-case opacity-50">
+                              (optional)
+                            </span>
+                          </Label>
+                          <DatePicker
+                            value={
+                              recurringEndDate
+                                ? new Date(recurringEndDate + 'T00:00:00')
+                                : undefined
+                            }
+                            onChange={(d) =>
+                              setRecurringEndDate(
+                                d ? d.toISOString().slice(0, 10) : '',
+                              )
+                            }
+                            showLabel={false}
+                            buttonVariant="outline"
+                            classNames={{ trigger: 'w-full h-9' }}
+                          />
+                        </div>
+
+                        {/* When generated — Segmented Control */}
+                        <div
+                          className={`flex flex-col gap-2 ${isMobile || !isDesktop ? 'col-span-full' : ''}`}
                         >
-                          Auto-post generated entries
-                        </Label>
+                          <Label className="text-muted-foreground flex items-center gap-1.5 text-[10px] font-medium tracking-wider uppercase">
+                            <CheckCircle className="h-3 w-3" />
+                            When generated
+                          </Label>
+
+                          <div className="flex gap-4">
+                            <div className="bg-muted/40 border-border flex w-full max-w-[320px] rounded-lg border p-1">
+                              <button
+                                type="button"
+                                onClick={() => setRecurringAutoPost(false)}
+                                className={`flex flex-1 items-center justify-center rounded-md py-1.5 text-xs font-semibold transition-all ${
+                                  !recurringAutoPost
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/20'
+                                }`}
+                              >
+                                Save as Draft
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRecurringAutoPost(true)}
+                                className={`flex flex-1 items-center justify-center rounded-md py-1.5 text-xs font-semibold transition-all ${
+                                  recurringAutoPost
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/20'
+                                }`}
+                              >
+                                Post to Ledger
+                              </button>
+                            </div>
+
+                            <div
+                              title={
+                                recurringAutoPost
+                                  ? 'Journals will be automatically posted to the ledger on each recurring date.'
+                                  : 'Journals will be saved as drafts for your review before posting.'
+                              }
+                              className="text-muted-foreground/60 line-clamp-2 hidden w-full text-[11px] leading-relaxed lg:block xl:hidden"
+                            >
+                              {recurringAutoPost
+                                ? 'Journals will be automatically posted to the ledger on each recurring date.'
+                                : 'Journals will be saved as drafts for your review before posting.'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Hint Text Footer */}
+                      <div
+                        title={
+                          recurringAutoPost
+                            ? 'Journals will be automatically posted to the ledger on each recurring date.'
+                            : 'Journals will be saved as drafts for your review before posting.'
+                        }
+                        className="text-muted-foreground/60 w-full text-[11px] leading-relaxed lg:hidden xl:text-right"
+                      >
+                        {recurringAutoPost
+                          ? 'Journals will be automatically posted to the ledger on each recurring date.'
+                          : 'Journals will be saved as drafts for your review before posting.'}
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Title */}
+              {/* Title — floating label */}
               <div className={isDesktop ? 'flex flex-row items-end gap-4' : ''}>
-                <div className="flex-1">
+                <div className="group/title relative flex-1">
                   <Input
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     maxLength={200}
                     placeholder="Journal Title"
-                    className={`text-foreground placeholder:text-muted-foreground/40 h-auto rounded-none border-0 border-b bg-transparent px-0 py-1 text-lg font-semibold shadow-none placeholder:font-normal focus-visible:ring-0 ${isMobile ? 'py-1.5 text-base' : ''}`}
+                    className={`peer text-foreground placeholder:text-muted-foreground/40 h-auto rounded-none border-0 border-b bg-transparent px-0 py-1 text-lg font-semibold shadow-none transition-[padding] duration-200 placeholder:font-normal focus-visible:pl-[3.25rem] focus-visible:ring-0 ${isMobile ? 'py-1.5 text-base focus-visible:pl-[2.75rem]' : ''} ${title ? 'pl-[3.25rem]' + (isMobile ? ' !pl-[2.75rem]' : '') : ''}`}
                   />
+                  <span
+                    className={`text-muted-foreground pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 text-xs font-medium tracking-wide capitalize opacity-0 transition-all duration-200 peer-focus:translate-x-0 peer-focus:opacity-100 ${isMobile ? 'text-[11px]' : 'text-xs'} ${title ? 'translate-x-0 opacity-100' : '-translate-x-1'}`}
+                  >
+                    Title
+                  </span>
                 </div>
               </div>
 
-              {/* Description — single-line narration below title */}
-              <div className="relative">
+              {/* Description — floating label + AI assist */}
+              <div className="group/desc relative">
                 <Input
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}
                   onFocus={() => setIsDescriptionFocused(true)}
                   onBlur={() => {
-                    // Slight delay to allow button click to register
                     setTimeout(() => setIsDescriptionFocused(false), 200);
                   }}
                   maxLength={500}
                   placeholder="Add a short description..."
-                  className={`text-muted-foreground placeholder:text-muted-foreground/30 h-auto rounded-none border-0 border-b bg-transparent px-0 py-1 pr-20 text-sm shadow-none focus-visible:ring-0 ${isMobile ? 'py-1.5' : ''}`}
+                  className={`peer text-muted-foreground placeholder:text-muted-foreground/30 h-auto rounded-none border-0 border-b bg-transparent px-0 py-1 pr-20 text-sm shadow-none transition-[padding] duration-200 focus-visible:pl-[5.5rem] focus-visible:ring-0 ${isMobile ? 'py-1.5 focus-visible:pl-[5rem]' : ''} ${description ? 'pl-[5.5rem]' + (isMobile ? ' !pl-[5rem]' : '') : ''}`}
                 />
+                <span
+                  className={`text-muted-foreground pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 text-[11px] font-medium tracking-wide capitalize opacity-0 transition-all duration-200 peer-focus:translate-x-0 peer-focus:opacity-100 ${description ? 'translate-x-0 opacity-100' : '-translate-x-1'}`}
+                >
+                  Description
+                </span>
                 {/* AI: Generate/Improve description */}
                 {title.trim().length >= 3 &&
                   (!description.trim() || isDescriptionFocused) && (
@@ -1572,50 +1842,52 @@ export function JournalDetailPane({
                   )}
               </div>
 
-              {/* Metadata row: Date · Contact */}
+              {/* Metadata row: Date · Contact · Reference */}
               <div
                 className={
-                  isDesktop
-                    ? 'grid grid-cols-3 gap-4'
-                    : 'grid grid-cols-2 gap-3'
+                  isMobile ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-3 gap-6'
                 }
               >
-                {/* Date */}
-                <div className="min-w-0 overflow-hidden">
-                  {isMobile ? (
-                    <DatePicker
-                      value={date ? new Date(date + 'T00:00:00') : undefined}
-                      onChange={(d) =>
-                        setDate(d ? d.toISOString().slice(0, 10) : '')
-                      }
-                      label="Date"
-                      showLabel={true}
-                      buttonVariant="outline"
-                      classNames={{
-                        wrapper: 'flex-col gap-0.5 w-full',
-                        trigger:
-                          'w-full border-0 border-b rounded-none px-0 shadow-none h-auto py-1.5 truncate max-w-full overflow-hidden text-sm',
-                        label:
-                          'text-[11px] uppercase text-muted-foreground font-medium w-auto p-0',
-                      }}
-                    />
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      <Label className="text-muted-foreground mb-1 block text-[10px] font-medium uppercase">
-                        Date
-                      </Label>
+                {/* Date — hidden when recurring is ON (Start Date is in the recurring card) */}
+                {!(isCreatingNew && recurringEnabled) && (
+                  <div className="min-w-0 overflow-hidden">
+                    {isMobile ? (
                       <DatePicker
                         value={date ? new Date(date + 'T00:00:00') : undefined}
                         onChange={(d) =>
                           setDate(d ? d.toISOString().slice(0, 10) : '')
                         }
-                        showLabel={false}
+                        label="Date"
+                        showLabel={true}
                         buttonVariant="outline"
-                        classNames={{ trigger: 'w-full h-9' }}
+                        classNames={{
+                          wrapper: 'flex-col gap-0.5 w-full',
+                          trigger:
+                            'w-full border-0 border-b rounded-none px-0 shadow-none h-auto py-1.5 truncate max-w-full overflow-hidden text-sm',
+                          label:
+                            'text-[11px] uppercase text-muted-foreground font-medium w-auto p-0',
+                        }}
                       />
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="min-w-0">
+                        <Label className="text-muted-foreground mb-0.5 block text-[11px] font-medium uppercase">
+                          Date
+                        </Label>
+                        <DatePicker
+                          value={
+                            date ? new Date(date + 'T00:00:00') : undefined
+                          }
+                          onChange={(d) =>
+                            setDate(d ? d.toISOString().slice(0, 10) : '')
+                          }
+                          showLabel={false}
+                          buttonVariant="outline"
+                          classNames={{ trigger: 'w-full h-9' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Contact */}
                 <div className="min-w-0">
@@ -1631,9 +1903,9 @@ export function JournalDetailPane({
                   />
                 </div>
 
-                {/* Reference — desktop only inline */}
-                {isDesktop && (
-                  <div>
+                {/* Reference — non-mobile (hybrid + desktop) */}
+                {!isMobile && (
+                  <div className="min-w-0">
                     <Label className="text-muted-foreground mb-0.5 block text-[11px] font-medium uppercase">
                       Reference
                     </Label>
@@ -1669,12 +1941,19 @@ export function JournalDetailPane({
                         <ChevronDown className="h-3 w-3 rotate-180 transition-transform" />
                         Hide reference
                       </button>
-                      <Input
-                        value={reference}
-                        onChange={(event) => setReference(event.target.value)}
-                        placeholder="e.g. INV-001"
-                        className="h-auto rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm shadow-none focus-visible:ring-0"
-                      />
+                      <div className="group/mref relative">
+                        <Input
+                          value={reference}
+                          onChange={(event) => setReference(event.target.value)}
+                          placeholder="e.g. INV-001"
+                          className={`peer h-auto rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm shadow-none transition-[padding] duration-200 focus-visible:pl-[5rem] focus-visible:ring-0 ${reference ? 'pl-[5rem]' : ''}`}
+                        />
+                        <span
+                          className={`text-muted-foreground pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 text-[11px] font-medium tracking-wide capitalize opacity-0 transition-all duration-200 peer-focus:translate-x-0 peer-focus:opacity-100 ${reference ? 'translate-x-0 opacity-100' : '-translate-x-1'}`}
+                        >
+                          Reference
+                        </span>
+                      </div>
                     </div>
                   )}
                 </>
@@ -1893,11 +2172,22 @@ export function JournalDetailPane({
             ) : (
               // --- DESKTOP EDIT VIEW ---
               <div className="bg-card overflow-hidden rounded-lg border">
-                <div className="text-muted-foreground grid grid-cols-[250px_1fr_120px_120px_32px] gap-2 border-b px-3 py-2 text-[11px] font-medium tracking-wider uppercase">
+                <div
+                  className={`text-muted-foreground grid gap-2 border-b px-3 py-2 text-[11px] font-medium tracking-wider uppercase ${isDesktop ? 'grid-cols-[250px_1fr_120px_120px_32px]' : 'grid-cols-[160px_1fr_80px_120px_32px]'}`}
+                >
                   <span>Account</span>
                   <span>Description</span>
-                  <span className="text-right">Debit</span>
-                  <span className="text-right">Credit</span>
+                  {isDesktop ? (
+                    <>
+                      <span className="text-right">Debit</span>
+                      <span className="text-right">Credit</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-center">Side</span>
+                      <span className="text-right">Amount</span>
+                    </>
+                  )}
                   <span />
                 </div>
 
@@ -1905,7 +2195,7 @@ export function JournalDetailPane({
                   {lines.map((line, index) => (
                     <div
                       key={line.id}
-                      className="group border-border/50 grid grid-cols-[250px_1fr_120px_120px_32px] items-start gap-2 border-b px-3 py-2 last:border-0"
+                      className={`group border-border/50 grid items-start gap-2 border-b px-3 py-2 last:border-0 ${isDesktop ? 'grid-cols-[250px_1fr_120px_120px_32px]' : 'grid-cols-[160px_1fr_80px_120px_32px]'}`}
                     >
                       {/* Account Selection */}
                       <div>
@@ -1950,75 +2240,151 @@ export function JournalDetailPane({
                         />
                       </div>
 
-                      {/* Debit Input */}
-                      <div>
-                        <Input
-                          className="h-8 text-right font-mono text-xs"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={
-                            line.side === 'debit' && line.amount
-                              ? line.amount
-                              : ''
-                          }
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setLines((currentLines) =>
-                              currentLines.map((entry) =>
-                                entry.id === line.id
-                                  ? {
-                                      ...entry,
-                                      side: 'debit',
-                                      amount: value
-                                        ? Math.round(
-                                            (Number(value) + Number.EPSILON) *
-                                              100,
-                                          ) / 100
-                                        : 0,
-                                    }
-                                  : entry,
-                              ),
-                            );
-                          }}
-                        />
-                      </div>
+                      {isDesktop ? (
+                        <>
+                          {/* Debit Input */}
+                          <div>
+                            <Input
+                              className="h-8 text-right font-mono text-xs"
+                              type="text"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={
+                                line.side === 'debit' && line.amount
+                                  ? line.amount
+                                  : ''
+                              }
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setLines((currentLines) =>
+                                  currentLines.map((entry) =>
+                                    entry.id === line.id
+                                      ? {
+                                          ...entry,
+                                          side: 'debit',
+                                          amount: value
+                                            ? Math.round(
+                                                (Number(value) +
+                                                  Number.EPSILON) *
+                                                  100,
+                                              ) / 100
+                                            : 0,
+                                        }
+                                      : entry,
+                                  ),
+                                );
+                              }}
+                            />
+                          </div>
 
-                      {/* Credit Input */}
-                      <div>
-                        <Input
-                          className="h-8 text-right font-mono text-xs"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={
-                            line.side === 'credit' && line.amount
-                              ? line.amount
-                              : ''
-                          }
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setLines((currentLines) =>
-                              currentLines.map((entry) =>
-                                entry.id === line.id
-                                  ? {
-                                      ...entry,
-                                      side: 'credit',
-                                      amount: value
-                                        ? Math.round(
-                                            (Number(value) + Number.EPSILON) *
-                                              100,
-                                          ) / 100
-                                        : 0,
-                                    }
-                                  : entry,
-                              ),
-                            );
-                          }}
-                        />
-                      </div>
+                          {/* Credit Input */}
+                          <div>
+                            <Input
+                              className="h-8 text-right font-mono text-xs"
+                              type="text"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={
+                                line.side === 'credit' && line.amount
+                                  ? line.amount
+                                  : ''
+                              }
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setLines((currentLines) =>
+                                  currentLines.map((entry) =>
+                                    entry.id === line.id
+                                      ? {
+                                          ...entry,
+                                          side: 'credit',
+                                          amount: value
+                                            ? Math.round(
+                                                (Number(value) +
+                                                  Number.EPSILON) *
+                                                  100,
+                                              ) / 100
+                                            : 0,
+                                        }
+                                      : entry,
+                                  ),
+                                );
+                              }}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Hybrid: Side Selector */}
+                          <div className="bg-muted flex h-8 items-center rounded-md p-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLines((currentLines) =>
+                                  currentLines.map((e) =>
+                                    e.id === line.id
+                                      ? { ...e, side: 'debit' }
+                                      : e,
+                                  ),
+                                )
+                              }
+                              className={`h-full flex-1 rounded-[4px] text-[10px] font-medium transition-all ${line.side === 'debit' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                              Dr
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLines((currentLines) =>
+                                  currentLines.map((e) =>
+                                    e.id === line.id
+                                      ? { ...e, side: 'credit' }
+                                      : e,
+                                  ),
+                                )
+                              }
+                              className={`h-full flex-1 rounded-[4px] text-[10px] font-medium transition-all ${line.side === 'credit' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                              Cr
+                            </button>
+                          </div>
+
+                          {/* Hybrid: Amount Input */}
+                          <div>
+                            <Input
+                              className="h-8 text-right font-mono text-xs"
+                              type="text"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={line.amount || ''}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setLines((currentLines) =>
+                                  currentLines.map((entry) =>
+                                    entry.id === line.id
+                                      ? {
+                                          ...entry,
+                                          amount: value
+                                            ? Math.round(
+                                                (Number(value) +
+                                                  Number.EPSILON) *
+                                                  100,
+                                              ) / 100
+                                            : 0,
+                                        }
+                                      : entry,
+                                  ),
+                                );
+                              }}
+                            />
+                          </div>
+                        </>
+                      )}
 
                       {/* Delete Action */}
                       <div className="flex justify-center">
@@ -2083,12 +2449,18 @@ export function JournalDetailPane({
                     </span>
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        isBalanced
-                          ? 'bg-success/10 text-success'
-                          : 'bg-destructive/10 text-destructive'
+                        totalDebit === 0 && totalCredit === 0
+                          ? 'bg-muted/50 text-muted-foreground'
+                          : isBalanced
+                            ? 'bg-success/10 text-success'
+                            : 'bg-destructive/10 text-destructive'
                       }`}
                     >
-                      {isBalanced ? 'Balanced' : 'Out of balance'}
+                      {totalDebit === 0 && totalCredit === 0
+                        ? 'Empty'
+                        : isBalanced
+                          ? '✓ Balanced'
+                          : `Diff ${formatAmount(Math.abs(totalDebit - totalCredit))}`}
                     </span>
                   </div>
                 </div>
@@ -2220,6 +2592,48 @@ export function JournalDetailPane({
                 )}
               </div>
             </div>
+
+            {/* Desktop Bottom Actions — inline at end of form */}
+            {!isMobile && (
+              <div className="flex items-center justify-end gap-3 pt-4 pb-2">
+                {isRecurringNew ? (
+                  <Button
+                    onClick={handleSave}
+                    disabled={!canSave || isSaving}
+                    className="w-36"
+                  >
+                    {isSaving && (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    )}
+                    Save Template
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleSave}
+                      disabled={!canSave || isSaving}
+                      className="w-32"
+                    >
+                      {isSaving && (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      )}
+                      Save Draft
+                    </Button>
+                    <Button
+                      onClick={() => setConfirmDialog('post')}
+                      disabled={!canPost || isSaving}
+                      className="w-32"
+                    >
+                      {isSaving && (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      )}
+                      Post Journal
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           // --- VIEW MODE ---
@@ -2326,36 +2740,53 @@ export function JournalDetailPane({
             </div>
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                isBalanced
-                  ? 'bg-success/10 text-success'
-                  : 'bg-destructive/10 text-destructive'
+                totalDebit === 0 && totalCredit === 0
+                  ? 'bg-muted/50 text-muted-foreground'
+                  : isBalanced
+                    ? 'bg-success/10 text-success'
+                    : 'bg-destructive/10 text-destructive'
               }`}
             >
-              {isBalanced
-                ? '✓ Balanced'
-                : `Diff $${formatAmount(Math.abs(totalDebit - totalCredit))}`}
+              {totalDebit === 0 && totalCredit === 0
+                ? 'Empty'
+                : isBalanced
+                  ? '✓ Balanced'
+                  : `Diff $${formatAmount(Math.abs(totalDebit - totalCredit))}`}
             </span>
           </div>
 
           {/* §8: Loading spinners on buttons */}
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 gap-1.5"
-              onClick={handleSave}
-              disabled={!canSave || isSaving}
-            >
-              {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Save Draft
-            </Button>
-            <Button
-              className="flex-1 gap-1.5"
-              onClick={() => setConfirmDialog('post')}
-              disabled={!canPost || isSaving}
-            >
-              {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Post Journal
-            </Button>
+            {isRecurringNew ? (
+              <Button
+                className="flex-1 gap-1.5"
+                onClick={handleSave}
+                disabled={!canSave || isSaving}
+              >
+                {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Save Template
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-1.5"
+                  onClick={handleSave}
+                  disabled={!canSave || isSaving}
+                >
+                  {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Save Draft
+                </Button>
+                <Button
+                  className="flex-1 gap-1.5"
+                  onClick={() => setConfirmDialog('post')}
+                  disabled={!canPost || isSaving}
+                >
+                  {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Post Journal
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

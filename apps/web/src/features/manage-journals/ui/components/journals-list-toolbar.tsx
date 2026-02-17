@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { DateRangePicker } from '@/components/date-picker/date-range-picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,8 +14,6 @@ import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { isValidYMD, toYMD } from '@/shared/utils/date-utils';
 import { Plus, SlidersHorizontal, Upload } from 'lucide-react';
-
-import { getShortcutModifierLabel } from '../lib/shortcut-ui';
 
 const statusOptions = [
   { label: 'All', value: 'all' },
@@ -74,8 +72,7 @@ export function JournalsListToolbar({
   showStatusOptions?: boolean;
 }) {
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
-  const shortcutModifierLabel = getShortcutModifierLabel();
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   const parseYMDToLocalDate = useCallback((value: string): Date | undefined => {
     if (!value || !isValidYMD(value)) return undefined;
     const [year, month, day] = value.split('-').map(Number);
@@ -115,7 +112,6 @@ export function JournalsListToolbar({
     advancedStatusFilters.size +
     (hasActiveDateFilter ? 1 : 0) +
     (hideGenerated ? 1 : 0);
-  const showShortcutHint = !isSearchFocused && searchQuery.trim().length === 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -259,18 +255,11 @@ export function JournalsListToolbar({
         <div className="relative flex-1">
           <Input
             ref={searchInputRef}
-            className="h-9 pr-16"
+            className="h-9"
             placeholder="Search title, ref, note..."
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
           />
-          {showShortcutHint && (
-            <kbd className="bg-muted text-muted-foreground pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border px-1.5 py-0.5 font-mono text-[10px] sm:inline-flex">
-              {shortcutModifierLabel} K
-            </kbd>
-          )}
         </div>
         <Button
           size="sm"

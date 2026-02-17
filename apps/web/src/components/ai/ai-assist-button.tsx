@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { aiRuntimeStore } from '@/modules/ai';
 import { Loader2, Wand2 } from 'lucide-react';
 
 interface AiAssistButtonProps {
@@ -21,6 +22,12 @@ export function AiAssistButton({
   loadingLabel = 'Writing...',
   className,
 }: AiAssistButtonProps) {
+  const isAiEnabled = aiRuntimeStore((s) => s.policy.globalEnabled);
+
+  if (!isAiEnabled) {
+    return null;
+  }
+
   return (
     <button
       type="button"

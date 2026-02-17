@@ -36,6 +36,7 @@ export function JournalDetailHeader({
   actions,
   onBack,
   isMobile,
+  showStatusLabel = true,
 }: {
   reference: string | null;
   status: JournalBatchStatus | RecurringTemplateStatus;
@@ -43,6 +44,7 @@ export function JournalDetailHeader({
   actions: readonly JournalDetailHeaderAction[];
   onBack?: () => void;
   isMobile: boolean;
+  showStatusLabel?: boolean;
 }) {
   const inlineMobileAction = actions.length === 1 ? actions[0] : null;
   const menuMobileActions = actions.length > 1 ? actions : [];
@@ -57,7 +59,7 @@ export function JournalDetailHeader({
           {reference || 'Journal'}
         </div>
 
-        <StatusLabel status={status} />
+        {showStatusLabel && <StatusLabel status={status} />}
         {leftAddon ?? null}
       </div>
 

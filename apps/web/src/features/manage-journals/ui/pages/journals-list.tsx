@@ -1,5 +1,5 @@
 import type { JournalListRow } from '@accountable-books/contracts/schema';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import {
@@ -174,6 +174,25 @@ export function JournalsListPage() {
     hasHydratedDateRangeRef.current = true;
   }, [dateFrom, dateTo, query.data?.pages]);
 
+  // Shared handler for creating a new journal
+  const handleCreateJournal = useCallback(() => {
+    setSelectedRowKey(null);
+    setIsCreatingNew(true);
+    if (isMobile) setMobileShowDetail(true);
+  }, [isMobile]);
+
+  // Cmd+N → Create New Journal
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        handleCreateJournal();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleCreateJournal]);
+
   const journals = useMemo(() => {
     let result = rawJournals;
 
@@ -247,37 +266,6 @@ export function JournalsListPage() {
     if (isMobile) setMobileShowDetail(false);
   }, [isMobile, journals.length, rowsByKey, selectedRowKey]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const modifierPressed = event.metaKey || event.ctrlKey;
-      if (!modifierPressed) return;
-
-      if (event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
-
-      if (event.key.toLowerCase() === 'n' && event.shiftKey) {
-        event.preventDefault();
-        setSelectedRowKey(null);
-        setIsCreatingNew(true);
-        if (isMobile) setMobileShowDetail(true);
-        return;
-      }
-
-      if (event.key.toLowerCase() === 'n' && event.altKey) {
-        event.preventDefault();
-        setSelectedRowKey(null);
-        setIsCreatingNew(true);
-        if (isMobile) setMobileShowDetail(true);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isMobile]);
-
   const resetFilters = () => {
     setStatus('all');
     setSearchQuery('');
@@ -350,11 +338,7 @@ export function JournalsListPage() {
             onHideGeneratedChange={setHideGenerated}
             onClearAdvancedFilters={clearAdvancedFilters}
             counts={statusCounts}
-            onCreateJournal={() => {
-              setSelectedRowKey(null);
-              setIsCreatingNew(true);
-              if (isMobile) setMobileShowDetail(true);
-            }}
+            onCreateJournal={handleCreateJournal}
             onImportClick={() => setImportDialogOpen(true)}
             searchInputRef={searchInputRef}
             showStatusOptions={journals.length > 0}
