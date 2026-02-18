@@ -143,7 +143,9 @@ type JournalListRowDb = {
 };
 
 const SORT_COL: Record<SortBy, string> = {
-  created_at: 'jl."createdAt"',
+  // JS Date/toISOString is millisecond precision; align keyset pagination to ms
+  // to avoid duplicates when DB timestamps include microseconds.
+  created_at: `date_trunc('milliseconds', jl."createdAt")`,
   date: 'jl."date"',
   reference: 'jl."reference"',
 } as const;
@@ -888,10 +890,10 @@ function applyKeysetCursor(
 
   if (filters.sortBy === 'created_at') {
     qb.andWhere(
-      db.raw(`(${sortCol}, jl.id) ${op} (?::timestamptz, ?)`, [
-        cursor.value,
-        cursor.id,
-      ]),
+      db.raw(
+        `(${sortCol}, jl.id) ${op} (date_trunc('milliseconds', ?::timestamptz), ?)`,
+        [cursor.value, cursor.id],
+      ),
     );
     return;
   }

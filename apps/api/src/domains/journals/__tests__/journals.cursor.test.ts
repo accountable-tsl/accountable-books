@@ -115,6 +115,7 @@ describe('getJournalsByCursor', () => {
       trx,
       queryData: {
         limit: 1,
+        kinds: ['journal'],
         sortBy: 'created_at',
         sortDir: 'asc',
         dateFrom: '2099-01-01',
@@ -157,9 +158,10 @@ describe('getJournalsByCursor', () => {
   });
 
   it('paginates across reference nulls with isNull cursor', async () => {
-    await createDraftJournal(`REF-${randomUUID()}`, '2099-02-10');
-    await createTemplate('Template A', '2099-02-01');
-    await createTemplate('Template B', '2099-02-02');
+    const token = randomUUID();
+    await createDraftJournal(`REF-${token}`, '2099-02-10');
+    await createTemplate(`Template ${token} A`, '2099-02-01');
+    await createTemplate(`Template ${token} B`, '2099-02-02');
 
     const first = await getJournalsByCursor({
       userId: testUserId,
@@ -171,6 +173,7 @@ describe('getJournalsByCursor', () => {
         sortDir: 'asc',
         dateFrom: '2099-01-01',
         dateTo: '2099-12-31',
+        searchQuery: token,
         includeDeleted: true,
       },
     });
@@ -202,6 +205,7 @@ describe('getJournalsByCursor', () => {
         dateFrom: '2099-01-01',
         dateTo: '2099-12-31',
         cursor: cursor!,
+        searchQuery: token,
         includeDeleted: true,
       },
     });
