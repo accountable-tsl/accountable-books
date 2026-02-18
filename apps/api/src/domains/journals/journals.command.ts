@@ -142,7 +142,9 @@ export async function copyJournal({
         contactId: source.contactId ?? null,
         currencyId: source.currencyId,
         autoReversalDate: null,
-        journalSource: source.journalSource,
+        // Copying a journal should create a user-authored one-off draft, even
+        // if the source journal was generated from a recurring template.
+        journalSource: 'one_off',
         recurringTemplateId: null,
         originalJournalId: source.id,
         metadata,

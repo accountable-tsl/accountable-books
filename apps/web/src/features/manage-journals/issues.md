@@ -1,5 +1,13 @@
 # Journal Detail Pane — Production Readiness Audit & Fix Plan
 
+## Status (As Implemented)
+
+As of 2026-02-18, the items described in Categories 1–8 below have been addressed in the implementation (logic bugs, duplication cleanup via extraction, state/dirty tracking, type safety, error handling, UX/a11y, and key stability).
+
+Additional feature gap discovered during the audit:
+
+- **Projects per journal entry**: Backend already supported `project_id` per entry, but the Journals UI had no way to set it. This has now been implemented (per-line project picker, plus showing `projectName` in read-only view). Recurring templates still do not support projects per template-entry yet.
+
 ## Context
 
 [journal-detail-pane.tsx](apps/web/src/features/manage-journals/ui/components/journal-detail-pane.tsx) is a ~2,800-line component that handles many distinct product surfaces in one file:
@@ -74,7 +82,7 @@ It has accumulated significant technical debt: wrong endpoint wiring for recurri
   - `uploadingFiles` (if user cancels mid-upload)
 - **Impact**: Users discard changes but still see mutated fields; it breaks trust (“Did it discard or not?”). This is a production blocker.
 - **Fix**:
-  - Define a single `hydrateFromJournal(journal, detail)` function that sets *all* derived state.
+  - Define a single `hydrateFromJournal(journal, detail)` function that sets _all_ derived state.
   - Call it from both the journal selection effect and discard/cancel handlers.
 
 ### 1.8 State leak: “Reference” UI toggles persist across journal selections
@@ -290,16 +298,16 @@ const removeLine = (lineId: string) =>
 
 We'll tackle these in priority order, grouping by blast radius:
 
-| Phase | Category                    | Tasks                                                 | Files                                                       |
-| ----- | --------------------------- | ----------------------------------------------------- | ----------------------------------------------------------- |
+| Phase | Category                    | Tasks                                                         | Files                                                       |
+| ----- | --------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
 | **1** | Critical Logic Bugs (Cat 1) | 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12 | `journal-detail-pane.tsx`, `api/index.ts`, `model/hooks.ts` |
-| **2** | Code Duplication (Cat 2)    | 2.1, 2.3, 2.4, 2.5                                    | `journal-detail-pane.tsx`                                   |
-| **3** | State Management (Cat 3)    | 3.2, 3.3, 3.4, 3.5                                    | `journal-detail-pane.tsx`                                   |
-| **4** | Extract Components (Cat 2)  | 2.2 (entry line), template view                       | `journal-detail-pane.tsx` + new component files             |
-| **5** | Type Safety (Cat 5)         | 5.1, 5.2                                              | `journal-detail-pane.tsx`                                   |
-| **6** | Error Handling (Cat 6)      | 6.1, 6.2                                              | `journal-detail-pane.tsx`                                   |
-| **7** | UX/A11y (Cat 7)             | 7.1, 7.2, 7.3                                         | `journal-detail-pane.tsx`                                   |
-| **8** | Performance (Cat 8)         | 8.1, 8.2, 8.3                                         | `journal-detail-pane.tsx` + new component                   |
+| **2** | Code Duplication (Cat 2)    | 2.1, 2.3, 2.4, 2.5                                            | `journal-detail-pane.tsx`                                   |
+| **3** | State Management (Cat 3)    | 3.2, 3.3, 3.4, 3.5                                            | `journal-detail-pane.tsx`                                   |
+| **4** | Extract Components (Cat 2)  | 2.2 (entry line), template view                               | `journal-detail-pane.tsx` + new component files             |
+| **5** | Type Safety (Cat 5)         | 5.1, 5.2                                                      | `journal-detail-pane.tsx`                                   |
+| **6** | Error Handling (Cat 6)      | 6.1, 6.2                                                      | `journal-detail-pane.tsx`                                   |
+| **7** | UX/A11y (Cat 7)             | 7.1, 7.2, 7.3                                                 | `journal-detail-pane.tsx`                                   |
+| **8** | Performance (Cat 8)         | 8.1, 8.2, 8.3                                                 | `journal-detail-pane.tsx` + new component                   |
 
 ---
 

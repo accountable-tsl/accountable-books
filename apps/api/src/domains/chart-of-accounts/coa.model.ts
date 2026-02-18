@@ -6,6 +6,7 @@ import { redis } from '../../lib/redis.js';
 import { generateChecksum, logger } from '../../shared/index.js';
 import {
   camelToSnake,
+  getIdentifierType,
   removeNullsShallow,
 } from '../../shared/utils/formatting.utils.js';
 import { chunkArray, getCompanyUUID } from '../../shared/utils/random.utils.js';
@@ -109,9 +110,11 @@ export const createCoa = async ({
         id: 'id',
         reportingCurrencyId: 'reporting_currency_id',
       })
-      .where((qb) => {
-        qb.where('short_code', companyId).orWhere('id', companyId);
-      })
+      .where(
+        getIdentifierType(companyId) === 'uuid'
+          ? { id: companyId }
+          : { short_code: companyId },
+      )
       .first();
 
     if (!company || !company.id || !company.reportingCurrencyId) {

@@ -7,6 +7,7 @@ import {
   isValidYMD,
   toYMD,
 } from '../../shared/utils/date.utils.js';
+import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import { enqueueFillCoverageGaps } from '../reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { getFiscalCalendar } from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import { glBalanceRecalcParamsSchema } from './balances.types.js';
@@ -176,9 +177,10 @@ class GLBalanceService {
     companyId: string,
     client: Queryable = db,
   ): Promise<CompanyContext> {
+    const idType = getIdentifierType(companyId);
     const company = await client('companies')
       .select('id', 'default_timezone', 'reporting_currency_id')
-      .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
+      .where(idType === 'uuid' ? { id: companyId } : { short_code: companyId })
       .where('is_deleted', false)
       .first();
 

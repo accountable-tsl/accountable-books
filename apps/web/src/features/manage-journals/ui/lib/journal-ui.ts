@@ -13,6 +13,9 @@ export function getJournalStatusDotClass(status: JournalStatus) {
   }
 }
 
+/** Single dot color for all recurring templates so they read as "recurring" at a glance without extra status decoding. */
+export const RECURRING_TEMPLATE_DOT_CLASS = 'bg-violet-500';
+
 export function getJournalStatusBadgeVariant(status: JournalStatus) {
   switch (status) {
     case 'posted':
@@ -25,7 +28,10 @@ export function getJournalStatusBadgeVariant(status: JournalStatus) {
 }
 
 export function isGeneratedJournal(journal: JournalListRow) {
-  return journal.kind === 'journal' && journal.journalSource === 'generated_from_template';
+  return (
+    journal.kind === 'journal' &&
+    journal.journalSource === 'generated_from_template'
+  );
 }
 
 export function isRecurringTemplateJournal(journal: JournalListRow) {

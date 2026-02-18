@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, constr
-from typing import Any, Optional, Union
+from pydantic import BaseModel, Field, conint, constr
+from typing import Optional, Union
 from enum import Enum
 from datetime import date, datetime
 from uuid import UUID
@@ -19,7 +19,7 @@ class TransactionFiles(BaseModel):
     bucket_name: str
     url: str
     type: str
-    size_bytes: Any
+    size_bytes: conint(ge=0)
     checksum: Optional[Optional[constr(max_length=64)]] = None
     provider: Optional[ProviderEnum] = Field(default="cloudflare_r2")
     region: Optional[Optional[str]] = None

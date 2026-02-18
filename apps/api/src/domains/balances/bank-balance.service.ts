@@ -9,6 +9,7 @@ import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import pino from 'pino';
 
 import { knexClient as db } from '../../db/knexClient.js';
+import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import { getSystemUser } from '../users/users.model.js';
 import { bankBalanceRecalcParamsSchema } from './balances.types.js';
 import { setBankOpeningBalance } from './opening-balance/opening-balance.service.js';
@@ -329,9 +330,10 @@ class BankBalanceService {
     companyId: string,
     client: Queryable = db,
   ): Promise<CompanyContext> {
+    const idType = getIdentifierType(companyId);
     const company = await client('companies')
       .select('id', 'default_timezone', 'reporting_currency_id')
-      .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
+      .where(idType === 'uuid' ? { id: companyId } : { short_code: companyId })
       .where('is_deleted', false)
       .first();
 

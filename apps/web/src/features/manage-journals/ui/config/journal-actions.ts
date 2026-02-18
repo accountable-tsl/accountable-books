@@ -128,15 +128,15 @@ const JOURNAL_RULES: readonly JournalRule[] = [
 const TEMPLATE_RULES: readonly TemplateRule[] = [
   {
     predicate: (t) => t.status === 'draft',
-    actions: ['edit', 'activate'],
+    actions: ['activate'],
   },
   {
     predicate: (t) => t.status === 'active',
-    actions: ['edit', 'run_now', 'pause', 'close'],
+    actions: ['run_now', 'pause', 'close'],
   },
   {
     predicate: (t) => t.status === 'paused',
-    actions: ['edit', 'resume', 'close'],
+    actions: ['resume', 'close'],
   },
   {
     predicate: (t) => t.status === 'closed',

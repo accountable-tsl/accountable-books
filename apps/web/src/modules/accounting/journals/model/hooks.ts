@@ -1,5 +1,6 @@
 import type {
   GetJournalResponse,
+  GetRecurringTemplateResponse,
   JournalListCursorResponse,
   ListJournalsCursorQuery,
   PeriodStatusResponse,
@@ -15,17 +16,19 @@ import {
 import {
   copyJournal,
   createJournal,
+  createRecurringTemplate,
   fetchJournalsByCursor,
   getJournal,
-  getRecurringTemplate,
   getPeriodStatus,
+  getRecurringTemplate,
   postJournal,
   postJournalsBatch,
   previewRecurringTemplate,
   reverseJournal,
   runRecurringTemplateNow,
-  updateRecurringTemplateStatus,
   updateJournal,
+  updateRecurringTemplate,
+  updateRecurringTemplateStatus,
   voidJournal,
   voidJournalsBatch,
 } from '../api';
@@ -35,15 +38,16 @@ import type {
   BatchVoidJournalsInput,
   CopyJournalInput,
   CreateJournalInput,
-  GetRecurringTemplateInput,
-  GetRecurringTemplateResponse,
+  CreateRecurringTemplateInput,
   GetJournalInput,
+  GetRecurringTemplateInput,
   PostJournalInput,
   PreviewRecurringTemplateInput,
-  RunRecurringTemplateNowInput,
   ReverseJournalInput,
-  UpdateRecurringTemplateStatusInput,
+  RunRecurringTemplateNowInput,
   UpdateJournalInput,
+  UpdateRecurringTemplateInput,
+  UpdateRecurringTemplateStatusInput,
   VoidJournalInput,
 } from '../api';
 
@@ -206,7 +210,10 @@ export function useUpdateRecurringTemplateStatus() {
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
       queryClient.invalidateQueries({
-        queryKey: getRecurringTemplateKey(variables.companyId, variables.templateId),
+        queryKey: getRecurringTemplateKey(
+          variables.companyId,
+          variables.templateId,
+        ),
       });
     },
   });
@@ -221,7 +228,10 @@ export function useRunRecurringTemplateNow() {
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
       queryClient.invalidateQueries({
-        queryKey: getRecurringTemplateKey(variables.companyId, variables.templateId),
+        queryKey: getRecurringTemplateKey(
+          variables.companyId,
+          variables.templateId,
+        ),
       });
     },
   });
@@ -231,6 +241,45 @@ export function usePreviewRecurringTemplate() {
   return useMutation({
     mutationFn: (input: PreviewRecurringTemplateInput) =>
       previewRecurringTemplate(input),
+  });
+}
+
+/**
+ * Create a recurring journal template
+ */
+export function useCreateRecurringTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateRecurringTemplateInput) =>
+      createRecurringTemplate(input),
+    onSuccess: (_, variables) => {
+      invalidateJournals(queryClient, variables.companyId);
+      queryClient.invalidateQueries({
+        queryKey: ['journals', variables.companyId, 'recurring-templates'],
+      });
+    },
+  });
+}
+
+export function useUpdateRecurringTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateRecurringTemplateInput) =>
+      updateRecurringTemplate(input),
+    onSuccess: (_, variables) => {
+      invalidateJournals(queryClient, variables.companyId);
+      queryClient.invalidateQueries({
+        queryKey: getRecurringTemplateKey(
+          variables.companyId,
+          variables.templateId,
+        ),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['journals', variables.companyId, 'recurring-templates'],
+      });
+    },
   });
 }
 

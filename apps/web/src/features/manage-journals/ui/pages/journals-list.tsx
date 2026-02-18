@@ -258,9 +258,13 @@ export function JournalsListPage() {
       if (isMobile) setMobileShowDetail(false);
       return;
     }
-    if (selectedRowKey && rowsByKey.has(selectedRowKey)) {
+    if (!selectedRowKey) {
+      return; // No selection: user may be in "create new" mode; don't clear isCreatingNew
+    }
+    if (rowsByKey.has(selectedRowKey)) {
       return;
     }
+    // Selection was set but is no longer in the list — clear it and leave create-new alone
     setSelectedRowKey(null);
     setIsCreatingNew(false);
     if (isMobile) setMobileShowDetail(false);
@@ -397,6 +401,15 @@ export function JournalsListPage() {
                 journalId ? rowKey({ kind: 'journal', id: journalId }) : null,
               )
             }
+            onTemplateSelected={(templateId) => {
+              setIsCreatingNew(false);
+              if (isMobile) setMobileShowDetail(Boolean(templateId));
+              setSelectedRowKey(
+                templateId
+                  ? rowKey({ kind: 'recurring_template', id: templateId })
+                  : null,
+              );
+            }}
             onBack={() => {
               setMobileShowDetail(false);
               setIsCreatingNew(false);
@@ -411,10 +424,7 @@ export function JournalsListPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Import journals</DialogTitle>
-            <DialogDescription>
-              Import will be handled in a dedicated dialog flow. We will wire
-              upload, parse, validate, and review steps here.
-            </DialogDescription>
+            <DialogDescription>Coming soon...</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>

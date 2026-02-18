@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { debitCredit } from '../common/enums.js';
+import { txnFileBase } from '../objects/txn-files.js';
 
 // =============================================================================
 // Enums
@@ -34,19 +35,6 @@ export const journalEntryInput = z.object({
 export type JournalEntryInput = z.infer<typeof journalEntryInput>;
 
 // =============================================================================
-// Journal File Schema
-// =============================================================================
-
-export const journalFileInput = z.object({
-  name: z.string(),
-  key: z.string(),
-  type: z.string(),
-  size: z.number(),
-  url: z.string().optional(),
-});
-export type JournalFileInput = z.infer<typeof journalFileInput>;
-
-// =============================================================================
 // Journal Batch Input Schema
 // =============================================================================
 
@@ -64,7 +52,8 @@ export const journalBatchInput = z.object({
   note: z.string().max(2048).nullish(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   entries: z.array(journalEntryInput).min(2),
-  files: z.array(journalFileInput).optional(),
+  // Files follow the transaction file base schema (persisted/attached by journals command).
+  files: z.array(txnFileBase).optional(),
 });
 export type JournalBatchInput = z.infer<typeof journalBatchInput>;
 

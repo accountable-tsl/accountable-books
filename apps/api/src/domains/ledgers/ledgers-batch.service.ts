@@ -10,6 +10,7 @@ import {
 } from '../../shared/services/advisoryLocks.service.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
+import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import {
   AppError,
   errorResponse,
@@ -99,7 +100,11 @@ export async function createLedgerRecordsBatch({
     // STEP 1: COMPANY RESOLUTION (ONCE FOR ALL)
     const company: { id: string; reporting_currency_id: string } =
       (await txn('companies')
-        .where((b) => b.where('short_code', companyId).orWhere('id', companyId))
+        .where(
+          getIdentifierType(companyId) === 'uuid'
+            ? { id: companyId }
+            : { short_code: companyId },
+        )
         .where('is_deleted', false)
         .first('id', 'reporting_currency_id')) ?? null;
 

@@ -50,7 +50,6 @@ export async function uploadFileToR2(file: File, signedUrl: string) {
       'Content-Type': file.type || 'application/octet-stream',
     },
   });
-  console.log({ R2Response: response });
   if (!response.ok) {
     throw new Error(`Upload failed with status: ${response.status}`);
   }

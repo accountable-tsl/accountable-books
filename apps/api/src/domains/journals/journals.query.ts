@@ -491,7 +491,10 @@ function buildJournalsBaseQuery(
       db.raw(`NULL::date as "sequenceMonth"`),
       db.raw(`NULL::integer as "sequenceNumber"`),
       db.raw(
-        `COALESCE(rjt.next_run_date::date, rjt.start_date::date, rjt.created_at::date) as "date"`,
+        // For templates we use next_run_date when available, otherwise created_at.
+        // Using start_date as a fallback causes closed templates to "jump" far back
+        // in time (and appear to vanish due to pagination/sorting).
+        `COALESCE(rjt.next_run_date::date, rjt.created_at::date, rjt.start_date::date) as "date"`,
       ),
       db.raw(`COALESCE(rjt.title, rjt.description) as "title"`),
       db.raw(`rjt.description as "description"`),
@@ -570,12 +573,23 @@ function buildJournalsBaseQuery(
     qb.where('jl.kind', 'journal').whereIn('jl.journalSource', journalSources);
   }
 
+  // Date range filters apply to journals, not templates. Templates have their own
+  // concept of "next run" and can look like they disappear when closed if we
+  // filter/sort them by a start_date outside the journal date range.
   if (dateFrom) {
-    qb.where('jl.date', '>=', dateFrom);
+    qb.where((w) => {
+      w.where('jl.kind', 'recurring_template').orWhere(
+        'jl.date',
+        '>=',
+        dateFrom,
+      );
+    });
   }
 
   if (dateTo) {
-    qb.where('jl.date', '<=', dateTo);
+    qb.where((w) => {
+      w.where('jl.kind', 'recurring_template').orWhere('jl.date', '<=', dateTo);
+    });
   }
 
   if (contactId) {

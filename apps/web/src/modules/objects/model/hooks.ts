@@ -84,7 +84,6 @@ export function useUploadTransactionFiles() {
       const txnFileInputs: TxnFileInput[] = [];
 
       for (const file of files) {
-        console.log({ file });
         // Get signed upload URL
         const uploadUrlResponse = await getObjectUploadUrl({
           companyId,
@@ -100,13 +99,10 @@ export function useUploadTransactionFiles() {
           );
         }
 
-        const { signedUrl, fileKey, bucketName } = uploadUrlResponse.data;
+        const { signedUrl, fileKey, bucketName, url } = uploadUrlResponse.data;
 
         // Upload file to R2
         await uploadFileToR2(file, signedUrl);
-
-        // Construct URL (using download URL pattern - can be replaced with public URL if available)
-        const url = `https://${bucketName}/${fileKey}`;
 
         // Build TxnFileInput
         txnFileInputs.push({
@@ -115,7 +111,7 @@ export function useUploadTransactionFiles() {
           bucket_name: bucketName,
           url,
           type: file.type || 'application/octet-stream',
-          size_bytes: BigInt(file.size),
+          size_bytes: file.size,
           checksum: null,
           provider: 'cloudflare_r2',
           region: null,

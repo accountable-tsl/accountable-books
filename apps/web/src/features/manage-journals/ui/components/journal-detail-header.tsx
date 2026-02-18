@@ -19,6 +19,7 @@ export type JournalDetailHeaderAction = {
   label: string;
   icon: LucideIcon;
   className?: string;
+  title?: string;
   variant?:
     | 'default'
     | 'destructive'
@@ -26,6 +27,7 @@ export type JournalDetailHeaderAction = {
     | 'secondary'
     | 'ghost'
     | 'link';
+  disabled?: boolean;
   onClick: () => void;
 };
 
@@ -69,7 +71,9 @@ export function JournalDetailHeader({
             <button
               type="button"
               onClick={inlineMobileAction.onClick}
-              className="flex items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs"
+              disabled={inlineMobileAction.disabled}
+              title={inlineMobileAction.title}
+              className="flex items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs disabled:opacity-50"
             >
               {inlineMobileAction.icon && (
                 <inlineMobileAction.icon className="size-4" />
@@ -109,8 +113,10 @@ export function JournalDetailHeader({
                     <button
                       key={action.key}
                       onClick={action.onClick}
+                      disabled={action.disabled}
+                      title={action.title}
                       className={cn(
-                        'bg-background flex w-full items-center justify-end gap-1 rounded border px-2 py-0.75 text-sm',
+                        'bg-background flex w-full items-center justify-end gap-1 rounded border px-2 py-0.75 text-sm disabled:pointer-events-none disabled:opacity-50',
                         action.className,
                       )}
                     >
@@ -134,7 +140,9 @@ export function JournalDetailHeader({
                 variant={action.variant || 'ghost'}
                 size="sm"
                 key={action.key}
+                disabled={action.disabled}
                 onClick={action.onClick}
+                title={action.title}
                 className={cn(
                   'h-6 rounded py-0 text-xs font-medium',
                   action.className,

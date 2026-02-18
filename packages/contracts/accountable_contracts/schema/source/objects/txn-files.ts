@@ -39,7 +39,9 @@ export const txnFileBase = z.object({
   bucket_name: z.string(),
   url: z.url(),
   type: z.string(),
-  size_bytes: z.coerce.bigint(),
+  // We keep this as a number for client compatibility (BigInt cannot be JSON-stringified).
+  // Values in this system are small (file sizes) and fit within JS safe integers.
+  size_bytes: z.coerce.number().int().nonnegative(),
   checksum: z.string().max(64).nullish(),
   provider: objStorageProvider.default('cloudflare_r2').optional(),
   region: z.string().nullish(),

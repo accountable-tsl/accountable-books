@@ -208,6 +208,9 @@ export type BatchOperationResult = {
 };
 
 export type CreateJournalResponse = {
-  id: string;
-  reference: string;
+  // Journal batches are the journal "id" in this system.
+  journalBatchId: string;
+  journalId: string; // kept for backward compatibility in clients
+  journalReference: string | null;
+  ledgerTransactionId: string | null;
 };

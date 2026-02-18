@@ -6,6 +6,7 @@ import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
 } from '../../shared/services/advisoryLocks.service.js';
+import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import { AppError, ErrorCode } from '../../shared/utils/response.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import { validateDebitCreditBalance } from './journals.utils.js';
@@ -33,11 +34,12 @@ export async function resolveJournalCompanyContext(p: {
   trx: Knex.Transaction;
   traceId: string;
 }): Promise<JournalCompanyContext> {
+  const idType = getIdentifierType(p.companyId);
   const company =
     (await p
       .trx('companies')
-      .where((b) =>
-        b.where('short_code', p.companyId).orWhere('id', p.companyId),
+      .where(
+        idType === 'uuid' ? { id: p.companyId } : { short_code: p.companyId },
       )
       .where('is_deleted', false)
       .first<{ id: string; reporting_currency_id: string }>(

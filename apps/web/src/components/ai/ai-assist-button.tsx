@@ -13,6 +13,8 @@ interface AiAssistButtonProps {
   loadingLabel?: string;
   /** Merge additional classes onto the root button. */
   className?: string;
+  /** Optional mousedown handler (e.g. preventDefault to keep focus on adjacent input until click). */
+  onMouseDown?: React.MouseEventHandler<HTMLButtonElement>;
 }
 
 export function AiAssistButton({
@@ -21,6 +23,7 @@ export function AiAssistButton({
   label = 'Generate',
   loadingLabel = 'Writing...',
   className,
+  onMouseDown,
 }: AiAssistButtonProps) {
   const isAiEnabled = aiRuntimeStore((s) => s.policy.globalEnabled);
 
@@ -32,6 +35,7 @@ export function AiAssistButton({
     <button
       type="button"
       onClick={onClick}
+      onMouseDown={onMouseDown}
       disabled={isLoading}
       className={cn(
         'text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-50',

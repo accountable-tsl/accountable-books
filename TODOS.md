@@ -8,6 +8,7 @@
 - [ ] Backup database for postgres
 - [ ] Re-enable deployment protection (vercel) once we push to production
 - [ ] Wire enqueueGLBalance into every ledger-entry mutation path so GL snapshots refresh automatically.
+- [ ] Journals attachments end-to-end correctness: align `JournalBatchInput.files` contract with API expectations, upload via presigned URL, persist+attach on journal save, and view via signed download URL (no fabricated public URLs).
 - [ ] FX Positions handling
 - [x] UK Users (YE should be Apr 5) - Implemented automatic fiscal year-end defaults
 - [ ] Make sure we are not allowing 30 Feb, 31 Sep etc on company signup
@@ -23,6 +24,8 @@
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
+- [ ] Recurring templates: in template view mode, add a “Generated journals” section (show latest N with date/status/reference, link to open journal, plus “View all” once we add an API filter by `recurring_template_id`).
+- [ ] AI inline autocomplete (code-completion-style): ghost suggestion while typing (e.g. journal title/description/line description), accept with `Tab`, and telemetry for impressions/accepts/dismissals, latency, and cost.
 - [ ] Split transactions in autosave mode (Cat Engine)
 - [ ] Advanced filters (Cat Engine)
 - [ ] Bulk actions (Cat Engine)
@@ -45,6 +48,7 @@
 - [ ] Add concurrency to deploy-staging.yml: { group: staging, cancel-in-progress: true }
 - [ ] When implementing payments, do not do stripe only. Make sure to have a fallback ready by default
 - [ ] Make sure we are not allowing users to add heavy files and where relevant necessary, don't load large or many files into memory
+- [ ] Agent that connects to the company's Slack or email to auto-generate journals from invoices, bills, etc., and add them here as drafts. Especially helpful for companies using accrual accounting.
 
 ### LATER (Future Versions / Nice-to-Have)
 
@@ -69,7 +73,8 @@
 - [ ] What if for personal finance, snapping and keeping receipts, people can get points
 - [ ] Consider adding chromatic or an alternative
 - [x] Plaid Webhook implementation
-- [ ] Storage cleanup plan (simple cron that deletes objects not referenced in DB after 24h) - journals, etc.
+- [ ] Storage cleanup plan: delete orphaned uploaded blobs not referenced in DB after X hours/days (journals/ledger/bank). Consider also an on-discard cleanup endpoint for better UX.
+- [ ] Tenant-scoped file dedupe: store checksum/hash, reuse same blob key for identical content within a company, and maintain many-to-many attachments.
 - [ ] Once we're ready for lang and doc work, consider Google's oss langextract
 
 ---

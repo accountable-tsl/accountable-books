@@ -50,6 +50,11 @@ export interface ObjectUploadUrlResponse {
   signedUrl: string;
   fileKey: string;
   bucketName: string;
+  /**
+   * Canonical object URL to store in DB. Not necessarily publicly accessible.
+   * Viewing should be done via signed download URL.
+   */
+  url: string;
 }
 
 export const objectDownloadUrlParams = z.object({

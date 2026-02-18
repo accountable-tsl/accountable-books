@@ -116,6 +116,33 @@ export type PreviewRecurringTemplateInput = {
   }>;
 };
 
+export type CreateRecurringTemplateInput = {
+  companyId: string;
+  data: {
+    description: string;
+    title?: string | null;
+    note?: string | null;
+    contactId?: string | null;
+    currencyId?: string | null;
+    frequency: RecurrenceFrequency;
+    startDateYMD: string;
+    endDateYMD?: string | null;
+    autoPost?: boolean;
+    entries: Array<{
+      description: string;
+      side: 'debit' | 'credit';
+      amount: number;
+      coaId: string;
+    }>;
+  };
+};
+
+export type UpdateRecurringTemplateInput = {
+  companyId: string;
+  templateId: string;
+  data: CreateRecurringTemplateInput['data'];
+};
+
 // =============================================================================
 // API Functions
 // =============================================================================
@@ -294,7 +321,9 @@ export async function getRecurringTemplate(
   input: GetRecurringTemplateInput,
 ): Promise<ApiResponse<GetRecurringTemplateResponse>> {
   const { companyId, templateId } = input;
-  const res = await api.get(`/api/${companyId}/journals/templates/${templateId}`);
+  const res = await api.get(
+    `/api/${companyId}/journals/templates/${templateId}`,
+  );
   return res.data;
 }
 
@@ -323,6 +352,34 @@ export async function previewRecurringTemplate(
   input: PreviewRecurringTemplateInput,
 ): Promise<ApiResponse<PreviewRecurringTemplateResponse>> {
   const { companyId, ...data } = input;
-  const res = await api.post(`/api/${companyId}/journals/templates/preview`, data);
+  const res = await api.post(
+    `/api/${companyId}/journals/templates/preview`,
+    data,
+  );
+  return res.data;
+}
+
+/**
+ * Create a recurring journal template
+ */
+export async function createRecurringTemplate(
+  input: CreateRecurringTemplateInput,
+): Promise<ApiResponse<GetRecurringTemplateResponse>> {
+  const { companyId, data } = input;
+  const res = await api.post(`/api/${companyId}/journals/templates`, data);
+  return res.data;
+}
+
+/**
+ * Update a recurring journal template
+ */
+export async function updateRecurringTemplate(
+  input: UpdateRecurringTemplateInput,
+): Promise<ApiResponse<GetRecurringTemplateResponse>> {
+  const { companyId, templateId, data } = input;
+  const res = await api.put(
+    `/api/${companyId}/journals/templates/${templateId}`,
+    data,
+  );
   return res.data;
 }

@@ -996,7 +996,7 @@ describe('postJournalRecord - Integration Tests', () => {
               bucket_name: 'txnFiles',
               url: 'https://example.com/receipt.pdf',
               type: 'application/pdf',
-              size_bytes: BigInt(1024),
+              size_bytes: 1024,
               checksum: null,
             },
           ],

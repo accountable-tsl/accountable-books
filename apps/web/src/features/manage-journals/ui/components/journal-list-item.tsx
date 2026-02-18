@@ -8,6 +8,7 @@ import {
   getJournalStatusDotClass,
   isGeneratedJournal,
   isRecurringTemplateJournal,
+  RECURRING_TEMPLATE_DOT_CLASS,
 } from '../lib/journal-ui';
 
 function isBalancedRow(row: JournalListRow): boolean {
@@ -30,6 +31,14 @@ export function JournalListItem({
   const isGenerated = isGeneratedJournal(journal);
   const isRecurringTemplate = isRecurringTemplateJournal(journal);
   const displayStatus = journal.kind === 'journal' ? journal.status : 'draft';
+  const dotClass =
+    journal.kind === 'recurring_template'
+      ? RECURRING_TEMPLATE_DOT_CLASS
+      : getJournalStatusDotClass(displayStatus);
+  const dotTitle =
+    journal.kind === 'recurring_template'
+      ? 'Recurring template'
+      : toTitleCase(displayStatus);
 
   return (
     <button
@@ -45,9 +54,9 @@ export function JournalListItem({
           <span
             className={cn(
               'inline-block h-2 w-2 shrink-0 rounded-full',
-              getJournalStatusDotClass(displayStatus),
+              dotClass,
             )}
-            title={toTitleCase(displayStatus)}
+            title={dotTitle}
           />
           <span className="text-ms truncate">{journal.title}</span>
           {isRecurringTemplate && (

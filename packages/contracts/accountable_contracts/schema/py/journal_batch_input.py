@@ -1,4 +1,4 @@
-from pydantic import BaseModel, confloat, constr
+from pydantic import BaseModel, Field, confloat, conint, constr
 from typing import Any, List, Optional
 from enum import Enum
 from uuid import UUID
@@ -6,6 +6,9 @@ from uuid import UUID
 class EntriesItemSideEnum(str, Enum):
     DEBIT = "debit"
     CREDIT = "credit"
+
+class FilesItemProviderEnum(str, Enum):
+    CLOUDFLARE_R2 = "cloudflare_r2"
 
 class StatusEnum(str, Enum):
     DRAFT = "draft"
@@ -19,11 +22,17 @@ class JournalBatchInput(BaseModel):
         coaId: UUID
         projectId: Optional[Optional[UUID]] = None
     class FilesItem(BaseModel):
-        name: str
-        key: str
+        id: Optional[UUID] = None
+        name: constr(max_length=512)
+        key: constr(max_length=1024)
+        bucket_name: str
+        url: str
         type: str
-        size: float
-        url: Optional[str] = None
+        size_bytes: conint(ge=0)
+        checksum: Optional[Optional[constr(max_length=64)]] = None
+        provider: Optional[FilesItemProviderEnum] = Field(default="cloudflare_r2")
+        region: Optional[Optional[str]] = None
+        endpoint: Optional[Optional[str]] = None
     id: Optional[UUID] = None
     reference: Optional[Optional[str]] = None
     date: str

@@ -15,6 +15,8 @@ export interface ObjectUploadUrlResponse {
   signedUrl: string;
   fileKey: string;
   bucketName: string;
+  /** Canonical object URL stored in DB. Use signed download URL for viewing. */
+  url: string;
 }
 
 export interface ObjectDownloadUrlParams {
@@ -35,7 +37,8 @@ export const txnFileInput = z
     bucket_name: z.string(),
     url: z.url(),
     type: z.string(),
-    size_bytes: z.coerce.bigint(),
+    // Keep as number for JSON compatibility (BigInt cannot be JSON-stringified).
+    size_bytes: z.coerce.number().int().nonnegative(),
     checksum: z.string().max(64).nullish(),
     provider: z.literal('cloudflare_r2'),
     region: z.string().nullish(),
@@ -64,7 +67,7 @@ export type TxnFileResponse = Array<{
   url: string;
   type: string;
   bucket_name: string;
-  size_bytes: bigint;
+  size_bytes: number;
   transaction_id: string;
   entry_id?: string | null;
 }>;

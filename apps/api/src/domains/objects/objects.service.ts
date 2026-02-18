@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+import { ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import { r2Client } from '../../lib/r2Client.js';
 import {
@@ -74,10 +75,18 @@ export const StorageService = {
         throw new Error('Failed to generate signed URL');
       }
 
+      const endpoint = String(ENV.R2_ENDPOINT || '').replace(/\/+$/, '');
+      if (!endpoint) {
+        throw new Error('Missing R2 endpoint');
+      }
+      // Canonical URL used for DB storage; use signed download URLs for access.
+      const url = `${endpoint}/${bucket}/${fileKey}`;
+
       return {
         signedUrl,
         fileKey,
         bucketName: bucket,
+        url,
       };
     };
 
