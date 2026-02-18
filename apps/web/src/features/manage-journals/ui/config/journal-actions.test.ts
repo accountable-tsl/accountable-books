@@ -172,7 +172,6 @@ describe('getAllowedActionsForTemplate', () => {
   it('returns actions for draft template', () => {
     const template = makeTemplate({ status: 'draft' });
     expect(getActionKeys(getAllowedActionsForTemplate(template))).toEqual([
-      'edit',
       'activate',
     ]);
   });
@@ -180,7 +179,6 @@ describe('getAllowedActionsForTemplate', () => {
   it('returns actions for active template', () => {
     const template = makeTemplate({ status: 'active' });
     expect(getActionKeys(getAllowedActionsForTemplate(template))).toEqual([
-      'edit',
       'run_now',
       'pause',
       'close',
@@ -190,7 +188,6 @@ describe('getAllowedActionsForTemplate', () => {
   it('returns actions for paused template', () => {
     const template = makeTemplate({ status: 'paused' });
     expect(getActionKeys(getAllowedActionsForTemplate(template))).toEqual([
-      'edit',
       'resume',
       'close',
     ]);
