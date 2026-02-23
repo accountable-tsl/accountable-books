@@ -10,7 +10,6 @@ import ErrorPage from '@/components/ErrorPage';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AccountingWorkspace } from '@/domains-pending-migration/accounting-ws/acc-ws';
-import Dashboard from '@/domains-pending-migration/dashboard/Dashboard';
 import { OnboardingStepPage } from '@/domains-pending-migration/onboarding/Onboarding';
 import { OnboardingRouter } from '@/domains-pending-migration/onboarding/OnboardingRouter';
 import Welcome from '@/domains-pending-migration/onboarding/Welcome';
@@ -33,6 +32,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import Popup from './components/Popup/Popup';
 import { PopupProvider, usePopup } from './contexts/PopupContext';
 import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
+import { Dashboard } from './features/accounting/temp-index';
 import BlankLayout from './layouts/BlankLayout';
 import ThemeProvider from './theme/themeProvider';
 

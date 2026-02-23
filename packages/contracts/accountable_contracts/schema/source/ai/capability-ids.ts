@@ -10,6 +10,8 @@ export const AI_CAPABILITY_IDS = [
   'categorization.clean_description.v1',
   'categorization.explain.v1',
   'categorization.dev_sample.v1',
+  'reporting.explain.v1',
+  'reporting.dev_sample.v1',
 ] as const;
 
 export type AiCapabilityId = (typeof AI_CAPABILITY_IDS)[number];

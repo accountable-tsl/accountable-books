@@ -362,3 +362,61 @@ export function formatAmountInMillions(
 ): string {
   return formatAmount(Number(amount) / 1_000_000, options);
 }
+
+/** Unit threshold above which we abbreviate (K, M, B, T). Below it we show the number in full. */
+export type CompactAmountUnit = 'thousand' | 'million' | 'billion' | 'trillion';
+
+const COMPACT_THRESHOLDS: Record<CompactAmountUnit, number> = {
+  thousand: 1e3,
+  million: 1e6,
+  billion: 1e9,
+  trillion: 1e12,
+};
+
+const COMPACT_SUFFIXES: Record<CompactAmountUnit, string> = {
+  thousand: 'K',
+  million: 'M',
+  billion: 'B',
+  trillion: 'T',
+};
+
+/**
+ * Format a number: in full (locale + decimals) below the given unit threshold,
+ * then abbreviate with suffix (K, M, B, T) at or above it.
+ * Pass the unit (e.g. fullUntil: 'billion') to control when we switch to abbreviated.
+ */
+export function formatAmountCompact(
+  val: number,
+  options: {
+    /** Show in full below this unit; abbreviate at or above it. Default "billion". */
+    fullUntil?: CompactAmountUnit;
+    locale?: string;
+    decimals?: number;
+  } = {},
+): string {
+  const { fullUntil = 'billion', locale = 'en-US', decimals = 2 } = options;
+  const abs = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  const threshold = COMPACT_THRESHOLDS[fullUntil];
+
+  if (abs < threshold) {
+    return `${sign}${abs.toLocaleString(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}`;
+  }
+
+  if (abs >= COMPACT_THRESHOLDS.trillion)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.trillion).toFixed(decimals)}${COMPACT_SUFFIXES.trillion}`;
+  if (abs >= COMPACT_THRESHOLDS.billion)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.billion).toFixed(decimals)}${COMPACT_SUFFIXES.billion}`;
+  if (abs >= COMPACT_THRESHOLDS.million)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.million).toFixed(decimals)}${COMPACT_SUFFIXES.million}`;
+  if (abs >= COMPACT_THRESHOLDS.thousand)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.thousand).toFixed(decimals)}${COMPACT_SUFFIXES.thousand}`;
+
+  return `${sign}${abs.toLocaleString(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+}

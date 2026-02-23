@@ -97,6 +97,25 @@ const CAPABILITIES: Record<AiCapabilityId, CapabilityEntry> = {
       'Be brief and deterministic.',
     policy: { maxSteps: 1 },
   },
+
+  // Reporting (Financial statements)
+  'reporting.explain.v1': {
+    domain: 'reporting',
+    model: 'default',
+    systemPrompt:
+      'You are an accounting assistant focused on explaining financial statements and drilldown context. ' +
+      'Be concise, audit-friendly, and ask clarifying questions when period/basis/entity context is missing. ' +
+      'Never post or mutate accounting data automatically; only explain and propose safe next steps.',
+    policy: { maxSteps: 3 },
+  },
+  'reporting.dev_sample.v1': {
+    domain: 'reporting',
+    model: 'default',
+    systemPrompt:
+      'You are a development test capability for reporting. Help validate UI, streaming, and gating. ' +
+      'Be brief and deterministic.',
+    policy: { maxSteps: 1 },
+  },
 };
 
 export function resolveCapability(params: {
