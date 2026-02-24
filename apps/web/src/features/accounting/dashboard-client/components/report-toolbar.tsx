@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AiAssistButton } from '@/components/ai/ai-assist-button';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -6,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { aiRuntimeStore } from '@/modules/ai';
 import { ChevronLeft, ChevronRight, Download, Printer, X } from 'lucide-react';
 
 import {
@@ -44,6 +46,15 @@ export function ReportToolbar({
 
   const handleRemoveCompare = () => {
     onPeriodChange({ ...period, compare: 'none' });
+  };
+
+  const handleAiAssist = () => {
+    aiRuntimeStore
+      .getState()
+      .setInput(
+        `Explain the key movements in this report for ${label}${showCompare ? ` (${compareLabel})` : ''}.`,
+      );
+    aiRuntimeStore.getState().open();
   };
 
   return (
@@ -100,6 +111,13 @@ export function ReportToolbar({
             <X className="size-3" />
           </button>
         )}
+
+        <AiAssistButton
+          onClick={handleAiAssist}
+          label=""
+          ariaLabel="Open AI reporting assistant"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground size-7 justify-center rounded-md p-0"
+        />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

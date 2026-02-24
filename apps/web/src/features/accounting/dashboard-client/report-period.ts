@@ -110,7 +110,10 @@ export function formatCompareLabel(compare: CompareMode): string {
 // Stepping (arrow nav)
 // ---------------------------------------------------------------------------
 
-function periodToAbsolute(p: { monthIdx: number; year: number }): number {
+export function periodToAbsolute(p: {
+  monthIdx: number;
+  year: number;
+}): number {
   return p.year * 12 + p.monthIdx;
 }
 

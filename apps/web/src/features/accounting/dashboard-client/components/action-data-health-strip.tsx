@@ -33,8 +33,9 @@ export function ActionDataHealthStrip(props: ActionDataHealthStripProps) {
       >
         <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3">
           <AlertCircle className="text-primary size-4 shrink-0" aria-hidden />
-          <span className="min-w-0 flex-1 font-medium">
+          <span className="line-clamp-2 min-w-0 flex-1 text-xs font-medium md:line-clamp-1 md:text-sm">
             {summary}
+            <br className="md:hidden" />
             {subline && (
               <span className="text-muted-foreground font-normal">
                 {' — '}

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
-import { ACTION_CENTER_ID } from '../constants';
+import { ACTION_CENTER_ID, CARD_HEADER_CLASS } from '../constants';
 import {
   MOCK_ACTION_CENTER_TASKS,
   MOCK_COMPLIANCE_ALERTS,
@@ -15,7 +16,7 @@ export function DashboardRightRail() {
       className="flex min-w-0 flex-col gap-4 lg:w-[320px] lg:shrink-0 xl:w-[380px]"
     >
       <div className="bg-background border-border/50 flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
-        <div className="border-border/50 bg-muted/20 dark:bg-muted/30 flex min-h-12 shrink-0 items-center border-b px-4 text-sm md:px-5">
+        <div className={cn(CARD_HEADER_CLASS, 'text-sm md:px-5')}>
           <p className="text-foreground min-w-0 truncate font-semibold">
             Action Center
           </p>
@@ -59,7 +60,7 @@ export function DashboardRightRail() {
       </div>
 
       <div className="bg-background border-border/50 flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
-        <div className="border-border/50 bg-muted/20 dark:bg-muted/30 flex min-h-12 shrink-0 items-center border-b px-4 text-sm md:px-5">
+        <div className={cn(CARD_HEADER_CLASS, 'text-sm md:px-5')}>
           <p className="text-foreground min-w-0 truncate font-semibold">
             Deadlines
           </p>
@@ -88,7 +89,7 @@ export function DashboardRightRail() {
       </div>
 
       <div className="bg-background border-border/50 flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
-        <div className="border-border/50 bg-muted/20 dark:bg-muted/30 flex min-h-12 shrink-0 items-center border-b px-4 text-sm md:px-5">
+        <div className={cn(CARD_HEADER_CLASS, 'text-sm md:px-5')}>
           <p className="text-foreground min-w-0 truncate font-semibold">
             Quick actions
           </p>

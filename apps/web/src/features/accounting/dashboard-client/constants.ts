@@ -73,5 +73,9 @@ export const READINESS_KEYS = [
 
 export const ACTION_CENTER_ID = 'action-center';
 
+/** Shared card header styling for statement/dashboard cards. */
+export const CARD_HEADER_CLASS =
+  'border-border/50 bg-muted/20 dark:bg-muted/30 flex min-h-12 shrink-0 items-center border-b px-4';
+
 /** Re-export for consumers that import period types from constants. */
 export type { Period, PeriodBounds } from './period-utils';

@@ -58,13 +58,13 @@ export function MetricCard({
       </div>
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-muted-foreground flex items-center gap-1 truncate text-xs font-medium">
+          <div className="text-muted-foreground flex items-center gap-1 truncate text-xs font-medium">
             {title}
             <TooltipHelper
               content={tooltipContent}
               contentStyle="text-center"
             />
-          </p>
+          </div>
           <p className="mt-0.5 truncate font-mono text-lg font-semibold tabular-nums">
             {value}
           </p>

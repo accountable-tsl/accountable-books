@@ -16,61 +16,25 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-import { MONTHS } from '../constants';
 import {
   canCompare,
   getQuarterForMonth,
   getQuarterStartMonth,
+  periodToAbsolute,
 } from '../report-period';
+import {
+  COMPARE_OPTIONS,
+  GRID_ROWS,
+  QUARTERS,
+  QUICK_ACTIONS,
+} from './report-period-picker-constants';
 
 import type { PeriodBounds } from '../period-utils';
 import type { CompareMode, ReportPeriod } from '../report-period';
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const QUARTERS = [1, 2, 3, 4] as const;
-
-const QUICK_ACTIONS: Array<{
-  label: string;
-  mode: ReportPeriod['mode'];
-  disabled?: boolean;
-  title?: string;
-}> = [
-  { label: 'Full Year', mode: 'year' },
-  { label: 'YTD', mode: 'ytd' },
-  { label: 'T12M', mode: 'trailing12m' },
-  {
-    label: 'Custom…',
-    mode: 'custom',
-    disabled: true,
-    title: 'Custom range coming soon',
-  },
-];
-
-const COMPARE_OPTIONS: Array<{ value: CompareMode; label: string }> = [
-  { value: 'none', label: 'None' },
-  { value: 'prior_period', label: 'Prior Period' },
-  { value: 'prior_year', label: 'Prior Year' },
-];
-
-// Grid rows: each row has 3 months + 1 quarter
-const GRID_ROWS = QUARTERS.map((q) => {
-  const startIdx = (q - 1) * 3;
-  return {
-    quarter: q,
-    months: [MONTHS[startIdx], MONTHS[startIdx + 1], MONTHS[startIdx + 2]],
-  };
-});
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function periodToAbsolute(p: { monthIdx: number; year: number }): number {
-  return p.year * 12 + p.monthIdx;
-}
 
 function isMonthDisabled(
   monthIdx: number,
@@ -220,7 +184,7 @@ function PeriodPickerGrid({
       {/* Month + Quarter grid: 4 rows × (3 months + 1 quarter) */}
       <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5">
         {GRID_ROWS.map((row) => (
-          <>
+          <div key={row.quarter} className="contents">
             {row.months.map((month) => {
               const disabled = isMonthDisabled(month.idx, displayYear, bounds);
               const selected = isMonthSelected(month.idx);
@@ -243,7 +207,6 @@ function PeriodPickerGrid({
               );
             })}
             <button
-              key={`q${row.quarter}`}
               type="button"
               disabled={isQuarterDisabled(row.quarter, displayYear, bounds)}
               onClick={() => handleQuarterClick(row.quarter)}
@@ -258,7 +221,7 @@ function PeriodPickerGrid({
             >
               Q{row.quarter}
             </button>
-          </>
+          </div>
         ))}
       </div>
 

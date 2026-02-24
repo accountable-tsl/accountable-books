@@ -1499,3 +1499,51 @@ A page/feature is ready to build when:
 3. Client cannot trigger privileged accountant actions.
 4. Demo mode is visually isolated from real data mode.
 5. QA acceptance gates in Section 26.4 pass.
+
+## 31. Income Statement v1 Canvas (Locked)
+
+### 31.1 Final Design Decisions
+
+1. Toolbar placement:
+
+- Keep report toolbar above the statement canvas (page-level), not inside table rows.
+- Toolbar order (right side): `AI icon` -> `Export` -> `Print`.
+- Use icon-only AI affordance (no "Ask Accountable" text label) so discovery is behavioral, not promotional.
+
+2. Period + compare behavior:
+
+- Period picker supports month, quarter, full year, YTD, trailing 12M.
+- Compare supports `None`, `Prior period`, `Prior year`.
+- Trailing 12M disables compare.
+
+3. Income statement body:
+
+- Show three KPI cards on a single desktop row.
+- Default table state shows headline lines first for fast scanning.
+- Provide inline expansion for line-level detail (sub-accounts) without page navigation.
+
+4. Right rail behavior:
+
+- Two tabs: `Insights` and `Details`.
+- Insights surfaces proactive observations (anomalies/trends) and lightweight trend charting.
+- Details reflects currently selected line and exposes drill path actions.
+
+5. Nomenclature policy:
+
+- Labels must be reporting-framework aware (`US GAAP` vs `IFRS`).
+- If framework is unknown, use safe GAAP-default wording until company preference is set.
+
+### 31.2 Implementation Scope (Now vs Later)
+
+Now (v1 UI):
+
+- Framework-aware statement labels.
+- KPI cards + headline-first expandable statement.
+- Contextual right rail for insights and selected-line details.
+- AI icon in report toolbar with reporting-context prompt handoff.
+
+Later (v1.1+):
+
+- Live insight generation from model outputs.
+- Fully functional Ledger Explorer launch from details rail.
+- Export variants beyond CSV/Excel parity decisions and print templates.

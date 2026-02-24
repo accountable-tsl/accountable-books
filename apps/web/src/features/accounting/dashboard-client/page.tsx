@@ -11,6 +11,7 @@ import { DashboardIncomeTab } from './pages/income';
 import { DashboardOverviewTab } from './pages/overview';
 import { getDefaultBounds, getDefaultPeriod } from './period-utils';
 import { getDefaultReportPeriod } from './report-period';
+import { getIncomeStatementNomenclature } from './statement-nomenclature';
 
 function getTemporalGreeting(firstName: string): string {
   const hour = new Date().getHours();
@@ -52,11 +53,17 @@ export function DashboardClientPage() {
   const companyPnlLabel = (
     company as { reportingPnlLabel?: string } | undefined
   )?.reportingPnlLabel;
+  const reportingFramework = (
+    company as { reportingFramework?: string | null } | undefined
+  )?.reportingFramework;
+  const incomeNomenclature = getIncomeStatementNomenclature(reportingFramework);
   const title = showGreeting
     ? greetingRef.current!
     : activeTab === 'income' && companyPnlLabel
       ? companyPnlLabel
-      : header.title;
+      : activeTab === 'income'
+        ? incomeNomenclature.statementTitle
+        : header.title;
 
   return (
     <div className="bg-muted dark:bg-background flex h-full min-h-0 w-full">
