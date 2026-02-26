@@ -132,6 +132,8 @@ export const CONTINUATION_PATTERNS: RegExp[] = [
   /^explain this\b/,
   /^explain that\b/,
   /^summari[sz]e this\b/,
+  /^can you make (it|that) shorter\b/,
+  /^can you make (it|that) clearer\b/,
   /^make (it|that) shorter\b/,
   /^make (it|that) clearer\b/,
   /^adjust (it|that)\b/,
