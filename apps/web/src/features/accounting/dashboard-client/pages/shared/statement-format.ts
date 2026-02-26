@@ -1,3 +1,5 @@
+import { formatAmount } from '@/shared/utils/formatting-utils';
+
 import type { DetailTransaction } from './statement-types';
 
 // ---------------------------------------------------------------------------
@@ -11,10 +13,37 @@ export type LineVarianceIntent = 'favorable_when_up' | 'favorable_when_down';
 // ---------------------------------------------------------------------------
 
 export function formatCurrency(value: number, currency: string) {
+  return formatAmount(value, {
+    currency,
+    locale: 'en-US',
+    showSymbol: true,
+    minFractionDigits: 0,
+    maxFractionDigits: 0,
+  });
+}
+
+export function formatCurrencyAdaptive(
+  value: number,
+  currency?: string,
+  options?: {
+    compactFrom?: number;
+    compactMaxFractionDigits?: number;
+  },
+) {
+  if (!currency) return '';
+
+  const compactFrom = options?.compactFrom ?? 100_000_000;
+  const compactMaxFractionDigits = options?.compactMaxFractionDigits ?? 0;
+
+  if (Math.abs(value) < compactFrom) {
+    return formatCurrency(value, currency);
+  }
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
+    notation: 'compact',
+    maximumFractionDigits: compactMaxFractionDigits,
   }).format(value);
 }
 

@@ -564,7 +564,7 @@ importers:
         specifier: ^1.8.11
         version: 1.8.11(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       recharts:
-        specifier: ^2.15.3
+        specifier: ^2.15.4
         version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       rollup:
         specifier: ^3.29.4

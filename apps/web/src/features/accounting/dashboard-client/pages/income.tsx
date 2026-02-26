@@ -3,17 +3,22 @@ import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useSession } from '@session';
 
 import { DemoDataBadge } from '../components/demo-data-badge';
 import { ReportToolbar } from '../components/report-toolbar';
 import { CARD_HEADER_CLASS } from '../constants';
-import { formatCompareLabel, formatPeriodLabel } from '../report-period';
+import {
+  formatCompareLabel,
+  formatPeriodLabel,
+  getStatementColumnLabels,
+} from '../report-period';
 import { getIncomeStatementNomenclature } from '../statement-nomenclature';
 import {
   buildStatementLines,
@@ -58,8 +63,11 @@ export function DashboardIncomeTab({
 }) {
   const { company } = useSession();
   const isMobile = useIsMobile();
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const asOf = useMemo(() => new Date(), []);
   const showDemoBadge = company?.isDemoCompany === true;
   const currencyCode = company?.reportingCurrencyCode ?? 'USD';
+  const insightsCurrencyCode = company?.reportingCurrencyCode;
   const reportingFramework = company?.reportingFramework ?? null;
   const labels = useMemo(
     () => getIncomeStatementNomenclature(reportingFramework),
@@ -147,17 +155,21 @@ export function DashboardIncomeTab({
     ? (notesMap.get(selectedLineId) ?? null)
     : null;
   const periodLabel = formatPeriodLabel(period);
+  const statementColumnLabels = useMemo(
+    () => getStatementColumnLabels(period, asOf),
+    [period, asOf],
+  );
 
   // Callbacks for StatementRow
   const handleSelectLine = useCallback(
     (lineId: string, tab: 'details' | 'notes') => {
       setSelectedLineId(lineId);
       setRailTab(tab);
-      if (isMobile) {
+      if (!isDesktop) {
         setMobileSheetOpen(true);
       }
     },
-    [isMobile],
+    [isDesktop],
   );
 
   const handleToggleExpand = useCallback((lineId: string) => {
@@ -177,6 +189,7 @@ export function DashboardIncomeTab({
       expandedRows={expandedRows}
       showCompare={showCompare}
       isMobile={isMobile}
+      isDesktop={isDesktop}
       notesMap={notesMap}
       currencyCode={currencyCode}
       revenueAmount={revenueAmount}
@@ -199,6 +212,7 @@ export function DashboardIncomeTab({
           period={period}
           bounds={bounds}
           onPeriodChange={onPeriodChange}
+          asOf={asOf}
         />
 
         {/* Statement card */}
@@ -212,7 +226,7 @@ export function DashboardIncomeTab({
               {showDemoBadge && <DemoDataBadge />}
             </div>
             <div className="flex items-center gap-1">
-              {isMobile && (
+              {!isDesktop && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -254,6 +268,8 @@ export function DashboardIncomeTab({
               sectionLabels={SECTION_LABELS}
               renderRow={renderRow}
               showCompare={showCompare}
+              currentColumnLabel={statementColumnLabels.currentLabel}
+              compareColumnLabel={statementColumnLabels.compareLabel}
               ariaLabel={labels.statementTitle}
               isMobile={isMobile}
             />
@@ -262,9 +278,9 @@ export function DashboardIncomeTab({
       </div>
 
       {/* Right: context rail — desktop only */}
-      {!isMobile && (
+      {isDesktop && (
         <div className="flex min-w-0 flex-col gap-3 lg:w-[330px] lg:shrink-0 xl:w-[390px]">
-          <div className="bg-background border-border/50 flex min-h-[420px] flex-1 flex-col overflow-hidden rounded-xl border shadow-sm">
+          <div className="bg-background border-border/50 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-sm">
             <div className={cn(CARD_HEADER_CLASS, 'justify-between gap-3')}>
               <span className="text-sm font-semibold">Context</span>
               <div className="bg-background inline-flex rounded-md border p-0.5">
@@ -290,14 +306,20 @@ export function DashboardIncomeTab({
               <InsightsPanel
                 opexRatio={opexRatio}
                 periodLabel={periodLabel}
+                currencyCode={insightsCurrencyCode}
                 storageKey={`ab:dash:income:insights:hidden:${company?.id ?? 'unknown'}`}
+                period={period}
+                statementLines={statementLines}
               />
             ) : railTab === 'details' ? (
               <DetailsPanel
                 selectedLine={selectedLine}
                 selectedLineParent={selectedLineParent ?? undefined}
                 showCompare={showCompare}
-                compareLabel={compareLabel}
+                currentLabel={statementColumnLabels.currentLabel}
+                compareLabel={
+                  statementColumnLabels.compareLabel ?? compareLabel
+                }
                 detailAccounts={detailAccounts}
                 detailTransactions={detailTransactions}
                 currencyCode={currencyCode}
@@ -317,12 +339,15 @@ export function DashboardIncomeTab({
         </div>
       )}
 
-      {/* Mobile: bottom sheet for insights/details/notes */}
-      {isMobile && (
+      {/* Mobile/Tablet: sheet for insights/details/notes */}
+      {!isDesktop && (
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
           <SheetContent
-            side="bottom"
-            className="max-h-[70vh] overflow-y-auto px-0 pb-6"
+            side={isMobile ? 'bottom' : 'right'}
+            className={cn(
+              'overflow-y-auto px-0 pb-6',
+              isMobile ? 'max-h-[70vh]' : 'w-full sm:max-w-md md:max-w-md',
+            )}
           >
             <SheetHeader className="px-4 pb-2">
               <SheetTitle className="text-sm">
@@ -334,19 +359,32 @@ export function DashboardIncomeTab({
                       : 'Notes'
                     : (selectedLine?.label ?? 'Details')}
               </SheetTitle>
+              <SheetDescription className="sr-only">
+                {railTab === 'insights'
+                  ? 'Proactive observations and net income trend.'
+                  : railTab === 'notes'
+                    ? 'View and edit notes for this line.'
+                    : 'Account breakdown and transactions for this line.'}
+              </SheetDescription>
             </SheetHeader>
             {railTab === 'insights' ? (
               <InsightsPanel
                 opexRatio={opexRatio}
                 periodLabel={periodLabel}
+                currencyCode={insightsCurrencyCode}
                 storageKey={`ab:dash:income:insights:hidden:${company?.id ?? 'unknown'}`}
+                period={period}
+                statementLines={statementLines}
               />
             ) : railTab === 'details' ? (
               <DetailsPanel
                 selectedLine={selectedLine}
                 selectedLineParent={selectedLineParent ?? undefined}
                 showCompare={showCompare}
-                compareLabel={compareLabel}
+                currentLabel={statementColumnLabels.currentLabel}
+                compareLabel={
+                  statementColumnLabels.compareLabel ?? compareLabel
+                }
                 detailAccounts={detailAccounts}
                 detailTransactions={detailTransactions}
                 currencyCode={currencyCode}

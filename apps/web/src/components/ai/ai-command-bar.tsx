@@ -1,5 +1,6 @@
-import type { AiCapabilityUI, AiDomainKey, AiMessage } from '@/modules/ai';
-import type { UIMessage } from 'ai';
+import type { AiDomainKey } from '@/modules/ai/keys';
+import type { AiMessageMetadata } from '@/modules/ai/runtime/message-mappers';
+import type { AiCapabilityUI, AiMessage } from '@/modules/ai/runtime/types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -22,11 +23,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { aiRuntimeStore } from '@/modules/ai';
-import { authStore } from '@/modules/auth';
+import {
+  AI_SESSION_NOT_READY_MESSAGE,
+  createAiChatTransport,
+  getAiChatApi,
+  INVALID_AI_CHAT_API,
+} from '@/modules/ai/runtime/chat-transport';
+import {
+  toAiMessages,
+  toUiMessages,
+} from '@/modules/ai/runtime/message-mappers';
+import { aiRuntimeStore } from '@/modules/ai/runtime/store';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
 import {
   AlignCenter,
   AlignRight,
@@ -70,6 +79,20 @@ function pickCapability(
   return scored[0]?.c ?? caps[0] ?? null;
 }
 
+function messageSignature(messages: AiMessage[]): string {
+  return messages
+    .map((message) => {
+      const domain = message.meta?.domain ?? '';
+      const capabilityId = message.meta?.capabilityId ?? '';
+      return `${message.id}:${message.role}:${domain}:${capabilityId}:${message.text}`;
+    })
+    .join('||');
+}
+
+function newAssistantMessageId(): string {
+  return `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // Smooth deceleration for open, slightly faster for close
 const ENTER_TRANSITION = { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] as const };
 const EXIT_TRANSITION = { duration: 0.15, ease: [0.4, 0, 1, 1] as const };
@@ -87,60 +110,9 @@ const aiMessageMetadataSchema = z
   .object({
     domain: z.string().min(1).optional(),
     capabilityId: z.string().min(1).optional(),
+    source: z.literal('inline').optional(),
   })
   .optional();
-type AiMessageMetadata = z.infer<typeof aiMessageMetadataSchema>;
-
-function uiMessageText(parts: any[]): string {
-  // AI SDK UIMessage parts are unions; we only need text for current UI.
-  return (parts ?? [])
-    .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
-    .map((p) => p.text)
-    .join('');
-}
-
-function toUiMessages(seed: AiMessage[]): UIMessage[] {
-  return seed.map((m) => ({
-    id: m.id,
-    role: m.role,
-    parts: [{ type: 'text', text: m.text }],
-    metadata: m.meta
-      ? {
-          domain: m.meta.domain,
-          capabilityId: m.meta.capabilityId,
-        }
-      : undefined,
-  }));
-}
-
-function toAiMessages(ui: UIMessage[]): AiMessage[] {
-  return (ui ?? [])
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => {
-      const text = uiMessageText((m as any).parts ?? []);
-      const meta = (m as any).metadata as AiMessageMetadata | undefined;
-      const createdAt = (m as any).createdAt;
-      const timestamp =
-        createdAt instanceof Date
-          ? createdAt.getTime()
-          : typeof createdAt === 'string' || typeof createdAt === 'number'
-            ? new Date(createdAt).getTime()
-            : Date.now();
-      return {
-        id: String((m as any).id),
-        role: m.role as 'user' | 'assistant',
-        text,
-        timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
-        meta: meta
-          ? {
-              domain: meta.domain as AiDomainKey | undefined,
-              capabilityId: meta.capabilityId,
-            }
-          : undefined,
-      };
-    })
-    .filter((m) => m.text.trim().length > 0);
-}
 
 export function AiCommandBar() {
   const policy = aiRuntimeStore((s) => s.policy);
@@ -164,6 +136,7 @@ export function AiCommandBar() {
   const requestNewThread = aiRuntimeStore((s) => s.requestNewThread);
   const pendingConfirm = aiRuntimeStore((s) => s.pendingConfirm);
   const confirmPending = aiRuntimeStore((s) => s.confirmPending);
+  const ensureActiveThread = aiRuntimeStore((s) => s.ensureActiveThread);
   const threads = aiRuntimeStore((s) => s.threads);
   const activeThreadId = aiRuntimeStore((s) => s.activeThreadId);
   const messageDomainFilter = aiRuntimeStore((s) => s.messageDomainFilter);
@@ -171,6 +144,7 @@ export function AiCommandBar() {
     (s) => s.setMessageDomainFilter,
   );
   const setThreadMessages = aiRuntimeStore((s) => s.setThreadMessages);
+  const appendMessageToThread = aiRuntimeStore((s) => s.appendMessageToThread);
 
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -179,35 +153,12 @@ export function AiCommandBar() {
   const lastRunMetaRef = useRef<AiMessageMetadata | null>(null);
   const lastPatchedAssistantIdRef = useRef<string | null>(null);
 
-  const backendBaseUrl = String(import.meta.env.VITE_BACKEND_URL || '').replace(
-    /\/$/,
-    '',
-  );
-  const chatApi =
-    ctx?.companyId && backendBaseUrl
-      ? `${backendBaseUrl}/api/${ctx.companyId}/ai/chat`
-      : '';
+  const chatApi = ctx?.companyId
+    ? getAiChatApi({ companyId: ctx.companyId })
+    : '';
 
   const chatTransport = useMemo(() => {
-    // DefaultChatTransport uses fetch under the hood, but handles the AI SDK stream protocol.
-    // We use prepareSendMessagesRequest to attach CSRF on every request.
-    return new DefaultChatTransport({
-      api: chatApi || '/api/invalid-ai-chat',
-      credentials: 'include',
-      prepareSendMessagesRequest: ({ options }: any) => {
-        const csrfToken = authStore.getState().csrfToken;
-        const headers: Record<string, string> = {
-          ...(options.headers ?? {}),
-          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        };
-        return {
-          ...options,
-          api: chatApi || options.api,
-          credentials: 'include',
-          headers,
-        };
-      },
-    });
+    return createAiChatTransport(chatApi || INVALID_AI_CHAT_API);
   }, [chatApi]);
 
   const enabledRegistrations = useMemo(() => {
@@ -264,6 +215,20 @@ export function AiCommandBar() {
   const chatMessages = chat.messages;
   const chatStatus = chat.status;
   const chatSetMessages = chat.setMessages;
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const storeMessages = activeThread?.messages ?? [];
+    const chatAsAiMessages = toAiMessages((chatMessages ?? []) as any);
+    if (
+      messageSignature(storeMessages) === messageSignature(chatAsAiMessages)
+    ) {
+      return;
+    }
+
+    chatSetMessages(toUiMessages(storeMessages) as any);
+  }, [activeThread, chatMessages, chatSetMessages, isLoading]);
 
   // Backend doesn't attach per-message domain metadata yet; patch assistant messages
   // client-side so filtering and labels remain usable.
@@ -325,6 +290,8 @@ export function AiCommandBar() {
     if (caps.length === 0) return;
 
     if (!ctx?.companyId) return;
+    const threadId = await ensureActiveThread();
+    if (!threadId) return;
 
     const relevant = pickCapability(caps, text);
     if (!relevant) return;
@@ -334,21 +301,37 @@ export function AiCommandBar() {
       domain: relevant.domain,
       capabilityId: relevant.capabilityId,
     };
-    await chat.sendMessage(
-      {
-        text,
-        metadata: {
-          domain: inferredContextDomain ?? relevant.domain,
-          capabilityId: relevant.capabilityId,
+    try {
+      await chat.sendMessage(
+        {
+          text,
+          metadata: {
+            domain: inferredContextDomain ?? relevant.domain,
+            capabilityId: relevant.capabilityId,
+          },
         },
-      },
-      {
-        body: {
-          capabilityId: relevant.capabilityId,
+        {
+          body: {
+            threadId,
+            source: 'sidebar',
+            capabilityId: relevant.capabilityId,
+            domain: relevant.domain,
+          },
+        },
+      );
+    } catch {
+      const fallbackText = AI_SESSION_NOT_READY_MESSAGE;
+      appendMessageToThread(threadId, {
+        id: newAssistantMessageId(),
+        role: 'assistant',
+        text: fallbackText,
+        timestamp: Date.now(),
+        meta: {
           domain: relevant.domain,
+          capabilityId: relevant.capabilityId,
         },
-      },
-    );
+      });
+    }
   };
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (
@@ -412,19 +395,42 @@ export function AiCommandBar() {
 
   if (!hasAnyEnabledCapabilities) return null;
 
-  const handleSuggestionClick = (cap: AiCapabilityUI) => {
+  const handleSuggestionClick = async (cap: AiCapabilityUI) => {
     if (!ctx?.companyId) return;
+    const threadId = await ensureActiveThread();
+    if (!threadId) return;
     lastRunMetaRef.current = {
       domain: cap.domain,
       capabilityId: cap.capabilityId,
     };
-    void chat.sendMessage(
-      {
-        text: cap.label,
-        metadata: { domain: cap.domain, capabilityId: cap.capabilityId },
-      },
-      { body: { capabilityId: cap.capabilityId, domain: cap.domain } },
-    );
+    void chat
+      .sendMessage(
+        {
+          text: cap.label,
+          metadata: { domain: cap.domain, capabilityId: cap.capabilityId },
+        },
+        {
+          body: {
+            threadId,
+            source: 'sidebar',
+            capabilityId: cap.capabilityId,
+            domain: cap.domain,
+          },
+        },
+      )
+      .catch(() => {
+        const fallbackText = AI_SESSION_NOT_READY_MESSAGE;
+        appendMessageToThread(threadId, {
+          id: newAssistantMessageId(),
+          role: 'assistant',
+          text: fallbackText,
+          timestamp: Date.now(),
+          meta: {
+            domain: cap.domain,
+            capabilityId: cap.capabilityId,
+          },
+        });
+      });
   };
 
   const persistentSuggestions = capabilities.length > 0 &&

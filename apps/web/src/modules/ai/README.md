@@ -61,3 +61,18 @@ Add an explicit registry if/when you need:
 
 The clean way to do that in this codebase is to attach an `aiDomainKey` to route metadata and let the
 app-level AI provider derive the domain from the current route.
+
+## 5) Inline AI Actions (No Sidebar Open)
+
+Use `useAiInlineAction(...)` for app-level reusable inline AI buttons (e.g. "Draft note",
+"Generate description", "Summarize row") when you need:
+
+- Inline result rendering in the local component UI
+- Background logging into the active global AI thread memory
+- No forced open of the AI command bar/sidebar
+
+Behavior:
+
+- Appends the inline user prompt + assistant response to `aiRuntimeStore` thread messages.
+- Sends the request through the same chat transport (`/api/:companyId/ai/chat`) with CSRF headers.
+- Keeps global chat memory in sync so the user can continue in sidebar later.

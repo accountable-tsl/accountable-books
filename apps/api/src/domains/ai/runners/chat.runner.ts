@@ -26,17 +26,20 @@ export async function runChatRunner(params: RunParams): Promise<RunnerResult> {
   });
 
   // These promises resolve as the underlying stream is consumed (by the UI stream).
-  const [finishReason, rawFinishReason, usage, totalUsage] = await Promise.all([
-    result.finishReason,
-    result.rawFinishReason,
-    result.usage,
-    result.totalUsage,
-  ]);
+  const [finishReason, rawFinishReason, usage, totalUsage, text] =
+    await Promise.all([
+      result.finishReason,
+      result.rawFinishReason,
+      result.usage,
+      result.totalUsage,
+      result.text,
+    ]);
 
   return {
     finishReason: String(finishReason),
     rawFinishReason: rawFinishReason ?? undefined,
     usage,
     totalUsage,
+    text,
   };
 }

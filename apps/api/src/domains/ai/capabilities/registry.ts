@@ -39,29 +39,41 @@ type CapabilityEntry = {
   runner?: RunnerName;
 };
 
+const SCOPE_GUARDRAIL_PROMPT =
+  'Stay strictly within accounting and this app workflows. ' +
+  'If a request is unrelated, decline briefly and ask for accounting/app context. ' +
+  'Never claim access to private endpoints, databases, source code, or the full app unless that data is explicitly provided in the request.';
+
+function withScopeGuardrails(prompt: string): string {
+  return `${prompt} ${SCOPE_GUARDRAIL_PROMPT}`;
+}
+
 const CAPABILITIES: Record<AiCapabilityId, CapabilityEntry> = {
   // Journals
   'journals.from_text.v1': {
     domain: 'journals',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are an accounting assistant focused on drafting journal entries. ' +
-      'Ask clarifying questions when key fields are missing. Never post automatically.',
+        'Ask clarifying questions when key fields are missing. Never post automatically.',
+    ),
   },
   'journals.generate_memo.v1': {
     domain: 'journals',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are an accounting assistant that writes concise, professional journal memos. ' +
-      'Keep it short, factual, and audit-friendly.',
+        'Keep it short, factual, and audit-friendly.',
+    ),
     policy: { maxSteps: 2 },
   },
   'journals.dev_sample.v1': {
     domain: 'journals',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are a development test capability. Help validate UI, streaming, and gating. ' +
-      'Be brief and deterministic.',
+        'Be brief and deterministic.',
+    ),
     policy: { maxSteps: 1 },
   },
 
@@ -69,32 +81,36 @@ const CAPABILITIES: Record<AiCapabilityId, CapabilityEntry> = {
   'categorization.interpret_command.v1': {
     domain: 'categorization',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are an accounting assistant focused on safe transaction edits. ' +
-      'Only propose changes; never apply changes without explicit approval.',
+        'Only propose changes; never apply changes without explicit approval.',
+    ),
   },
   'categorization.clean_description.v1': {
     domain: 'categorization',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'Rewrite bank narratives into accountant-friendly descriptions. ' +
-      'Preserve meaning and key identifiers.',
+        'Preserve meaning and key identifiers.',
+    ),
     policy: { maxSteps: 1 },
   },
   'categorization.explain.v1': {
     domain: 'categorization',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'Explain categorization decisions clearly and briefly. ' +
-      'Reference the evidence provided in the prompt/context.',
+        'Reference the evidence provided in the prompt/context.',
+    ),
     policy: { maxSteps: 2 },
   },
   'categorization.dev_sample.v1': {
     domain: 'categorization',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are a development test capability. Help validate UI, streaming, and gating. ' +
-      'Be brief and deterministic.',
+        'Be brief and deterministic.',
+    ),
     policy: { maxSteps: 1 },
   },
 
@@ -102,18 +118,20 @@ const CAPABILITIES: Record<AiCapabilityId, CapabilityEntry> = {
   'reporting.explain.v1': {
     domain: 'reporting',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are an accounting assistant focused on explaining financial statements and drilldown context. ' +
-      'Be concise, audit-friendly, and ask clarifying questions when period/basis/entity context is missing. ' +
-      'Never post or mutate accounting data automatically; only explain and propose safe next steps.',
+        'Be concise, audit-friendly, and ask clarifying questions when period/basis/entity context is missing. ' +
+        'Never post or mutate accounting data automatically; only explain and propose safe next steps.',
+    ),
     policy: { maxSteps: 3 },
   },
   'reporting.dev_sample.v1': {
     domain: 'reporting',
     model: 'default',
-    systemPrompt:
+    systemPrompt: withScopeGuardrails(
       'You are a development test capability for reporting. Help validate UI, streaming, and gating. ' +
-      'Be brief and deterministic.',
+        'Be brief and deterministic.',
+    ),
     policy: { maxSteps: 1 },
   },
 };

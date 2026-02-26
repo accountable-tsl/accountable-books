@@ -8,3 +8,5 @@ class AiCapabilityId(str, Enum):
     CATEGORIZATION_CLEAN_DESCRIPTION_V1 = "categorization.clean_description.v1"
     CATEGORIZATION_EXPLAIN_V1 = "categorization.explain.v1"
     CATEGORIZATION_DEV_SAMPLE_V1 = "categorization.dev_sample.v1"
+    REPORTING_EXPLAIN_V1 = "reporting.explain.v1"
+    REPORTING_DEV_SAMPLE_V1 = "reporting.dev_sample.v1"

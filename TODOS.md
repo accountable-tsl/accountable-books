@@ -26,6 +26,7 @@
 
 - [ ] Recurring templates: in template view mode, add a “Generated journals” section (show latest N with date/status/reference, link to open journal, plus “View all” once we add an API filter by `recurring_template_id`).
 - [ ] AI inline autocomplete (code-completion-style): ghost suggestion while typing (e.g. journal title/description/line description), accept with `Tab`, and telemetry for impressions/accepts/dismissals, latency, and cost.
+- [ ] Company identity middleware migration: keep current `req.companyContext` rollout stable for now, then consolidate to `req.company.uuid/shortCode/identifier` across all company-scoped routes.
 - [ ] Split transactions in autosave mode (Cat Engine)
 - [ ] Advanced filters (Cat Engine)
 - [ ] Bulk actions (Cat Engine)

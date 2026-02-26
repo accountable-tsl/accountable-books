@@ -16,6 +16,7 @@ import {
   formatVariancePercent,
   isFavorableDelta,
 } from '../income-statement-format';
+import { STATEMENT_TABLE_WIDTHS } from '../shared/StatementTable';
 
 import type { LineVarianceIntent } from '../shared/statement-format';
 import type {
@@ -76,6 +77,7 @@ export type StatementRowProps = {
   expandedRows: Record<string, boolean>;
   showCompare: boolean;
   isMobile: boolean;
+  isDesktop: boolean;
   notesMap: Map<string, StatementNote>;
   currencyCode: string;
   revenueAmount: number;
@@ -92,6 +94,7 @@ export function StatementRow({
   expandedRows,
   showCompare,
   isMobile,
+  isDesktop,
   notesMap,
   currencyCode,
   revenueAmount,
@@ -130,7 +133,21 @@ export function StatementRow({
       : '';
 
   const handleRowAction = () => {
-    onSelectLine(line.id, 'details');
+    // 1. Always expand/collapse if it has children
+    if (hasChildren && depth === 0) {
+      onToggleExpand(line.id);
+    }
+
+    // 2. Decide if we also select the row
+    // On desktop, we always select to keep the static right rail updated.
+    // On tablet/mobile (where selecting opens a sheet drawer), we only select leaf rows.
+    if (isDesktop || !hasChildren) {
+      onSelectLine(line.id, 'details');
+    }
+  };
+
+  const handleToggleAction = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
     if (hasChildren && depth === 0) {
       onToggleExpand(line.id);
     }
@@ -163,7 +180,13 @@ export function StatementRow({
         }}
       >
         {/* Cell: Line item */}
-        <span className="flex min-w-0 flex-1 items-center gap-1.5" role="cell">
+        <span
+          className={cn(
+            'flex flex-1 items-center gap-1.5',
+            isMobile ? 'min-w-0' : STATEMENT_TABLE_WIDTHS.lineItemMinDesktop,
+          )}
+          role="cell"
+        >
           {/* Only render the indent spacer when it has width; zero-width items still consume `gap`. */}
           {indentPx > 0 && (
             <span
@@ -173,17 +196,31 @@ export function StatementRow({
             />
           )}
           {hasChildren && depth === 0 ? (
-            isExpanded ? (
-              <ChevronDown
-                className="text-muted-foreground size-3.5 shrink-0"
-                aria-hidden
-              />
-            ) : (
-              <ChevronRight
-                className="text-muted-foreground size-3.5 shrink-0"
-                aria-hidden
-              />
-            )
+            <button
+              type="button"
+              className="hover:bg-muted-foreground/20 flex size-4 shrink-0 items-center justify-center rounded-sm transition-colors"
+              onClick={handleToggleAction}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  handleToggleAction(e);
+                }
+              }}
+              aria-label={
+                isExpanded ? 'Collapse sub-accounts' : 'Expand sub-accounts'
+              }
+            >
+              {isExpanded ? (
+                <ChevronDown
+                  className="text-muted-foreground size-3.5"
+                  aria-hidden
+                />
+              ) : (
+                <ChevronRight
+                  className="text-muted-foreground size-3.5"
+                  aria-hidden
+                />
+              )}
+            </button>
           ) : (
             <span className="size-3.5 shrink-0" aria-hidden />
           )}
@@ -273,7 +310,10 @@ export function StatementRow({
         {/* Cell: Prior period amount */}
         {!isMobile && showCompare && (
           <span
-            className="text-muted-foreground w-28 shrink-0 text-right font-mono text-sm tabular-nums"
+            className={cn(
+              'text-muted-foreground shrink-0 text-right font-mono text-sm tabular-nums',
+              STATEMENT_TABLE_WIDTHS.compareAmountDesktop,
+            )}
             role="cell"
           >
             {formatCurrency(line.compareAmount, currencyCode)}
@@ -284,18 +324,29 @@ export function StatementRow({
         <span
           className={cn(
             'text-foreground shrink-0 text-right font-mono text-sm tabular-nums',
-            isMobile ? 'w-24 min-w-20' : 'w-28',
+            isMobile
+              ? STATEMENT_TABLE_WIDTHS.currentAmountMobile
+              : STATEMENT_TABLE_WIDTHS.currentAmountDesktop,
+            isMobile && showCompare && 'flex flex-col items-end gap-0.5',
             line.amount < 0 && 'text-destructive',
           )}
           role="cell"
         >
-          {formatCurrency(line.amount, currencyCode)}
+          <span>{formatCurrency(line.amount, currencyCode)}</span>
+          {isMobile && showCompare && (
+            <span className="text-muted-foreground font-mono text-[11px] font-light tabular-nums">
+              {formatCurrency(line.compareAmount, currencyCode)}
+            </span>
+          )}
         </span>
 
         {/* Cell: Variance */}
         {!isMobile && showCompare && (
           <span
-            className="text-muted-foreground w-24 shrink-0 text-right font-mono text-[11px] font-light tabular-nums"
+            className={cn(
+              'text-muted-foreground shrink-0 text-right font-mono text-[11px] font-light tabular-nums',
+              STATEMENT_TABLE_WIDTHS.varianceDesktop,
+            )}
             role="cell"
           >
             {formatSignedCurrency(delta, currencyCode)}
@@ -305,12 +356,21 @@ export function StatementRow({
         {/* Cell: Change % or % of revenue */}
         {!isMobile &&
           (showCompare ? (
-            <span className="flex w-16 shrink-0 justify-end" role="cell">
+            <span
+              className={cn(
+                'flex shrink-0 justify-end',
+                STATEMENT_TABLE_WIDTHS.changeDesktop,
+              )}
+              role="cell"
+            >
               <ChangePct delta={delta} pct={pct} favorable={favorable} />
             </span>
           ) : (
             <span
-              className="text-muted-foreground w-16 shrink-0 text-right font-mono text-[11px] tabular-nums"
+              className={cn(
+                'text-muted-foreground shrink-0 text-right font-mono text-[11px] tabular-nums',
+                STATEMENT_TABLE_WIDTHS.changeDesktop,
+              )}
               role="cell"
             >
               {percentOfRev}
@@ -334,6 +394,7 @@ export function StatementRow({
               expandedRows={expandedRows}
               showCompare={showCompare}
               isMobile={isMobile}
+              isDesktop={isDesktop}
               notesMap={notesMap}
               currencyCode={currencyCode}
               revenueAmount={revenueAmount}

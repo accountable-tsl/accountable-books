@@ -44,6 +44,59 @@ export function getQuarterStartMonth(quarter: 1 | 2 | 3 | 4): number {
   return (quarter - 1) * 3;
 }
 
+function toDateOnly(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function addDays(d: Date, days: number): Date {
+  const out = new Date(d);
+  out.setDate(out.getDate() + days);
+  return out;
+}
+
+function shiftYearsClamped(d: Date, years: number): Date {
+  const y = d.getFullYear() + years;
+  const m = d.getMonth();
+  const day = d.getDate();
+  // JS Date will overflow (e.g. Feb 29 -> Mar 1). Clamp back into month.
+  const shifted = new Date(y, m, day);
+  while (shifted.getMonth() !== m) {
+    shifted.setDate(shifted.getDate() - 1);
+  }
+  return shifted;
+}
+
+function getDaysInRange(start: Date, end: Date): number {
+  const ms = toDateOnly(end).getTime() - toDateOnly(start).getTime();
+  return Math.floor(ms / 86_400_000) + 1;
+}
+
+function formatMonthDay(d: Date): string {
+  return `${MONTHS[d.getMonth()].short} ${d.getDate()}`;
+}
+
+function formatMonthDayYear(d: Date): string {
+  return `${MONTHS[d.getMonth()].short} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function formatDateRangeLabel(start: Date, end: Date): string {
+  const s = toDateOnly(start);
+  const e = toDateOnly(end);
+  const sameYear = s.getFullYear() === e.getFullYear();
+  const sameMonth = sameYear && s.getMonth() === e.getMonth();
+
+  if (sameMonth) {
+    // Feb 1–13, 2026
+    return `${MONTHS[s.getMonth()].short} ${s.getDate()}–${e.getDate()}, ${s.getFullYear()}`;
+  }
+  if (sameYear) {
+    // Jan 1–Feb 13, 2026
+    return `${MONTHS[s.getMonth()].short} ${s.getDate()}–${MONTHS[e.getMonth()].short} ${e.getDate()}, ${s.getFullYear()}`;
+  }
+  // Dec 15, 2025–Jan 13, 2026
+  return `${formatMonthDayYear(s)}–${formatMonthDayYear(e)}`;
+}
+
 /** Whether arrow stepping is meaningful for a given mode. */
 export function canStep(rp: ReportPeriod): boolean {
   return rp.mode !== 'trailing12m' && rp.mode !== 'custom';
@@ -53,6 +106,13 @@ export function canStep(rp: ReportPeriod): boolean {
 export function canCompare(rp: ReportPeriod): boolean {
   return rp.mode !== 'trailing12m' && rp.mode !== 'custom';
 }
+
+export type ReportCoverage = {
+  start: Date;
+  end: Date;
+  fullEnd: Date;
+  isPartial: boolean;
+};
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -95,6 +155,30 @@ export function formatPeriodLabel(rp: ReportPeriod): string {
   }
 }
 
+/**
+ * Column label variant for statement tables.
+ * Slightly more explicit for longer periods without adding sublabels.
+ */
+export function formatPeriodColumnLabel(rp: ReportPeriod): string {
+  const { mode, anchor } = rp;
+  switch (mode) {
+    case 'month':
+      return `${MONTHS[anchor.monthIdx].short} ${anchor.year}`;
+    case 'quarter':
+      return `Q${getQuarterForMonth(anchor.monthIdx)} ${anchor.year}`;
+    case 'year':
+      return `Jan – Dec ${anchor.year}`;
+    case 'ytd':
+      return `Jan – ${MONTHS[anchor.monthIdx].short} ${anchor.year}`;
+    case 'trailing12m':
+      return 'Trailing 12M';
+    case 'custom':
+      return formatPeriodLabel(rp);
+    default:
+      return '';
+  }
+}
+
 export function formatCompareLabel(compare: CompareMode): string {
   switch (compare) {
     case 'prior_period':
@@ -104,6 +188,187 @@ export function formatCompareLabel(compare: CompareMode): string {
     default:
       return '';
   }
+}
+
+function getFullRangeForPeriod(
+  rp: ReportPeriod,
+  asOf: Date,
+): {
+  start: Date;
+  fullEnd: Date;
+} {
+  const { mode, anchor } = rp;
+
+  switch (mode) {
+    case 'month': {
+      const start = new Date(anchor.year, anchor.monthIdx, 1);
+      const fullEnd = new Date(anchor.year, anchor.monthIdx + 1, 0);
+      return { start, fullEnd };
+    }
+    case 'quarter': {
+      const q = getQuarterForMonth(anchor.monthIdx);
+      const startMonth = getQuarterStartMonth(q);
+      const start = new Date(anchor.year, startMonth, 1);
+      const fullEnd = new Date(anchor.year, startMonth + 3, 0);
+      return { start, fullEnd };
+    }
+    case 'year':
+    case 'ytd': {
+      const start = new Date(anchor.year, 0, 1);
+      const fullEnd = new Date(anchor.year, 11, 31);
+      return { start, fullEnd };
+    }
+    case 'trailing12m': {
+      const asOfDay = toDateOnly(asOf);
+      const start = new Date(asOfDay.getFullYear(), asOfDay.getMonth() - 11, 1);
+      return { start, fullEnd: asOfDay };
+    }
+    case 'custom': {
+      // Custom isn't enabled in v1; keep a safe fallback (month).
+      const start = new Date(anchor.year, anchor.monthIdx, 1);
+      const fullEnd = new Date(anchor.year, anchor.monthIdx + 1, 0);
+      return { start, fullEnd };
+    }
+    default: {
+      const start = new Date(anchor.year, anchor.monthIdx, 1);
+      const fullEnd = new Date(anchor.year, anchor.monthIdx + 1, 0);
+      return { start, fullEnd };
+    }
+  }
+}
+
+export function getReportCoverage(
+  rp: ReportPeriod,
+  asOf: Date,
+): ReportCoverage {
+  const asOfDay = toDateOnly(asOf);
+  const { start, fullEnd } = getFullRangeForPeriod(rp, asOfDay);
+
+  // If "as of" falls within the selected range, we're looking at an in-progress
+  // period (e.g. MTD / QTD / YTD). Otherwise it's a historical closed period.
+  const isWithin = asOfDay >= start && asOfDay <= fullEnd;
+  const end = isWithin ? asOfDay : fullEnd;
+  const isPartial = end < fullEnd;
+
+  return { start, end, fullEnd, isPartial };
+}
+
+/**
+ * Column headers should never hide partial coverage.
+ * When the current period is partial and comparison is enabled, we default to
+ * same-day comparisons (MTD vs MTD, not MTD vs full month).
+ */
+export function getStatementColumnLabels(
+  rp: ReportPeriod,
+  asOf: Date,
+): {
+  currentLabel: string;
+  compareLabel?: string;
+  isPartial: boolean;
+  asOfLabel?: string;
+  asOfTitle?: string;
+} {
+  const coverage = getReportCoverage(rp, asOf);
+  const currentLabel = coverage.isPartial
+    ? formatDateRangeLabel(coverage.start, coverage.end)
+    : formatPeriodColumnLabel(rp);
+
+  if (rp.compare === 'none' || !canCompare(rp)) {
+    return { currentLabel, isPartial: coverage.isPartial };
+  }
+
+  // Partial periods: compare the same coverage window (e.g. Feb 1–13 vs Jan 1–13).
+  if (coverage.isPartial) {
+    const days = getDaysInRange(coverage.start, coverage.end);
+
+    if (rp.compare === 'prior_year') {
+      const compareStart = shiftYearsClamped(coverage.start, -1);
+      const compareEnd = shiftYearsClamped(coverage.end, -1);
+      return {
+        currentLabel,
+        compareLabel: formatDateRangeLabel(compareStart, compareEnd),
+        isPartial: true,
+        asOfLabel: `Through ${formatMonthDay(coverage.end)}`,
+        asOfTitle: `Data through ${formatMonthDayYear(coverage.end)}. Comparison uses the same day range.`,
+      };
+    }
+
+    // prior_period: use the prior period start, then take the same number of days.
+    const priorPeriod = getCompareReportPeriod({
+      ...rp,
+      compare: 'prior_period',
+    });
+    if (!priorPeriod) {
+      return { currentLabel, isPartial: true };
+    }
+    const priorFull = getFullRangeForPeriod(priorPeriod, asOf);
+    const compareStart = priorFull.start;
+    const compareEnd = (() => {
+      const candidate = addDays(compareStart, days - 1);
+      return candidate > priorFull.fullEnd ? priorFull.fullEnd : candidate;
+    })();
+
+    return {
+      currentLabel,
+      compareLabel: formatDateRangeLabel(compareStart, compareEnd),
+      isPartial: true,
+      asOfLabel: `Through ${formatMonthDay(coverage.end)}`,
+      asOfTitle: `Data through ${formatMonthDayYear(coverage.end)}. Comparison uses the same day range.`,
+    };
+  }
+
+  // Closed periods: compare full prior period / prior year.
+  const comparePeriod = getCompareReportPeriod(rp);
+  return {
+    currentLabel,
+    compareLabel: comparePeriod
+      ? formatPeriodColumnLabel(comparePeriod)
+      : undefined,
+    isPartial: false,
+  };
+}
+
+/**
+ * Compute the compare period "shape" as a ReportPeriod (with compare cleared).
+ * Used for labelling columns like "Jan 2025" instead of generic "Prior".
+ */
+export function getCompareReportPeriod(rp: ReportPeriod): ReportPeriod | null {
+  if (rp.compare === 'none') return null;
+  if (!canCompare(rp)) return null;
+
+  if (rp.compare === 'prior_year') {
+    return {
+      ...rp,
+      compare: 'none',
+      anchor: { ...rp.anchor, year: rp.anchor.year - 1 },
+      endAnchor: rp.endAnchor
+        ? { ...rp.endAnchor, year: rp.endAnchor.year - 1 }
+        : undefined,
+    };
+  }
+
+  // prior_period: step backwards by the current period mode
+  const abs = periodToAbsolute(rp.anchor);
+  const delta =
+    rp.mode === 'quarter'
+      ? 3
+      : rp.mode === 'month'
+        ? 1
+        : rp.mode === 'year'
+          ? 12
+          : rp.mode === 'ytd'
+            ? 12
+            : 0;
+
+  if (delta === 0) return null;
+  const nextAnchor = absoluteToPeriod(abs - delta);
+
+  if (rp.mode === 'quarter') {
+    const q = getQuarterForMonth(nextAnchor.monthIdx);
+    nextAnchor.monthIdx = getQuarterStartMonth(q);
+  }
+
+  return { ...rp, compare: 'none', anchor: nextAnchor };
 }
 
 // ---------------------------------------------------------------------------

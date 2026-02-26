@@ -49,6 +49,7 @@ export type DetailsPanelProps = {
   selectedLine: StatementLine | null;
   selectedLineParent: StatementLine | undefined;
   showCompare: boolean;
+  currentLabel: string;
   compareLabel: string;
   detailAccounts: StatementLine[];
   detailTransactions: DetailTransaction[];
@@ -64,6 +65,7 @@ export function DetailsPanel({
   selectedLine,
   selectedLineParent,
   showCompare,
+  currentLabel,
   compareLabel,
   detailAccounts,
   detailTransactions,
@@ -98,7 +100,7 @@ export function DetailsPanel({
           )}
         >
           <div className="bg-muted/30 rounded-md p-2">
-            <p className="text-muted-foreground">Current</p>
+            <p className="text-muted-foreground">{currentLabel}</p>
             <p className="mt-1 font-mono font-medium">
               {formatCurrency(selectedLine.amount, currencyCode)}
             </p>

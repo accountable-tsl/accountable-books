@@ -20,6 +20,7 @@ export type RunnerResult = {
   rawFinishReason?: string;
   usage?: LanguageModelUsage;
   totalUsage?: LanguageModelUsage;
+  text?: string;
 };
 
 export type ChatRunner = {

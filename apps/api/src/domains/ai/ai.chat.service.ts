@@ -5,10 +5,15 @@ import type { ServerResponse } from 'node:http';
 import { createUIMessageStream, pipeUIMessageStreamToResponse } from 'ai';
 import z from 'zod';
 
-import { ENV, isDev } from '../../config/env.js';
+import { ENV } from '../../config/env.js';
 import { logger } from '../../shared/index.js';
 import { writeAuditEvent } from '../audit/audit.model.js';
+import {
+  updateThreadLastMessageAt,
+  upsertChatMessage,
+} from './ai-chat-history.model.js';
 import { resolveCapability } from './capabilities/registry.js';
+import { evaluateAiGuardrail } from './guardrails/evaluator.js';
 import { getRunner } from './runners/index.js';
 import {
   createChatRun,
@@ -22,8 +27,33 @@ function isAiEnabled(): boolean {
   );
 }
 
+const GENERIC_AI_UNAVAILABLE_MESSAGE = 'AI is unavailable right now.';
+const GENERIC_AI_ERROR_MESSAGE = 'AI encountered an error. Please retry.';
+
 function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function extractUiMessageText(message: unknown): string {
+  if (!message || typeof message !== 'object') return '';
+  const content = (message as any).content;
+  if (typeof content === 'string' && content.trim()) return content;
+
+  const parts = Array.isArray((message as any).parts)
+    ? ((message as any).parts as unknown[])
+    : [];
+  const text = parts
+    .filter(
+      (part): part is { type: string; text: string } =>
+        Boolean(part) &&
+        typeof part === 'object' &&
+        typeof (part as any).type === 'string' &&
+        typeof (part as any).text === 'string',
+    )
+    .map((part) => part.text)
+    .join('');
+
+  return text;
 }
 
 export function respondWithAssistantText(res: Response, text: string): void {
@@ -54,21 +84,27 @@ export type StreamChatParams = {
  */
 export async function streamChat(params: StreamChatParams): Promise<void> {
   const { companyId, userId, body, res, req } = params;
-  const { messages, capabilityId, domain } = body;
+  const { messages, capabilityId, domain, threadId, source } = body;
+
+  if (!threadId) {
+    return respondWithAssistantText(res, 'Thread ID is required.');
+  }
 
   if (!isAiEnabled()) {
-    const msg = isDev
-      ? 'AI is disabled. Set `AI_ENABLED=true` in `apps/api/.env.local`.'
-      : 'AI is unavailable right now.';
-    return respondWithAssistantText(res, msg);
+    logger.warn(
+      { userId, companyId, aiEnabled: ENV.AI_ENABLED },
+      'AI request blocked because AI is disabled',
+    );
+    return respondWithAssistantText(res, GENERIC_AI_UNAVAILABLE_MESSAGE);
   }
 
   const apiKey = String(ENV.OPENAI_API_KEY || '').trim();
   if (!apiKey) {
-    const msg = isDev
-      ? 'OpenAI is not configured. Set `OPENAI_API_KEY` in `apps/api/.env.local`.'
-      : 'AI is unavailable right now.';
-    return respondWithAssistantText(res, msg);
+    logger.error(
+      { userId, companyId },
+      'AI request blocked because OPENAI_API_KEY is missing',
+    );
+    return respondWithAssistantText(res, GENERIC_AI_UNAVAILABLE_MESSAGE);
   }
 
   let cap;
@@ -85,6 +121,33 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
       'Capability not allowed',
     );
     return respondWithAssistantText(res, 'This capability is not available.');
+  }
+
+  const guardrailDecision = evaluateAiGuardrail({
+    messages,
+    capabilityId: cap.capabilityId,
+    domain: cap.domain,
+  });
+  if (!guardrailDecision.allow) {
+    const promptPreview =
+      guardrailDecision.reasonCode === 'crisis_support'
+        ? undefined
+        : guardrailDecision.latestUserText.slice(0, 160);
+    logger.info(
+      {
+        userId,
+        companyId,
+        capabilityId: cap.capabilityId,
+        domain: cap.domain,
+        reasonCode: guardrailDecision.reasonCode,
+        source,
+        route: body.context?.route,
+        pageTitle: body.context?.pageTitle,
+        promptPreview,
+      },
+      'AI request blocked by guardrail',
+    );
+    return respondWithAssistantText(res, guardrailDecision.userMessage);
   }
 
   logger.info(
@@ -158,6 +221,30 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
     logger.warn({ error, userId, companyId }, 'Failed to create ai_chat_run');
   }
 
+  // Persist incoming user messages to the database
+  try {
+    const userMessages = messages.filter((m: any) => m.role === 'user');
+    for (const msg of userMessages) {
+      const text = extractUiMessageText(msg);
+      if (!text.trim()) continue;
+      await upsertChatMessage({
+        threadId,
+        companyId,
+        userId,
+        clientMessageId: (msg as any).id,
+        role: 'user',
+        text,
+        meta: { domain, capabilityId, source },
+        occurredAt: startedAt,
+      });
+    }
+  } catch (error) {
+    logger.warn(
+      { error, userId, companyId, threadId },
+      'Failed to upsert user messages',
+    );
+  }
+
   const abort = new AbortController();
   req.on('close', () => abort.abort());
 
@@ -189,6 +276,32 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
         });
       } catch (error) {
         logger.warn({ error, chatRunId }, 'Failed to finish ai_chat_run');
+      }
+
+      // Persist the assistant message to the database
+      if (result.text && status === 'success') {
+        try {
+          // Assistant response acts as the final resolution for this run
+          await upsertChatMessage({
+            threadId,
+            companyId,
+            userId,
+            clientMessageId: `ast-${chatRunId}`, // Deterministic ID for this run's response
+            role: 'assistant',
+            text: result.text,
+            meta: { domain, capabilityId, source },
+            chatRunId,
+            occurredAt: finishedAt,
+          });
+
+          // Update thread activity timestamp
+          await updateThreadLastMessageAt(threadId, finishedAt);
+        } catch (error) {
+          logger.warn(
+            { error, threadId, chatRunId },
+            'Failed to persist assistant message',
+          );
+        }
       }
 
       // Best-effort audit log for usage/cost visibility.
@@ -260,9 +373,6 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
       }
     }
 
-    respondWithAssistantText(
-      res,
-      isDev ? `AI error: ${msg}` : 'AI encountered an error. Please retry.',
-    );
+    respondWithAssistantText(res, GENERIC_AI_ERROR_MESSAGE);
   }
 }

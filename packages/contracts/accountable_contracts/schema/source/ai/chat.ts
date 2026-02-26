@@ -8,6 +8,8 @@ import { aiEffect } from './effects.js';
 export const aiCapabilityId = z.enum(AI_CAPABILITY_IDS);
 
 export const aiChatRequest = z.object({
+  threadId: z.string().uuid(),
+  source: z.enum(['sidebar', 'inline']).optional(),
   capabilityId: aiCapabilityId,
   // Optional hint only. Backend is authoritative.
   domain: z.string().min(1).optional(),
@@ -27,6 +29,8 @@ export type AiChatRequest = z.infer<typeof aiChatRequest>;
  * Messages are left as unknown[] so the API can accept the AI SDK UIMessage shape (parts).
  */
 export const apiChatRequest = z.object({
+  threadId: z.string().uuid(),
+  source: z.enum(['sidebar', 'inline']).optional(),
   capabilityId: aiCapabilityId,
   domain: z.string().min(1).optional(),
   messages: z.array(z.unknown()).max(200),

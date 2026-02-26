@@ -52,6 +52,12 @@ export type AuthCompanyContextWithOnboarding = AuthCompanyContext & {
   onboarding: OnboardingStateResult;
 };
 
+export type CompanyRequestContext = {
+  identifier: string;
+  uuid: string;
+  shortCode: string;
+};
+
 export interface BaseAuthRequest extends Request {
   user?: Partial<AuthUserContext> & { id: string };
 }
@@ -59,6 +65,7 @@ export interface BaseAuthRequest extends Request {
 export interface AuthRequest extends Request {
   user?: AuthUserContext;
   company?: AuthCompanyContext;
+  companyContext?: CompanyRequestContext;
 }
 
 export type VerifyEmailInput = {

@@ -18,9 +18,28 @@ export function AiRuntimeProvider(props: {
   const isDomainEnabled = aiRuntimeStore((s) => s.isDomainEnabled);
   const isCapabilityEnabled = aiRuntimeStore((s) => s.isCapabilityEnabled);
 
+  const hydrateFromServer = aiRuntimeStore((s) => s.hydrateFromServer);
+  const ensureActiveThread = aiRuntimeStore((s) => s.ensureActiveThread);
+
   useEffect(() => {
     setContext({ userId: props.userId, companyId: props.companyId });
-  }, [props.userId, props.companyId, setContext]);
+    let isCancelled = false;
+    void (async () => {
+      // Fetch history from the DB explicitly on app mount/context shift.
+      await hydrateFromServer(props.companyId);
+      if (isCancelled) return;
+      await ensureActiveThread();
+    })();
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    props.userId,
+    props.companyId,
+    setContext,
+    hydrateFromServer,
+    ensureActiveThread,
+  ]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

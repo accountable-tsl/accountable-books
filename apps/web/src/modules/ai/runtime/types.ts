@@ -42,6 +42,7 @@ export type AiMessage = {
     domain?: AiDomainKey;
     capabilityId?: AiCapabilityId;
     proposalId?: string;
+    source?: 'inline';
   };
 };
 
@@ -92,6 +93,8 @@ export type AiRuntimeState = {
   };
 
   setContext: (ctx: AiRuntimeContext) => void;
+  hydrateFromServer: (companyId: string) => Promise<void>;
+  // -- Policy --
   setPolicy: (
     policy: Partial<
       Omit<AiPolicy, 'disabledDomains' | 'disabledCapabilities'>
@@ -119,11 +122,14 @@ export type AiRuntimeState = {
   registerDomain: (reg: DomainAIRegistration) => void;
   unregisterDomain: (domain: AiDomainKey) => void;
 
-  requestNewThread: () => void;
-  confirmPending: (confirm: boolean) => void;
+  requestNewThread: () => Promise<void>;
+  confirmPending: (confirm: boolean) => Promise<void>;
+  ensureActiveThread: () => Promise<string | null>;
 
   appendMessage: (msg: AiMessage) => void;
+  appendMessageToThread: (threadId: string, msg: AiMessage) => void;
   upsertMessage: (msg: AiMessage) => void;
+  upsertMessageInThread: (threadId: string, msg: AiMessage) => void;
   setThreadMessages: (threadId: string, messages: AiMessage[]) => void;
   clearThread: (threadId: string) => void;
 

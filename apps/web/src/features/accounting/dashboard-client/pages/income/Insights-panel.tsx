@@ -6,6 +6,12 @@ import { aiRuntimeStore } from '@/modules/ai';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { ChevronLeft, ChevronRight, RefreshCcw, X } from 'lucide-react';
 
+import { InsightsChartsSection } from '../../insights/charts';
+import { buildIncomeInsightsCharts } from './insights-mapper';
+
+import type { ReportPeriod } from '../../report-period';
+import type { StatementLine } from '../shared/statement-types';
+
 type Insight = {
   id: string;
   headline: string;
@@ -89,10 +95,16 @@ export function InsightsPanel({
   opexRatio,
   storageKey,
   periodLabel,
+  currencyCode,
+  period,
+  statementLines,
 }: {
   opexRatio: number;
   storageKey: string;
   periodLabel: string;
+  currencyCode?: string;
+  period: ReportPeriod;
+  statementLines: StatementLine[];
 }) {
   const [hidden, setHidden] = useLocalStorage<boolean>(storageKey, false);
   const [runId, setRunId] = useState(0);
@@ -146,6 +158,16 @@ export function InsightsPanel({
     !meta.generatedAtMs || Date.now() - meta.generatedAtMs > STALE_MS;
 
   const updatedAtLabel = formatUpdatedAt(meta.generatedAtMs);
+  const chartPayload = useMemo(
+    () =>
+      buildIncomeInsightsCharts({
+        period,
+        periodLabel,
+        currencyCode,
+        statementLines,
+      }),
+    [period, periodLabel, currencyCode, statementLines],
+  );
 
   const regenerate = (nextFingerprint: string) => {
     // MOCK regeneration.
@@ -200,8 +222,8 @@ export function InsightsPanel({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <div className="bg-muted/30 rounded-lg border p-3">
+    <div className="flex flex-col gap-3 p-4 lg:min-h-0 lg:flex-1">
+      <div className="bg-muted/30 flex h-45 shrink-0 flex-col gap-2 rounded-lg border p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm font-medium">Insights</p>
@@ -231,7 +253,8 @@ export function InsightsPanel({
             <AiAssistButton
               onClick={handleAi}
               label=""
-              ariaLabel="Ask AI about this insight"
+              ariaLabel="Ask about this insight"
+              title="Ask about this insight"
               className="text-muted-foreground hover:bg-accent hover:text-foreground size-7 justify-center rounded-md p-0"
             />
             <Button
@@ -246,16 +269,16 @@ export function InsightsPanel({
           </div>
         </div>
 
-        <div className="mt-2 h-18">
+        <div className="h-18 overflow-y-auto">
           <p className="text-foreground line-clamp-2 text-sm leading-snug font-medium">
             {current?.headline ?? 'No insights yet.'}
           </p>
-          <p className="text-muted-foreground mt-1 line-clamp-3 text-xs leading-relaxed">
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
             {current?.evidence ?? ''}
           </p>
         </div>
 
-        <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             {insights.map((_, i) => (
               <button
@@ -298,27 +321,7 @@ export function InsightsPanel({
         </div>
       </div>
 
-      <div className="bg-muted/30 rounded-lg border p-3">
-        <p className="text-sm font-medium">Net income (last 6 months)</p>
-        <p className="text-muted-foreground mt-0.5 text-[10px]">
-          Monthly values in thousands.
-        </p>
-        <div className="mt-3 grid grid-cols-6 items-end gap-2">
-          {[148, 151, 156, 167, 179, 193].map((value, idx) => (
-            <div key={idx} className="flex flex-col items-center gap-1">
-              <div
-                className="bg-primary/70 w-full rounded-sm"
-                style={{
-                  height: `${Math.max(24, (value / 193) * 86)}px`,
-                }}
-              />
-              <span className="text-muted-foreground text-[10px]">
-                {idx + 1}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <InsightsChartsSection payload={chartPayload} />
     </div>
   );
 }

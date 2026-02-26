@@ -1,10 +1,15 @@
 from pydantic import BaseModel, conint, constr
 from typing import List, Optional
 from enum import Enum
+from uuid import UUID
 
 class MessagesItemRoleEnum(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
+
+class SourceEnum(str, Enum):
+    SIDEBAR = "sidebar"
+    INLINE = "inline"
 
 class CapabilityIdEnum(str, Enum):
     JOURNALS_FROM_TEXT_V1 = "journals.from_text.v1"
@@ -14,6 +19,8 @@ class CapabilityIdEnum(str, Enum):
     CATEGORIZATION_CLEAN_DESCRIPTION_V1 = "categorization.clean_description.v1"
     CATEGORIZATION_EXPLAIN_V1 = "categorization.explain.v1"
     CATEGORIZATION_DEV_SAMPLE_V1 = "categorization.dev_sample.v1"
+    REPORTING_EXPLAIN_V1 = "reporting.explain.v1"
+    REPORTING_DEV_SAMPLE_V1 = "reporting.dev_sample.v1"
 
 class AiChatRequest(BaseModel):
     class MessagesItem(BaseModel):
@@ -29,6 +36,8 @@ class AiChatRequest(BaseModel):
     class Context(BaseModel):
         route: Optional[constr(min_length=1)] = None
         pageTitle: Optional[constr(min_length=1)] = None
+    threadId: UUID
+    source: Optional[SourceEnum] = None
     capabilityId: CapabilityIdEnum
     domain: Optional[constr(min_length=1)] = None
     messages: List[MessagesItem]
