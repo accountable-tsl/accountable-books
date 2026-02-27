@@ -19,10 +19,14 @@ export function computeIncomeKpis(
     line.children?.forEach((child) => lineById.set(child.id, child));
   }
 
-  const netIncome = lineById.get('net_income')!;
-  const revenue = lineById.get('revenue')!;
-  const costOfSales = lineById.get('cost_of_sales')!;
-  const operatingExpenses = lineById.get('operating_expenses')!;
+  const netIncome = lineById.get('net_income');
+  const revenue = lineById.get('revenue');
+  const costOfSales = lineById.get('cost_of_sales');
+  const operatingExpenses = lineById.get('operating_expenses');
+
+  if (!netIncome || !revenue || !costOfSales || !operatingExpenses) {
+    return { kpis: [], opexRatio: 0 };
+  }
 
   const grossMargin =
     ((revenue.amount - costOfSales.amount) / revenue.amount) * 100;

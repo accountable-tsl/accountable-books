@@ -224,6 +224,21 @@ export function buildSmartIndex(flatRoutes: FlatRoutes): RouteIndex {
   return { directRoutes, companyRoutes };
 }
 
+/**
+ * Simple pattern matcher for route templates with `:param` segments.
+ * e.g. matchRoutePattern('/dashboard/:tab', '/dashboard/balance') → true
+ */
+function matchRoutePattern(pattern: string, pathname: string): boolean {
+  const patternSegments = pattern.split('/').filter(Boolean);
+  const pathSegments = pathname.split('/').filter(Boolean);
+
+  if (patternSegments.length !== pathSegments.length) return false;
+
+  return patternSegments.every(
+    (seg, i) => seg.startsWith(':') || seg === pathSegments[i],
+  );
+}
+
 export function findMatchingRouteSmart(
   index: RouteIndex,
   pathname: string,
@@ -240,9 +255,18 @@ export function findMatchingRouteSmart(
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length > 1) {
     const suffixPath = '/' + segments.slice(1).join('/');
+
+    // Exact match
     const companyMatch = companyRoutes.get(suffixPath);
     if (companyMatch) {
       return companyMatch;
+    }
+
+    // Fallback: pattern match for parameterized routes (e.g. /dashboard/:tab)
+    for (const [pattern, match] of companyRoutes) {
+      if (pattern.includes(':') && matchRoutePattern(pattern, suffixPath)) {
+        return match;
+      }
     }
   }
 

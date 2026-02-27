@@ -3,6 +3,8 @@
  * The period "mode" is inferred from user selection — no separate mode picker.
  */
 
+import type { ApiPeriod } from '@/modules/accounting/reporting';
+
 import { MONTHS } from './constants';
 
 import type { PeriodBounds } from './period-utils';
@@ -10,6 +12,8 @@ import type { PeriodBounds } from './period-utils';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export type { ApiPeriod };
 
 export type PeriodMode =
   | 'month'
@@ -251,6 +255,53 @@ export function getReportCoverage(
   const isPartial = end < fullEnd;
 
   return { start, end, fullEnd, isPartial };
+}
+
+function toYMD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function reportPeriodToApiPeriod(
+  rp: ReportPeriod,
+  asOf: Date,
+): ApiPeriod {
+  const coverage = getReportCoverage(rp, asOf);
+  const { mode, anchor } = rp;
+
+  let periodType: ApiPeriod['periodType'] = 'monthly';
+  let periodNumber = anchor.monthIdx + 1;
+
+  if (mode === 'quarter') {
+    periodType = 'quarterly';
+    periodNumber = getQuarterForMonth(anchor.monthIdx);
+  } else if (mode === 'year' || mode === 'ytd') {
+    periodType = 'yearly';
+    periodNumber = 1;
+  } else if (mode === 'trailing12m' || mode === 'custom') {
+    const days =
+      (coverage.end.getTime() - coverage.start.getTime()) / 86_400_000 + 1;
+    if (days <= 31) {
+      periodType = 'monthly';
+      periodNumber = coverage.start.getMonth() + 1;
+    } else if (days <= 95) {
+      periodType = 'quarterly';
+      periodNumber = getQuarterForMonth(coverage.start.getMonth());
+    } else {
+      periodType = 'yearly';
+      periodNumber = 1;
+    }
+  }
+
+  return {
+    periodType,
+    fiscalYear: coverage.start.getFullYear(),
+    periodNumber,
+    startDate: toYMD(coverage.start),
+    endDate: toYMD(coverage.end),
+  };
 }
 
 /**

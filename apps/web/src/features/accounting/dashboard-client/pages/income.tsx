@@ -8,6 +8,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import {
+  useIncomeStatement,
+  useStatementLineDetails,
+  useStatementLineTransactions,
+} from '@/modules/accounting/reporting';
 import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useSession } from '@session';
 
@@ -18,14 +23,12 @@ import {
   formatCompareLabel,
   formatPeriodLabel,
   getStatementColumnLabels,
+  reportPeriodToApiPeriod,
 } from '../report-period';
 import { getIncomeStatementNomenclature } from '../statement-nomenclature';
 import {
-  buildStatementLines,
+  DERIVED_STATEMENT_LINE_IDS,
   findLineById,
-  getMockTransactionsForLine,
-  getNotesForPeriod,
-  PRIMARY_LINE_IDS,
   SECTION_LABELS,
 } from './income-statement-data';
 import { getLineVarianceIntent } from './income-statement-format';
@@ -36,16 +39,16 @@ import { KpiStrip } from './income/kpi-strip';
 import { NotesPanel } from './income/notes-panel';
 import { StatementRow } from './income/statement-row';
 import { StatementTable } from './income/statement-table';
+import { PanelEmptyState } from './shared/panel-empty-state';
+import { StatementTableSkeleton } from './shared/StatementTableSkeleton';
 
 import type { PeriodBounds } from '../period-utils';
 import type { ReportPeriod } from '../report-period';
 import type { StatementLine } from './income-statement-data';
 
-const DERIVED_STATEMENT_LINE_IDS = new Set([
+const INCOME_SECTION_END_LINE_IDS = new Set([
   'gross_profit',
   'operating_result',
-  'income_before_tax',
-  'net_income',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -74,21 +77,45 @@ export function DashboardIncomeTab({
     [reportingFramework],
   );
 
-  const [showFullStatement, setShowFullStatement] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(
+    null,
+  );
   const [railTab, setRailTab] = useState<'insights' | 'details' | 'notes'>(
     'insights',
   );
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
-  const statementLines = useMemo(() => buildStatementLines(labels), [labels]);
-  const visibleLines = useMemo(
+  const apiPeriod = useMemo(
+    () => reportPeriodToApiPeriod(period, asOf),
+    [period, asOf],
+  );
+
+  const {
+    data: incomeData,
+    isLoading: isStatementLoading,
+    isError: isStatementError,
+    error: statementError,
+  } = useIncomeStatement({
+    companyId: company?.id ?? '',
+    period: apiPeriod,
+    framework: reportingFramework === 'us_gaap' ? 'us_gaap' : ('ifrs' as const),
+  });
+
+  const statementLines = incomeData?.lines ?? [];
+  const visibleLines = useMemo(() => statementLines, [statementLines]);
+
+  const parentLines = useMemo(
+    () => statementLines.filter((line) => line.children?.length),
+    [statementLines],
+  );
+
+  const allExpanded = useMemo(
     () =>
-      showFullStatement
-        ? statementLines
-        : statementLines.filter((line) => PRIMARY_LINE_IDS.has(line.id)),
-    [showFullStatement, statementLines],
+      parentLines.length > 0 &&
+      parentLines.every((line) => expandedRows[line.id]),
+    [parentLines, expandedRows],
   );
 
   const visibleIds = useMemo(
@@ -107,6 +134,10 @@ export function DashboardIncomeTab({
       setSelectedLineId(null);
     }
   }, [selectedLineId, visibleIds]);
+
+  useEffect(() => {
+    setExpandedAccountId(null);
+  }, [selectedLineId]);
 
   const selected = useMemo(
     () =>
@@ -136,21 +167,74 @@ export function DashboardIncomeTab({
     [statementLines],
   );
 
+  const { data: lineDetailsData } = useStatementLineDetails({
+    companyId: company?.id ?? '',
+    statementType: 'income',
+    lineId: selectedLineId ?? '',
+    period: apiPeriod,
+  });
+
+  const coaAccounts = useMemo(() => {
+    if (!selectedLine) return [];
+    if (
+      selectedLine.children?.length ||
+      DERIVED_STATEMENT_LINE_IDS.has(selectedLine.id)
+    ) {
+      return [];
+    }
+    return lineDetailsData?.accounts ?? [];
+  }, [selectedLine, lineDetailsData?.accounts]);
+
   const detailAccounts = useMemo(() => {
     if (!selectedLine) return [];
+    if (coaAccounts.length > 0) return coaAccounts;
     if (selectedLine.children?.length) return selectedLine.children;
     if (selectedLineParent?.children?.length)
       return selectedLineParent.children;
     return [selectedLine];
-  }, [selectedLine, selectedLineParent]);
+  }, [selectedLine, selectedLineParent, coaAccounts]);
 
-  const detailTransactions = useMemo(
-    () => (selectedLine ? getMockTransactionsForLine(selectedLine) : []),
-    [selectedLine],
-  );
+  const isCoaBreakdownView =
+    !!selectedLine &&
+    !selectedLine.children?.length &&
+    !DERIVED_STATEMENT_LINE_IDS.has(selectedLine.id) &&
+    coaAccounts.length > 0;
+
+  const {
+    data: accountTxnsData,
+    hasNextPage: hasMoreTransactions,
+    fetchNextPage: loadMoreTransactions,
+    isFetchingNextPage: isLoadingMoreTransactions,
+  } = useStatementLineTransactions({
+    companyId: company?.id ?? '',
+    statementType: 'income',
+    lineId: selectedLineId ?? '',
+    accountId: expandedAccountId ?? '',
+    period: apiPeriod,
+  });
+
+  const detailTransactions = useMemo(() => {
+    if (!selectedLine || !isCoaBreakdownView || !expandedAccountId) return [];
+    const pages = accountTxnsData?.pages ?? [];
+    return pages.flatMap((page) => page.transactions);
+  }, [
+    selectedLine,
+    isCoaBreakdownView,
+    expandedAccountId,
+    accountTxnsData?.pages,
+  ]);
 
   // Notes
-  const notesMap = useMemo(() => getNotesForPeriod(period), [period]);
+  const notesMap = useMemo(() => {
+    const map = new Map<
+      string,
+      NonNullable<typeof incomeData>['notes'][number]
+    >();
+    for (const note of incomeData?.notes ?? []) {
+      map.set(note.lineId, note);
+    }
+    return map;
+  }, [incomeData?.notes]);
   const selectedNote = selectedLineId
     ? (notesMap.get(selectedLineId) ?? null)
     : null;
@@ -172,12 +256,28 @@ export function DashboardIncomeTab({
     [isDesktop],
   );
 
+  const handleToggleAccountExpand = useCallback((accountId: string | null) => {
+    setExpandedAccountId(accountId);
+  }, []);
+
   const handleToggleExpand = useCallback((lineId: string) => {
     setExpandedRows((current) => ({
       ...current,
       [lineId]: !current[lineId],
     }));
   }, []);
+
+  const handleToggleExpandAll = useCallback(() => {
+    if (allExpanded) {
+      setExpandedRows({});
+      return;
+    }
+    const next: Record<string, boolean> = {};
+    for (const line of parentLines) {
+      next[line.id] = true;
+    }
+    setExpandedRows(next);
+  }, [allExpanded, parentLines]);
 
   // Row renderer (thin wrapper around StatementRow)
   const renderRow = (line: StatementLine, depth = 0) => (
@@ -245,9 +345,9 @@ export function DashboardIncomeTab({
                 variant="ghost"
                 size="sm"
                 className="text-xs"
-                onClick={() => setShowFullStatement((current) => !current)}
+                onClick={handleToggleExpandAll}
               >
-                {showFullStatement ? 'Key lines' : 'All lines'}
+                {allExpanded ? 'Collapse all' : 'Expand all'}
               </Button>
             </div>
           </div>
@@ -263,16 +363,36 @@ export function DashboardIncomeTab({
               }
             }}
           >
-            <StatementTable
-              visibleLines={visibleLines}
-              sectionLabels={SECTION_LABELS}
-              renderRow={renderRow}
-              showCompare={showCompare}
-              currentColumnLabel={statementColumnLabels.currentLabel}
-              compareColumnLabel={statementColumnLabels.compareLabel}
-              ariaLabel={labels.statementTitle}
-              isMobile={isMobile}
-            />
+            {isStatementLoading ? (
+              <StatementTableSkeleton
+                showCompare={showCompare}
+                isMobile={isMobile}
+                showTrailingPercentColumn={true}
+              />
+            ) : isStatementError ? (
+              <PanelEmptyState
+                message={
+                  statementError instanceof Error
+                    ? statementError.message
+                    : 'Unable to load statement. Please try again.'
+                }
+              />
+            ) : visibleLines.length === 0 ? (
+              <PanelEmptyState message="No data for this period." />
+            ) : (
+              <StatementTable
+                visibleLines={visibleLines}
+                sectionLabels={SECTION_LABELS}
+                renderRow={renderRow}
+                showCompare={showCompare}
+                currentColumnLabel={statementColumnLabels.currentLabel}
+                compareColumnLabel={statementColumnLabels.compareLabel}
+                ariaLabel={labels.statementTitle}
+                isMobile={isMobile}
+                sectionEndLineIds={INCOME_SECTION_END_LINE_IDS}
+                showTrailingPercentColumn={true}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -322,6 +442,12 @@ export function DashboardIncomeTab({
                 }
                 detailAccounts={detailAccounts}
                 detailTransactions={detailTransactions}
+                isCoaBreakdownView={isCoaBreakdownView}
+                expandedAccountId={expandedAccountId}
+                onToggleAccountExpand={handleToggleAccountExpand}
+                hasMoreTransactions={hasMoreTransactions}
+                onLoadMoreTransactions={loadMoreTransactions}
+                isLoadingMoreTransactions={isLoadingMoreTransactions}
                 currencyCode={currencyCode}
                 canOpenLedgerExplorer={canOpenLedgerExplorer}
                 derivedLineIds={DERIVED_STATEMENT_LINE_IDS}
@@ -387,6 +513,9 @@ export function DashboardIncomeTab({
                 }
                 detailAccounts={detailAccounts}
                 detailTransactions={detailTransactions}
+                isCoaBreakdownView={isCoaBreakdownView}
+                expandedAccountId={expandedAccountId}
+                onToggleAccountExpand={handleToggleAccountExpand}
                 currencyCode={currencyCode}
                 canOpenLedgerExplorer={canOpenLedgerExplorer}
                 derivedLineIds={DERIVED_STATEMENT_LINE_IDS}

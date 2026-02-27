@@ -39,3 +39,23 @@ export type LabelRole = z.infer<typeof labelRole>;
 
 export const debitCredit = z.enum(['debit', 'credit']);
 export type DebitCredit = z.infer<typeof debitCredit>;
+
+// ---------------------------------------------------------------------------
+// Financial statement enums
+// ---------------------------------------------------------------------------
+
+export const reconciliationStatus = z.enum([
+  'reconciled',
+  'pending',
+  'unreconciled',
+]);
+export type ReconciliationStatus = z.infer<typeof reconciliationStatus>;
+
+export const statementNoteSource = z.enum(['ai', 'human', 'ai_edited']);
+export type StatementNoteSource = z.infer<typeof statementNoteSource>;
+
+export const detailTransactionSource = z.enum(['bank', 'journal']);
+export type DetailTransactionSource = z.infer<typeof detailTransactionSource>;
+
+export const auditActorType = z.enum(['user', 'system']);
+export type AuditActorType = z.infer<typeof auditActorType>;

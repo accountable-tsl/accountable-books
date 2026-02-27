@@ -23,6 +23,10 @@ type StatementTableProps = {
   compareColumnLabel?: string;
   ariaLabel: string;
   isMobile: boolean;
+  /** When provided, use for section-end spacing (e.g. mb-4). Else fallback to income defaults. */
+  sectionEndLineIds?: Set<string>;
+  /** When false and !showCompare, do not render the trailing "% Rev" column. Default true. */
+  showTrailingPercentColumn?: boolean;
 };
 
 export function StatementTable({
@@ -34,6 +38,8 @@ export function StatementTable({
   compareColumnLabel,
   ariaLabel,
   isMobile,
+  sectionEndLineIds,
+  showTrailingPercentColumn = true,
 }: StatementTableProps) {
   return (
     <div
@@ -100,7 +106,7 @@ export function StatementTable({
               Variance
             </span>
           )}
-          {!isMobile && (
+          {!isMobile && (showCompare || showTrailingPercentColumn) && (
             <span
               className={cn(
                 STATEMENT_TABLE_WIDTHS.changeDesktop,
@@ -114,8 +120,9 @@ export function StatementTable({
         </div>
 
         {visibleLines.map((line) => {
-          const isSectionEnd =
-            line.id === 'gross_profit' || line.id === 'operating_result';
+          const isSectionEnd = sectionEndLineIds
+            ? sectionEndLineIds.has(line.id)
+            : line.id === 'gross_profit' || line.id === 'operating_result';
           return (
             <div
               key={line.id}

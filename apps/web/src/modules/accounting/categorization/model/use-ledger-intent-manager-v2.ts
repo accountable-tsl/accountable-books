@@ -30,6 +30,7 @@ import {
   useRef,
 } from 'react';
 import { useSession } from '@/app/session';
+import { invalidateReporting } from '@/modules/accounting/reporting';
 import { toYMD } from '@/shared/utils/date-utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -516,7 +517,7 @@ function updateQueryCacheWithTransaction(
     return value.every((v) => typeof v === 'string' && allowed.has(v));
   };
 
-  const extractFilters = (queryKey: unknown[]) => {
+  const extractFilters = (queryKey: readonly unknown[]) => {
     let statusFilter: string[] | undefined;
     let bankAccountIds: string[] | undefined;
 
@@ -533,7 +534,7 @@ function updateQueryCacheWithTransaction(
     return { statusFilter, bankAccountIds };
   };
 
-  const shouldKeepTransaction = (queryKey: unknown[]) => {
+  const shouldKeepTransaction = (queryKey: readonly unknown[]) => {
     const { statusFilter, bankAccountIds } = extractFilters(queryKey);
 
     if (statusFilter && !statusFilter.includes(persistedTransaction.status)) {
@@ -1014,6 +1015,7 @@ export function useLedgerIntentManagerV2() {
               queryKey: ['categorization-stats', companyId],
               exact: false,
             });
+            invalidateReporting(queryClient, companyId);
 
             transactionsRef.current.set(
               bankTransactionId,

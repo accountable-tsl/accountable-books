@@ -134,6 +134,10 @@ function AppRoutes() {
             element={<Dashboard />}
           />
           <Route
+            path={routes.general.dashboardTab.relativePath}
+            element={<Dashboard />}
+          />
+          <Route
             path={routes.general.home.relativePath}
             element={<Dashboard />}
           />

@@ -6,6 +6,7 @@ import type {
   PeriodStatusResponse,
 } from '@accountable-books/contracts/schema';
 import type { QueryClient } from '@tanstack/react-query';
+import { invalidateReporting } from '@/modules/accounting/reporting';
 import {
   useInfiniteQuery,
   useMutation,
@@ -318,6 +319,7 @@ export function useCreateJournal() {
     mutationFn: (input: CreateJournalInput) => createJournal(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -332,6 +334,7 @@ export function useUpdateJournal() {
     mutationFn: (input: UpdateJournalInput) => updateJournal(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -346,6 +349,7 @@ export function usePostJournal() {
     mutationFn: (input: PostJournalInput) => postJournal(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -360,6 +364,7 @@ export function useVoidJournal() {
     mutationFn: (input: VoidJournalInput) => voidJournal(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -374,6 +379,7 @@ export function useReverseJournal() {
     mutationFn: (input: ReverseJournalInput) => reverseJournal(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -388,6 +394,7 @@ export function useCopyJournal() {
     mutationFn: (input: CopyJournalInput) => copyJournal(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -402,6 +409,7 @@ export function usePostJournalsBatch() {
     mutationFn: (input: BatchPostJournalsInput) => postJournalsBatch(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }
@@ -416,6 +424,7 @@ export function useVoidJournalsBatch() {
     mutationFn: (input: BatchVoidJournalsInput) => voidJournalsBatch(input),
     onSuccess: (_, variables) => {
       invalidateJournals(queryClient, variables.companyId);
+      invalidateReporting(queryClient, variables.companyId);
     },
   });
 }

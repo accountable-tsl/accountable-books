@@ -1,6 +1,8 @@
+import type {
+  DebitCredit,
+  DetailTransaction,
+} from '@accountable-books/contracts/schema';
 import { formatAmount } from '@/shared/utils/formatting-utils';
-
-import type { DetailTransaction } from './statement-types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -107,6 +109,11 @@ export function formatCompactLineLabel(label: string) {
 
 export function formatSourceLabel(source: DetailTransaction['source']) {
   return source === 'bank' ? 'Bank' : 'Journal';
+}
+
+/** Display label for debit/credit (contract uses 'debit'|'credit', UI shows 'Dr'|'Cr'). */
+export function formatDrCrDisplay(drCr: DebitCredit): 'Dr' | 'Cr' {
+  return drCr === 'debit' ? 'Dr' : 'Cr';
 }
 
 export function formatDetailAmount(value: number, currency: string) {

@@ -1,17 +1,22 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRegisterAiDomain } from '@/modules/ai';
 import { useSession } from '@session';
+import { useNavigate, useParams } from 'react-router';
 
 import { dashboardReportingAiRegistration } from './ai/registration';
 import { PeriodSelector } from './components/period-selector';
 import { DASHBOARD_TABS, TAB_PAGE_HEADERS } from './constants';
+import { DashboardBalanceTab } from './pages/balance';
 import { DashboardIncomeTab } from './pages/income';
 import { DashboardOverviewTab } from './pages/overview';
 import { getDefaultBounds, getDefaultPeriod } from './period-utils';
 import { getDefaultReportPeriod } from './report-period';
-import { getIncomeStatementNomenclature } from './statement-nomenclature';
+import {
+  getBalanceSheetNomenclature,
+  getIncomeStatementNomenclature,
+} from './statement-nomenclature';
 
 function getTemporalGreeting(firstName: string): string {
   const hour = new Date().getHours();
@@ -21,17 +26,32 @@ function getTemporalGreeting(firstName: string): string {
   return `Welcome back, ${firstName}.`;
 }
 
+type DashboardTabId = (typeof DASHBOARD_TABS)[number]['id'];
+
+const DASHBOARD_TAB_IDS = new Set<DashboardTabId>(
+  DASHBOARD_TABS.map((tab) => tab.id),
+);
+
+function isDashboardTabId(value: string | undefined): value is DashboardTabId {
+  return value !== undefined && DASHBOARD_TAB_IDS.has(value as DashboardTabId);
+}
+
+function buildDashboardTabPath(companyId: string, tab: DashboardTabId): string {
+  return `/${encodeURIComponent(companyId)}/dashboard/${encodeURIComponent(tab)}`;
+}
+
 export function DashboardClientPage() {
   useRegisterAiDomain(useMemo(() => dashboardReportingAiRegistration(), []));
 
+  const navigate = useNavigate();
+  const { companyId, tab } = useParams<{ companyId: string; tab?: string }>();
   const { user, company } = useSession();
   const periodBounds = useMemo(() => getDefaultBounds(), []);
   const [period, setPeriod] = useState(() => getDefaultPeriod(periodBounds));
   const [reportPeriod, setReportPeriod] = useState(() =>
     getDefaultReportPeriod(periodBounds),
   );
-  const [activeTab, setActiveTab] =
-    useState<(typeof DASHBOARD_TABS)[number]['id']>('overview');
+  const activeTab: DashboardTabId = isDashboardTabId(tab) ? tab : 'overview';
 
   // Greeting shows once on Overview until the user switches tabs
   const hasNavigatedRef = useRef(false);
@@ -44,26 +64,47 @@ export function DashboardClientPage() {
     !hasNavigatedRef.current &&
     !!greetingRef.current;
 
+  useEffect(() => {
+    if (!companyId) return;
+    if (isDashboardTabId(tab)) return;
+    navigate(buildDashboardTabPath(companyId, 'overview'), { replace: true });
+  }, [companyId, tab, navigate]);
+
+  useEffect(() => {
+    if (activeTab !== 'overview') {
+      hasNavigatedRef.current = true;
+    }
+  }, [activeTab]);
+
   const handleTabChange = (value: string) => {
+    if (!companyId) return;
+    if (!isDashboardTabId(value)) return;
     hasNavigatedRef.current = true;
-    setActiveTab(value as (typeof DASHBOARD_TABS)[number]['id']);
+    navigate(buildDashboardTabPath(companyId, value));
   };
 
   const header = TAB_PAGE_HEADERS[activeTab];
   const companyPnlLabel = (
     company as { reportingPnlLabel?: string } | undefined
   )?.reportingPnlLabel;
+  const companyBsLabel = (company as { reportingBsLabel?: string } | undefined)
+    ?.reportingBsLabel;
   const reportingFramework = (
     company as { reportingFramework?: string | null } | undefined
   )?.reportingFramework;
   const incomeNomenclature = getIncomeStatementNomenclature(reportingFramework);
+  const balanceNomenclature = getBalanceSheetNomenclature(reportingFramework);
   const title = showGreeting
     ? greetingRef.current!
     : activeTab === 'income' && companyPnlLabel
       ? companyPnlLabel
       : activeTab === 'income'
         ? incomeNomenclature.statementTitle
-        : header.title;
+        : activeTab === 'balance' && companyBsLabel
+          ? companyBsLabel
+          : activeTab === 'balance'
+            ? balanceNomenclature.statementTitle
+            : header.title;
 
   return (
     <div className="bg-muted dark:bg-background flex h-full min-h-0 w-full">
@@ -133,6 +174,13 @@ export function DashboardClientPage() {
             >
               {tab.id === 'income' && (
                 <DashboardIncomeTab
+                  period={reportPeriod}
+                  bounds={periodBounds}
+                  onPeriodChange={setReportPeriod}
+                />
+              )}
+              {tab.id === 'balance' && (
+                <DashboardBalanceTab
                   period={reportPeriod}
                   bounds={periodBounds}
                   onPeriodChange={setReportPeriod}
