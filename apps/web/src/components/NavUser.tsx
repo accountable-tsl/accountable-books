@@ -14,6 +14,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { canViewWorkspaceBilling } from '@/features/settings/lib/billing-visibility';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
 import {
   BellIcon,
@@ -22,6 +24,7 @@ import {
   MoreVerticalIcon,
   UserCircleIcon,
 } from 'lucide-react';
+import { Link } from 'react-router';
 
 export function NavUser({
   user,
@@ -32,11 +35,25 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const { logout } = useSession();
+  const {
+    logout,
+    companyId,
+    company,
+    companyType,
+    user: sessionUser,
+  } = useSession();
   const { isMobile } = useSidebar();
   const nameParts = user.name.split(' ');
   const initials =
     nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
+  const showWorkspaceBilling =
+    !!companyId &&
+    canViewWorkspaceBilling({
+      companyType,
+      currentCompany: sessionUser?.currentCompany,
+      company,
+      isPlatformUser: sessionUser?.isPlatformUser,
+    });
 
   return (
     <SidebarMenu>
@@ -90,10 +107,18 @@ export function NavUser({
                 <UserCircleIcon />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
+              {showWorkspaceBilling ? (
+                <DropdownMenuItem asChild>
+                  <Link
+                    to={routes.general.settings.billing.build({
+                      companyId: companyId!,
+                    })}
+                  >
+                    <CreditCardIcon />
+                    Billing
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem>
                 <BellIcon />
                 Notifications

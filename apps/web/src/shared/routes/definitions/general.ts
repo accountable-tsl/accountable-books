@@ -4,6 +4,7 @@ export const generalRoutes = {
   welcome: route('/welcome', { label: 'Welcome' }),
   settings: {
     hub: route('/settings', { label: 'Settings' }),
+    billing: route('/settings/billing', { label: 'Billing' }),
     company: route('/settings/company', { label: 'Company Settings' }),
     financial: route('/settings/financial', { label: 'Financial Settings' }),
     team: route('/settings/team', { label: 'Team' }),

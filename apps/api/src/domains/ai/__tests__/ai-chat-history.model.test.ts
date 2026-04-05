@@ -1,8 +1,13 @@
 import type { Knex } from 'knex';
-import { v4 as uuidv4 } from 'uuid';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDb } from '../../../../config/test-db.js';
+import {
+  getTestCompanyId,
+  getTestUserId,
+  NG_USER_EMAIL,
+  US_USER_EMAIL,
+} from '../../../../test/helpers.js';
 import {
   createChatThread,
   getChatThreadMessages,
@@ -13,10 +18,18 @@ import {
 
 describe('AI Chat History - Integration', () => {
   let trx: Knex.Transaction;
+  let companyId: string;
+  let companyB: string;
+  let userId: string;
 
   beforeEach(async () => {
     const db = getTestDb();
     trx = await db.transaction();
+
+    // Use existing demo data
+    companyId = await getTestCompanyId(trx, 'bizDemoUS');
+    companyB = await getTestCompanyId(trx, 'firmDemoNG');
+    userId = await getTestUserId(trx, US_USER_EMAIL);
   });
 
   afterEach(async () => {
@@ -24,9 +37,6 @@ describe('AI Chat History - Integration', () => {
   });
 
   it('crud lifecycle for threads and messages', async () => {
-    const companyId = uuidv4();
-    const userId = uuidv4();
-
     // 1. Create a thread
     const thread = await createChatThread(
       {
@@ -101,13 +111,9 @@ describe('AI Chat History - Integration', () => {
   });
 
   it('cross-tenant thread isolation', async () => {
-    const companyA = uuidv4();
-    const companyB = uuidv4();
-    const userId = uuidv4();
-
     await createChatThread(
       {
-        companyId: companyA,
+        companyId,
         userId,
         title: 'A Thread',
       },
@@ -124,7 +130,7 @@ describe('AI Chat History - Integration', () => {
 
     const threadsA = await getChatThreads(
       {
-        companyId: companyA,
+        companyId,
         userId,
         limit: 10,
       },

@@ -24,6 +24,7 @@ import { ConnectBank } from '@/features/connect-bank';
 import { PlaidOAuthCallback } from '@/features/connect-bank/ui/plaid-oauth-callback';
 import { JournalsListPage } from '@/features/manage-journals';
 import { SettingsLayout } from '@/features/settings/layouts/settings-layout';
+import { SettingsBillingPage } from '@/features/settings/pages/settings-billing-page';
 import { SettingsCompanyPage } from '@/features/settings/pages/settings-company-page';
 import { SettingsFinancialPage } from '@/features/settings/pages/settings-financial-page';
 import { SettingsHubPage } from '@/features/settings/pages/settings-hub-page';
@@ -162,6 +163,7 @@ function AppRoutes() {
             element={<SettingsLayout />}
           >
             <Route index element={<SettingsHubPage />} />
+            <Route path="billing" element={<SettingsBillingPage />} />
             <Route path="company" element={<SettingsCompanyPage />} />
             <Route path="financial" element={<SettingsFinancialPage />} />
             <Route path="team" element={<SettingsTeamPage />} />
