@@ -1,6 +1,10 @@
 import type { Knex } from 'knex';
+import {
+  getDefaultTimezoneForCountry,
+  normalizeTimezoneId,
+} from '@accountable-books/utils/timezone';
 
-import { countryToTimezone } from '../../core/timezones/countryTimezones.js';
+import { NODE_ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import {
   type AuthUserContext,
@@ -36,7 +40,10 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { updateFirm } from '../accountingFirms/firms.model.js';
-import { getCountry } from '../countries/countries.utils.js';
+import {
+  getCountryFromCode,
+  getCountryFromId,
+} from '../countries/countries.utils.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
 import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 import { initializeCompanySettings } from '../settings/settings.service.js';
@@ -179,19 +186,27 @@ export const createCompany = async (
     reporting_currency_code,
     country_code,
     country_id,
+    default_timezone,
     ...rest
   } = validateInput.data;
 
-  const countryId = country_id
-    ? country_id
-    : country_code && (await getCountry(country_code)).id;
+  const resolvedCountry = country_code
+    ? await getCountryFromCode(country_code)
+    : country_id
+      ? await getCountryFromId(country_id)
+      : undefined;
+
+  const countryId = country_id ?? resolvedCountry?.id;
+  const countryCode = country_code ?? resolvedCountry?.code;
 
   const reportingCurrencyId = reporting_currency_id
     ? reporting_currency_id
     : reporting_currency_code &&
       (await getCurrency(reporting_currency_code)).id;
 
-  const timezone = country_code ? countryToTimezone[country_code] : undefined;
+  const timezone =
+    normalizeTimezoneId(default_timezone) ??
+    getDefaultTimezoneForCountry(countryCode);
   // Sanitize company names (trim and basic cleaning)
   const sanitizedData = {
     ...rest,
@@ -438,7 +453,7 @@ export const createCompany = async (
 
     return errorResponse(
       'Unable to create company',
-      process.env.NODE_ENV === 'production' ? undefined : error,
+      NODE_ENV === 'production' ? undefined : error,
     );
   }
 };

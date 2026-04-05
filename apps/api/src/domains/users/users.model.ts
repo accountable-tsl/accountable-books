@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import dayjs from 'dayjs';
 
+import { NODE_ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import { newUserDirect } from '../../domains/users/users.types.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
@@ -199,7 +200,7 @@ export async function createUserDirect(
 
     return errorResponse(
       "We couldn't create your account. Please try again.",
-      process.env.NODE_ENV === 'production' ? undefined : error,
+      NODE_ENV === 'production' ? undefined : error,
     );
   }
 }

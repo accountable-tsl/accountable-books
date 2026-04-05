@@ -1,0 +1,1 @@
+export { FirmDashboardPage } from './page';

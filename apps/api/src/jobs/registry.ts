@@ -18,6 +18,8 @@ import { recurringTemplatesQueue } from '../domains/journals/recurring-templates
 import { startRecurringTemplatesWorker } from '../domains/journals/recurring-templates.worker.js';
 import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { startFiscalCalendarWorker } from '../domains/reporting/fiscal-calendar/index.js';
+import { taskEvaluationQueue } from '../domains/tasks/task-evaluation.queue.js';
+import { startTaskEvaluationWorker } from '../domains/tasks/task-evaluation.worker.js';
 import { emailQueue } from '../features/communications/email/email.queue.js';
 import { startEmailWorker } from '../features/communications/email/index.js';
 import { startTransactionSyncWorker } from '../integrations/banking/index.js';
@@ -163,6 +165,16 @@ export const JOB_REGISTRY: JobDefinition[] = [
     config: {
       envVar: 'RECURRING_TEMPLATES_CONCURRENCY',
       defaultValue: 1,
+    },
+  },
+  {
+    name: 'taskEvaluation',
+    queue: taskEvaluationQueue,
+    factory: (concurrency) => startTaskEvaluationWorker(concurrency),
+    label: 'Task evaluation worker',
+    config: {
+      envVar: 'TASK_EVALUATION_CONCURRENCY',
+      defaultValue: 3,
     },
   },
 ];

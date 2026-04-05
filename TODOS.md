@@ -19,6 +19,7 @@
 - [ ] Default to modified cash basis on company creation. Also add default settings
 - [ ] Consider removing input_checksum
 - [ ] Make sure generate pydantic in contracts cleans up the /py folder first before generating new stuff
+- [ ] Rate limiting
 - [ ] Contact Type in Add new contact dialog
 - [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
 
@@ -77,6 +78,12 @@
 - [ ] Storage cleanup plan: delete orphaned uploaded blobs not referenced in DB after X hours/days (journals/ledger/bank). Consider also an on-discard cleanup endpoint for better UX.
 - [ ] Tenant-scoped file dedupe: store checksum/hash, reuse same blob key for identical content within a company, and maintain many-to-many attachments.
 - [ ] Once we're ready for lang and doc work, consider Google's oss langextract
+
+### Firm clients — invite wizard & acquisition channels
+
+- [ ] **Bulk add:** CSV import of clients — validate rows against the same invite/company rules (or a batch DTO derived from contracts), return per-row errors; design `POST …/invite` for single vs batch up front.
+- [ ] **AI chat (v1):** add **one** client via firm chat — produce the same payload shape as manual invite (`FirmClientInviteRequest`), e.g. structured extraction + confirm or wizard handoff with prefilled fields.
+- [ ] Share one validation/parsing path for UI, CSV, and chat so nothing drifts from `firmClientInviteRequestSchema`.
 
 ---
 

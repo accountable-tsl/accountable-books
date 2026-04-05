@@ -1,8 +1,10 @@
+import type { StatementInsight } from '@/modules/company/client-dashboard';
 import { useEffect, useMemo, useState } from 'react';
 import { AiAssistButton } from '@/components/ai/ai-assist-button';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { aiRuntimeStore } from '@/modules/ai';
+import { buildBalanceSheetInsightSlides } from '@/modules/company/client-dashboard';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { ChevronLeft, ChevronRight, RefreshCcw, X } from 'lucide-react';
 
@@ -11,13 +13,6 @@ import { buildBalanceInsightsCharts } from './insights-mapper';
 
 import type { ReportPeriod } from '../../report-period';
 import type { StatementLine } from '../shared/statement-types';
-
-type Insight = {
-  id: string;
-  headline: string;
-  evidence: string;
-  aiPrompt: string;
-};
 
 type InsightMeta = {
   generatedAtMs: number;
@@ -41,39 +36,6 @@ function formatUpdatedAt(ms: number) {
   } catch {
     return null;
   }
-}
-
-function getMockBalanceInsights(periodLabel: string): Insight[] {
-  return [
-    {
-      id: 'liquidity',
-      headline: 'Current ratio stable at 1.3x',
-      evidence:
-        'Current assets and current liabilities both grew in line. Bank and trade receivables remain the largest current asset components.',
-      aiPrompt: `Explain the current ratio and liquidity position in ${periodLabel}. Show current assets and liabilities breakdown with supporting accounts.`,
-    },
-    {
-      id: 'asset_mix',
-      headline: 'Non-current assets up 4.2% vs prior period',
-      evidence:
-        'PPE and intangibles increased; no new major capex. Depreciation and amortization in line with prior run rate.',
-      aiPrompt: `Explain the change in non-current assets in ${periodLabel}. Break down PPE, intangibles, and other long-term assets with evidence.`,
-    },
-    {
-      id: 'leverage',
-      headline: 'Debt-to-equity within target range',
-      evidence:
-        'Total liabilities and equity moved in line with prior period. Long-term debt flat; short-term facilities used for working capital.',
-      aiPrompt: `Explain leverage and the liabilities vs equity mix in ${periodLabel}. Show debt and equity components and any notable changes.`,
-    },
-    {
-      id: 'working_capital',
-      headline: 'Working capital positive and stable',
-      evidence:
-        'Current assets exceed current liabilities. Trade receivables and payables both increased; inventory stable.',
-      aiPrompt: `Explain working capital in ${periodLabel}. Show the main drivers—receivables, payables, inventory—and how they changed.`,
-    },
-  ];
 }
 
 function ProgressPip({ active }: { active: boolean }) {
@@ -106,8 +68,8 @@ export function InsightsPanel({
   const [index, setIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const baseInsights = useMemo(
-    () => getMockBalanceInsights(periodLabel),
+  const baseInsights = useMemo<StatementInsight[]>(
+    () => buildBalanceSheetInsightSlides(periodLabel),
     [periodLabel],
   );
 

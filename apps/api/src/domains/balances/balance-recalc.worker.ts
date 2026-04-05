@@ -3,6 +3,7 @@ import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import pino from 'pino';
 
+import { ENV } from '../../config/env.js';
 import { redis } from '../../lib/redis.js';
 import {
   bankBalanceJobDataSchema,
@@ -29,7 +30,7 @@ const logger = pino();
 // Optimized worker settings for balance recalculation
 const BALANCE_RECALC_WORKER_OPTIONS = {
   connection: redis,
-  concurrency: Number(process.env.BALANCE_RECALC_CONCURRENCY) || 5, // Process 5 balance recalcs simultaneously
+  concurrency: Number(ENV.BALANCE_RECALC_CONCURRENCY) || 5, // Process 5 balance recalcs simultaneously
   drainDelay: 300, // Wait 5 seconds when queue is empty
   stalledInterval: 60000, // Check stalled jobs every minute
   maxStalledCount: 2, // Allow 2 retries for stalled jobs

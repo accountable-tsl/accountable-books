@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 
+import { ENV } from '../../../config/env.js';
 import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
 import { RULE_RUNNER_QUEUE_NAME } from './rule-runner.queue.js';
@@ -8,7 +9,7 @@ import { runRulesForEnrichedTransaction } from './rule-runner.service.js';
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 
 export function startRuleRunnerWorker(
-  concurrency = Number(process.env.RULE_RUNNER_CONCURRENCY ?? 5),
+  concurrency = Number(ENV.RULE_RUNNER_CONCURRENCY ?? 5),
 ): Worker<TransactionEnrichedEventData> {
   const worker = new Worker<TransactionEnrichedEventData>(
     RULE_RUNNER_QUEUE_NAME,

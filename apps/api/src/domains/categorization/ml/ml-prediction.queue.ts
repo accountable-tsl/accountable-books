@@ -1,6 +1,7 @@
 import type { JobsOptions } from 'bullmq';
 import { Queue } from 'bullmq';
 
+import { ENV } from '../../../config/env.js';
 import {
   executeQueueOperation,
   QueueName,
@@ -12,10 +13,10 @@ import type { MLPredictionJobData } from './ml-prediction.types.js';
 export const ML_PREDICTION_QUEUE_NAME = 'ml-prediction';
 
 const defaultJobOptions: JobsOptions = {
-  attempts: Number(process.env.ML_PREDICTION_ATTEMPTS ?? 3),
+  attempts: Number(ENV.ML_PREDICTION_ATTEMPTS ?? 3),
   backoff: {
     type: 'exponential',
-    delay: Number(process.env.ML_PREDICTION_BACKOFF_MS ?? 5000),
+    delay: Number(ENV.ML_PREDICTION_BACKOFF_MS ?? 5000),
   },
   removeOnComplete: { age: 86400, count: 500 }, // keep for 24h
   removeOnFail: { age: 172800, count: 500 }, // keep for 48h

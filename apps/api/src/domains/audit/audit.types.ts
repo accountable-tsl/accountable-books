@@ -8,6 +8,7 @@ export const auditEventEntityType = z.enum([
   'bank_transaction',
   'journal',
   'ai',
+  'task_evaluation',
 ]);
 export type AuditEventEntityType = z.infer<typeof auditEventEntityType>;
 

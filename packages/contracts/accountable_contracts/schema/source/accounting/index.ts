@@ -1,4 +1,7 @@
 export * from './account-type.js';
+export * from './firm-client-invite.js';
+export * from './firm-client-roster.js';
+export * from './firm-task-queue.js';
 export * from './fiscal-period.js';
 export * from './financial-statements.js';
 export * from './ledger-audit.js';

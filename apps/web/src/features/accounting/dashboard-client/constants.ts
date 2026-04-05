@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 
 export const DASHBOARD_TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'income', label: 'Income Statement' },
-  { id: 'balance', label: 'Balance Sheet' },
-  { id: 'cash', label: 'Cash Management' },
+  { id: 'overview', label: 'Overview', shortLabel: 'Overview' },
+  { id: 'income', label: 'Income Statement', shortLabel: 'P&L' },
+  { id: 'balance', label: 'Balance Sheet', shortLabel: 'Balance' },
+  { id: 'cash', label: 'Cash Management', shortLabel: 'Cash' },
 ] as const;
 
 /** Page title and subtitle per tab. For income, title may be overridden by company preference (e.g. "Profit & Loss"). */
@@ -52,22 +52,35 @@ export const MONTHS = [
 ] as const;
 
 export const READINESS_KEYS = [
-  { label: 'Done', icon: CheckCircle2, className: 'text-green-500' },
+  {
+    label: 'Done',
+    icon: CheckCircle2,
+    className: 'text-green-500',
+    mobileDisplay: true,
+  },
   {
     label: 'In Progress',
     icon: ClockFading,
     className: 'text-muted-foreground',
+    mobileDisplay: true,
   },
   {
     label: 'Client action required',
     icon: Info,
     className: 'text-destructive',
+    mobileDisplay: true,
   },
-  { label: 'Not due', icon: Minus, className: 'text-muted-foreground' },
+  {
+    label: 'Not due',
+    icon: Minus,
+    className: 'text-muted-foreground',
+    mobileDisplay: false,
+  },
   {
     label: 'N/A',
     icon: CircleMinus,
     className: 'text-muted-foreground fill-muted-foreground/10',
+    mobileDisplay: false,
   },
 ] as const;
 

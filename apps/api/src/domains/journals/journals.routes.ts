@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 import { getPeriodStatusController } from '../reporting/fiscal-calendar/period-status.controller.js';
 import {
   copyJournalController,
@@ -19,6 +20,8 @@ import {
 import recurringTemplatesRoutes from './recurring-templates.routes.js';
 
 const router = express.Router({ mergeParams: true });
+
+router.use(checkCompanyId);
 
 router.use('/templates', recurringTemplatesRoutes);
 router.post('/query', getJournalsByPageController);

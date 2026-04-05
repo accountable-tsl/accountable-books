@@ -16,6 +16,11 @@ import {
 import { createTenantRoutes, isPublicRoute, routes } from '@/shared/routes';
 import { useLocation, useNavigate } from 'react-router';
 
+import {
+  clearLastAccessedCompanyId,
+  setLastAccessedCompanyId,
+} from './last-accessed-company';
+
 const defaultContext = {
   loading: true,
   isLoggedIn: false,
@@ -100,6 +105,25 @@ export const SessionProvider = ({
       setAuth(authData.user, authData.csrfToken);
     }
   }, [authData, user, setAuth]);
+
+  useEffect(() => {
+    if (!user?.currentCompanyId) {
+      clearLastAccessedCompanyId();
+      return;
+    }
+
+    const hasAccessToCurrent = user.companies.some(
+      (company) => company.id === user.currentCompanyId,
+    );
+
+    if (!hasAccessToCurrent) {
+      clearLastAccessedCompanyId();
+      return;
+    }
+
+    // UX cache only; server session remains source of truth.
+    setLastAccessedCompanyId(user.currentCompanyId);
+  }, [user?.companies, user?.currentCompanyId]);
 
   const isLoggedIn = !!user;
   const companyId = user?.currentCompanyId;

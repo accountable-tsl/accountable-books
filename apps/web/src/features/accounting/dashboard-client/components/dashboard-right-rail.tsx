@@ -1,15 +1,16 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useClientDashboardOverview } from '@/modules/company/client-dashboard';
 
 import { ACTION_CENTER_ID, CARD_HEADER_CLASS } from '../constants';
-import {
-  MOCK_ACTION_CENTER_TASKS,
-  MOCK_COMPLIANCE_ALERTS,
-  MOCK_HAS_CONNECTED_BANK,
-  MOCK_QUICK_ACTIONS,
-} from '../mock-data';
 
 export function DashboardRightRail() {
+  const { data: overview } = useClientDashboardOverview();
+  const hasConnectedBank = overview?.hasConnectedBank ?? false;
+  const actionTasks = overview?.actionCenterTasks ?? [];
+  const complianceAlerts = overview?.complianceAlerts ?? [];
+  const quickActions = overview?.quickActions ?? [];
+
   return (
     <div
       id={ACTION_CENTER_ID}
@@ -22,14 +23,14 @@ export function DashboardRightRail() {
           </p>
         </div>
         <div className="flex flex-col">
-          {!MOCK_HAS_CONNECTED_BANK || MOCK_ACTION_CENTER_TASKS.length === 0 ? (
+          {!hasConnectedBank || actionTasks.length === 0 ? (
             <div className="p-4 md:px-5">
               <p className="text-muted-foreground text-sm">
                 No actions needed from you right now.
               </p>
             </div>
           ) : (
-            MOCK_ACTION_CENTER_TASKS.map((task) => (
+            actionTasks.map((task) => (
               <div
                 key={task.id}
                 className="border-border/50 hover:bg-muted/30 group flex min-w-0 flex-col gap-3 border-b p-4 text-sm transition-colors last:border-0 sm:flex-row sm:items-center sm:justify-between md:px-5"
@@ -66,14 +67,14 @@ export function DashboardRightRail() {
           </p>
         </div>
         <div className="flex flex-col">
-          {!MOCK_HAS_CONNECTED_BANK || MOCK_COMPLIANCE_ALERTS.length === 0 ? (
+          {!hasConnectedBank || complianceAlerts.length === 0 ? (
             <div className="p-4 md:px-5">
               <p className="text-muted-foreground text-xs">
                 No upcoming deadlines.
               </p>
             </div>
           ) : (
-            MOCK_COMPLIANCE_ALERTS.map((alert) => (
+            complianceAlerts.map((alert) => (
               <div
                 key={alert.id}
                 className="text-muted-foreground border-border/50 hover:bg-muted/30 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b p-4 text-xs transition-colors last:border-0 sm:flex-nowrap md:px-5"
@@ -95,7 +96,7 @@ export function DashboardRightRail() {
           </p>
         </div>
         <div className="flex flex-col">
-          {MOCK_QUICK_ACTIONS.map((action) => (
+          {quickActions.map((action) => (
             <div
               key={action.label}
               className="border-border/50 hover:bg-muted/30 flex min-w-0 items-center justify-between gap-2 border-b p-3 transition-colors last:border-0 md:px-5"

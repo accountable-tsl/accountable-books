@@ -1,3 +1,4 @@
+import { isKnownTimezone } from '@accountable-books/utils/timezone';
 import { z } from 'zod';
 
 import { dbBaseFields } from '../../core/types/core.js';
@@ -45,6 +46,10 @@ export const newCompanyInput = z.object({
   load_coa_template: z.boolean().optional(),
   registration_number: z.string().max(256).nullish(),
   tax_id: z.string().max(256).nullish(),
+  default_timezone: z
+    .string()
+    .refine(isKnownTimezone, 'Use a valid IANA timezone')
+    .optional(),
   is_demo_company: z.boolean().prefault(false).optional(),
   slug: z.string().max(20).optional(),
   onboarding_state: companyOnboardingState.optional(),

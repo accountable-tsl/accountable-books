@@ -7,7 +7,7 @@ import type { CompanyData } from '@/modules/company/companies';
 import { useEffect, useMemo, useState } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { MockSidebar } from '@/components/SideBar';
+import { MockSidebar } from '@/components/sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { OnboardingHeader } from '@/domains-pending-migration/onboarding/shared/Header';
 import {

@@ -1,8 +1,20 @@
 import { route } from '../route-factory';
 
 export const accounting = {
-  index: route('/ws/accounting', {
+  index: route('/accounting', {
     label: 'Accounting Workspace',
+    sidebarCollapsed: true,
+  }),
+  trialBalance: route('/accounting/trial-balance', {
+    label: 'Trial Balance',
+    sidebarCollapsed: true,
+  }),
+  ledger: route('/accounting/ledger', {
+    label: 'Ledger',
+    sidebarCollapsed: true,
+  }),
+  notes: route('/accounting/notes', {
+    label: 'Notes',
     sidebarCollapsed: true,
   }),
   setup: route('/ws/accounting/setup', {
@@ -11,25 +23,25 @@ export const accounting = {
   // uploadBankTxn: route('/ws/accounting/upload-bank-txn', {
   //   label: 'Upload Bank Transaction',
   // }),
-  catEngine: route('/ws/accounting/cat-engine', {
+  catEngine: route('/accounting/cat-engine', {
     label: 'Transactions',
     sidebarCollapsed: true,
   }),
 
-  transactions: route('/ws/accounting/transactions', {
+  transactions: route('/accounting/transactions', {
     label: 'Transactions',
     sidebarCollapsed: true,
   }),
 
-  journals: route('/ws/accounting/journals', {
+  journals: route('/accounting/journals', {
     label: 'Journals',
     sidebarCollapsed: true,
   }),
-  journalsRecurring: route('/ws/accounting/journals/recurring', {
+  journalsRecurring: route('/accounting/journals/recurring', {
     label: 'Recurring Journals',
     sidebarCollapsed: true,
   }),
-  journalsImport: route('/ws/accounting/journals/import', {
+  journalsImport: route('/accounting/journals/import', {
     label: 'Import Journals',
     sidebarCollapsed: true,
   }),

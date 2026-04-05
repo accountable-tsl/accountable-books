@@ -5,6 +5,7 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { getSignedLogoUrl, removeLogo, uploadLogo } from './logos.model.js';
+import { validateFileMagicBytes } from './objects.utils.js';
 
 export async function uploadLogoController(req: Request, res: Response) {
   try {
@@ -20,25 +21,22 @@ export async function uploadLogoController(req: Request, res: Response) {
       return res.status(400).json(errorResponse('File size exceeds 1MB'));
     }
 
-    const allowedTypes = [
-      'image/png',
-      'image/jpeg',
-      'image/webp',
-      'image/svg+xml',
-    ];
-    if (!allowedTypes.includes(req.file.mimetype)) {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    const magicResult = await validateFileMagicBytes(
+      req.file.buffer,
+      allowedTypes,
+    );
+    if ('error' in magicResult) {
       return res
         .status(400)
-        .json(
-          errorResponse('Unsupported file type, upload PNG, JPEG, WEBP or SVG'),
-        );
+        .json(errorResponse('Unsupported file type, upload PNG, JPEG or WEBP'));
     }
 
     const file = req.file.buffer;
     const uploadResult = await uploadLogo({
       file,
       originalFilename: req.file.originalname,
-      mimeType: req.file.mimetype,
+      mimeType: magicResult.mime,
       companyId,
     });
 

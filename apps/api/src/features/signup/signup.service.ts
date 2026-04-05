@@ -289,7 +289,7 @@ const createUserAndCompany = async (
 
   // Assign role
   const roleKey: RoleKey =
-    companyInput.type === 'accounting_firm' ? 'firm_owner' : 'client_owner';
+    companyInput.type === 'accounting_firm' ? 'admin' : 'client_owner';
   const assignRole = await grantDirectAccess({
     trx,
     userId: userResponse.data.id,

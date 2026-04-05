@@ -52,8 +52,8 @@ export const createDemoCompaniesAndUsers = async (
    * - if firm, insert accounting firm metadata (idempotent)
    * - In client_firm_assignments table; Assign company to platform firm, if firm, assign to the company itself (the one just inserted)
    * - Assign roles to user in user_company_roles table
-   * ----for firm, assign role with key '"firm_owner"'
-   * ----for others, asign role with key ""client_owner""
+   * ----for firm, assign role with key 'admin'
+   * ----for others, assign role with key 'client_owner'
 
    */
   const data = companiesMap.map((item) => {
@@ -143,9 +143,9 @@ export const createDemoCompaniesAndUsers = async (
     .where('companies.is_demo_company', false)
     .first();
 
-  // Get role IDs for firm_owner and client_owner
+  // Get role IDs for admin and client_owner
   const roles = await trx('roles')
-    .whereIn('key', ['firm_owner', 'client_owner'])
+    .whereIn('key', ['admin', 'client_owner'])
     .select('id', 'key');
 
   const roleMap = new Map(roles.map((r) => [r.key, r.id]));
@@ -180,7 +180,7 @@ export const createDemoCompaniesAndUsers = async (
     }
 
     // User company roles
-    const roleKey = isFirm ? 'firm_owner' : 'client_owner';
+    const roleKey = isFirm ? 'admin' : 'client_owner';
     const roleId = roleMap.get(roleKey);
 
     if (roleId) {

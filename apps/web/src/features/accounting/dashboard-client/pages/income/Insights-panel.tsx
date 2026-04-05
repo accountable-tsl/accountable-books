@@ -1,8 +1,10 @@
+import type { StatementInsight } from '@/modules/company/client-dashboard';
 import { useEffect, useMemo, useState } from 'react';
 import { AiAssistButton } from '@/components/ai/ai-assist-button';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { aiRuntimeStore } from '@/modules/ai';
+import { buildIncomeStatementInsightSlides } from '@/modules/company/client-dashboard';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { ChevronLeft, ChevronRight, RefreshCcw, X } from 'lucide-react';
 
@@ -12,21 +14,11 @@ import { buildIncomeInsightsCharts } from './insights-mapper';
 import type { ReportPeriod } from '../../report-period';
 import type { StatementLine } from '../shared/statement-types';
 
-type Insight = {
-  id: string;
-  headline: string;
-  evidence: string;
-  aiPrompt: string;
-};
-
 type InsightMeta = {
   generatedAtMs: number;
   fingerprint: string;
 };
 
-// Mock staleness threshold for UI behavior.
-// Production: staleness should be derived from a server-side "booksVersion"/"lastMaterialChangeAt"
-// and the last successful insight generation for the same (company, statement, period, compare, basis).
 const STALE_MS = 12 * 60 * 60 * 1000;
 
 function clampIndex(value: number, len: number) {
@@ -44,39 +36,6 @@ function formatUpdatedAt(ms: number) {
   } catch {
     return null;
   }
-}
-
-function getMockInsights(opexRatio: number, periodLabel: string): Insight[] {
-  return [
-    {
-      id: 'rev_growth',
-      headline: 'Revenue up 14.5% vs prior period',
-      evidence:
-        'Strongest gain in 6 months. Driven by Consulting Services (+$11.3K) and a new enterprise license deal.',
-      aiPrompt: `Explain why revenue increased in ${periodLabel}. Show the top contributing accounts and supporting transactions.`,
-    },
-    {
-      id: 'mkt_spend',
-      headline: 'Marketing spend up 37.5% without proportional lift',
-      evidence:
-        'Digital advertising increased $2.6K and events spend rose $1.6K. Consider reviewing campaign ROI.',
-      aiPrompt: `Explain the marketing spend increase in ${periodLabel}. Show the accounts and transactions behind the change, and call out any anomalies.`,
-    },
-    {
-      id: 'margin',
-      headline: 'Gross margin improved 2.3pts',
-      evidence:
-        'Direct labor costs stabilized while service revenue mix increased.',
-      aiPrompt: `Explain the gross margin change in ${periodLabel}. Break down revenue and cost of sales drivers with supporting evidence.`,
-    },
-    {
-      id: 'opex_ratio',
-      headline: `OpEx now ${opexRatio.toFixed(1)}% of revenue`,
-      evidence:
-        'Operating costs are rising faster than revenue. Review the largest expense drivers this period.',
-      aiPrompt: `Explain the operating expenses ratio in ${periodLabel}. Identify the largest drivers and supporting transactions.`,
-    },
-  ];
 }
 
 function ProgressPip({ active }: { active: boolean }) {
@@ -111,25 +70,16 @@ export function InsightsPanel({
   const [index, setIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const baseInsights = useMemo(
-    () => getMockInsights(opexRatio, periodLabel),
+  const baseInsights = useMemo<StatementInsight[]>(
+    () => buildIncomeStatementInsightSlides(opexRatio, periodLabel),
     [opexRatio, periodLabel],
   );
 
-  // MOCK "data fingerprint" used to decide whether insights are stale.
-  // Production: replace this with a canonical key:
-  // - `periodKey` (not display label)
-  // - `basis` + `compareMode`
-  // - and most importantly `booksVersion` for the period (incremented on postings/sync/categorization).
-  // The UI should request insights for (companyId, statement, periodKey, compareKey, basisKey, booksVersion).
   const fingerprint = useMemo(() => {
     const roundedOpex = Math.round(opexRatio * 10) / 10;
     return JSON.stringify({ periodLabel, roundedOpex });
   }, [periodLabel, opexRatio]);
 
-  // MOCK persistence: stores "last generated" metadata client-side.
-  // Production: the server should return `generatedAt` and a `booksVersion` (or `fingerprint`)
-  // alongside the insight payload. Client storage is only for prototyping.
   const metaKey = useMemo(
     () => `${storageKey}:meta:${encodeURIComponent(periodLabel)}`,
     [storageKey, periodLabel],
@@ -170,15 +120,8 @@ export function InsightsPanel({
   );
 
   const regenerate = (nextFingerprint: string) => {
-    // MOCK regeneration.
-    // Production: call an API to fetch cached insights or kick off a background job.
-    // UI behavior:
-    // - If cached for latest booksVersion: return immediately.
-    // - Else: show "Updating…" while generation runs; optionally stream partial results.
-    // - Only show a manual "Update" control when stale, errored, or generation is taking too long.
     if (isGenerating) return;
     setIsGenerating(true);
-    // Simulate model latency and update timestamp + ordering.
     window.setTimeout(() => {
       setMeta({ generatedAtMs: Date.now(), fingerprint: nextFingerprint });
       setRunId((v) => v + 1);
@@ -187,7 +130,6 @@ export function InsightsPanel({
     }, 650);
   };
 
-  // Auto-regenerate when the underlying "data fingerprint" changes or insights go stale.
   useEffect(() => {
     if (hidden) return;
     if (meta.fingerprint !== fingerprint) {

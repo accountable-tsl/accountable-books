@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import pino from 'pino';
 
+import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import {
@@ -24,7 +25,7 @@ const logger = pino({ name: 'autopost-worker' });
 
 const AUTOPOST_WORKER_OPTIONS = {
   connection: redis,
-  concurrency: Number(process.env.AUTOPOST_WORKER_CONCURRENCY) || 5,
+  concurrency: Number(ENV.AUTOPOST_WORKER_CONCURRENCY) || 5,
   drainDelay: 300, // Wait 5 minutes when queue is empty
   stalledInterval: 300000, // Check stalled jobs every 5 minutes
   maxStalledCount: 2, // Allow 2 retries for stalled jobs

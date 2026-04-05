@@ -11,6 +11,11 @@ import {
   toYMD,
 } from '../../../shared/utils/date.utils.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import {
+  checkDraftJournals,
+  checkLaterPeriodsClosed,
+  checkUncategorizedTransactions,
+} from '../../tasks/condition-checks.js';
 import { fiscalPeriodType } from './fiscal-calendar.types.js';
 
 import type {
@@ -332,72 +337,15 @@ async function validatePeriodClose(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  const hasLedgerEntry = trx('ledger_transaction')
-    .whereRaw('ledger_transaction.source_transaction_id = bt.id')
-    .where('ledger_transaction.source', 'bank_transaction')
-    .where('ledger_transaction.is_deleted', false)
-    .limit(1);
+  const [uncategorized, draftJournals, laterPeriods] = await Promise.all([
+    checkUncategorizedTransactions(companyId, period, trx),
+    checkDraftJournals(companyId, period, trx),
+    checkLaterPeriodsClosed(companyId, period, trx),
+  ]);
 
-  // Check for pending transactions in the period
-  const pendingTransactions = await trx('bank_transactions as bt')
-    .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
-    .where({
-      'ba.company_id': companyId,
-    })
-    .whereBetween('bt.txn_at', [period.start_date, period.end_date])
-    .where('bt.is_deleted', false)
-    // .where('bt.categorization_status', 'uncategorized')
-    .whereNotExists(hasLedgerEntry)
-    .count('* as count')
-    .first();
-
-  if (
-    pendingTransactions &&
-    parseInt(pendingTransactions.count as string) > 0
-  ) {
-    warnings.push(
-      `${pendingTransactions.count} uncategorized transactions found`,
-    );
-  }
-
-  // Check for unposted journal entries
-  const unpostedEntries = await trx('journal_entries')
-    .join(
-      'journal_batches',
-      'journal_entries.journal_batch_id',
-      'journal_batches.id',
-    )
-    .where('journal_batches.company_id', companyId)
-    .whereBetween('journal_batches.date', [period.start_date, period.end_date])
-    .where('journal_batches.status', 'draft')
-    .count('* as count')
-    .first();
-
-  if (unpostedEntries && parseInt(unpostedEntries.count as string) > 0) {
-    errors.push(`${unpostedEntries.count} unposted journal entries found`);
-  }
-
-  // Check if later periods are already closed
-  const laterPeriods = await trx('fiscal_calendar')
-    .where({
-      company_id: companyId,
-      period_type: period.period_type,
-    })
-    .where('fiscal_year', '>', period.fiscal_year)
-    .orWhere(function () {
-      this.where('fiscal_year', period.fiscal_year).where(
-        'period_number',
-        '>',
-        period.period_number,
-      );
-    })
-    .where('status', 'closed')
-    .count('* as count')
-    .first();
-
-  if (laterPeriods && parseInt(laterPeriods.count as string) > 0) {
-    warnings.push('Later periods are already closed');
-  }
+  if (uncategorized.isActive) warnings.push(uncategorized.message);
+  if (draftJournals.isActive) errors.push(draftJournals.message);
+  if (laterPeriods.isActive) warnings.push(laterPeriods.message);
 
   return {
     passed: errors.length === 0,

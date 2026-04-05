@@ -1,6 +1,7 @@
 import type { JobsOptions } from 'bullmq';
 import { Queue } from 'bullmq';
 
+import { ENV } from '../../../config/env.js';
 import {
   executeQueueOperation,
   QueueName,
@@ -12,10 +13,10 @@ import type { TransactionEnrichedEventData } from '../events/transaction-events.
 export const RULE_RUNNER_QUEUE_NAME = 'rule-runner';
 
 const defaultJobOptions: JobsOptions = {
-  attempts: Number(process.env.RULE_RUNNER_ATTEMPTS ?? 5),
+  attempts: Number(ENV.RULE_RUNNER_ATTEMPTS ?? 5),
   backoff: {
     type: 'exponential',
-    delay: Number(process.env.RULE_RUNNER_BACKOFF_MS ?? 5000),
+    delay: Number(ENV.RULE_RUNNER_BACKOFF_MS ?? 5000),
   },
   removeOnComplete: { age: 86400, count: 500 }, // keep for 24h
   removeOnFail: { age: 172800, count: 500 },

@@ -3,7 +3,7 @@ import type { Knex } from 'knex';
 import { ENV, isProd } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { getBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.model.js';
-import { getCountry } from '../../../domains/countries/countries.utils.js';
+import { getCountryFromCode } from '../../../domains/countries/countries.utils.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { logger } from '../../../shared/utils/logger.js';
 
@@ -197,7 +197,7 @@ export async function findOrCreateBankMapping(params: {
     }
     const resolvedProviderId = provider.id;
     const resolvedUserId = userId || (await getSystemUserId(txn));
-    const country = await getCountry(countryCode);
+    const country = await getCountryFromCode(countryCode);
     const countryId = country.id;
 
     // Find or create the bank record.

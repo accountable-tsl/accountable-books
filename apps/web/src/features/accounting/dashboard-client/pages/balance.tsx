@@ -13,6 +13,7 @@ import {
   useStatementLineDetails,
   useStatementLineTransactions,
 } from '@/modules/accounting/reporting';
+import { isAccountingRole } from '@/modules/auth/session/model/role-guards';
 import { useIsMobile, useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useSession } from '@session';
 
@@ -65,7 +66,7 @@ export function DashboardBalanceTab({
   bounds: PeriodBounds;
   onPeriodChange: (rp: ReportPeriod) => void;
 }) {
-  const { company } = useSession();
+  const { company, user } = useSession();
   const isMobile = useIsMobile();
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const asOf = useMemo(() => new Date(), []);
@@ -151,9 +152,8 @@ export function DashboardBalanceTab({
 
   const compareLabel = formatCompareLabel(period.compare);
   const showCompare = period.compare !== 'none';
-  const isAccountingRole = true;
-  const canOpenLedgerExplorer = isAccountingRole;
-  const canEditNotes = isAccountingRole;
+  const canOpenLedgerExplorer = isAccountingRole(user?.currentCompany);
+  const canEditNotes = isAccountingRole(user?.currentCompany);
 
   const { kpis } = useMemo(
     () => computeBalanceSheetKpis(statementLines, currencyCode, labels),

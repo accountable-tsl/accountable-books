@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 
+import { ENV } from '../../../config/env.js';
 import { redis } from '../../../lib/redis.js';
 import { logger } from '../../../shared/index.js';
 import { ML_PREDICTION_QUEUE_NAME } from './ml-prediction.queue.js';
@@ -19,7 +20,7 @@ import type { MLPredictionJobData } from './ml-prediction.types.js';
  * @returns Worker instance
  */
 export function startMLPredictionWorker(
-  concurrency = Number(process.env.ML_WORKER_CONCURRENCY ?? 5),
+  concurrency = Number(ENV.ML_WORKER_CONCURRENCY ?? 5),
 ): Worker<MLPredictionJobData> {
   const worker = new Worker<MLPredictionJobData>(
     ML_PREDICTION_QUEUE_NAME,

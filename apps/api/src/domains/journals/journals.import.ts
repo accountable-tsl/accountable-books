@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 
+import { ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
@@ -111,13 +112,12 @@ type PreflightSummary = {
 };
 
 const IMPORT_MAX_LINES = 5000;
-const IMPORT_MAX_JOURNALS =
-  Number(process.env.JOURNAL_IMPORT_MAX_JOURNALS) || 500;
+const IMPORT_MAX_JOURNALS = Number(ENV.JOURNAL_IMPORT_MAX_JOURNALS) || 500;
 const IMPORT_MAX_LINES_PER_JOURNAL =
-  Number(process.env.JOURNAL_IMPORT_MAX_LINES_PER_JOURNAL) || 500;
+  Number(ENV.JOURNAL_IMPORT_MAX_LINES_PER_JOURNAL) || 500;
 
 function isFxImportEnabled(): boolean {
-  return process.env.JOURNAL_IMPORT_ENABLE_FX !== 'false';
+  return ENV.JOURNAL_IMPORT_ENABLE_FX !== 'false';
 }
 
 function lower(s: string): string {

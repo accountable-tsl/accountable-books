@@ -7,7 +7,7 @@ import {
 import { deleteObject, uploadObject } from './objects.model.js';
 import { StorageService } from './objects.service.js';
 import { type ObjectBucket } from './objects.types.js';
-import { objectTypeHandlers } from './objects.utils.js';
+import { objectTypeHandlers, validateFileMagicBytes } from './objects.utils.js';
 import { getTxnFiles, persistTxnFiles } from './txn-files/txn-files.service.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
@@ -48,14 +48,12 @@ export async function uploadObjectController(req: Request, res: Response) {
         .json(errorResponse(`File size exceeds ${handler.maxSizeMB}MB limit`));
     }
 
-    if (!handler.allowedMimeTypes.includes(req.file.mimetype)) {
-      return res
-        .status(400)
-        .json(
-          errorResponse(
-            `Unsupported file type. Allowed: ${handler.allowedMimeTypes.join(', ')}`,
-          ),
-        );
+    const magicResult = await validateFileMagicBytes(
+      req.file.buffer,
+      handler.allowedMimeTypes,
+    );
+    if ('error' in magicResult) {
+      return res.status(400).json(errorResponse(magicResult.error));
     }
 
     const parsedParams = {
@@ -63,7 +61,7 @@ export async function uploadObjectController(req: Request, res: Response) {
       objectType,
       file: req.file.buffer,
       originalFilename: req.file.originalname,
-      mimeType: req.file.mimetype,
+      mimeType: magicResult.mime,
     };
 
     const uploadResult = await uploadObject(objectType, parsedParams);

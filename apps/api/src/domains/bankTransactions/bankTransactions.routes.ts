@@ -8,8 +8,10 @@ import {
 
 const router = express.Router({ mergeParams: true });
 
-// router.get("/all", checkCompanyId, retrieveBankTransactions);
+router.use(checkCompanyId);
+
+// router.get("/all", retrieveBankTransactions);
 router.post('/import', handleTransactionImport);
-router.post('/delete', checkCompanyId, handleTransactionDeletion);
+router.post('/delete', handleTransactionDeletion);
 
 export default router;

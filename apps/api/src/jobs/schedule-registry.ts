@@ -3,6 +3,7 @@ import pino from 'pino';
 import { scheduleDailyJournalAutoReversalScan } from '../domains/journals/auto-reversal.queue.js';
 import { scheduleRecurringTemplateScan } from '../domains/journals/recurring-templates.queue.js';
 import { scheduleNightlyAutoExtend } from '../domains/reporting/fiscal-calendar/index.js';
+import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.queue.js';
 import { scheduleDailySyncScan } from '../integrations/banking/jobs/transaction-sync.queue.js';
 import {
   scheduleDefaultPartitionDraining,
@@ -87,6 +88,14 @@ export const SCHEDULE_REGISTRY: ScheduleDefinition[] = [
     icon: '🧹',
     run: async (schedule) => {
       await scheduleDefaultPartitionDraining(schedule.cron);
+    },
+  },
+  {
+    key: 'taskEvaluationSweep',
+    scheduleKey: 'taskEvaluationSweep',
+    label: 'Task evaluation sweep',
+    run: async (schedule) => {
+      await scheduleTaskEvaluationSweep(schedule.cron, schedule.tz ?? 'UTC');
     },
   },
 ];

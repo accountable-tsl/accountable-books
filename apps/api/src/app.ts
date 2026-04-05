@@ -2,11 +2,13 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 // Load env solely via config/env to avoid duplicate dotenv loads
 import cors from 'cors';
+import helmet from 'helmet';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
 
 import { ENV, isDev, NODE_ENV } from './config/env.js';
 import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
+import { conditionalJsonParser } from './core/middlewares/bodyParser.middleware.js';
 import { specs, swaggerUi } from './docs/swagger.js';
 import { loadAccountMeta } from './domains/account/account.registry.js';
 import accountRoutes from './domains/account/account.routes.js';
@@ -56,8 +58,15 @@ const logger = isDev
     })
   : pino();
 
-app.use(express.json({ limit: '50mb' }));
+app.use(conditionalJsonParser());
 app.use(cookieParser());
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
 
 app.use(
   pinoHttp({
@@ -138,8 +147,12 @@ export async function setupApp() {
 
   app.use(conditionalCsrf);
 
-  const bullboardUser = process.env.BULLBOARD_USER || 'admin';
-  const bullboardPass = process.env.BULLBOARD_PASSWORD || 'secret';
+  if (!isDev && (!ENV.BULLBOARD_USER || !ENV.BULLBOARD_PASSWORD)) {
+    throw new Error('BullBoard credentials not configured');
+  }
+
+  const bullboardUser = ENV.BULLBOARD_USER || 'admin';
+  const bullboardPass = ENV.BULLBOARD_PASSWORD || 'secret';
 
   // Mount routes AFTER successful load
   app.use('/api', signupRoutes);

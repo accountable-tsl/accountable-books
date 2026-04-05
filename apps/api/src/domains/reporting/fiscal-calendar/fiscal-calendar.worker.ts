@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 import { Job, Worker } from 'bullmq';
 
+import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import { acquireAdvisoryXactLockPair } from '../../../shared/services/advisoryLocks.service.js';
@@ -14,7 +15,7 @@ import type {
   FiscalPeriodType,
 } from './fiscal-calendar.types.js';
 
-const WORKER_CONCURRENCY = Number(process.env.FISCAL_CALENDAR_CONCURRENCY) || 3;
+const WORKER_CONCURRENCY = Number(ENV.FISCAL_CALENDAR_CONCURRENCY) || 3;
 const PAGE_SIZE = 200;
 
 const DEFAULT_PERIOD_TYPES: FiscalPeriodType[] = [

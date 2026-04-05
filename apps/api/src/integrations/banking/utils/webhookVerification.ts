@@ -26,6 +26,7 @@ export function verifyPlaidWebhook(
       logger.warn(
         'PLAID_WEBHOOK_SECRET not configured - webhook verification disabled',
       );
+      return false;
     }
     return true;
   }

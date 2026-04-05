@@ -1,8 +1,11 @@
 import express from 'express';
 
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 import { updateOrCreateLedgerController } from './ledgers.controller.js';
 
 const router = express.Router({ mergeParams: true });
+
+router.use(checkCompanyId);
 
 /**
  * PUT/PATCH /api/:companyId/ledgers

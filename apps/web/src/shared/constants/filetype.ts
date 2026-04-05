@@ -10,7 +10,6 @@ export const mimeTypeEnum = z.enum([
   'image/png',
   'image/gif',
   'image/webp',
-  'image/svg+xml',
 
   // Documents
   'application/pdf',

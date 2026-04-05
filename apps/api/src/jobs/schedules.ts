@@ -8,7 +8,8 @@ export type JobScheduleKey =
   | 'recurringJournalScan'
   | 'partitionMaintenance'
   | 'partitionDrain'
-  | 'transactionSyncDailyScan';
+  | 'transactionSyncDailyScan'
+  | 'taskEvaluationSweep';
 
 export type JobSchedule = {
   cron: string;
@@ -52,6 +53,12 @@ const SCHEDULES: Record<JobScheduleKey, JobSchedule> = {
     cron: '0 2 * * *',
     envVar: 'TRANSACTION_SYNC_CRON',
     description: 'Daily transaction sync scan',
+    tz: 'UTC',
+  },
+  taskEvaluationSweep: {
+    cron: '*/15 * * * *',
+    envVar: 'TASK_EVALUATION_SWEEP_CRON',
+    description: 'Task evaluation sweep every 15 min',
     tz: 'UTC',
   },
 };

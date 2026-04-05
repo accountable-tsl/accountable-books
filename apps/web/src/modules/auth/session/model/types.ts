@@ -5,9 +5,13 @@ import type {
   OnboardingState,
 } from '@/modules/company/companies';
 import type { TenantRoutes } from '@/shared/routes/types';
-import { z } from 'zod';
+import type { RoleKey, RoleScope } from '@accountable-books/contracts/schema';
+import { roleKey, roleScope } from '@accountable-books/contracts/schema';
 
 import type { LogoutOptions } from '../../credentials';
+
+export type { RoleKey, RoleScope };
+export { roleKey, roleScope };
 
 export interface AuthState {
   user: AuthUserContext | null;
@@ -60,23 +64,6 @@ export interface AuthCompanyContext {
 export type CurrentCompanyContext = AuthCompanyContext & {
   onboarding: OnboardingState;
 };
-
-export const roleKey = z.enum([
-  'super_admin',
-  'support_admin',
-  'support_agent',
-  'firm_owner',
-  'firm_admin',
-  'accountant',
-  'staff_accountant',
-  'client_owner',
-  'client_admin',
-  'client_user',
-]);
-export type RoleKey = z.infer<typeof roleKey>;
-
-export const roleScope = z.enum(['platform', 'firm', 'company']);
-export type RoleScope = z.infer<typeof roleScope>;
 
 export type SessionContextType = {
   loading: boolean;

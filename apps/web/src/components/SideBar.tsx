@@ -1,6 +1,8 @@
+import type { AuthUserContext } from '@/modules/auth';
 import type { CompanyData, CompanyType } from '@/modules/company/companies';
 import React from 'react';
-import { NavMain } from '@/components/NavMain';
+import { NavMain } from '@/components/nav-main';
+import { PracticeNav } from '@/components/nav-practice';
 import { NavSecondary } from '@/components/NavSecondary';
 import { NavUser } from '@/components/NavUser';
 import { SkeletonBlock } from '@/components/SkeletonBlock';
@@ -15,13 +17,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import {
   getNavMain,
+  getNavPractice,
   getNavSecondary,
   getNavUser,
 } from '@/constants/sidebarData';
-import { type AuthUserContext } from '@/modules/auth';
+import { isFirmBookkeepingRole } from '@/modules/auth';
 import { routes } from '@/shared/routes';
 import { ArrowUpCircleIcon } from 'lucide-react';
 import { Link } from 'react-router';
@@ -49,9 +53,20 @@ export const AppSidebar = ({
   const companyId = _companyId || company?.id;
   const companyType = _companyType || company?.companyType;
 
+  const isPlatformUser = user?.isPlatformUser;
+  const hasFirmPracticeAccess =
+    isFirmBookkeepingRole(user?.currentCompany) || isPlatformUser;
+
+  const navPractice = companyId && companyType ? getNavPractice() : [];
   const navMain =
-    companyId && companyType ? getNavMain(companyId, companyType) : [];
-  const navSecondary = companyId && companyType ? getNavSecondary() : [];
+    companyId && companyType
+      ? getNavMain({
+          companyId,
+          showAccounting: hasFirmPracticeAccess,
+        })
+      : [];
+  const navSecondary =
+    companyId && companyType ? getNavSecondary({ companyId }) : [];
 
   const navUser = user
     ? getNavUser({
@@ -75,7 +90,7 @@ export const AppSidebar = ({
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link to={dashboardPath} className="flex items-center gap-2">
                 <div className="flex h-5 w-5 items-center justify-center overflow-hidden">
@@ -97,7 +112,16 @@ export const AppSidebar = ({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMain} />
+        {hasFirmPracticeAccess ? (
+          <>
+            <PracticeNav items={navPractice} />
+            <SidebarSeparator className="w-auto!" />
+          </>
+        ) : null}
+        <NavMain
+          items={navMain}
+          groupLabel={hasFirmPracticeAccess ? 'Company' : undefined}
+        />
         <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

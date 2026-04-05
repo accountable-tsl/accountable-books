@@ -1,5 +1,11 @@
 import type { Country } from '@/shared/types/core';
-import { format, isValid, parse } from 'date-fns';
+import {
+  differenceInCalendarDays,
+  format,
+  isValid,
+  parse,
+  startOfDay,
+} from 'date-fns';
 import Decimal from 'decimal.js';
 import z from 'zod';
 
@@ -64,6 +70,35 @@ export function safeFormatDate({
     console.warn(`Invalid format string: "${formatString}"`, e);
     return format(parsedDate, DEFAULT_DATE_FORMAT);
   }
+}
+
+export function formatRelativeDueDate(
+  isoDate: string,
+  now = new Date(),
+): string {
+  const trimmed = isoDate.trim();
+  let parsed = parse(trimmed, 'yyyy-MM-dd', now);
+  if (!isValid(parsed)) {
+    parsed = parse(trimmed, 'yyyy-M-d', now);
+  }
+  if (!isValid(parsed)) {
+    return `Due ${isoDate}`;
+  }
+
+  const dueDay = startOfDay(parsed);
+  const today = startOfDay(now);
+  const diff = differenceInCalendarDays(dueDay, today);
+
+  if (diff < -1) return `Due ${-diff} days ago`;
+  if (diff === -1) return 'Due yesterday';
+  if (diff === 0) return 'Due today';
+  if (diff === 1) return 'Due tomorrow';
+  if (diff <= 7) return `Due in ${diff} days`;
+
+  const sameYear = dueDay.getFullYear() === today.getFullYear();
+  return sameYear
+    ? `Due ${format(dueDay, 'MMM d')}`
+    : `Due ${format(dueDay, 'MMM d, yyyy')}`;
 }
 
 /**
@@ -419,4 +454,20 @@ export function formatAmountCompact(
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })}`;
+}
+
+/**
+ * Two-letter initials for avatar fallbacks (company or person display name).
+ * With multiple words, uses the first character of the first and last word; otherwise up to two characters from the string.
+ */
+export function getAvatarInitials(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return '?';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = parts[0]?.[0] ?? '';
+    const b = parts[parts.length - 1]?.[0] ?? '';
+    return (a + b).toUpperCase();
+  }
+  return trimmed.slice(0, 2).toUpperCase();
 }

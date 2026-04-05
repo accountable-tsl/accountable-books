@@ -516,7 +516,7 @@ export const getCompanyOwner = async ({
       return successResponse('No company owner found', null);
     }
 
-    const ownerRoleKeys: RoleKey[] = ['firm_owner', 'client_owner'];
+    const ownerRoleKeys: RoleKey[] = ['admin', 'client_owner'];
     const result = await knex('user_company_roles as ucr')
       .join('roles as r', 'ucr.role_id', 'r.id')
       .join('users as u', 'ucr.user_id', 'u.id')
@@ -567,7 +567,7 @@ export const isUserCompanyOwner = async ({
   const knex = trx || knexClient;
 
   try {
-    const ownerRoleKeys: RoleKey[] = ['firm_owner', 'client_owner'];
+    const ownerRoleKeys: RoleKey[] = ['admin', 'client_owner'];
     const companyUUIDResult = await knex
       .select('id')
       .from('companies')

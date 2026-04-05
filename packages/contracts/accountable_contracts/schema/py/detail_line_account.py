@@ -1,0 +1,17 @@
+from pydantic import BaseModel
+from typing import Optional
+from enum import Enum
+from uuid import UUID
+
+class ReconciliationStatusEnum(str, Enum):
+    RECONCILED = "reconciled"
+    PENDING = "pending"
+    UNRECONCILED = "unreconciled"
+
+class DetailLineAccount(BaseModel):
+    id: UUID
+    code: str
+    label: str
+    amount: float
+    compareAmount: float
+    reconciliationStatus: Optional[ReconciliationStatusEnum] = None

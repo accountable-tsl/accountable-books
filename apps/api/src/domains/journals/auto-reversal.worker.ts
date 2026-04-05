@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import pino from 'pino';
 
+import { ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { getSystemUser } from '../users/users.model.js';
@@ -216,7 +217,7 @@ async function processAutoReversalJob(job: Job<JournalAutoReversalJobData>) {
 }
 
 export function startJournalAutoReversalWorker(
-  concurrency = Number(process.env.JOURNAL_AUTO_REVERSAL_CONCURRENCY) || 1,
+  concurrency = Number(ENV.JOURNAL_AUTO_REVERSAL_CONCURRENCY) || 1,
 ): Worker {
   const worker = new Worker(
     JOURNAL_AUTO_REVERSAL_QUEUE_NAME,

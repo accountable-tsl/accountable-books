@@ -13,6 +13,9 @@ import { AccountingWorkspace } from '@/domains-pending-migration/accounting-ws/a
 import { OnboardingStepPage } from '@/domains-pending-migration/onboarding/Onboarding';
 import { OnboardingRouter } from '@/domains-pending-migration/onboarding/OnboardingRouter';
 import Welcome from '@/domains-pending-migration/onboarding/Welcome';
+import { AccountNotesPage } from '@/features/accounting/account-notes/page';
+import { LedgerPage } from '@/features/accounting/ledger/page';
+import { TrialBalancePage } from '@/features/accounting/trial-balance/page';
 import { LoginForm } from '@/features/auth-login';
 import { SignupForm } from '@/features/auth-signup';
 import { CatEngine } from '@/features/cat-engine';
@@ -20,11 +23,18 @@ import { CatEngine } from '@/features/cat-engine';
 import { ConnectBank } from '@/features/connect-bank';
 import { PlaidOAuthCallback } from '@/features/connect-bank/ui/plaid-oauth-callback';
 import { JournalsListPage } from '@/features/manage-journals';
+import { SettingsLayout } from '@/features/settings/layouts/settings-layout';
+import { SettingsCompanyPage } from '@/features/settings/pages/settings-company-page';
+import { SettingsFinancialPage } from '@/features/settings/pages/settings-financial-page';
+import { SettingsHubPage } from '@/features/settings/pages/settings-hub-page';
+import { SettingsTeamPage } from '@/features/settings/pages/settings-team-page';
 import { UploadBankTransactions } from '@/features/upload-bank-transactions';
 import AppLayout from '@/layouts/AppLayout';
+import BlankLayout from '@/layouts/BlankLayout';
 import OnboardingLayout from '@/layouts/OnboardingLayout';
 import { queryClient } from '@/lib/queryClient';
 import { routes } from '@/shared/routes';
+import ThemeProvider from '@/theme/themeProvider';
 import { SessionProvider } from '@session';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
@@ -32,9 +42,11 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import Popup from './components/Popup/Popup';
 import { PopupProvider, usePopup } from './contexts/PopupContext';
 import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
-import { Dashboard } from './features/accounting/temp-index';
-import BlankLayout from './layouts/BlankLayout';
-import ThemeProvider from './theme/themeProvider';
+import {
+  ClientsPage,
+  Dashboard,
+  QueuePage,
+} from './features/accounting/temp-index';
 
 function App() {
   return (
@@ -138,6 +150,23 @@ function AppRoutes() {
             element={<Dashboard />}
           />
           <Route
+            path={routes.general.queue.relativePath}
+            element={<QueuePage />}
+          />
+          <Route
+            path={routes.general.clients.relativePath}
+            element={<ClientsPage />}
+          />
+          <Route
+            path={routes.general.settings.hub.relativePath}
+            element={<SettingsLayout />}
+          >
+            <Route index element={<SettingsHubPage />} />
+            <Route path="company" element={<SettingsCompanyPage />} />
+            <Route path="financial" element={<SettingsFinancialPage />} />
+            <Route path="team" element={<SettingsTeamPage />} />
+          </Route>
+          <Route
             path={routes.general.home.relativePath}
             element={<Dashboard />}
           />
@@ -148,6 +177,18 @@ function AppRoutes() {
           <Route
             path={routes.accounting.index.relativePath}
             element={<AccountingWorkspace />}
+          />
+          <Route
+            path={routes.accounting.trialBalance.relativePath}
+            element={<TrialBalancePage />}
+          />
+          <Route
+            path={routes.accounting.ledger.relativePath}
+            element={<LedgerPage />}
+          />
+          <Route
+            path={routes.accounting.notes.relativePath}
+            element={<AccountNotesPage />}
           />
 
           <Route

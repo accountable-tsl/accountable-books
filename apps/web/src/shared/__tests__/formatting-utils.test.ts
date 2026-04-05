@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatAmountCompact } from '../utils/formatting-utils';
+import {
+  formatAmountCompact,
+  formatRelativeDueDate,
+  getAvatarInitials,
+} from '../utils/formatting-utils';
 
 import type { CompactAmountUnit } from '../utils/formatting-utils';
 
@@ -134,5 +138,43 @@ describe('formatAmountCompact', () => {
         '1.20M',
       );
     });
+  });
+});
+
+describe('formatRelativeDueDate', () => {
+  const NOW = new Date('2026-03-29T12:00:00');
+
+  it('uses conversational phrases near today', () => {
+    expect(formatRelativeDueDate('2026-03-27', NOW)).toBe('Due 2 days ago');
+    expect(formatRelativeDueDate('2026-03-28', NOW)).toBe('Due yesterday');
+    expect(formatRelativeDueDate('2026-03-29', NOW)).toBe('Due today');
+    expect(formatRelativeDueDate('2026-03-30', NOW)).toBe('Due tomorrow');
+    expect(formatRelativeDueDate('2026-03-31', NOW)).toBe('Due in 2 days');
+    expect(formatRelativeDueDate('2026-04-05', NOW)).toBe('Due in 7 days');
+  });
+
+  it('uses month day when further out (same year)', () => {
+    expect(formatRelativeDueDate('2026-04-15', NOW)).toBe('Due Apr 15');
+  });
+
+  it('includes year when due date is another calendar year', () => {
+    expect(formatRelativeDueDate('2027-01-10', NOW)).toBe('Due Jan 10, 2027');
+  });
+});
+
+describe('getAvatarInitials', () => {
+  it('uses first and last word when multiple words', () => {
+    expect(getAvatarInitials('Acme Accounting LLC')).toBe('AL');
+    expect(getAvatarInitials('  John   Doe  ')).toBe('JD');
+  });
+
+  it('uses up to two characters for a single word', () => {
+    expect(getAvatarInitials('Acme')).toBe('AC');
+    expect(getAvatarInitials('A')).toBe('A');
+  });
+
+  it('returns placeholder for empty input', () => {
+    expect(getAvatarInitials('')).toBe('?');
+    expect(getAvatarInitials('   ')).toBe('?');
   });
 });

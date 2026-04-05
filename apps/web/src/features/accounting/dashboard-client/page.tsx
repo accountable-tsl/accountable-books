@@ -133,32 +133,36 @@ export function DashboardClientPage() {
           onValueChange={handleTabChange}
           className="min-h-0 w-full flex-1 gap-4"
         >
-          <div className="flex min-w-0 shrink-0 items-center justify-between gap-2">
-            <div className="min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch]">
-              <TabsList className="bg-muted/50 text-muted-foreground dark:border-border/50 inline-flex h-9 shrink-0 gap-1 rounded-lg p-1 dark:border dark:bg-transparent">
+          <div className="flex min-w-0 shrink-0 flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+            <div className="bg-muted/95 dark:bg-background/95 supports-backdrop-filter:bg-muted/80 dark:supports-backdrop-filter:bg-background/80 sticky top-0 z-50 w-auto min-w-0 snap-x snap-mandatory overflow-x-auto backdrop-blur [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [scrollbar-width:none] md:static md:w-auto md:min-w-0 md:flex-1 md:backdrop-blur-none [&::-webkit-scrollbar]:hidden">
+              <TabsList className="text-muted-foreground md:bg-muted/50 md:dark:border-border/50 flex h-auto w-max min-w-full flex-nowrap items-stretch gap-1 rounded-[10px] bg-black/5 p-1 md:inline-flex md:w-auto md:min-w-0 md:rounded-lg md:border dark:bg-white/5 md:dark:bg-transparent">
                 {DASHBOARD_TABS.map((tab) => (
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-[state=active]:bg-muted/30 shrink-0 rounded-md px-3 py-1 text-xs font-medium data-[state=active]:shadow-sm md:px-4 dark:data-[state=active]:shadow-none"
+                    className="text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:ring-border dark:data-[state=active]:bg-muted/30 h-auto min-w-0 flex-1 snap-center rounded-md border-0 px-3 py-1.5 text-center text-[13px] font-medium whitespace-nowrap transition-colors data-[state=active]:shadow-sm data-[state=active]:ring-1 sm:px-4 sm:py-2 sm:text-sm md:flex-initial md:py-1.5 md:dark:data-[state=active]:shadow-none"
                   >
-                    {tab.label}
+                    <span className="md:hidden">{tab.shortLabel}</span>
+                    <span className="hidden md:inline">{tab.label}</span>
                   </TabsTrigger>
                 ))}
               </TabsList>
             </div>
             {activeTab === 'overview' && (
-              <PeriodSelector
-                period={period}
-                periodBounds={periodBounds}
-                onPeriodChange={setPeriod}
-              />
+              <div className="flex w-full shrink-0 justify-end md:w-auto md:justify-start">
+                <PeriodSelector
+                  period={period}
+                  periodBounds={periodBounds}
+                  onPeriodChange={setPeriod}
+                />
+              </div>
             )}
           </div>
 
           <TabsContent
+            forceMount
             value="overview"
-            className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+            className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto data-[state=inactive]:hidden"
           >
             <DashboardOverviewTab
               period={period}
@@ -168,9 +172,10 @@ export function DashboardClientPage() {
 
           {DASHBOARD_TABS.slice(1).map((tab) => (
             <TabsContent
+              forceMount
               key={tab.id}
               value={tab.id}
-              className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+              className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto data-[state=inactive]:hidden"
             >
               {tab.id === 'income' && (
                 <DashboardIncomeTab

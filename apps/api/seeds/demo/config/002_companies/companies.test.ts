@@ -98,7 +98,7 @@ const createMockTransaction = (): Knex.Transaction => {
         break;
       case 'roles':
         queryBuilder.select.mockResolvedValue([
-          { id: 'role-1', key: 'firm_owner' },
+          { id: 'role-1', key: 'admin' },
           { id: 'role-2', key: 'client_owner' },
         ]);
         break;

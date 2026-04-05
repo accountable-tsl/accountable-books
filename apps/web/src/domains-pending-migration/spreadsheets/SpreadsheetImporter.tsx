@@ -20,6 +20,7 @@ import { FILE_TYPE_MAP } from '@/domains-pending-migration/spreadsheets/constant
 import {
   type FileCardExtraProps,
   type ParsedCsvResult,
+  type SpreadsheetAcceptType,
   type SpreadsheetImporterProps,
 } from '@/domains-pending-migration/spreadsheets/types';
 import {
@@ -31,9 +32,11 @@ import {
 } from '@/domains-pending-migration/spreadsheets/utils';
 import { cn } from '@/lib/utils';
 
+const DEFAULT_ACCEPT: SpreadsheetAcceptType[] = ['csv'];
+
 export const SpreadsheetImporter = ({
   fields,
-  accept: receivedAccept = ['csv'],
+  accept: receivedAccept = DEFAULT_ACCEPT,
   onParsed,
   onServerUpload,
   onError,
@@ -122,7 +125,7 @@ export const SpreadsheetImporter = ({
   const parseAllFiles = useCallback(
     async (files: File[]) => {
       if (!files.length) {
-        setParsedResults([]);
+        setParsedResults((prev) => (prev.length > 0 ? [] : prev));
         return;
       }
 

@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import pino from 'pino';
 
+import { ENV } from '../../config/env.js';
 import { redis } from '../../lib/redis.js';
 import { processDueRecurringTemplates } from './recurring-templates.model.js';
 import {
@@ -36,7 +37,7 @@ async function processRecurringTemplatesJob(
 }
 
 export function startRecurringTemplatesWorker(
-  concurrency = Number(process.env.RECURRING_TEMPLATES_CONCURRENCY) || 1,
+  concurrency = Number(ENV.RECURRING_TEMPLATES_CONCURRENCY) || 1,
 ): Worker {
   const worker = new Worker(
     RECURRING_TEMPLATES_QUEUE_NAME,

@@ -3,6 +3,7 @@ import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
 import pino from 'pino';
 
+import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import { emitTxnEnrichedEvent } from '../events/transaction-events.service.js';
@@ -30,7 +31,7 @@ const logger = pino();
 
 const ENRICHMENT_WORKER_OPTIONS = {
   connection: redis,
-  concurrency: Number(process.env.ENRICHMENT_WORKER_CONCURRENCY) || 10,
+  concurrency: Number(ENV.ENRICHMENT_WORKER_CONCURRENCY) || 10,
   drainDelay: 300, // Wait 5 seconds when queue is empty
   stalledInterval: 60000, // Check stalled jobs every minute
   maxStalledCount: 2, // Allow 2 retries for stalled jobs

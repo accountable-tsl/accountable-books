@@ -1,7 +1,16 @@
+import type { ClientDashboardMetricCard } from '@/modules/company/client-dashboard';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { cn } from '@/lib/utils';
+import { useClientDashboardOverview } from '@/modules/company/client-dashboard';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useSession } from '@session';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  CoinsIcon,
+  TrendingDown,
+  Wallet,
+} from 'lucide-react';
 
 import { ActionDataHealthStrip } from '../components/action-data-health-strip';
 import { DashboardRightRail } from '../components/dashboard-right-rail';
@@ -12,16 +21,20 @@ import {
 } from '../components/empty-states';
 import { MetricCard } from '../components/metric-card';
 import { ACTION_CENTER_ID, MONTHS, READINESS_KEYS } from '../constants';
-import {
-  MOCK_ACTION_CENTER_TASKS,
-  MOCK_ALL_CLEAR_MESSAGE,
-  MOCK_DATA_HEALTH_LINE,
-  MOCK_FINANCIAL_OVERVIEW_CARDS,
-  MOCK_HAS_CONNECTED_BANK,
-  MOCK_HAS_DATA,
-} from '../mock-data';
 
+import type { MetricCardProps } from '../components/metric-card';
 import type { Period } from '../period-utils';
+
+const CLIENT_METRIC_ICONS = {
+  coins: CoinsIcon,
+  'trending-down': TrendingDown,
+  wallet: Wallet,
+} as const;
+
+function toMetricCardProps(card: ClientDashboardMetricCard): MetricCardProps {
+  const { iconId, ...rest } = card;
+  return { ...rest, icon: CLIENT_METRIC_ICONS[iconId] };
+}
 
 export interface DashboardOverviewTabProps {
   period: Period;
@@ -33,11 +46,17 @@ export function DashboardOverviewTab({
   onPeriodChange,
 }: DashboardOverviewTabProps) {
   const { company } = useSession();
+  const isMobile = useIsMobile();
   const showDemoBadge = company?.isDemoCompany === true;
 
-  const hasPendingActions =
-    MOCK_HAS_CONNECTED_BANK && MOCK_ACTION_CENTER_TASKS.length > 0;
-  const firstPendingTask = MOCK_ACTION_CENTER_TASKS[0];
+  const { data: overview, isLoading: isOverviewLoading } =
+    useClientDashboardOverview();
+  const actionTasks = overview?.actionCenterTasks ?? [];
+  const hasConnectedBank = overview?.hasConnectedBank ?? false;
+  const hasData = overview?.hasData ?? false;
+
+  const hasPendingActions = hasConnectedBank && actionTasks.length > 0;
+  const firstPendingTask = actionTasks[0];
 
   const currentMonthIdx = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -58,7 +77,7 @@ export function DashboardOverviewTab({
         {hasPendingActions ? (
           <ActionDataHealthStrip
             mode="pending"
-            summary={`${MOCK_ACTION_CENTER_TASKS.length} items need your attention`}
+            summary={`${actionTasks.length} items need your attention`}
             subline={
               firstPendingTask
                 ? `${firstPendingTask.title} — ${firstPendingTask.impact}`
@@ -74,14 +93,14 @@ export function DashboardOverviewTab({
         ) : (
           <ActionDataHealthStrip
             mode="allClear"
-            message={MOCK_ALL_CLEAR_MESSAGE}
-            dataHealthLine={MOCK_DATA_HEALTH_LINE}
+            message={overview?.allClearMessage ?? ''}
+            dataHealthLine={overview?.dataHealthLine ?? ''}
           />
         )}
 
-        {!MOCK_HAS_CONNECTED_BANK ? (
+        {!isOverviewLoading && !hasConnectedBank ? (
           <EmptyStateUnlinkedBank />
-        ) : !MOCK_HAS_DATA ? (
+        ) : !isOverviewLoading && !hasData ? (
           <EmptyStateSyncing />
         ) : (
           <>
@@ -92,7 +111,7 @@ export function DashboardOverviewTab({
                     <p>Readiness Center</p>
                     {showDemoBadge && <DemoDataBadge />}
                     <TooltipHelper
-                      content="Write helpful text here"
+                      content="Tracks whether each month's books are complete and reviewed. Months turn green once your accountant signs off."
                       contentStyle="text-center"
                     />
                   </div>
@@ -189,6 +208,8 @@ export function DashboardOverviewTab({
                       <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 px-4 py-2 text-sm opacity-70 sm:h-10 sm:flex-nowrap sm:justify-between">
                         {READINESS_KEYS.map((legendItem) => {
                           const Icon = legendItem.icon;
+                          if (legendItem?.mobileDisplay === false && isMobile)
+                            return null;
                           return (
                             <div
                               key={legendItem.label}
@@ -252,7 +273,7 @@ export function DashboardOverviewTab({
                         ·
                       </span>
                       <span className="text-muted-foreground text-xs leading-snug">
-                        {MOCK_DATA_HEALTH_LINE}
+                        {overview?.dataHealthLine ?? ''}
                       </span>
                     </div>
                   </div>
@@ -273,13 +294,13 @@ export function DashboardOverviewTab({
               <div
                 className={cn(
                   'border-border/50 grid w-full min-w-0 grid-cols-1 gap-4 border-t px-4 py-4 sm:grid-cols-2',
-                  MOCK_FINANCIAL_OVERVIEW_CARDS.length % 3 === 0
+                  (overview?.financialOverviewCards.length ?? 0) % 3 === 0
                     ? 'lg:grid-cols-3'
                     : 'lg:grid-cols-2 xl:grid-cols-3',
                 )}
               >
-                {MOCK_FINANCIAL_OVERVIEW_CARDS.map((card) => (
-                  <MetricCard key={card.title} {...card} />
+                {(overview?.financialOverviewCards ?? []).map((card) => (
+                  <MetricCard key={card.title} {...toMetricCardProps(card)} />
                 ))}
               </div>
             </div>

@@ -232,8 +232,6 @@ export function buildBalanceInsightsCharts({
     };
   }
 
-  // context === 'trend'
-  // For now, produce placeholder trend lines derived from the latest snapshot.
   const trendAssets: SimpleBarChartDatum[] = trendLabels.map((label) => ({
     label,
     value: totalAssets?.amount ?? 0,

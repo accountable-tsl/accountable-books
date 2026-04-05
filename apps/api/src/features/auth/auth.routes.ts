@@ -14,8 +14,8 @@ import { csrfProtection, generateCsrfToken } from './auth.utils.js';
 
 const router = express.Router({ mergeParams: true });
 
-// router.post("/login", authLimiter, loginController);
-router.post('/login', loginController);
+// router.post('/login', loginController);
+router.post('/login', authLimiter, loginController);
 router.post('/refresh', verifyRefreshToken, refreshTokenController);
 router.get('/me', verifyRefreshToken, csrfProtection, meController);
 router.post('/logout', verifyRefreshToken, logoutController);

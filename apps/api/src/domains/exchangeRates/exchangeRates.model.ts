@@ -201,9 +201,11 @@ export async function fetchExchangeRate(
     const rateDate = new Date(apiData.time_last_update_unix * 1000);
     rateDate.setUTCHours(0, 0, 0, 0);
 
-    // Persist the rate to database with conflict handling
+    // Persist the rate to database with conflict handling.
+    // Use ON CONFLICT DO NOTHING so that when we're inside a caller's transaction,
+    // a duplicate key does not abort the transaction (which would make any subsequent
+    // SELECT fail with "current transaction is aborted").
     try {
-      // Use INSERT ... ON CONFLICT for PostgreSQL or similar upsert pattern
       const rateData = {
         date: rateDate,
         from_currency_id: fromCurrencyId,
@@ -213,63 +215,25 @@ export async function fetchExchangeRate(
         updated_at: new Date(),
       };
 
-      // Try to insert, handle conflicts gracefully
-      let persistedRate;
+      await knex('exchange_rates')
+        .insert(rateData)
+        .onConflict(['date', 'from_currency_id', 'to_currency_id'])
+        .ignore();
 
-      try {
-        const [inserted] = await knex('exchange_rates')
-          .insert(rateData)
-          .returning('id');
-
-        console.log({ inserted });
-
-        persistedRate = await knex('exchange_rates')
-          .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
-          .where('id', inserted.id)
-          .first();
-      } catch (insertError: any) {
-        // Handle duplicate key constraint violations
-        const isDuplicateError =
-          insertError.code === '23505' || // PostgreSQL unique violation
-          insertError.code === 'SQLITE_CONSTRAINT' || // SQLite constraint
-          insertError.errno === 1062 || // MySQL duplicate entry
-          insertError.message?.toLowerCase().includes('duplicate') ||
-          insertError.message?.toLowerCase().includes('unique');
-
-        if (isDuplicateError) {
-          console.warn(
-            `Exchange rate for ${fromCurrencyId} → ${toCurrencyId} on ${rateDate.toISOString()} already exists`,
-          );
-
-          // Fetch the existing rate
-          persistedRate = await knex('exchange_rates')
-            .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
-            .where({
-              from_currency_id: fromCurrencyId,
-              to_currency_id: toCurrencyId,
-              date: rateDate,
-            })
-            .first();
-
-          if (persistedRate) {
-            return successResponse('Rate already existed in database', {
-              id: persistedRate.id,
-              date: persistedRate.date,
-              fromCurrencyId,
-              toCurrencyId,
-              rate: Number(persistedRate.rate),
-            });
-          }
-        }
-
-        throw insertError; // Re-throw if not a duplicate error
-      }
+      const persistedRate = await knex('exchange_rates')
+        .select('id', 'date', 'rate', 'from_currency_id', 'to_currency_id')
+        .where({
+          from_currency_id: fromCurrencyId,
+          to_currency_id: toCurrencyId,
+          date: rateDate,
+        })
+        .first();
 
       if (!persistedRate) {
-        throw new Error('Failed to retrieve persisted rate');
+        throw new Error('Failed to retrieve persisted rate after insert');
       }
 
-      return successResponse('API rate successfully persisted to database', {
+      return successResponse('Exchange rate persisted or already existed', {
         id: persistedRate.id,
         date: persistedRate.date,
         fromCurrencyId: persistedRate.from_currency_id,

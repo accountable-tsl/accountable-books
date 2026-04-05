@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 import {
   archiveCoaController,
   createCoaController,
@@ -10,6 +11,8 @@ import {
 } from './coa.controller.js';
 
 const router = express.Router({ mergeParams: true });
+
+router.use(checkCompanyId);
 
 router.get('/', getCoaController);
 

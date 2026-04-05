@@ -16,6 +16,7 @@ import {
 import {
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -40,11 +41,22 @@ export interface NavMainItems extends NavBaseItems {
   }[];
 }
 
-export function NavMain({ items }: { items: NavMainItems[] }) {
+export function NavMain({
+  items,
+  groupLabel,
+}: {
+  items: NavMainItems[];
+  groupLabel?: string;
+}) {
   const { state, isMobile } = useSidebar();
 
   return (
     <SidebarGroup>
+      {groupLabel ? (
+        <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
+          {groupLabel}
+        </SidebarGroupLabel>
+      ) : null}
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
