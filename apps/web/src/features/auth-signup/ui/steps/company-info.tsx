@@ -520,25 +520,20 @@ export const SignupCompanyInfo = forwardRef<
                     : 'pointer-events-none opacity-0',
                 )}
               >
-                <TooltipHelper
-                  contentStyle="w-full"
-                  trigger={
-                    <Button
-                      type="button"
-                      variant="link"
-                      className={
-                        'text-muted-foreground hover:text-foreground h-6 cursor-pointer self-center p-1'
-                      }
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setViewOptionalFields(true);
-                      }}
-                    >
-                      Fill other optional fields
-                    </Button>
-                  }
-                  content="You can always complete these later"
-                />
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-muted-foreground hover:text-foreground h-6 cursor-pointer self-center p-1"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setViewOptionalFields(true);
+                    }}
+                  >
+                    Fill other optional fields
+                  </Button>
+                  <TooltipHelper content="You can always complete these later" />
+                </div>
               </div>
             </div>
           )}

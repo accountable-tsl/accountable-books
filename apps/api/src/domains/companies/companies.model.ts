@@ -663,7 +663,7 @@ const companyFields = [
   'accounting_firms_meta.slug as assignedFirmSlug',
   'firm_meta.display_name as assignedFirmName',
   'firm_meta.is_platform as assignedFirmIsPlatform',
-  'firm_meta.logo_url as assignedFirmLogo',
+  'firm_logo_file.url as assignedFirmLogo',
 ];
 
 /**
@@ -708,7 +708,14 @@ export const fetchCompanies = async (
         'companies as firm_meta',
         'accounting_firms_meta.company_id',
         'firm_meta.id',
-      ); // Get actual firm details from companies table (since firms are also companies)
+      )
+      .leftJoin('files as firm_logo_file', function joinFirmLogoFile() {
+        this.on('firm_meta.logo_file_id', '=', 'firm_logo_file.id').andOn(
+          'firm_logo_file.is_deleted',
+          '=',
+          db.raw('false'),
+        );
+      }); // Get actual firm details from companies table (since firms are also companies)
 
     if (identifiers?.length) {
       const companyIds = [];
