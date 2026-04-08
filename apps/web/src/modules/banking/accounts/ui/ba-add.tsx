@@ -28,9 +28,9 @@ import {
 import { useBanks } from '@/modules/banking/institutions/model/hooks';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
-import { companyType } from '@/shared/types/core';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
 import { getDefaultCountryAndCurrency } from '@/shared/utils/random-utils';
+import { companyType } from '@accountable-books/contracts/schema';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useSession } from '@session';
 import {

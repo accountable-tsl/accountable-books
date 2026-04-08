@@ -1,4 +1,4 @@
-import type { AuthCompanyContext } from '@/modules/auth/types';
+import type { AuthCompanyContext } from '@/modules/auth';
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

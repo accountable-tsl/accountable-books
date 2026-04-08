@@ -1,0 +1,9 @@
+from enum import Enum
+
+class SupportAccessOrigin(str, Enum):
+    EXPLICIT_COMPANY = "explicit_company"
+    EXPLICIT_FIRM = "explicit_firm"
+    DEMO = "demo"
+    PLATFORM_INTERNAL = "platform_internal"
+    SUPPORT_GRANT = "support_grant"
+    BREAK_GLASS = "break_glass"

@@ -41,16 +41,29 @@ from .api_chat_request import ApiChatRequest
 from .api_create_thread_request import ApiCreateThreadRequest
 from .audit_actor_type import AuditActorType
 from .audit_event_base import AuditEventBase
+from .auth_company_context import AuthCompanyContext
+from .auth_onboarding_step import AuthOnboardingStep
+from .auth_onboarding_step_key import AuthOnboardingStepKey
+from .auth_session_payload import AuthSessionPayload
+from .auth_user_context import AuthUserContext
 from .balance_sheet_response import BalanceSheetResponse
 from .bank_contact_stats_snapshot import BankContactStatsSnapshot
 from .base_rolling_stats import BaseRollingStats
+from .break_glass_session_response import BreakGlassSessionResponse
+from .break_glass_session_status import BreakGlassSessionStatus
 from .categorization_task_source import CategorizationTaskSource
 from .categorization_task_status import CategorizationTaskStatus
 from .categorization_transaction_status import CategorizationTransactionStatus
 from .company_context import CompanyContext
+from .company_onboarding_state import CompanyOnboardingState
+from .company_response import CompanyResponse
 from .company_type import CompanyType
+from .company_verification import CompanyVerification
+from .company_verification_claim import CompanyVerificationClaim
 from .contact_type import ContactType
 from .copy_journal_body import CopyJournalBody
+from .create_support_grant_request import CreateSupportGrantRequest
+from .current_company_context import CurrentCompanyContext
 from .data_mutation_intent import DataMutationIntent
 from .debit_credit import DebitCredit
 from .detail_attachment import DetailAttachment
@@ -87,6 +100,7 @@ from .firm_task_queue_item_schema import FirmTaskQueueItemSchema
 from .firm_task_queue_response_schema import FirmTaskQueueResponseSchema
 from .firm_task_queue_summary_schema import FirmTaskQueueSummarySchema
 from .firm_task_status_schema import FirmTaskStatusSchema
+from .firm_type import FirmType
 from .firm_viewer_role_schema import FirmViewerRoleSchema
 from .fiscal_calendar_status import FiscalCalendarStatus
 from .fiscal_period_type import FiscalPeriodType
@@ -109,10 +123,12 @@ from .ledger_intent_desired_state import LedgerIntentDesiredState
 from .ledger_intent_entry import LedgerIntentEntry
 from .ledger_intent_schema import LedgerIntentSchema
 from .list_journals_cursor_query import ListJournalsCursorQuery
+from .list_support_grants_response import ListSupportGrantsResponse
 from .ml_prediction_output import MlPredictionOutput
 from .new_account_type import NewAccountType
 from .new_txn_file import NewTxnFile
 from .obj_storage_provider import ObjStorageProvider
+from .open_break_glass_request import OpenBreakGlassRequest
 from .post_draft_journals_batch_body import PostDraftJournalsBatchBody
 from .ranker_entry import RankerEntry
 from .ranker_explanation import RankerExplanation
@@ -120,8 +136,10 @@ from .reason_enum import ReasonEnum
 from .reconciliation_status import ReconciliationStatus
 from .recurrence_frequency import RecurrenceFrequency
 from .recurring_template_status import RecurringTemplateStatus
+from .refresh_session_payload import RefreshSessionPayload
 from .reporting_framework import ReportingFramework
 from .reverse_journal_body import ReverseJournalBody
+from .revoke_support_grant_request import RevokeSupportGrantRequest
 from .role_key import RoleKey
 from .role_scope import RoleScope
 from .statement_line import StatementLine
@@ -131,13 +149,19 @@ from .statement_line_detail_response import StatementLineDetailResponse
 from .statement_line_tone import StatementLineTone
 from .statement_note import StatementNote
 from .statement_note_source import StatementNoteSource
+from .support_access_level import SupportAccessLevel
+from .support_access_origin import SupportAccessOrigin
+from .support_grant_response import SupportGrantResponse
+from .support_grant_status import SupportGrantStatus
 from .temporal_schema import TemporalSchema
 from .tenant_account_ranker import TenantAccountRanker
 from .transaction_files import TransactionFiles
 from .txn_file_base import TxnFileBase
 from .txn_file_input import TxnFileInput
 from .txn_file_source import TxnFileSource
+from .update_company_payload import UpdateCompanyPayload
+from .user_onboarding_state import UserOnboardingState
 from .void_draft_journals_batch_body import VoidDraftJournalsBatchBody
 from .void_journal_body import VoidJournalBody
 
-__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "AiApproval", "AiApprovalStatus", "AiAssistantMessage", "AiCapabilityId", "AiChatAssistantDeltaEvent", "AiChatAssistantMessageEvent", "AiChatEffectEvent", "AiChatErrorCode", "AiChatErrorEvent", "AiChatEvent", "AiChatMessageListResponse", "AiChatRequest", "AiChatThread", "AiChatThreadListResponse", "AiChatToolCallEvent", "AiChatToolErrorEvent", "AiChatToolResultEvent", "AiEffect", "AiEffectApprovalRequest", "AiEffectJobCompleted", "AiEffectJobProgress", "AiEffectJobStarted", "AiEffectProposalForm", "AiEffectProposalPreview", "AiEffectUiHighlight", "AiEffectUiNavigate", "AiExecuteApprovalResponse", "AiMessage", "AiMessageMeta", "AiMessageRole", "AiProposal", "AiProposalStatus", "AiProposeBody", "AiProposeResponseData", "ApiChatRequest", "ApiCreateThreadRequest", "AuditActorType", "AuditEventBase", "BalanceSheetResponse", "BankContactStatsSnapshot", "BaseRollingStats", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyType", "ContactType", "CopyJournalBody", "DataMutationIntent", "DebitCredit", "DetailAttachment", "DetailLineAccount", "DetailTransaction", "DetailTransactionSource", "EnrichedTransaction", "FinalPosting", "FirmClientAssigneeSchema", "FirmClientInviteAssigneeInviteSchema", "FirmClientInviteCompanyBusinessSchema", "FirmClientInviteCompanyIndividualSchema", "FirmClientInviteCompanySchema", "FirmClientInviteCompanyStep2BusinessSchema", "FirmClientInviteCompanyStep2IndividualSchema", "FirmClientInviteCompanyStep2Schema", "FirmClientInviteInviteSchema", "FirmClientInviteRequestSchema", "FirmClientInviteResponseSchema", "FirmClientInviteWizardSteps123Schema", "FirmClientInviteWizardSteps12Schema", "FirmClientRosterResponseSchema", "FirmClientStatusSchema", "FirmClientSummarySchema", "FirmClientTransactionStatsSchema", "FirmEngagementTaskCategorySchema", "FirmEngagementTaskScopeTypeSchema", "FirmEngagementTaskTypeSchema", "FirmInviteInvitedCompanyRoleSchema", "FirmTaskActionabilityStateSchema", "FirmTaskAssigneeSchema", "FirmTaskPrioritySchema", "FirmTaskQueueItemSchema", "FirmTaskQueueResponseSchema", "FirmTaskQueueSummarySchema", "FirmTaskStatusSchema", "FirmViewerRoleSchema", "FiscalCalendarStatus", "FiscalPeriodType", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IncomeStatementResponse", "IntentActionType", "IntentSemanticEntry", "JournalBatchInput", "JournalBatchSource", "JournalBatchStatus", "JournalEntryInput", "JournalListRowKind", "JournalSource", "LabelRole", "LedgerAuditEvent", "LedgerAuditEventType", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "ListJournalsCursorQuery", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "PostDraftJournalsBatchBody", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReconciliationStatus", "RecurrenceFrequency", "RecurringTemplateStatus", "ReportingFramework", "ReverseJournalBody", "RoleKey", "RoleScope", "StatementLine", "StatementLineAccountTransactionsQuery", "StatementLineAccountTransactionsResponse", "StatementLineDetailResponse", "StatementLineTone", "StatementNote", "StatementNoteSource", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileBase", "TxnFileInput", "TxnFileSource", "VoidDraftJournalsBatchBody", "VoidJournalBody"]
+__all__ = ["AccountTypeKeys", "AccountingBasis", "AccrualRecommendation", "AccrualResolverOutput", "ActionIntent", "AiApproval", "AiApprovalStatus", "AiAssistantMessage", "AiCapabilityId", "AiChatAssistantDeltaEvent", "AiChatAssistantMessageEvent", "AiChatEffectEvent", "AiChatErrorCode", "AiChatErrorEvent", "AiChatEvent", "AiChatMessageListResponse", "AiChatRequest", "AiChatThread", "AiChatThreadListResponse", "AiChatToolCallEvent", "AiChatToolErrorEvent", "AiChatToolResultEvent", "AiEffect", "AiEffectApprovalRequest", "AiEffectJobCompleted", "AiEffectJobProgress", "AiEffectJobStarted", "AiEffectProposalForm", "AiEffectProposalPreview", "AiEffectUiHighlight", "AiEffectUiNavigate", "AiExecuteApprovalResponse", "AiMessage", "AiMessageMeta", "AiMessageRole", "AiProposal", "AiProposalStatus", "AiProposeBody", "AiProposeResponseData", "ApiChatRequest", "ApiCreateThreadRequest", "AuditActorType", "AuditEventBase", "AuthCompanyContext", "AuthOnboardingStep", "AuthOnboardingStepKey", "AuthSessionPayload", "AuthUserContext", "BalanceSheetResponse", "BankContactStatsSnapshot", "BaseRollingStats", "BreakGlassSessionResponse", "BreakGlassSessionStatus", "CategorizationTaskSource", "CategorizationTaskStatus", "CategorizationTransactionStatus", "CompanyContext", "CompanyOnboardingState", "CompanyResponse", "CompanyType", "CompanyVerification", "CompanyVerificationClaim", "ContactType", "CopyJournalBody", "CreateSupportGrantRequest", "CurrentCompanyContext", "DataMutationIntent", "DebitCredit", "DetailAttachment", "DetailLineAccount", "DetailTransaction", "DetailTransactionSource", "EnrichedTransaction", "FinalPosting", "FirmClientAssigneeSchema", "FirmClientInviteAssigneeInviteSchema", "FirmClientInviteCompanyBusinessSchema", "FirmClientInviteCompanyIndividualSchema", "FirmClientInviteCompanySchema", "FirmClientInviteCompanyStep2BusinessSchema", "FirmClientInviteCompanyStep2IndividualSchema", "FirmClientInviteCompanyStep2Schema", "FirmClientInviteInviteSchema", "FirmClientInviteRequestSchema", "FirmClientInviteResponseSchema", "FirmClientInviteWizardSteps123Schema", "FirmClientInviteWizardSteps12Schema", "FirmClientRosterResponseSchema", "FirmClientStatusSchema", "FirmClientSummarySchema", "FirmClientTransactionStatsSchema", "FirmEngagementTaskCategorySchema", "FirmEngagementTaskScopeTypeSchema", "FirmEngagementTaskTypeSchema", "FirmInviteInvitedCompanyRoleSchema", "FirmTaskActionabilityStateSchema", "FirmTaskAssigneeSchema", "FirmTaskPrioritySchema", "FirmTaskQueueItemSchema", "FirmTaskQueueResponseSchema", "FirmTaskQueueSummarySchema", "FirmTaskStatusSchema", "FirmType", "FirmViewerRoleSchema", "FiscalCalendarStatus", "FiscalPeriodType", "GetCategorizationStatsParams", "GetTxnFileInput", "GlobalIntentClassifier", "IncomeStatementResponse", "IntentActionType", "IntentSemanticEntry", "JournalBatchInput", "JournalBatchSource", "JournalBatchStatus", "JournalEntryInput", "JournalListRowKind", "JournalSource", "LabelRole", "LedgerAuditEvent", "LedgerAuditEventType", "LedgerIntentDesiredState", "LedgerIntentEntry", "LedgerIntentSchema", "ListJournalsCursorQuery", "ListSupportGrantsResponse", "MlPredictionOutput", "NewAccountType", "NewTxnFile", "ObjStorageProvider", "OpenBreakGlassRequest", "PostDraftJournalsBatchBody", "RankerEntry", "RankerExplanation", "ReasonEnum", "ReconciliationStatus", "RecurrenceFrequency", "RecurringTemplateStatus", "RefreshSessionPayload", "ReportingFramework", "ReverseJournalBody", "RevokeSupportGrantRequest", "RoleKey", "RoleScope", "StatementLine", "StatementLineAccountTransactionsQuery", "StatementLineAccountTransactionsResponse", "StatementLineDetailResponse", "StatementLineTone", "StatementNote", "StatementNoteSource", "SupportAccessLevel", "SupportAccessOrigin", "SupportGrantResponse", "SupportGrantStatus", "TemporalSchema", "TenantAccountRanker", "TransactionFiles", "TxnFileBase", "TxnFileInput", "TxnFileSource", "UpdateCompanyPayload", "UserOnboardingState", "VoidDraftJournalsBatchBody", "VoidJournalBody"]

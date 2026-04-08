@@ -2,16 +2,28 @@ import type { MimeType } from '@/shared/constants/filetype';
 import z from 'zod';
 
 export type ObjectBucket = 'logos' | 'txnFiles';
+export type FileUploadPurpose = 'company_logo' | 'txn_attachment';
+
+export interface TxnAttachmentMetadata {
+  source?: 'ledger' | 'journal' | 'bank';
+  transactionId?: string;
+  entryId?: string | null;
+  folderContext?: string;
+}
 
 export interface ObjectUploadUrlParams {
   companyId: string;
   bucketType: ObjectBucket;
   fileName: string;
-  contentType: MimeType;
-  folderContext?: string;
+  contentType: MimeType | string;
+  sizeBytes: number;
+  metadata?: {
+    txnAttachment?: TxnAttachmentMetadata;
+  };
 }
 
 export interface ObjectUploadUrlResponse {
+  intentId: string;
   signedUrl: string;
   fileKey: string;
   bucketName: string;
@@ -20,6 +32,7 @@ export interface ObjectUploadUrlResponse {
 }
 
 export interface ObjectDownloadUrlParams {
+  companyId: string;
   bucketType: ObjectBucket;
   fileKey: string;
   timeout?: number;
@@ -28,6 +41,40 @@ export interface ObjectDownloadUrlParams {
 export interface ObjectDownloadUrlResponse {
   url: string;
   expiry: number;
+}
+
+export interface CreateUploadIntentParams {
+  companyId: string;
+  purpose: FileUploadPurpose;
+  fileName: string;
+  contentType: MimeType | string;
+  sizeBytes: number;
+  metadata?: {
+    txnAttachment?: TxnAttachmentMetadata;
+  };
+}
+
+export interface CreateUploadIntentResponse {
+  intentId: string;
+  purpose: FileUploadPurpose;
+  uploadUrl: string;
+  fileKey: string;
+  bucketName: string;
+  url: string;
+  expiresAt: string;
+}
+
+export interface FinalizeUploadIntentParams {
+  companyId: string;
+  intentId: string;
+  checksum?: string | null;
+}
+
+export interface FinalizeUploadIntentResponse {
+  fileId: string;
+  purpose: FileUploadPurpose;
+  key: string;
+  url: string;
 }
 
 export const txnFileInput = z

@@ -83,6 +83,30 @@ export function errorResponse<T = null>(
   };
 }
 
+export function getHttpStatusFromErrorCode(code?: string): number {
+  switch (code) {
+    case ErrorCode.INVALID_CREDENTIALS:
+    case ErrorCode.UNAUTHORIZED:
+      return 401;
+    case ErrorCode.FORBIDDEN:
+      return 403;
+    case ErrorCode.NOT_FOUND:
+      return 404;
+    case ErrorCode.CONFLICT:
+    case ErrorCode.OPERATION_NOT_ALLOWED:
+      return 409;
+    case ErrorCode.SERVICE_UNAVAILABLE:
+      return 503;
+    case ErrorCode.INVALID_INPUT:
+    case ErrorCode.ONBOARDING_INCOMPLETE:
+      return 400;
+    case ErrorCode.DATABASE_ERROR:
+    case ErrorCode.GENERIC:
+    default:
+      return 500;
+  }
+}
+
 // export const throwError = (message: string, errorDetails?: any): never => {
 //   if (!isProd) console.error(message, errorDetails);
 

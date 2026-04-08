@@ -1,6 +1,8 @@
-import type { CompanyType, Country } from '@/shared/types/core';
+import type { NewCompany, NewUser } from '@/modules/auth';
+import type { Country } from '@/shared/types/core';
+import type { CompanyType } from '@accountable-books/contracts/schema';
 import type { AxiosError } from 'axios';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthHeader } from '@/components/AuthHeader';
 import { StepProgress } from '@/components/StepProgress/StepProgress';
 import { Button } from '@/components/ui/button';
@@ -25,10 +27,6 @@ import { PuffLoader } from 'react-spinners';
 import { toast } from 'sonner';
 
 import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
-import {
-  type NewCompany,
-  type NewUser,
-} from '../../../domains-pending-migration/signup/signupTypes';
 import { SignupBasicInfo } from './steps/basic-info';
 import { SignupCompanyInfo } from './steps/company-info';
 import { SignupSelector } from './steps/selector';
@@ -273,7 +271,10 @@ export function Signup() {
     return curr;
   }, [companyDetails.countryId, countries, getCountryFromLocale]);
 
-  const handleCompanyInfoChange = (field: keyof NewCompany, value: string) => {
+  const handleCompanyInfoChange = <K extends keyof NewCompany>(
+    field: K,
+    value: NewCompany[K],
+  ) => {
     // If user manually selects a currency, mark the override flag
     if (field === 'reportingCurrencyId') {
       userHasSelectedCurrency.current = true;

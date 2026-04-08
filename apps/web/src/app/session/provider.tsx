@@ -6,13 +6,13 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import { useCompanyDetails } from '@/domains-pending-migration/company/hooks';
 import {
   authStore,
   clearSessionFn,
   handleLogout,
   useSessionQuery,
 } from '@/modules/auth';
+import { useCompanyDetails } from '@/modules/company/companies';
 import { createTenantRoutes, isPublicRoute, routes } from '@/shared/routes';
 import { useLocation, useNavigate } from 'react-router';
 

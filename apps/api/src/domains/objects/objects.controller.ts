@@ -1,13 +1,19 @@
-import { type Request, type Response } from 'express';
+import { type Response } from 'express';
 
+import { knexClient } from '../../db/knexClient.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
+  ErrorCode,
   errorResponse,
-  successResponse,
+  getHttpStatusFromErrorCode,
 } from '../../shared/utils/response.utils.js';
-import { deleteObject, uploadObject } from './objects.model.js';
+import {
+  createUploadIntent,
+  detachCompanyLogo,
+  finalizeUploadIntent,
+} from './file-uploads.service.js';
 import { StorageService } from './objects.service.js';
 import { type ObjectBucket } from './objects.types.js';
-import { objectTypeHandlers, validateFileMagicBytes } from './objects.utils.js';
 import { getTxnFiles, persistTxnFiles } from './txn-files/txn-files.service.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
@@ -24,116 +30,58 @@ const TRANSACTION_FILE_LIMITS_BYTES = {
   MAX_TOTAL_SIZE_BYTES: TRANSACTION_FILE_LIMITS.MAX_TOTAL_SIZE_MB * 1024 * 1024,
 } as const;
 
-export async function uploadObjectController(req: Request, res: Response) {
+export async function createUploadIntentController(
+  req: AuthRequest,
+  res: Response,
+) {
   try {
-    if (!req.file) {
-      return res.status(400).json(errorResponse('No file uploaded'));
+    if (!req.user?.id) {
+      return res.status(401).json(errorResponse('Unauthorized'));
     }
 
-    const objectType = (req.params.objectType ||
-      req.body.objectType) as ObjectBucket;
-
-    if (!objectType) {
-      return res.status(400).json(errorResponse('Object type required'));
-    }
-
-    const handler = objectTypeHandlers[objectType as ObjectBucket];
-    if (!handler) {
-      return res.status(400).json(errorResponse('Unsupported object type'));
-    }
-
-    if (req.file.size > handler.maxSizeMB * 1024 * 1024) {
-      return res
-        .status(400)
-        .json(errorResponse(`File size exceeds ${handler.maxSizeMB}MB limit`));
-    }
-
-    const magicResult = await validateFileMagicBytes(
-      req.file.buffer,
-      handler.allowedMimeTypes,
+    const result = await createUploadIntent(
+      {
+        ...req.body,
+        companyId: String(req.params.companyId),
+      },
+      req.user.id,
     );
-    if ('error' in magicResult) {
-      return res.status(400).json(errorResponse(magicResult.error));
-    }
 
-    const parsedParams = {
-      companyId: req.body.companyId,
-      objectType,
-      file: req.file.buffer,
-      originalFilename: req.file.originalname,
-      mimeType: magicResult.mime,
-    };
-
-    const uploadResult = await uploadObject(objectType, parsedParams);
-
-    if (!uploadResult.success) {
-      return res
-        .status(500)
-        .json(errorResponse(uploadResult.message || 'Failed to store logo'));
-    }
-
-    return res
-      .status(200)
-      .json(successResponse('Logo uploaded', uploadResult.data));
-  } catch (error: any) {
-    console.error(error);
+    return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
+  } catch (error) {
     return res
       .status(500)
-      .json(errorResponse(`Upload failed - ${error.message}`));
+      .json(errorResponse('Failed to create upload intent'));
   }
 }
 
-export async function deleteObjectController(req: Request, res: Response) {
+export async function finalizeUploadIntentController(
+  req: AuthRequest,
+  res: Response,
+) {
   try {
-    const objectType = req.params.objectType || req.body.objectType;
-    const key = req.body.key;
-
-    if (!objectType || !key) {
-      return res.status(400).json(errorResponse('Missing objectType or key'));
+    if (!req.user?.id) {
+      return res.status(401).json(errorResponse('Unauthorized'));
     }
 
-    if (!objectTypeHandlers[objectType as ObjectBucket]) {
-      return res.status(400).json(errorResponse('Unsupported object type'));
-    }
+    const result = await finalizeUploadIntent(
+      {
+        ...req.body,
+        companyId: String(req.params.companyId),
+      },
+      req.user.id,
+    );
 
-    const result = await deleteObject(objectType as ObjectBucket, key);
-
-    if (!result.success) {
-      return res.status(500).json(result);
-    }
-
-    return res.status(200).json(result);
-  } catch (err: any) {
-    console.error('Delete error:', err);
-    return res.status(500).json(errorResponse('Failed to delete object', err));
-  }
-}
-
-export async function getObjUploadUrl(req: AuthRequest, res: Response) {
-  try {
-    if (!req.user) return res.status(401).json(errorResponse('Unauthorized'));
-    const companyId = String(req.params.companyId || req.company?.id);
-    const { bucketType, fileName, contentType, folderContext } = req.body;
-
-    const uploadInfo = await StorageService.getUploadPresignedUrl({
-      bucketType,
-      companyId,
-      fileName,
-      contentType,
-      folderContext,
-    });
-
-    if ('success' in uploadInfo && !uploadInfo.success) {
-      return res.status(400).json(uploadInfo);
-    }
-
-    return res.status(200).json(uploadInfo);
+    return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
   } catch (error) {
-    return res.status(500).json(errorResponse('Failed to get upload URL'));
+    return res.status(500).json(errorResponse('Failed to finalize upload'));
   }
 }
 
-export async function getObjDownloadUrl(req: AuthRequest, res: Response) {
+export async function getPrivateFileDownloadUrlController(
+  req: AuthRequest,
+  res: Response,
+) {
   if (!req.user?.id) return res.status(401).json(errorResponse('Unauthorized'));
   const { bucketType, fileKey, timeout } = req.query ?? {};
 
@@ -141,7 +89,39 @@ export async function getObjDownloadUrl(req: AuthRequest, res: Response) {
     return res.status(400).json(errorResponse('Invalid timeout'));
   }
 
+  if (String(bucketType) !== 'txnFiles') {
+    return res.status(400).json(
+      errorResponse(
+        'Signed download URLs are only available for private files',
+        undefined,
+        {
+          code: ErrorCode.INVALID_INPUT,
+        },
+      ),
+    );
+  }
+
   try {
+    const companyUuid =
+      req.companyContext?.uuid ??
+      (await getCompanyUUID(String(req.params.companyId)));
+    const file = await knexClient('files')
+      .select('id')
+      .where({
+        company_id: companyUuid,
+        key: String(fileKey),
+        is_deleted: false,
+      })
+      .first();
+
+    if (!file) {
+      return res.status(404).json(
+        errorResponse('File not found for this company', undefined, {
+          code: ErrorCode.NOT_FOUND,
+        }),
+      );
+    }
+
     const downloadUrl = await StorageService.getDownloadPresignedUrl({
       bucketType: String(bucketType) as ObjectBucket,
       fileKey: String(fileKey),
@@ -153,6 +133,21 @@ export async function getObjDownloadUrl(req: AuthRequest, res: Response) {
     return res.status(200).json(downloadUrl);
   } catch (error) {
     return res.status(500).json(errorResponse('Failed to get download URL'));
+  }
+}
+
+export async function deleteCompanyLogoController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const result = await detachCompanyLogo({
+      companyId: String(req.params.companyId),
+    });
+
+    return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
+  } catch (error) {
+    return res.status(500).json(errorResponse('Failed to remove company logo'));
   }
 }
 

@@ -44,6 +44,7 @@ export const StorageService = {
         fileName,
         contentType,
         folderContext, // Optional: context like transactionId for nested folders
+        fileKey: explicitFileKey,
       } = v.data;
 
       const companyUUID = await getCompanyUUID(companyId, txn);
@@ -55,7 +56,9 @@ export const StorageService = {
 
       // Path structure: {companyId}/{optionalContext}/{uuid}-{fileName}
       const contextPath = folderContext ? `${folderContext}/` : '';
-      const fileKey = `${companyUUID}/${contextPath}${crypto.randomUUID()}-${fileName}`;
+      const fileKey =
+        explicitFileKey ||
+        `${companyUUID}/${contextPath}${crypto.randomUUID()}-${fileName}`;
 
       const command = new PutObjectCommand({
         Bucket: bucket,

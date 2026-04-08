@@ -38,7 +38,7 @@ export function SettingsLayout() {
         </p>
       </header>
 
-      <div className="grid lg:h-full lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-0 lg:pt-4">
+      <div className="grid overflow-hidden lg:h-full lg:max-h-full lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-0 lg:pt-4">
         <nav
           aria-label="Settings sections"
           className="hidden lg:sticky lg:top-4 lg:flex lg:flex-col lg:gap-1 lg:self-start lg:pr-4"
@@ -55,7 +55,7 @@ export function SettingsLayout() {
           ))}
         </nav>
 
-        <div className="lg:border-border/60 flex min-w-0 flex-col lg:border-l lg:pl-8">
+        <div className="lg:border-border/60 flex h-full min-h-0 min-w-0 flex-1 flex-col lg:border-l lg:pl-8">
           {!isHubPage && (
             <div className="mb-4 lg:hidden">
               <Link

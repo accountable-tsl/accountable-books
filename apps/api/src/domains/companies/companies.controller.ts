@@ -9,14 +9,17 @@ import {
   AppError,
   ErrorCode,
   errorResponse,
+  getHttpStatusFromErrorCode,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { getAuditContext } from '../audit/audit.middleware.js';
 import {
   getCompanies,
   getSingleCompany,
   switchCompany,
   updateCompany,
 } from './companies.model.js';
+import { getWorkspaceCompanyPatchDeniedReason } from './companies.workspace-mutation.policy.js';
 
 export const switchCompanyController = async (
   req: AuthRequest,
@@ -32,17 +35,9 @@ export const switchCompanyController = async (
     });
 
     if (!switchResult.success || !switchResult.data) {
-      const status =
-        switchResult?.code === ErrorCode.INVALID_CREDENTIALS
-          ? 401
-          : switchResult?.code === ErrorCode.GENERIC
-            ? 500
-            : 403;
       return res
-        .status(status)
-        .json(
-          errorResponse(switchResult.message, switchResult.data || undefined),
-        );
+        .status(getHttpStatusFromErrorCode(switchResult.code))
+        .json(switchResult);
     }
 
     const { accessToken, refreshToken, user, company } = switchResult.data;
@@ -68,7 +63,7 @@ export const getCompaniesController = async (req: Request, res: Response) => {
     const result = await getCompanies();
 
     if (!result.success) {
-      return res.status(404).json(result);
+      return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
     }
 
     return res.status(200).json(result);
@@ -87,7 +82,7 @@ export const getCompanyController = async (req: AuthRequest, res: Response) => {
     const company = await getSingleCompany(companyId);
 
     if (!company || !company.success) {
-      return res.status(400).json(errorResponse('Company not found'));
+      return res.status(getHttpStatusFromErrorCode(company.code)).json(company);
     }
 
     return res.status(200).json(company);
@@ -113,11 +108,46 @@ export const updateCompanyController = async (
     return res.status(400).json(errorResponse('Bad Request'));
   }
 
+  if (!req.company) {
+    return res
+      .status(500)
+      .json(
+        errorResponse('Company context missing', undefined, {
+          code: ErrorCode.GENERIC,
+        }),
+      );
+  }
+
+  const patchDenied = getWorkspaceCompanyPatchDeniedReason(
+    req.user,
+    req.company,
+  );
+  if (patchDenied) {
+    return res
+      .status(403)
+      .json(
+        errorResponse(patchDenied, undefined, { code: ErrorCode.FORBIDDEN }),
+      );
+  }
+
   try {
-    const result = await updateCompany(companyId, updateData, userId);
+    const result = await updateCompany(
+      companyId,
+      updateData,
+      userId,
+      undefined,
+      {
+        audit: {
+          actor: {
+            type: 'user',
+            userId,
+          },
+          context: getAuditContext(req),
+        },
+      },
+    );
     if (!result.success) {
-      const { error, ...rest } = result;
-      return res.status(404).json(rest);
+      return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
     }
 
     return res.status(200).json(result);

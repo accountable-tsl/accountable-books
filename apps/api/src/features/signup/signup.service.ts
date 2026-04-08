@@ -13,7 +13,7 @@ import {
   type NewCompanyInputCamel,
 } from '../../domains/companies/companies.types.js';
 import { type RoleKey } from '../../domains/roles/roles.types.js';
-import { grantDirectAccess } from '../../domains/userRoles/userRoles.model.js';
+import { grantDirectAccess } from '../../domains/user-roles/user-roles.model.js';
 import { createUserDirect } from '../../domains/users/users.model.js';
 import {
   type CreateUserResponse,

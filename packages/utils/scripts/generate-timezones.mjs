@@ -6,10 +6,7 @@ import { getTimeZones } from '@vvo/tzdb';
 import { countryDefaultTimezoneSeeds } from './country-default-timezone-seeds.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const outputPath = path.resolve(
-  __dirname,
-  '../src/timezone/data.generated.ts',
-);
+const outputPath = path.resolve(__dirname, '../src/timezone/data.generated.ts');
 
 const timezones = getTimeZones({ includeUtc: true });
 

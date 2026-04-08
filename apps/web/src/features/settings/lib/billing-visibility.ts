@@ -1,5 +1,6 @@
 import type { AuthCompanyContext } from '@/modules/auth';
-import type { CompanyData, CompanyType } from '@/modules/company/companies';
+import type { CompanyData } from '@/modules/company/companies/model/types';
+import type { CompanyType } from '@accountable-books/contracts/schema';
 
 export type WorkspaceBillingView =
   | 'hidden'
@@ -14,6 +15,7 @@ type BillingVisibilityParams = {
   isPlatformUser?: boolean;
 };
 
+// UI/navigation only; billing APIs must enforce access separately.
 export function getWorkspaceBillingView({
   companyType,
   currentCompany,

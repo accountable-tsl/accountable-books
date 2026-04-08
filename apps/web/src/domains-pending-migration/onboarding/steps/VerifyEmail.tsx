@@ -1,5 +1,5 @@
-import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
 import type { VerifyEmailFnResponse } from '@/domains-pending-migration/onboarding/types';
+import type { OnboardingStatus } from '@/modules/company/companies';
 import { useCallback, useEffect, useState } from 'react';
 import icon from '@/assets/images/email-file.gif';
 import { CenteredLoader } from '@/components/CenteredLoader';

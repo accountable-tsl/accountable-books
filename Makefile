@@ -35,11 +35,11 @@ setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + db + dem
 	@$(MAKE) db-up
 	@echo "$(YELLOW)📦 Installing Node.js dependencies...$(RESET)"
 	@pnpm install
+	@echo "$(YELLOW)🔨 Building @accountable-books/utils...$(RESET)"
+	@pnpm -F @accountable-books/utils run build
 	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
 	@$(MAKE) db-migrate
-	
-	@echo "$(YELLOW)🔨 Building shared packages (utils + contracts)...$(RESET)"
-	@pnpm -F @accountable-books/utils run build
+	@echo "$(YELLOW)🔨 Building @accountable-books/contracts (data + pydantic)...$(RESET)"
 	@pnpm -F @accountable-books/contracts run build
 	@echo "$(YELLOW)🐍 Installing Python dependencies (ML Engine)...$(RESET)"
 	@if ! command -v poetry &> /dev/null; then \

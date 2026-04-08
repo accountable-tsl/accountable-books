@@ -1,5 +1,6 @@
 import type { AuthUserContext } from '@/modules/auth';
-import type { CompanyData, CompanyType } from '@/modules/company/companies';
+import type { CompanyData } from '@/modules/company/companies/model/types';
+import type { CompanyType } from '@accountable-books/contracts/schema';
 import React from 'react';
 import { NavMain } from '@/components/nav-main';
 import { PracticeNav } from '@/components/nav-practice';

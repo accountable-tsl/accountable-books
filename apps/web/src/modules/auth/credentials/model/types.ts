@@ -1,5 +1,5 @@
-import { companyType } from '@/modules/company/companies';
 import { zEmail } from '@/shared/types/core';
+import { companyType } from '@accountable-books/contracts/schema';
 import z from 'zod';
 
 import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
@@ -14,8 +14,6 @@ export type LogoutOptions = {
   redirectTo?: string | false; // absolute or relative path
   query?: Record<string, string>; // e.g., { email: "foo@example.com" }
 };
-
-const slugRegex = /^(?=[a-z-]{3,15}$)[a-z]+(-[a-z]+)*$/;
 
 export const passwordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -65,11 +63,11 @@ export const newCompany = z
     countryId: z.uuid(),
     type: companyType,
     reportingCurrencyId: z.uuid(),
-    yearEndDay: z.coerce
+    yearEndDay: z
       .number()
       .min(1, 'Day must be between 1-31')
       .max(31, 'Day must be between 1-31'),
-    yearEndMonth: z.coerce
+    yearEndMonth: z
       .number()
       .min(1, 'Month must be between 1-12')
       .max(12, 'Month must be between 1-12'),

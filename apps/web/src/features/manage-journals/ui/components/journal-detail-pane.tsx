@@ -49,10 +49,11 @@ import {
 } from '@/modules/accounting/journals';
 import { useContacts } from '@/modules/contacts/model/hooks';
 import {
+  finalizeUploadIntent,
   getObjectDownloadUrl,
   getObjectUploadUrl,
   uploadFileToR2,
-} from '@/modules/objects/api';
+} from '@/modules/objects';
 import {
   TRANSACTION_FILE_LIMITS,
   TRANSACTION_FILE_LIMITS_BYTES,
@@ -1000,12 +1001,30 @@ export function JournalDetailPane({
           bucketType: 'txnFiles',
           fileName: file.name,
           contentType: file.type || 'application/octet-stream',
-          folderContext: 'journals',
+          sizeBytes: file.size,
+          metadata: {
+            txnAttachment: {
+              folderContext: 'journals',
+            },
+          },
         });
 
         if (uploadUrlRes.success && uploadUrlRes.data) {
-          const { signedUrl, fileKey, bucketName, url } = uploadUrlRes.data;
+          const { intentId, signedUrl, fileKey, bucketName, url } =
+            uploadUrlRes.data;
           await uploadFileToR2(file, signedUrl);
+          const finalizeRes = await finalizeUploadIntent({
+            companyId,
+            intentId,
+          });
+
+          if (!finalizeRes.success) {
+            toast.error(
+              finalizeRes.message ??
+                `Failed to finalize upload for ${file.name}`,
+            );
+            continue;
+          }
 
           newAttachments.push({
             name: file.name,
@@ -1055,6 +1074,7 @@ export function JournalDetailPane({
 
     try {
       const res = await getObjectDownloadUrl({
+        companyId,
         bucketType: 'txnFiles',
         fileKey: file.key,
         timeout: 3600,

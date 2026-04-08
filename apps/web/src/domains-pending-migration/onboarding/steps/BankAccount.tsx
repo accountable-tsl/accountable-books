@@ -1,11 +1,10 @@
 import type { BankTransactionImportOptions } from '@/domains-pending-migration/bankConnection/manualUpload/types';
-import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
+import type { OnboardingStatus } from '@/modules/company/companies';
 import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConnectBankAccount from '@/domains-pending-migration/bankConnection/connectViaFeed/ConnectBankAccount';
 import { BankTransactionImporter } from '@/domains-pending-migration/bankConnection/manualUpload/BankTransactionImporter';
-import { useCompany } from '@/domains-pending-migration/company/store';
 import { useSession } from '@session';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -15,8 +14,7 @@ export const BankAccount = ({
 }: {
   onBankAccountComplete?: (status: OnboardingStatus) => void;
 }) => {
-  const { tenantRoutes } = useSession();
-  const { companyId, companyType } = useCompany();
+  const { tenantRoutes, companyId, companyType } = useSession();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(() => {

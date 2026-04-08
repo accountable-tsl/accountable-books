@@ -22,12 +22,14 @@ import { AddProjectDialog } from '@/features/manage-projects/ui/components/proje
 import { cn } from '@/lib/utils';
 import { useLedgerIntentUpdaterV2 } from '@/modules/accounting/categorization';
 import { useContactsInfinite } from '@/modules/contacts';
-import { getObjectDownloadUrl } from '@/modules/objects/api';
+import {
+  getObjectDownloadUrl,
+  useUploadTransactionFiles,
+} from '@/modules/objects';
 import {
   TRANSACTION_FILE_LIMITS,
   TRANSACTION_FILE_LIMITS_BYTES,
 } from '@/modules/objects/constants';
-import { useUploadTransactionFiles } from '@/modules/objects/model/hooks';
 import { useProjectsInfinite } from '@/modules/projects';
 import {
   Check,
@@ -876,6 +878,7 @@ export function TransactionView({
 
     for (const key of filesNeedingUrls) {
       getObjectDownloadUrl({
+        companyId,
         bucketType: 'txnFiles',
         fileKey: key,
         timeout: 3600,

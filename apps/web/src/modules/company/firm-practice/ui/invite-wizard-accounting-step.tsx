@@ -6,7 +6,7 @@ import {
   ACCOUNTING_BASIS,
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
-} from '@/domains-pending-migration/company/constants';
+} from '@/modules/company/companies';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import type { FirmClientInviteWizardSteps123 } from '../model/types';

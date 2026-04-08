@@ -1,16 +1,21 @@
-import type {
-  CompanyData,
-  CompanyOnboardingState,
-  CompanyType,
-  OnboardingState,
-} from '@/modules/company/companies';
+import type { CompanyData } from '@/modules/company/companies/model/types';
 import type { TenantRoutes } from '@/shared/routes/types';
-import type { RoleKey, RoleScope } from '@accountable-books/contracts/schema';
+import type {
+  AuthUserContext,
+  CompanyType,
+  CurrentCompanyContext,
+} from '@accountable-books/contracts/schema';
 import { roleKey, roleScope } from '@accountable-books/contracts/schema';
 
 import type { LogoutOptions } from '../../credentials';
 
-export type { RoleKey, RoleScope };
+export type {
+  AuthCompanyContext,
+  AuthUserContext,
+  CurrentCompanyContext,
+  RoleKey,
+  RoleScope,
+} from '@accountable-books/contracts/schema';
 export { roleKey, roleScope };
 
 export interface AuthState {
@@ -34,37 +39,6 @@ export interface SessionStore {
   resetFailedAttempts: () => void;
 }
 
-export interface AuthUserContext {
-  id: string;
-  email: string;
-  firstname: string;
-  lastname?: string;
-
-  isPlatformUser?: boolean;
-  platformUserKey?: RoleKey;
-
-  currentCompanyId: string;
-  currentCompany: CurrentCompanyContext;
-  companies: AuthCompanyContext[];
-}
-
-export interface AuthCompanyContext {
-  id: string; // API field name for companyId
-  legalName: string;
-  displayName: string | null;
-  assignedFirmSlug: string; // API field name for firmSlug
-  companyType: CompanyType;
-  hasExplicitAccess: boolean;
-  roleKey: RoleKey | null;
-  roleScope: RoleScope | null;
-  isDemoCompany: boolean;
-  onboardingState: CompanyOnboardingState;
-}
-
-export type CurrentCompanyContext = AuthCompanyContext & {
-  onboarding: OnboardingState;
-};
-
 export type SessionContextType = {
   loading: boolean;
   isLoggedIn: boolean;
@@ -72,7 +46,7 @@ export type SessionContextType = {
 
   user: AuthUserContext | null;
   companyId?: string;
-  onboarding?: OnboardingState;
+  onboarding?: CurrentCompanyContext['onboarding'];
 
   company?: CompanyData;
   companyType?: CompanyType;

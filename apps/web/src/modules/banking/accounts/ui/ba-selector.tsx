@@ -3,13 +3,13 @@ import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { FormField } from '@/components/FormField';
-import { useCompany } from '@/domains-pending-migration/company/store';
 import { cn } from '@/lib/utils';
 import { type BankAccountWithMeta } from '@/modules/banking/accounts';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { maskDigits } from '@/shared/utils/formatting-utils';
+import { useSession } from '@session';
 import { Plus } from 'lucide-react';
 
 export default function BankAccountSelector({
@@ -31,7 +31,7 @@ export default function BankAccountSelector({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Hooks
-  const { companyId } = useCompany();
+  const { companyId } = useSession();
   const {
     data: companyBankAccounts,
     refetch,

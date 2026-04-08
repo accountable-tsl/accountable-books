@@ -19,15 +19,22 @@ export type SettingsSection = {
 
 export function useSettingsNav() {
   const { tenantRoutes, company, companyType, user } = useSession();
+  const currentRoleKey = user?.currentCompany?.roleKey;
+  const currentRoleScope = user?.currentCompany?.roleScope;
+  const isPlatformUser = user?.isPlatformUser;
+  const assignedFirmIsPlatform = company?.assignedFirmIsPlatform;
 
   return useMemo(() => {
     if (!tenantRoutes) return null;
     const s = tenantRoutes.general.settings;
     const showBilling = canViewWorkspaceBilling({
       companyType,
-      currentCompany: user?.currentCompany,
-      company,
-      isPlatformUser: user?.isPlatformUser,
+      currentCompany: {
+        roleKey: currentRoleKey ?? null,
+        roleScope: currentRoleScope ?? null,
+      },
+      company: { assignedFirmIsPlatform: assignedFirmIsPlatform ?? null },
+      isPlatformUser,
     });
 
     return {
@@ -76,10 +83,11 @@ export function useSettingsNav() {
       ] satisfies SettingsSection[],
     };
   }, [
-    company,
+    assignedFirmIsPlatform,
     companyType,
+    currentRoleKey,
+    currentRoleScope,
+    isPlatformUser,
     tenantRoutes,
-    user?.currentCompany,
-    user?.isPlatformUser,
   ]);
 }

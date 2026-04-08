@@ -1,0 +1,16 @@
+from pydantic import BaseModel
+from typing import Any
+
+class CompanyVerification(BaseModel):
+    class LegalName(BaseModel):
+        verifiedAt: Any
+    class Address(BaseModel):
+        verifiedAt: Any
+    class RegistrationNumber(BaseModel):
+        verifiedAt: Any
+    class TaxId(BaseModel):
+        verifiedAt: Any
+    legalName: LegalName
+    address: Address
+    registrationNumber: RegistrationNumber
+    taxId: TaxId

@@ -1,4 +1,8 @@
 import { type Request, type Response } from 'express';
+import {
+  authSessionPayload,
+  refreshSessionPayload,
+} from '@accountable-books/contracts/schema';
 
 import { ENV, isProd } from '../../config/env.js';
 import { redis } from '../../lib/redis.js';
@@ -44,13 +48,12 @@ export async function loginController(req: AuthRequest, res: Response) {
     req.company = rest.activeCompany;
     req.user = rest.user;
     const csrfToken = generateCsrfToken(req, res);
+    const payload = authSessionPayload.parse({
+      user: rest.user,
+      csrfToken,
+    });
 
-    return res.json(
-      successResponse('User logged in successfully', {
-        user: rest.user,
-        csrfToken,
-      }),
-    );
+    return res.json(successResponse('User logged in successfully', payload));
   } catch (error) {
     return res.status(500).json(errorResponse('Something went wrong', error));
   }
@@ -83,8 +86,9 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
 
     setAuthCookies(req, res, accessToken, newRefreshToken);
     const csrfToken = generateCsrfToken(req, res);
+    const payload = refreshSessionPayload.parse({ csrfToken });
 
-    return res.json(successResponse('Tokens refreshed', { csrfToken }));
+    return res.json(successResponse('Tokens refreshed', payload));
   } catch (error) {
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
@@ -146,13 +150,14 @@ export async function meController(req: AuthRequest, res: Response) {
   // I want to attach company data to req.company but not return it in the response
   req.company = activeCompany;
   req.user = user;
+  const payload = authSessionPayload.parse({
+    user,
+    csrfToken: generateCsrfToken(req, res),
+  });
 
-  return res.status(200).json(
-    successResponse('User retrieved successfully', {
-      user: user,
-      csrfToken: generateCsrfToken(req, res),
-    }),
-  );
+  return res
+    .status(200)
+    .json(successResponse('User retrieved successfully', payload));
 }
 
 export async function verifyEmailController(req: Request, res: Response) {

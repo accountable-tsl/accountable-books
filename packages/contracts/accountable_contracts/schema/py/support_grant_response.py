@@ -1,0 +1,44 @@
+from pydantic import BaseModel, constr
+from typing import Literal, Union
+from enum import Enum
+from datetime import datetime
+from uuid import UUID
+
+class SupportUserRoleKeyEnum(str, Enum):
+    SUPER_ADMIN = "super_admin"
+    SYSTEM_USER = "system_user"
+    SUPPORT_ADMIN = "support_admin"
+    SUPPORT_AGENT = "support_agent"
+    ADMIN = "admin"
+    MANAGER = "manager"
+    STAFF = "staff"
+    CLIENT_OWNER = "client_owner"
+    CLIENT_ADMIN = "client_admin"
+    CLIENT_USER = "client_user"
+
+class SupportAccessLevelEnum(str, Enum):
+    READ_ONLY = "read_only"
+    COMPANY_PROFILE_WRITE = "company_profile_write"
+
+class StatusEnum(str, Enum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+class SupportGrantResponse(BaseModel):
+    id: UUID
+    companyId: UUID
+    companyShortCode: constr(max_length=50)
+    supportUserId: UUID
+    supportUserEmail: str
+    supportUserRoleKey: SupportUserRoleKeyEnum
+    grantedByUserId: UUID
+    supportAccessLevel: SupportAccessLevelEnum
+    status: StatusEnum
+    reason: str
+    expiresAt: datetime
+    createdAt: datetime
+    updatedAt: datetime
+    revokedAt: Union[datetime, Literal[None]]
+    revokedByUserId: Union[UUID, Literal[None]]
+    revokeReason: Union[str, Literal[None]]

@@ -31,8 +31,6 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   created_by_id: adminUserId,
   short_code: ENV.PLATFORM_COMPANY_SHORT_CODE || 'platform',
   website: 'getaccountable.com',
-  logo_url:
-    ENV.PLATFORM_COMPANY_LOGO_URL || `${ENV.BACKEND_URL}/accountable-logo.png`,
   year_end_day: 31,
   year_end_month: 12,
   reporting_framework: 'ifrs',
@@ -85,8 +83,6 @@ export async function up(knex: Knex): Promise<void> {
     table.string('short_code', 11).unique().notNullable();
     table.string('address', 512).nullable();
     table.specificType('type', 'company_type').notNullable();
-    table.string('logo_url').nullable();
-    table.string('logo_key').nullable();
     table.string('description', 2000).nullable();
     table.string('website', 256).nullable();
     table.string('industry', 256).nullable();
@@ -133,15 +129,36 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('SET NULL');
 
+    table.timestamp('legal_name_verified_at', { useTz: true }).nullable();
+    table
+      .timestamp('registration_number_verified_at', { useTz: true })
+      .nullable();
+    table.timestamp('tax_id_verified_at', { useTz: true }).nullable();
+    table.timestamp('address_verified_at', { useTz: true }).nullable();
+
     addStandardColumns(knex, table);
 
     table.index('short_code');
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await knex.raw(
-    `ALTER TABLE companies ADD CONSTRAINT companies_tz_chk CHECK (default_timezone ~ '^[A-Za-z]+/[A-Za-z_]+$')`,
-  );
+
+  await knex.raw(`
+    CREATE OR REPLACE FUNCTION is_valid_iana_timezone(tz text)
+    RETURNS boolean AS $$
+      SELECT EXISTS (
+        SELECT 1
+        FROM pg_timezone_names
+        WHERE name = tz
+      );
+    $$ LANGUAGE sql STABLE;
+  `);
+
+  await knex.raw(`
+    ALTER TABLE companies
+    ADD CONSTRAINT companies_tz_chk
+    CHECK (is_valid_iana_timezone(default_timezone));
+  `);
   // await createPlatformCompany(knex);
 
   // Update last_active_company_id column in users table

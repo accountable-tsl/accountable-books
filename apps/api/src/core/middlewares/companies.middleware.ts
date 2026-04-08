@@ -1,8 +1,13 @@
 import { type NextFunction, type Response } from 'express';
 
 import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
-import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
+import { getAccessibleCompaniesForUser } from '../../domains/user-roles/user-roles.model.js';
+import {
+  AppError,
+  ErrorCode,
+  errorResponse,
+  getHttpStatusFromErrorCode,
+} from '../../shared/utils/response.utils.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 
@@ -33,7 +38,11 @@ export const checkCompanyId = async (
   const companyIdentifier = resolveCompanyIdentifier(req);
 
   if (!companyIdentifier || companyIdentifier.length > 50) {
-    return res.status(400).json({ message: 'Invalid Company Identifier' });
+    return res.status(400).json(
+      errorResponse('Invalid Company Identifier', undefined, {
+        code: ErrorCode.INVALID_INPUT,
+      }),
+    );
   }
 
   try {
@@ -44,16 +53,10 @@ export const checkCompanyId = async (
       companyUuid = identifiers.id;
       companyShortCode = identifiers.short_code;
     } catch (error) {
-      if (error instanceof Error) {
-        const message = error.message.toLowerCase();
-        if (message.includes('not found')) {
-          return res.status(404).json(errorResponse('Company not found'));
-        }
-        if (message.includes('invalid')) {
-          return res
-            .status(400)
-            .json(errorResponse('Invalid Company Identifier'));
-        }
+      if (error instanceof AppError) {
+        return res
+          .status(getHttpStatusFromErrorCode(error.code))
+          .json(errorResponse(error.message, error, { code: error.code }));
       }
 
       return res
@@ -66,7 +69,6 @@ export const checkCompanyId = async (
         );
     }
 
-    // Get user's access to this company
     if (!req.user?.id) {
       return res.status(401).json(errorResponse('User not authenticated'));
     }
@@ -74,12 +76,28 @@ export const checkCompanyId = async (
       userId: req.user.id,
     });
     if (!userAccess.success || !userAccess.data) {
-      return res
-        .status(500)
-        .json(errorResponse(userAccess.message || 'Error validating company'));
+      return res.status(getHttpStatusFromErrorCode(userAccess.code)).json(
+        userAccess.message
+          ? userAccess
+          : errorResponse('Error validating company', undefined, {
+              code: ErrorCode.GENERIC,
+            }),
+      );
     }
 
-    const accessibleCompany = userAccess.data?.accessibleCompanies.find(
+    const accessProfile = userAccess.data;
+
+    // JWT middleware only sets req.user.id; merge platform flags for PATCH/demo policy.
+    if (accessProfile.isPlatformUser) {
+      Object.assign(req.user, {
+        isPlatformUser: true,
+        ...(accessProfile.platformUserKey != null
+          ? { platformUserKey: accessProfile.platformUserKey }
+          : {}),
+      });
+    }
+
+    const accessibleCompany = accessProfile.accessibleCompanies.find(
       (c) => c.id === companyShortCode,
     );
 

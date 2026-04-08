@@ -1,8 +1,16 @@
 import type {
   CompanyData,
   UpdateCompanyVitalsData,
-} from '@/domains-pending-migration/company/types';
-import { useEffect, useRef, useState } from 'react';
+  UpdateCompanyVitalsFormValues,
+} from '@/modules/company/companies';
+import type {
+  Control,
+  ControllerFieldState,
+  ControllerRenderProps,
+  UseFormClearErrors,
+  UseFormSetError,
+} from 'react-hook-form';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
@@ -24,25 +32,23 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { updateCompanyDetails } from '@/domains-pending-migration/company/api';
+import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
+import { TOOLTIP } from '@/features/auth-signup/model/constants';
+import { cn } from '@/lib/utils';
 import {
   ACCOUNTING_BASIS,
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
-} from '@/domains-pending-migration/company/constants';
-import { updateCompanyVitalsSchema } from '@/domains-pending-migration/company/types';
-import {
   getCompanyTypeDisplay,
   getDefaultCompanyData,
-} from '@/domains-pending-migration/company/utils';
-import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
+  updateCompanyDetails,
+  updateCompanyVitalsSchema,
+} from '@/modules/company/companies';
 import {
-  deleteObject,
-  uploadObject,
-} from '@/domains-pending-migration/objects/api';
-import { ImageUploader } from '@/domains-pending-migration/objects/ImageUploader';
-import { TOOLTIP } from '@/features/auth-signup/model/constants';
-import { cn } from '@/lib/utils';
+  deleteCompanyLogo,
+  ImageUploader,
+  uploadCompanyLogo,
+} from '@/modules/objects';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
@@ -62,10 +68,10 @@ function SlugFieldController({
   setError,
   clearErrors,
 }: {
-  control: any;
+  control: Control<UpdateCompanyVitalsFormValues>;
   currentSlug: string;
-  setError: (name: string, error: { type: string; message: string }) => void;
-  clearErrors: (name: string) => void;
+  setError: UseFormSetError<UpdateCompanyVitalsFormValues>;
+  clearErrors: UseFormClearErrors<UpdateCompanyVitalsFormValues>;
 }) {
   return (
     <Controller
@@ -91,11 +97,14 @@ function SlugFieldInput({
   setError,
   clearErrors,
 }: {
-  field: { value: string; onChange: (value: string) => void };
-  fieldState: { error?: { message?: string } };
+  field: ControllerRenderProps<
+    UpdateCompanyVitalsFormValues,
+    'assignedFirmSlug'
+  >;
+  fieldState: ControllerFieldState;
   currentSlug: string;
-  setError: (name: string, error: { type: string; message: string }) => void;
-  clearErrors: (name: string) => void;
+  setError: UseFormSetError<UpdateCompanyVitalsFormValues>;
+  clearErrors: UseFormClearErrors<UpdateCompanyVitalsFormValues>;
 }) {
   const { value, onChange } = field;
   const slugCheck = useSlugCheck(value || '', currentSlug);
@@ -196,7 +205,7 @@ export const CompanyInfo = () => {
     clearErrors,
 
     formState: { errors, isSubmitting },
-  } = useForm<UpdateCompanyVitalsData>({
+  } = useForm<UpdateCompanyVitalsFormValues, unknown, UpdateCompanyVitalsData>({
     mode: 'onChange',
     resolver: standardSchemaResolver(updateCompanyVitalsSchema),
     defaultValues: getDefaultCompanyData(),
@@ -210,22 +219,19 @@ export const CompanyInfo = () => {
       return null;
     }
 
-    const params = { file, companyId };
-    const response = await uploadObject('logos', params);
+    const response = await uploadCompanyLogo({ companyId, file });
     if (response.success && response.data) {
       const { url, key } = response.data;
 
       setValue('companyLogo', url, { shouldValidate: true });
-      setValue('companyLogoKey', key, { shouldValidate: true });
 
-      // Immediately save logo keys to localStorage (don't wait for debounce)
       const draft = JSON.parse(localStorage.getItem(FORM_KEY) || '{}');
       const updatedDraft = {
         ...draft,
         companyLogo: url,
-        companyLogoKey: key,
       };
       localStorage.setItem(FORM_KEY, JSON.stringify(updatedDraft));
+      await refetchSession();
       toast.success('Logo uploaded successfully');
 
       return { url, key };
@@ -236,19 +242,23 @@ export const CompanyInfo = () => {
   };
 
   // Remove logo
-  const handleRemove = async (key: string) => {
-    const response = await deleteObject('logos', key);
+  const handleRemove = async (_key: string) => {
+    if (!companyId) {
+      toast.error('Cannot remove logo: Company ID is missing');
+      return;
+    }
+
+    const response = await deleteCompanyLogo(companyId);
     if (response.success) {
       setValue('companyLogo', null, { shouldValidate: true });
-      setValue('companyLogoKey', null, { shouldValidate: true });
 
       const draft = JSON.parse(localStorage.getItem(FORM_KEY) || '{}');
       const updatedDraft = {
         ...draft,
         companyLogo: null,
-        companyLogoKey: null,
       };
       localStorage.setItem(FORM_KEY, JSON.stringify(updatedDraft));
+      await refetchSession();
     } else {
       toast.error(response.message || 'Remove failed');
     }

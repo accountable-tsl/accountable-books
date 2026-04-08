@@ -68,13 +68,19 @@ import {
   ExchangeRate,
   NewExchangeRateInput,
 } from '../domains/exchangeRates/exchangeRate.types.js';
+import {
+  type FileRecord,
+  type NewFileRecord,
+  type NewUploadIntentRecord,
+  type UploadIntentRecord,
+} from '../domains/objects/objects.types.js';
 import { NewProject, Project } from '../domains/projects/projects.types.js';
 import { NewRoleInput, Role } from '../domains/roles/roles.types.js';
 import { NewToken, Token } from '../domains/tokens/tokens.types.js';
 import {
   NewUserCompanyRole,
   UserCompanyRole,
-} from '../domains/userRoles/userRoles.types.js';
+} from '../domains/user-roles/user-roles.types.ts';
 import {
   NewUserDirect,
   NewUserInput,
@@ -270,6 +276,18 @@ declare module 'knex/types/tables' {
       Project,
       NewProject,
       Partial<Omit<Project, 'id'>>
+    >;
+
+    files: Knex.CompositeTableType<
+      FileRecord,
+      NewFileRecord,
+      Partial<Omit<FileRecord, 'id'>>
+    >;
+
+    upload_intents: Knex.CompositeTableType<
+      UploadIntentRecord,
+      NewUploadIntentRecord,
+      Partial<Omit<UploadIntentRecord, 'id'>>
     >;
 
     // Categorization rules tables

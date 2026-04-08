@@ -26,6 +26,11 @@ router.get(
   getCompanyController,
 );
 
-router.patch('/:companyId', checkCompanyId, updateCompanyController);
+router.patch(
+  '/:companyId',
+  verifyAccessToken,
+  checkCompanyId,
+  updateCompanyController,
+);
 
 export default router;

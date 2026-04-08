@@ -1,20 +1,17 @@
 import type { ApiResponse } from '@/shared/types/core';
+import type { AuthSessionPayload } from '@accountable-books/contracts/schema';
 import api from '@/lib/axios';
 import { isAxiosError } from 'axios';
 
-import type { AuthUserContext } from '../../session/model/types';
 import type { LoginForm, NewCompany, NewFirm, NewUser } from '../model/types';
 
 export const handleLogin = async (
   data: LoginForm,
-): Promise<ApiResponse<{ user: AuthUserContext; csrfToken: string }>> => {
+): Promise<ApiResponse<AuthSessionPayload>> => {
   try {
     const resp = await api.post('/auth/login', data);
 
-    return resp.data as ApiResponse<{
-      user: AuthUserContext;
-      csrfToken: string;
-    }>;
+    return resp.data as ApiResponse<AuthSessionPayload>;
   } catch (err: unknown) {
     if (isAxiosError(err) && err.response?.data) {
       return err.response.data;

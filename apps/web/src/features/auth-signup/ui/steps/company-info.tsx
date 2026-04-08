@@ -1,4 +1,8 @@
 import type { NewCompany, NewUser } from '@/modules/auth';
+import type {
+  ControllerFieldState,
+  ControllerRenderProps,
+} from 'react-hook-form';
 import {
   forwardRef,
   useEffect,
@@ -20,13 +24,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  COMPANY_SIZE,
-  COMPANY_TYPES,
-} from '@/domains-pending-migration/company/constants';
 import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
 import { cn } from '@/lib/utils';
 import { newCompany } from '@/modules/auth';
+import { COMPANY_SIZE, COMPANY_TYPES } from '@/modules/company/companies';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useIndustries } from '@/shared/hooks/useIndustries';
@@ -42,11 +43,8 @@ function SlugField({
   fieldState,
   required = false,
 }: {
-  field: {
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  };
-  fieldState: { error?: { message?: string } };
+  field: ControllerRenderProps<NewCompany, 'slug'>;
+  fieldState: ControllerFieldState;
   required?: boolean;
 }) {
   const slugCheck = useSlugCheck(field?.value || '');
@@ -86,7 +84,10 @@ export const SignupCompanyInfo = forwardRef<
   {
     companyData: NewCompany;
     userData: NewUser;
-    updateCompanyField: (field: keyof NewCompany, value: string) => void;
+    updateCompanyField: <K extends keyof NewCompany>(
+      field: K,
+      value: NewCompany[K],
+    ) => void;
   }
 >(({ companyData, userData, updateCompanyField }, ref) => {
   const userType = companyData.type;
@@ -149,8 +150,11 @@ export const SignupCompanyInfo = forwardRef<
     getFieldValue: (field: keyof NewCompany) => watch(field),
   }));
 
-  const handleChange = (field: keyof NewCompany, value: string | number) => {
-    setValue(field, value, {
+  const handleChange = <K extends keyof NewCompany>(
+    field: K,
+    value: NewCompany[K],
+  ) => {
+    setValue(field, value as never, {
       shouldValidate: true,
       shouldDirty: true,
     });
@@ -158,7 +162,7 @@ export const SignupCompanyInfo = forwardRef<
     // Force revalidation of both fields any time one changes
     trigger(['yearEndDay', 'yearEndMonth']);
 
-    updateCompanyField(field, value.toString());
+    updateCompanyField(field, value);
   };
 
   useEffect(() => {
@@ -186,18 +190,23 @@ export const SignupCompanyInfo = forwardRef<
   // }, [formData]);
 
   const formData = watch();
-  const prevFormDataRef = useRef<Record<string, any>>({});
+  const prevFormDataRef = useRef<
+    Partial<Record<keyof NewCompany, NewCompany[keyof NewCompany]>>
+  >({});
 
   useEffect(() => {
     Object.entries(formData).forEach(([key, value]) => {
+      const typedKey = key as keyof NewCompany;
+
       // Only update if this specific field actually changed
       if (
-        prevFormDataRef.current[key] !== value &&
+        prevFormDataRef.current[typedKey] !== value &&
         value !== undefined &&
         value !== ''
       ) {
-        updateCompanyField(key as keyof NewCompany, (value || '').toString());
-        prevFormDataRef.current[key] = value;
+        updateCompanyField(typedKey, value as NewCompany[keyof NewCompany]);
+        prevFormDataRef.current[typedKey] =
+          value as NewCompany[keyof NewCompany];
       }
     });
   }, [formData, updateCompanyField]);
@@ -414,7 +423,7 @@ export const SignupCompanyInfo = forwardRef<
                   <div className="relative">
                     <Select
                       onValueChange={(value) =>
-                        handleChange('yearEndDay', value)
+                        handleChange('yearEndDay', Number(value))
                       }
                       value={watch('yearEndDay')?.toString() || '31'}
                     >
@@ -438,7 +447,7 @@ export const SignupCompanyInfo = forwardRef<
                   <div className="relative">
                     <Select
                       onValueChange={(value) =>
-                        handleChange('yearEndMonth', value)
+                        handleChange('yearEndMonth', Number(value))
                       }
                       value={watch('yearEndMonth')?.toString() || '12'}
                     >

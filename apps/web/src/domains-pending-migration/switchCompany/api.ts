@@ -1,4 +1,4 @@
-import type { AuthUserContext } from '@/modules/auth/types';
+import type { AuthUserContext } from '@/modules/auth';
 import type { ApiResponse } from '@/shared/types/core';
 import api from '@/lib/axios';
 import { isAxiosError } from 'axios';

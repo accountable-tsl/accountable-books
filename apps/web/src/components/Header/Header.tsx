@@ -1,6 +1,5 @@
 import './Header.scss';
 
-import { useCompany } from '@/domains-pending-migration/company/store';
 import {
   faBars,
   faBell,
@@ -9,6 +8,7 @@ import {
   faMagnifyingGlass,
   faSun,
 } from '@fortawesome/free-solid-svg-icons';
+import { useSession } from '@session';
 import { LoaderPinwheel } from 'lucide-react';
 import { Link } from 'react-router';
 
@@ -18,13 +18,14 @@ import Button from '../Button/Button';
 
 export default function Header() {
   const { toggle } = useSideBarContext();
-  const { companyId } = useCompany();
+  const { companyId } = useSession();
+  const homePath = companyId ? `/${companyId}` : '/';
 
   return (
     <header className="header">
       <div className="header-left">
         <Button icon={faBars} text="" variant="text" onClick={toggle} />
-        <Link to={`/${companyId}`}>
+        <Link to={homePath}>
           <img
             src={logo}
             alt="Accountable Logo"

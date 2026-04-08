@@ -16,6 +16,14 @@ export const accountingBasis = z.enum([
 ]);
 export type AccountingBasis = z.infer<typeof accountingBasis>;
 
+export const firmType = z.enum([
+  'freelancer',
+  'ca_cpa',
+  'tax_preparer',
+  'international',
+]);
+export type FirmType = z.infer<typeof firmType>;
+
 export const contactType = z.enum([
   'customer', // anyone you invoice/collect money from; AR
   'vendor', // suppliers, service providers, card networks, AP;

@@ -22,6 +22,7 @@
 - [ ] Rate limiting
 - [ ] Contact Type in Add new contact dialog
 - [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
+- [ ] Privacy Policy, Terms of Use, GDPR,
 
 ### NEAR-TERM (Post-Launch, High Impact)
 

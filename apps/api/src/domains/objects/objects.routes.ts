@@ -1,32 +1,66 @@
 import express from 'express';
 
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
+import { verifyAccessToken } from '../../features/auth/auth.middleware.js';
 import {
-  deleteObjectController,
-  getObjDownloadUrl,
-  getObjUploadUrl,
+  createUploadIntentController,
+  deleteCompanyLogoController,
+  finalizeUploadIntentController,
+  getPrivateFileDownloadUrlController,
   getTxnFilesController,
-  uploadObjectController,
   uploadTxnFilesController,
 } from './objects.controller.js';
-import { createMulter } from './objects.utils.js';
+import {
+  requireCompanyLogoMutationAccess,
+  requireFinalizeUploadIntentAccess,
+  requireUploadIntentAccess,
+} from './objects.middleware.js';
 
 const router = express.Router({ mergeParams: true });
-const upload = createMulter();
 
 router.post(
-  '/:objectType/upload',
-  upload.single('file'),
-  uploadObjectController,
+  '/:companyId/files/upload-intents',
+  verifyAccessToken,
+  checkCompanyId,
+  requireUploadIntentAccess,
+  createUploadIntentController,
 );
 
-router.delete('/:objectType/delete', deleteObjectController);
+router.post(
+  '/:companyId/files/finalize',
+  verifyAccessToken,
+  checkCompanyId,
+  requireFinalizeUploadIntentAccess,
+  finalizeUploadIntentController,
+);
 
-router.post('/:companyId/objects/url/upload', getObjUploadUrl);
+router.get(
+  '/:companyId/files/url/download',
+  verifyAccessToken,
+  checkCompanyId,
+  getPrivateFileDownloadUrlController,
+);
 
-router.get('/objects/url/download', getObjDownloadUrl);
+router.delete(
+  '/:companyId/company-logo',
+  verifyAccessToken,
+  checkCompanyId,
+  requireCompanyLogoMutationAccess,
+  deleteCompanyLogoController,
+);
 
-router.post('/:companyId/objects/txn-files', uploadTxnFilesController);
+router.post(
+  '/:companyId/objects/txn-files',
+  verifyAccessToken,
+  checkCompanyId,
+  uploadTxnFilesController,
+);
 
-router.post('/:companyId/objects/get-txn-files', getTxnFilesController);
+router.post(
+  '/:companyId/objects/get-txn-files',
+  verifyAccessToken,
+  checkCompanyId,
+  getTxnFilesController,
+);
 
 export default router;

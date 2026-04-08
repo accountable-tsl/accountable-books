@@ -1,22 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  finalizeUploadIntent,
   getObjectDownloadUrl,
   getObjectUploadUrl,
   uploadFileToR2,
-  uploadTxnFile,
 } from '../api';
 import {
   TRANSACTION_FILE_LIMITS,
   TRANSACTION_FILE_LIMITS_BYTES,
 } from '../constants';
-import { txnFileInput } from './types';
 
-import type {
-  ObjectDownloadUrlParams,
-  ObjectUploadUrlParams,
-  TxnFileInput,
-} from './types';
+import type { ObjectDownloadUrlParams, ObjectUploadUrlParams } from './types';
 
 export function useObjectUploadUrl(params: ObjectUploadUrlParams) {
   return useQuery({
@@ -81,8 +76,6 @@ export function useUploadTransactionFiles() {
         );
       }
 
-      const txnFileInputs: TxnFileInput[] = [];
-
       for (const file of files) {
         // Get signed upload URL
         const uploadUrlResponse = await getObjectUploadUrl({
@@ -90,7 +83,15 @@ export function useUploadTransactionFiles() {
           bucketType: 'txnFiles',
           fileName: file.name,
           contentType: file.type || 'application/octet-stream',
-          folderContext: transactionId,
+          sizeBytes: file.size,
+          metadata: {
+            txnAttachment: {
+              source,
+              transactionId,
+              entryId: entryId || null,
+              folderContext: transactionId,
+            },
+          },
         });
 
         if (!uploadUrlResponse.success || !uploadUrlResponse.data) {
@@ -99,32 +100,24 @@ export function useUploadTransactionFiles() {
           );
         }
 
-        const { signedUrl, fileKey, bucketName, url } = uploadUrlResponse.data;
+        const { intentId, signedUrl } = uploadUrlResponse.data;
 
         // Upload file to R2
         await uploadFileToR2(file, signedUrl);
-
-        // Build TxnFileInput
-        txnFileInputs.push({
-          name: file.name,
-          key: fileKey,
-          bucket_name: bucketName,
-          url,
-          type: file.type || 'application/octet-stream',
-          size_bytes: file.size,
-          checksum: null,
-          provider: 'cloudflare_r2',
-          region: null,
-          endpoint: null,
-          source,
-          transaction_id: transactionId,
-          entry_id: entryId || null,
+        const finalizeResponse = await finalizeUploadIntent({
+          companyId,
+          intentId,
         });
+
+        if (!finalizeResponse.success || !finalizeResponse.data) {
+          throw new Error(
+            finalizeResponse.message ||
+              `Failed to finalize upload for ${file.name}`,
+          );
+        }
       }
 
-      // Persist all transaction files
-      const validatedData = txnFileInput.array().parse(txnFileInputs);
-      return uploadTxnFile({ companyId, data: validatedData });
+      return { success: true };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({

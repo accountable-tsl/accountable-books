@@ -10,13 +10,6 @@ export const zEmail = z
 
 export type Email = z.infer<typeof zEmail>;
 
-export const companyType = z.enum([
-  'business',
-  'accounting_firm',
-  'individual',
-]);
-export type CompanyType = z.infer<typeof companyType>;
-
 export const userType = z.enum(['admin', 'client', 'bookkeeper']);
 export type UserType = z.infer<typeof userType>;
 

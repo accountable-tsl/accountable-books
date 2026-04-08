@@ -1,8 +1,8 @@
-import type { CompanyType } from '@/shared/types/core';
+import type { CompanyType } from '@accountable-books/contracts/schema';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Card } from '@/components/ui/card';
-import { COMPANY_TYPES } from '@/domains-pending-migration/company/constants';
 import { cn } from '@/lib/utils';
+import { COMPANY_TYPES } from '@/modules/company/companies';
 
 import { TOOLTIP } from '../../model/constants';
 

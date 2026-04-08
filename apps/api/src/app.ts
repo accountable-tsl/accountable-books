@@ -14,6 +14,7 @@ import { loadAccountMeta } from './domains/account/account.registry.js';
 import accountRoutes from './domains/account/account.routes.js';
 import firmRoutes from './domains/accountingFirms/firms.routes.js';
 import aiRoutes from './domains/ai/ai.routes.js';
+import { attachAuditContext } from './domains/audit/audit.middleware.js';
 import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.routes.js';
 import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
@@ -34,7 +35,8 @@ import projectsRoutes from './domains/projects/projects.routes.js';
 import periodStatusRoutes from './domains/reporting/fiscal-calendar/period-status.routes.js';
 import { loadRoles } from './domains/roles/roles.model.js';
 import settingsRoutes from './domains/settings/settings.routes.js';
-import usersCompaniesRolesRoutes from './domains/userRoles/userRoles.routes.js';
+import supportAccessRoutes from './domains/support-access/support-access.routes.js';
+import usersCompaniesRolesRoutes from './domains/user-roles/user-roles.routes.js';
 import usersRoutes from './domains/users/users.routes.js';
 import {
   conditionalCsrf,
@@ -82,6 +84,8 @@ app.use(
     },
   }),
 );
+
+app.use(attachAuditContext);
 
 app.get('/health', (_req: express.Request, res: express.Response) =>
   res.status(200).json({ ok: true }),
@@ -190,6 +194,7 @@ export async function setupApp() {
   app.use('/api/:companyId/contacts', contactsRoutes);
   app.use('/api/:companyId/projects', projectsRoutes);
   app.use('/api/:companyId/settings', settingsRoutes);
+  app.use('/api/:companyId/support-access', supportAccessRoutes);
 
   app.use('/admin/queues', basicAuth(bullboardUser, bullboardPass));
   app.use('/admin/queues', serverAdapter.getRouter());
