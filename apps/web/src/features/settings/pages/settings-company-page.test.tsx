@@ -88,6 +88,7 @@ function createCompany(overrides: Partial<CompanyData> = {}): CompanyData {
     reportingCurrencyId: '019d6d01-6a55-725f-a07b-a33187e6de7d',
     defaultTimezone: 'America/New_York',
     companyLogo: 'https://cdn.example/logo.png',
+    assignedFirmSlug: 'firm',
     ...overrides,
   };
 }
@@ -249,6 +250,28 @@ describe('SettingsCompanyPage', () => {
         data: { displayName: 'Acme Studio' },
       });
     });
+  });
+
+  it('hides firm slug from client workspace users', () => {
+    renderPage();
+
+    expect(screen.queryByText('Firm Slug')).toBeNull();
+    expect(screen.queryByText('firm')).toBeNull();
+  });
+
+  it('shows firm slug to firm admins', () => {
+    renderPage({
+      user: createUser({
+        currentCompany: {
+          ...createUser().currentCompany,
+          roleScope: 'firm',
+          roleKey: 'admin',
+        },
+      }),
+    });
+
+    expect(screen.getByText('Firm Slug')).toBeTruthy();
+    expect(screen.getByText('firm')).toBeTruthy();
   });
 
   it('uploads and removes logos through object hooks', async () => {

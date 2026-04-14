@@ -364,7 +364,10 @@ export function SettingsCompanyPage() {
   const current = user?.currentCompany;
 
   const canViewFirmSlug =
-    current?.roleScope !== 'firm' || current?.roleKey === 'admin';
+    current?.accessOrigin === 'platform_internal' ||
+    current?.accessOrigin === 'break_glass' ||
+    current?.supportAccessLevel === 'company_profile_write' ||
+    (current?.roleScope === 'firm' && current.roleKey === 'admin');
   const canEditPage = canEditWorkspaceCompanySettings(user, current);
   const editBlockedReason = getWorkspaceCompanySettingsEditDeniedReason(
     user,
