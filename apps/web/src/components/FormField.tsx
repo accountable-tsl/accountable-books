@@ -1,4 +1,4 @@
-import { HTMLAttributes } from 'react';
+import type { HTMLAttributes } from 'react';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { CircleHelp } from 'lucide-react';
@@ -40,6 +40,8 @@ export const FormField = ({
   errorTooltip,
   errorTooltipStyle,
   className = '',
+  labelWrapperClassName,
+  labelClassName,
   errorClassName,
   ...rest
 }: FormFieldProps) => (
@@ -56,6 +58,8 @@ export const FormField = ({
         error={error}
         errorTooltip={errorTooltip}
         errorTooltipStyle={errorTooltipStyle}
+        labelWrapperClassName={labelWrapperClassName}
+        labelClassName={labelClassName}
         errorClassName={errorClassName}
         {...rest}
       />

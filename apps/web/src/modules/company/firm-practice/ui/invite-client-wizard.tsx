@@ -4,11 +4,8 @@ import { StepProgress } from '@/components/StepProgress/StepProgress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { isCompanyTimezoneValidForCountry } from '@/modules/company/companies';
 import { useCountries } from '@/shared/hooks/useCountries';
-import {
-  getTimezonesForCountry,
-  normalizeTimezoneId,
-} from '@accountable-books/utils/timezone';
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { AlertCircle } from 'lucide-react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
@@ -168,21 +165,10 @@ export function InviteClientWizard({
         firmClientInviteCompanyStep2Schema.safeParse(normalizedCompany).success;
       if (!baseValid) return false;
 
-      const timezones = getTimezonesForCountry(selectedCountryCode);
-      const normalizedTimezone = normalizeTimezoneId(
-        normalizedCompany.defaultTimezone,
-      );
-
-      if (timezones.length > 1) {
-        return (
-          normalizedTimezone !== undefined &&
-          timezones.some((timezone) => timezone.id === normalizedTimezone)
-        );
-      }
-
-      if (!normalizedTimezone) return true;
-
-      return timezones.some((timezone) => timezone.id === normalizedTimezone);
+      return isCompanyTimezoneValidForCountry({
+        timezone: normalizedCompany.defaultTimezone,
+        countryCode: selectedCountryCode,
+      });
     }
 
     return true;

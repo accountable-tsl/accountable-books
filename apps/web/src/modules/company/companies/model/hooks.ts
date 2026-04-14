@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-import { getCompanyDetails } from '../api';
+import { getCompanyDetails, updateCompanyDetails } from '../api';
+
+import type { UpdateCompanyVitalsData } from './types';
 
 export const useCompanyDetails = (companyId: string) => {
   return useQuery({
@@ -17,3 +19,15 @@ export const useCompanyDetails = (companyId: string) => {
     enabled: !!companyId,
   });
 };
+
+export function useUpdateCompanyDetails() {
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: Partial<UpdateCompanyVitalsData>;
+    }) => updateCompanyDetails(companyId, data),
+  });
+}

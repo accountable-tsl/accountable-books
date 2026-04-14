@@ -1,9 +1,11 @@
 import type {
   CompanyData,
+  UpdateCompanyVitalsData,
   UpdateCompanyVitalsFormValues,
 } from '@/modules/company/companies';
 import type { ChangeEvent, ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { FormField } from '@/components/FormField';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,14 +21,22 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import {
   COMPANY_REVENUE_RANGE,
   COMPANY_SIZE,
   getAccountingBasisLabel,
+  getCompanyTimezoneOptions,
+  getCompanyTimezoneValidationMessage,
   getCompanyTypeLabel,
   getReportingFrameworkLabel,
+  getSettingsCompanyProfileVisibilityRules,
+  normalizeCompanyTimezone,
+  updateCompanyVitalsSchema,
+  useUpdateCompanyDetails,
 } from '@/modules/company/companies';
-import { deleteCompanyLogo, uploadCompanyLogo } from '@/modules/objects';
+import { useDeleteCompanyLogo, useUploadCompanyLogo } from '@/modules/objects';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { useSession } from '@session';
 import { useQueryClient } from '@tanstack/react-query';
 import { Camera, Lock, Trash2 } from 'lucide-react';
@@ -50,12 +60,63 @@ type SettingsCompanyFormValues = Pick<
   | 'industry'
   | 'companySize'
   | 'revenue'
+  | 'defaultTimezone'
 >;
+
+type SettingsCompanyData = Pick<
+  UpdateCompanyVitalsData,
+  | 'displayName'
+  | 'legalName'
+  | 'companyRegistrationNumber'
+  | 'companyTaxId'
+  | 'address'
+  | 'description'
+  | 'website'
+  | 'industry'
+  | 'companySize'
+  | 'revenue'
+  | 'defaultTimezone'
+>;
+
+type SettingsCompanyPayload = Partial<SettingsCompanyData>;
+
+const OPTIONAL_SELECT_NONE = '__none__';
+
+const settingsCompanyFormSchema = updateCompanyVitalsSchema.pick({
+  displayName: true,
+  legalName: true,
+  companyRegistrationNumber: true,
+  companyTaxId: true,
+  address: true,
+  description: true,
+  website: true,
+  industry: true,
+  companySize: true,
+  revenue: true,
+  defaultTimezone: true,
+});
 
 function displayValue(value: string | null | undefined) {
   if (value == null) return 'Not set';
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : 'Not set';
+}
+
+function normalizeOptionalText(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeRequiredText(value: string | null | undefined): string {
+  return value?.trim() ?? '';
+}
+
+function normalizeTimezone(value: string | null | undefined): string | null {
+  return normalizeCompanyTimezone(value);
 }
 
 function getFormDefaults(
@@ -72,6 +133,7 @@ function getFormDefaults(
     industry: company?.industry ?? null,
     companySize: company?.companySize ?? null,
     revenue: company?.revenue ?? null,
+    defaultTimezone: normalizeTimezone(company?.defaultTimezone),
   };
 }
 
@@ -114,6 +176,87 @@ function SettingsSection({
   );
 }
 
+function buildPayloadBaseline(
+  company: CompanyData | null | undefined,
+  options: {
+    showRegistrationField: boolean;
+    showTaxIdField: boolean;
+    showBusinessContextSection: boolean;
+  },
+): SettingsCompanyPayload {
+  const baseline: SettingsCompanyPayload = {
+    displayName: normalizeOptionalText(company?.displayName),
+    legalName: normalizeRequiredText(company?.legalName),
+    address: normalizeOptionalText(company?.address),
+    description: normalizeOptionalText(company?.description),
+    website: normalizeOptionalText(company?.website),
+    defaultTimezone: normalizeTimezone(company?.defaultTimezone),
+  };
+
+  if (options.showRegistrationField) {
+    baseline.companyRegistrationNumber = normalizeOptionalText(
+      company?.companyRegistrationNumber,
+    );
+  }
+
+  if (options.showTaxIdField) {
+    baseline.companyTaxId = normalizeOptionalText(company?.companyTaxId);
+  }
+
+  if (options.showBusinessContextSection) {
+    baseline.industry = normalizeOptionalText(company?.industry);
+    baseline.companySize = normalizeOptionalText(company?.companySize);
+    baseline.revenue = normalizeOptionalText(company?.revenue);
+  }
+
+  return baseline;
+}
+
+function buildDirtyPayload(
+  values: SettingsCompanyFormValues,
+  baseline: SettingsCompanyPayload,
+  options: {
+    showRegistrationField: boolean;
+    showTaxIdField: boolean;
+    showBusinessContextSection: boolean;
+  },
+): SettingsCompanyPayload {
+  const candidate: SettingsCompanyPayload = {
+    displayName: normalizeOptionalText(values.displayName),
+    legalName: normalizeRequiredText(values.legalName),
+    address: normalizeOptionalText(values.address),
+    description: normalizeOptionalText(values.description),
+    website: normalizeOptionalText(values.website),
+    defaultTimezone: normalizeTimezone(values.defaultTimezone),
+  };
+
+  if (options.showRegistrationField) {
+    candidate.companyRegistrationNumber = normalizeOptionalText(
+      values.companyRegistrationNumber,
+    );
+  }
+
+  if (options.showTaxIdField) {
+    candidate.companyTaxId = normalizeOptionalText(values.companyTaxId);
+  }
+
+  if (options.showBusinessContextSection) {
+    candidate.industry = normalizeOptionalText(values.industry);
+    candidate.companySize = normalizeOptionalText(values.companySize);
+    candidate.revenue = normalizeOptionalText(values.revenue);
+  }
+
+  const dirty: Record<string, string | null | undefined> = {};
+  for (const [key, value] of Object.entries(candidate)) {
+    const typedKey = key as keyof SettingsCompanyPayload;
+    if (baseline[typedKey] !== value) {
+      dirty[typedKey] = value;
+    }
+  }
+
+  return dirty as SettingsCompanyPayload;
+}
+
 function Banner({
   children,
   tone = 'neutral',
@@ -125,8 +268,8 @@ function Banner({
     <div
       className={
         tone === 'warning'
-          ? 'rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-950'
-          : 'text-muted-foreground border-border/60 rounded-md border px-3 py-2 text-sm'
+          ? 'rounded-md border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-100'
+          : 'text-muted-foreground border-border/60 bg-muted/20 dark:bg-muted/10 rounded-md border px-3 py-2 text-sm'
       }
       role="status"
     >
@@ -140,21 +283,32 @@ function FieldHelper({ children }: { children?: ReactNode }) {
   return <p className="text-muted-foreground text-xs">{children}</p>;
 }
 
+function fieldErrorMessage(error?: { message?: string }) {
+  return error?.message;
+}
+
 function ReadOnlyField({
   label,
   value,
-  helper,
+  helpTooltip,
+  labelWrapperClassName,
   multiline = false,
   className,
 }: {
   label: string;
   value: string;
-  helper?: string;
+  helpTooltip?: string;
+  labelWrapperClassName?: string;
   multiline?: boolean;
   className?: string;
 }) {
   return (
-    <FormField label={label} className={className}>
+    <FormField
+      label={label}
+      className={className}
+      helpTooltip={helpTooltip}
+      labelWrapperClassName={labelWrapperClassName}
+    >
       <div className="space-y-1.5">
         {multiline ? (
           <Textarea
@@ -166,8 +320,35 @@ function ReadOnlyField({
         ) : (
           <Input value={value} readOnly disabled />
         )}
-        <FieldHelper>{helper}</FieldHelper>
       </div>
+    </FormField>
+  );
+}
+
+/** Read-only metadata shown as plain text (not a disabled input). */
+function ReadOnlyTextDetail({
+  label,
+  value,
+  helpTooltip,
+  className,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  helpTooltip?: string;
+  className?: string;
+  mono?: boolean;
+}) {
+  return (
+    <FormField label={label} className={className} helpTooltip={helpTooltip}>
+      <p
+        className={cn(
+          'text-foreground min-w-0 pt-0.5 text-sm leading-snug',
+          mono && 'font-mono break-all tabular-nums',
+        )}
+      >
+        {value}
+      </p>
     </FormField>
   );
 }
@@ -175,7 +356,10 @@ function ReadOnlyField({
 export function SettingsCompanyPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [isUpdatingLogo, setIsUpdatingLogo] = useState(false);
+  const logoObjectUrlRef = useRef<string | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [logoRemovedOptimistically, setLogoRemovedOptimistically] =
+    useState(false);
   const { user, company, companyId, refetchCompany } = useSession();
   const current = user?.currentCompany;
 
@@ -195,16 +379,38 @@ export function SettingsCompanyPage() {
     company?.verification.registrationNumber.verifiedAt,
   );
   const taxIdLocked = Boolean(company?.verification.taxId.verifiedAt);
-  const addressVerified = Boolean(company?.verification.address.verifiedAt);
   const workspaceCompanyTypeLabel = getCompanyTypeLabel(
     company?.companyType ?? null,
   );
+  const workspaceCompanyType = company?.companyType;
+  const companyVisibility =
+    getSettingsCompanyProfileVisibilityRules(workspaceCompanyType);
+  const isIndividualWorkspace = companyVisibility.isIndividual;
+  const showBusinessRegistrationFields =
+    companyVisibility.showRegistrationField;
+  const showTaxIdField = companyVisibility.showTaxIdField;
+  const showBusinessContextSection =
+    companyVisibility.showBusinessContextSection;
+  const timezoneOptions = useMemo(
+    () => getCompanyTimezoneOptions(company?.countryCode),
+    [company?.countryCode],
+  );
+  const singleTimezone = timezoneOptions.length === 1;
 
   const formDefaults = useMemo(() => getFormDefaults(company), [company]);
-  const { control, register, reset, watch } =
-    useForm<SettingsCompanyFormValues>({
-      defaultValues: formDefaults,
-    });
+  const {
+    control,
+    register,
+    reset,
+    setValue,
+    trigger,
+    watch,
+    formState: { errors },
+  } = useForm<SettingsCompanyFormValues, unknown, SettingsCompanyData>({
+    mode: 'onBlur',
+    resolver: standardSchemaResolver(settingsCompanyFormSchema),
+    defaultValues: formDefaults,
+  });
 
   useEffect(() => {
     reset(formDefaults);
@@ -212,6 +418,88 @@ export function SettingsCompanyPage() {
 
   const watchedDisplayName = watch('displayName');
   const watchedLegalName = watch('legalName');
+  const watchedTimezone = watch('defaultTimezone');
+  const watchedValues = watch();
+  const normalizedTimezone = normalizeTimezone(watchedTimezone);
+  const timezoneValidationMessage = getCompanyTimezoneValidationMessage({
+    timezone: normalizedTimezone,
+    timezoneOptions,
+    countryLabel: company?.countryName ?? company?.countryCode,
+  });
+  const timezoneIsInvalid = Boolean(timezoneValidationMessage);
+
+  useEffect(() => {
+    if (!singleTimezone) return;
+
+    const nextTimezone = timezoneOptions[0]?.value;
+    if (!nextTimezone || normalizedTimezone === nextTimezone) return;
+
+    setValue('defaultTimezone', nextTimezone, {
+      shouldValidate: true,
+    });
+  }, [normalizedTimezone, setValue, singleTimezone, timezoneOptions]);
+
+  const payloadBaseline = useMemo(
+    () =>
+      buildPayloadBaseline(company, {
+        showRegistrationField: showBusinessRegistrationFields,
+        showTaxIdField,
+        showBusinessContextSection,
+      }),
+    [
+      company,
+      showBusinessRegistrationFields,
+      showBusinessContextSection,
+      showTaxIdField,
+    ],
+  );
+
+  const dirtyPayload = useMemo(
+    () =>
+      buildDirtyPayload(watchedValues, payloadBaseline, {
+        showRegistrationField: showBusinessRegistrationFields,
+        showTaxIdField,
+        showBusinessContextSection,
+      }),
+    [
+      watchedValues,
+      payloadBaseline,
+      showBusinessRegistrationFields,
+      showBusinessContextSection,
+      showTaxIdField,
+    ],
+  );
+
+  const hasDirtyChanges = Object.keys(dirtyPayload).length > 0;
+  const uploadCompanyLogoMutation = useUploadCompanyLogo();
+  const deleteCompanyLogoMutation = useDeleteCompanyLogo();
+  const isUpdatingLogo =
+    uploadCompanyLogoMutation.isPending || deleteCompanyLogoMutation.isPending;
+  const displayedCompanyLogo = logoRemovedOptimistically
+    ? null
+    : (logoPreviewUrl ?? company?.companyLogo ?? null);
+
+  const clearLogoObjectUrl = () => {
+    if (!logoObjectUrlRef.current) return;
+    URL.revokeObjectURL(logoObjectUrlRef.current);
+    logoObjectUrlRef.current = null;
+  };
+
+  const setTemporaryLogoPreview = (file: File) => {
+    clearLogoObjectUrl();
+    const objectUrl = URL.createObjectURL(file);
+    logoObjectUrlRef.current = objectUrl;
+    setLogoPreviewUrl(objectUrl);
+    setLogoRemovedOptimistically(false);
+  };
+
+  useEffect(() => () => clearLogoObjectUrl(), []);
+
+  useEffect(() => {
+    clearLogoObjectUrl();
+    setLogoPreviewUrl(null);
+    setLogoRemovedOptimistically(false);
+  }, [company?.companyLogo]);
 
   const refreshCompanyLogoState = async () => {
     if (!companyId) return;
@@ -236,53 +524,117 @@ export function SettingsCompanyPage() {
       return;
     }
 
-    setIsUpdatingLogo(true);
+    setTemporaryLogoPreview(file);
     try {
-      const response = await uploadCompanyLogo({ companyId, file });
-      if (!response.success) {
-        toast.error(response.message || 'Failed to upload company logo');
-        return;
+      const response = await uploadCompanyLogoMutation.mutateAsync({
+        companyId,
+        file,
+      });
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to upload company logo');
       }
 
+      clearLogoObjectUrl();
+      setLogoPreviewUrl(response.data.url);
+      setLogoRemovedOptimistically(false);
       await refreshCompanyLogoState();
       toast.success('Company logo updated');
-    } catch {
-      toast.error('Failed to upload company logo');
-    } finally {
-      setIsUpdatingLogo(false);
+    } catch (error) {
+      clearLogoObjectUrl();
+      setLogoPreviewUrl(null);
+      setLogoRemovedOptimistically(false);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to upload company logo',
+      );
     }
   };
 
   const handleRemoveLogo = async () => {
     if (
       !companyId ||
-      !company?.companyLogo ||
+      !displayedCompanyLogo ||
       !canPersistPage ||
       isUpdatingLogo
     ) {
       return;
     }
 
-    setIsUpdatingLogo(true);
+    clearLogoObjectUrl();
+    setLogoPreviewUrl(null);
+    setLogoRemovedOptimistically(true);
     try {
-      const response = await deleteCompanyLogo(companyId);
+      const response = await deleteCompanyLogoMutation.mutateAsync(companyId);
       if (!response.success) {
-        toast.error(response.message || 'Failed to remove company logo');
-        return;
+        throw new Error(response.message || 'Failed to remove company logo');
       }
 
       await refreshCompanyLogoState();
       toast.success('Company logo removed');
-    } catch {
-      toast.error('Failed to remove company logo');
-    } finally {
-      setIsUpdatingLogo(false);
+    } catch (error) {
+      setLogoRemovedOptimistically(false);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to remove company logo',
+      );
     }
   };
 
-  const saveHelperText = canPersistPage
-    ? 'Changes can be edited locally now. Save wiring is added in the next step.'
-    : editBlockedReason || 'Editing is unavailable for this session.';
+  const updateCompanyMutation = useUpdateCompanyDetails();
+
+  const handleSave = async () => {
+    if (
+      !companyId ||
+      !canPersistPage ||
+      updateCompanyMutation.isPending ||
+      !hasDirtyChanges ||
+      timezoneIsInvalid
+    ) {
+      return;
+    }
+
+    const isValid = await trigger();
+    if (!isValid) {
+      toast.error('Please fix the highlighted fields before saving');
+      return;
+    }
+
+    try {
+      const response = await updateCompanyMutation.mutateAsync({
+        companyId,
+        data: dirtyPayload,
+      });
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to update company details');
+      }
+
+      await Promise.all([
+        refetchCompany(),
+        queryClient.invalidateQueries({
+          queryKey: ['companyDetails', companyId],
+        }),
+      ]);
+      toast.success('Company settings saved');
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save company settings',
+      );
+    }
+  };
+
+  const saveHelperText = !canPersistPage
+    ? editBlockedReason || "Saving isn't available for this session"
+    : updateCompanyMutation.isPending
+      ? 'Saving your company settings...'
+      : timezoneIsInvalid
+        ? timezoneValidationMessage
+        : hasDirtyChanges
+          ? 'Save to apply updates.'
+          : 'No unsaved changes.';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden py-2">
@@ -296,8 +648,7 @@ export function SettingsCompanyPage() {
 
       <div className="flex flex-col gap-2">
         <p className="text-muted-foreground text-sm">
-          Company profile details are grouped below. Editable controls are ready
-          for fields this page owns, while save wiring lands in the next step.
+          Review your workspace profile. Verified fields may be locked.
         </p>
         {isDemoBlocked ? (
           <Banner tone="warning">
@@ -308,24 +659,22 @@ export function SettingsCompanyPage() {
         {!isDemoBlocked && !canEditPage && editBlockedReason ? (
           <Banner>{editBlockedReason}</Banner>
         ) : null}
-        {canEditPage ? (
-          <p className="text-muted-foreground text-xs">
-            Fields that are not verification-locked can be edited in this
-            session. Save remains disabled until the persistence step is wired.
-          </p>
-        ) : null}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
         <SettingsSection
           title="Workspace Identity"
-          description="Primary workspace identity and legal naming."
+          description={
+            isIndividualWorkspace
+              ? 'Logo, how your name appears, and your legal name.'
+              : 'Logo, display name, and legal name.'
+          }
           titleAccessory={
             <Badge
               variant="secondary"
               className="hidden font-normal lg:inline-flex"
-              title={`Company type: ${workspaceCompanyTypeLabel}. Cannot be changed here.`}
-              aria-label={`Company type ${workspaceCompanyTypeLabel}. Cannot be changed in workspace settings.`}
+              title={`${workspaceCompanyTypeLabel}. Set at signup—not editable here.`}
+              aria-label={`Company type ${workspaceCompanyTypeLabel}, not editable in settings`}
             >
               {workspaceCompanyTypeLabel}
             </Badge>
@@ -335,9 +684,9 @@ export function SettingsCompanyPage() {
             <div className="flex min-w-0 gap-3 lg:gap-2">
               <div className="flex w-max max-w-full shrink-0 items-stretch gap-2">
                 <Avatar className="ring-border size-16 rounded-md ring-1 ring-inset">
-                  {company?.companyLogo ? (
+                  {displayedCompanyLogo ? (
                     <AvatarImage
-                      src={company.companyLogo}
+                      src={displayedCompanyLogo}
                       alt="Workspace logo"
                       className="object-cover"
                     />
@@ -363,7 +712,7 @@ export function SettingsCompanyPage() {
                     variant="ghost"
                     aria-label="Remove workspace logo"
                     disabled={
-                      !canPersistPage || !company?.companyLogo || isUpdatingLogo
+                      !canPersistPage || !displayedCompanyLogo || isUpdatingLogo
                     }
                     onClick={handleRemoveLogo}
                     className="text-destructive size-8 shrink-0 p-0 font-normal lg:size-auto lg:h-7 lg:min-w-20 lg:justify-start lg:gap-1 lg:px-2 lg:text-xs"
@@ -389,12 +738,20 @@ export function SettingsCompanyPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <FormField
                 label="Display Name"
-                helpTooltip="This is how your workspace name appears across the product."
+                error={fieldErrorMessage(errors.displayName)}
+                helpTooltip={
+                  isIndividualWorkspace
+                    ? 'How your name appears in the app.'
+                    : 'Shown in the app; can differ from legal name.'
+                }
               >
                 <Input
                   {...register('displayName')}
                   disabled={!canEditPage}
-                  placeholder="What people see across the workspace"
+                  aria-invalid={!!errors.displayName}
+                  placeholder={
+                    isIndividualWorkspace ? 'Your name' : 'Display name'
+                  }
                 />
               </FormField>
 
@@ -407,7 +764,13 @@ export function SettingsCompanyPage() {
                       {legalNameLocked ? (
                         <Lock className="text-muted-foreground size-3.5" />
                       ) : (
-                        <TooltipHelper content="Used for official workspace identity and verification." />
+                        <TooltipHelper
+                          content={
+                            isIndividualWorkspace
+                              ? 'Your legal name as on ID and tax forms.'
+                              : 'Legal name on tax forms and contracts.'
+                          }
+                        />
                       )}
                     </div>
                   </div>
@@ -418,10 +781,15 @@ export function SettingsCompanyPage() {
                     {...register('legalName')}
                     disabled={!canEditPage || legalNameLocked}
                     readOnly={legalNameLocked}
+                    aria-invalid={!!errors.legalName}
                   />
-                  {legalNameLocked ? (
+                  {errors.legalName?.message ? (
+                    <p className="text-destructive text-xs">
+                      {errors.legalName.message}
+                    </p>
+                  ) : legalNameLocked ? (
                     <FieldHelper>
-                      This value is verified and cannot be changed here.
+                      Verified. Contact support to change.
                     </FieldHelper>
                   ) : null}
                 </div>
@@ -432,94 +800,197 @@ export function SettingsCompanyPage() {
 
         <SettingsSection
           title="Regional and Time"
-          description="Country and timezone context used across workspace behavior."
+          description="Country and timezone for this workspace"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <ReadOnlyField
+            <FormField
               label="Default Timezone"
-              value={displayValue(company?.defaultTimezone)}
-              helper="Timezone selection is added in the dedicated timezone step."
-            />
+              labelWrapperClassName="h-5"
+              error={
+                timezoneValidationMessage ?? errors.defaultTimezone?.message
+              }
+              helpTooltip="Used for reporting cutoffs, deadlines, recurring schedules, and day-boundary calculations."
+            >
+              <div className="space-y-1.5">
+                <Controller
+                  name="defaultTimezone"
+                  control={control}
+                  render={({ field }) => (
+                    <AutocompleteDropdown
+                      id="company-settings-timezone"
+                      items={timezoneOptions}
+                      value={field.value ?? ''}
+                      onValueChange={(value) =>
+                        field.onChange(value === '' ? null : value)
+                      }
+                      placeholder={
+                        !company?.countryCode
+                          ? 'Country required'
+                          : singleTimezone
+                            ? 'Automatically selected'
+                            : 'Select timezone'
+                      }
+                      searchPlaceholder="Search timezones..."
+                      className="h-9 w-full"
+                      disabled={
+                        !canEditPage || !company?.countryCode || singleTimezone
+                      }
+                      aria-invalid={
+                        timezoneIsInvalid || !!errors.defaultTimezone
+                      }
+                      noResultsMessage="No matching timezones"
+                    />
+                  )}
+                />
+                <FieldHelper>
+                  {singleTimezone
+                    ? 'This country has one supported timezone, so it is fixed here.'
+                    : !timezoneValidationMessage &&
+                        !errors.defaultTimezone?.message
+                      ? 'Changing this affects how reports, deadlines, and activity days are grouped.'
+                      : null}
+                </FieldHelper>
+              </div>
+            </FormField>
             <ReadOnlyField
               label="Country"
+              labelWrapperClassName="h-5"
               value={displayValue(
                 company?.countryName ?? company?.countryCode ?? null,
               )}
-              helper="Country remains read-only in this settings flow."
             />
           </div>
         </SettingsSection>
 
         <SettingsSection
-          title="Compliance and Registration"
-          description="Tax and registration profile for this workspace."
+          title={
+            isIndividualWorkspace
+              ? 'Tax identifier'
+              : 'Compliance and Registration'
+          }
+          description={
+            isIndividualWorkspace
+              ? 'Personal or sole trader tax ID on file.'
+              : 'Business registration and tax identifiers.'
+          }
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              label="Registration Number"
-              renderLabel={
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-medium">
-                    Registration Number
-                  </span>
-                  {registrationLocked ? (
-                    <Lock className="text-muted-foreground size-3.5" />
+          <div
+            className={cn(
+              'grid gap-4',
+              showBusinessRegistrationFields && 'md:grid-cols-2',
+            )}
+          >
+            {showBusinessRegistrationFields ? (
+              <FormField
+                label="Registration Number"
+                renderLabel={
+                  <div className="flex items-center gap-1">
+                    <Label>Registration Number</Label>
+                    {registrationLocked ? (
+                      <Lock className="text-muted-foreground size-3.5" />
+                    ) : (
+                      <TooltipHelper
+                        content="Government business registration number"
+                        contentStyle="w-fit"
+                      />
+                    )}
+                  </div>
+                }
+              >
+                <div className="space-y-1.5">
+                  <Input
+                    {...register('companyRegistrationNumber')}
+                    disabled={!canEditPage || registrationLocked}
+                    readOnly={registrationLocked}
+                    aria-invalid={!!errors.companyRegistrationNumber}
+                  />
+                  {errors.companyRegistrationNumber?.message ? (
+                    <p className="text-destructive text-xs">
+                      {errors.companyRegistrationNumber.message}
+                    </p>
+                  ) : registrationLocked ? (
+                    <FieldHelper>
+                      Verified. Contact support to change.
+                    </FieldHelper>
                   ) : null}
                 </div>
-              }
-            >
-              <div className="space-y-1.5">
-                <Input
-                  {...register('companyRegistrationNumber')}
-                  disabled={!canEditPage || registrationLocked}
-                  readOnly={registrationLocked}
-                />
-                <FieldHelper>
-                  {registrationLocked
-                    ? 'This value is verified and cannot be changed here.'
-                    : 'Enter the company registration number used for this workspace.'}
-                </FieldHelper>
-              </div>
-            </FormField>
+              </FormField>
+            ) : null}
 
-            <FormField
-              label="Tax ID"
-              renderLabel={
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-medium">Tax ID</span>
-                  {taxIdLocked ? (
-                    <Lock className="text-muted-foreground size-3.5" />
+            {showTaxIdField ? (
+              <FormField
+                label="Tax ID"
+                className={cn(
+                  !showBusinessRegistrationFields && 'md:col-span-2',
+                )}
+                renderLabel={
+                  <div className="flex items-center gap-1">
+                    <Label>Tax ID</Label>
+                    {taxIdLocked ? (
+                      <Lock className="text-muted-foreground size-3.5" />
+                    ) : (
+                      <TooltipHelper
+                        content={
+                          isIndividualWorkspace
+                            ? 'Your tax ID'
+                            : 'Business tax identifier.'
+                        }
+                        contentStyle="w-fit"
+                      />
+                    )}
+                  </div>
+                }
+              >
+                <div className="space-y-1.5">
+                  <Input
+                    {...register('companyTaxId')}
+                    disabled={!canEditPage || taxIdLocked}
+                    readOnly={taxIdLocked}
+                    aria-invalid={!!errors.companyTaxId}
+                  />
+                  {errors.companyTaxId?.message ? (
+                    <p className="text-destructive text-xs">
+                      {errors.companyTaxId.message}
+                    </p>
+                  ) : taxIdLocked ? (
+                    <FieldHelper>
+                      Verified. Contact support to change.
+                    </FieldHelper>
                   ) : null}
                 </div>
-              }
-            >
-              <div className="space-y-1.5">
-                <Input
-                  {...register('companyTaxId')}
-                  disabled={!canEditPage || taxIdLocked}
-                  readOnly={taxIdLocked}
-                />
-                <FieldHelper>
-                  {taxIdLocked
-                    ? 'This value is verified and cannot be changed here.'
-                    : 'Enter the company tax identifier used for filings and records.'}
-                </FieldHelper>
-              </div>
-            </FormField>
+              </FormField>
+            ) : null}
           </div>
         </SettingsSection>
 
         <SettingsSection
           title="Profile and Contact"
-          description="Public profile and contact information."
+          description={
+            isIndividualWorkspace
+              ? 'Website, address, and a short bio.'
+              : 'Website, address, and short business description.'
+          }
         >
           <div className="flex flex-col gap-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Website">
+              <FormField
+                label="Website"
+                error={fieldErrorMessage(errors.website)}
+                helpTooltip={
+                  isIndividualWorkspace
+                    ? 'Optional personal or portfolio site.'
+                    : 'Optional public website URL.'
+                }
+              >
                 <Input
                   {...register('website')}
                   disabled={!canEditPage}
-                  placeholder="https://yourcompany.com"
+                  aria-invalid={!!errors.website}
+                  placeholder={
+                    isIndividualWorkspace
+                      ? 'https://example.com'
+                      : 'https://yourcompany.com'
+                  }
                 />
               </FormField>
               <div className="hidden md:block" aria-hidden />
@@ -529,114 +1000,159 @@ export function SettingsCompanyPage() {
               <FormField
                 label="Address"
                 className="flex h-full min-h-0 flex-col"
+                error={fieldErrorMessage(errors.address)}
+                helpTooltip={
+                  isIndividualWorkspace
+                    ? 'Mailing or contact address'
+                    : 'Business or mailing address'
+                }
               >
                 <div className="flex min-h-0 flex-1 flex-col gap-1.5">
                   <Textarea
                     {...register('address')}
                     disabled={!canEditPage}
+                    aria-invalid={!!errors.address}
                     className="min-h-24 flex-1 resize-none"
-                    placeholder="Business or mailing address"
+                    placeholder={
+                      isIndividualWorkspace
+                        ? 'Mailing or contact address'
+                        : 'Business or mailing address'
+                    }
                   />
-                  <div className="min-h-10 shrink-0">
-                    <FieldHelper>
-                      {addressVerified
-                        ? 'Address verification is informational. This field remains editable.'
-                        : 'This address can be updated from workspace settings.'}
-                    </FieldHelper>
-                  </div>
                 </div>
               </FormField>
 
               <FormField
                 label="Description"
                 className="flex h-full min-h-0 flex-col"
+                error={fieldErrorMessage(errors.description)}
+                helpTooltip={
+                  isIndividualWorkspace
+                    ? 'Optional short bio or what you do.'
+                    : 'Optional one-line summary of the business.'
+                }
               >
                 <div className="flex min-h-0 flex-1 flex-col gap-1.5">
                   <Textarea
                     {...register('description')}
                     disabled={!canEditPage}
+                    aria-invalid={!!errors.description}
                     className="min-h-24 flex-1 resize-none"
-                    placeholder="Short description for this workspace"
+                    placeholder={
+                      isIndividualWorkspace
+                        ? 'Freelance designer, …'
+                        : 'We are a…'
+                    }
                   />
-                  <div className="min-h-10 shrink-0">
-                    <FieldHelper>
-                      Optional. Used where workspace context is summarized.
-                    </FieldHelper>
-                  </div>
                 </div>
               </FormField>
             </div>
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          title="Business Context"
-          description="Business descriptors used for defaults and reporting context."
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Industry">
-              <Input
-                {...register('industry')}
-                disabled={!canEditPage}
-                placeholder="Industry or sector"
+        {showBusinessContextSection ? (
+          <SettingsSection
+            title="Business Context"
+            description="Industry, size, and revenue band"
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                label="Industry"
+                error={fieldErrorMessage(errors.industry)}
+                helpTooltip="Helps suggest a sensible chart of accounts"
+              >
+                <Input
+                  {...register('industry')}
+                  disabled={!canEditPage}
+                  aria-invalid={!!errors.industry}
+                  placeholder="Industry or sector"
+                />
+              </FormField>
+
+              <Controller
+                name="companySize"
+                control={control}
+                render={({ field }) => (
+                  <FormField
+                    label="Company Size"
+                    error={fieldErrorMessage(errors.companySize)}
+                    helpTooltip="Approximate headcount for benchmarks"
+                  >
+                    <Select
+                      onValueChange={(value) =>
+                        field.onChange(
+                          value === OPTIONAL_SELECT_NONE ? null : value,
+                        )
+                      }
+                      value={field.value ?? OPTIONAL_SELECT_NONE}
+                      disabled={!canEditPage}
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-invalid={!!errors.companySize}
+                      >
+                        <SelectValue placeholder="Select company size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={OPTIONAL_SELECT_NONE}>
+                          Not set
+                        </SelectItem>
+                        {COMPANY_SIZE.map((size) => (
+                          <SelectItem key={size.value} value={size.value}>
+                            {size.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                )}
               />
-            </FormField>
 
-            <Controller
-              name="companySize"
-              control={control}
-              render={({ field }) => (
-                <FormField label="Company Size">
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value ?? undefined}
-                    disabled={!canEditPage}
+              <Controller
+                name="revenue"
+                control={control}
+                render={({ field }) => (
+                  <FormField
+                    label="Revenue"
+                    error={fieldErrorMessage(errors.revenue)}
+                    helpTooltip="Optional revenue band for templates and insights"
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select company size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COMPANY_SIZE.map((size) => (
-                        <SelectItem key={size.value} value={size.value}>
-                          {size.label}
+                    <Select
+                      onValueChange={(value) =>
+                        field.onChange(
+                          value === OPTIONAL_SELECT_NONE ? null : value,
+                        )
+                      }
+                      value={field.value ?? OPTIONAL_SELECT_NONE}
+                      disabled={!canEditPage}
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-invalid={!!errors.revenue}
+                      >
+                        <SelectValue placeholder="Choose revenue range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={OPTIONAL_SELECT_NONE}>
+                          Not set
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              )}
-            />
-
-            <Controller
-              name="revenue"
-              control={control}
-              render={({ field }) => (
-                <FormField label="Revenue">
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value ?? undefined}
-                    disabled={!canEditPage}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Choose revenue range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COMPANY_REVENUE_RANGE.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              )}
-            />
-          </div>
-        </SettingsSection>
+                        {COMPANY_REVENUE_RANGE.map((range) => (
+                          <SelectItem key={range.value} value={range.value}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                )}
+              />
+            </div>
+          </SettingsSection>
+        ) : null}
 
         <SettingsSection
           title="Accounting Snapshot"
-          description="Current accounting settings shown as read-only context."
+          description="Currency, year-end, framework, and accounting basis"
         >
           <div className="grid gap-4 md:grid-cols-2">
             <ReadOnlyField
@@ -645,6 +1161,7 @@ export function SettingsCompanyPage() {
                 company?.reportingCurrencyName ??
                   company?.reportingCurrencyCode,
               )}
+              helpTooltip="Primary currency for books and reports"
             />
             <ReadOnlyField
               label="Fiscal Year End"
@@ -653,35 +1170,36 @@ export function SettingsCompanyPage() {
                   ? `${company.yearEndMonth}/${company.yearEndDay}`
                   : 'Not set'
               }
+              helpTooltip="Last day of your financial year"
             />
             <ReadOnlyField
               label="Reporting Framework"
               value={getReportingFrameworkLabel(
                 company?.reportingFramework ?? null,
               )}
+              helpTooltip="Reporting standard (e.g. GAAP, IFRS)"
             />
             <ReadOnlyField
               label="Accounting Basis"
               value={getAccountingBasisLabel(company?.accountingBasis ?? null)}
+              helpTooltip="Cash: when money moves. Accrual: when earned or owed"
             />
           </div>
         </SettingsSection>
 
         <SettingsSection
           title="Firm Relationship"
-          description="Workspace assignment to a managing accounting firm."
+          description="Linked accounting firm, if any"
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <ReadOnlyField
+            <ReadOnlyTextDetail
               label="Assigned Firm"
               value={displayValue(company?.assignedFirmName)}
-              helper="Managing firm metadata remains read-only here."
             />
             {canViewFirmSlug ? (
-              <ReadOnlyField
+              <ReadOnlyTextDetail
                 label="Firm Slug"
                 value={displayValue(company?.assignedFirmSlug)}
-                helper="Firm slug is shown for context only."
               />
             ) : null}
           </div>
@@ -693,8 +1211,17 @@ export function SettingsCompanyPage() {
           <p className="text-sm font-medium">Save Changes</p>
           <p className="text-muted-foreground text-xs">{saveHelperText}</p>
         </div>
-        <Button type="button" disabled>
-          Save Changes
+        <Button
+          type="button"
+          disabled={
+            !canPersistPage ||
+            updateCompanyMutation.isPending ||
+            !hasDirtyChanges ||
+            timezoneIsInvalid
+          }
+          onClick={handleSave}
+        >
+          {updateCompanyMutation.isPending ? 'Saving...' : 'Save Changes'}
         </Button>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  deleteCompanyLogo,
   finalizeUploadIntent,
   getObjectDownloadUrl,
   getObjectUploadUrl,
+  uploadCompanyLogo,
   uploadFileToR2,
 } from '../api';
 import {
@@ -31,6 +33,18 @@ export function useRetrieveTxnFiles(companyId: string) {
   return useQuery({
     queryKey: ['txnFiles', companyId],
     // queryFn: () => getTxnFiles(companyId),
+  });
+}
+
+export function useUploadCompanyLogo() {
+  return useMutation({
+    mutationFn: uploadCompanyLogo,
+  });
+}
+
+export function useDeleteCompanyLogo() {
+  return useMutation({
+    mutationFn: deleteCompanyLogo,
   });
 }
 

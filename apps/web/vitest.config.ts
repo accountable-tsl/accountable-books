@@ -1,28 +1,22 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@session': path.resolve(__dirname, 'src/app/session'),
     },
   },
   test: {
     globals: true,
     environment: 'jsdom',
     // Cap worker threads to avoid a large number of node:vitest processes.
-    poolOptions: {
-      threads: {
-        minThreads: 1,
-        maxThreads: 2,
-      },
-    },
+    pool: 'threads',
+    maxWorkers: 2,
     // Load test environment variables from .env.test
     env: {
       NODE_ENV: 'test',

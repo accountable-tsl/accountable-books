@@ -8,6 +8,7 @@ import {
   reportingFramework,
   updateCompanyPayload as updateCompanySchema,
 } from '@accountable-books/contracts/schema';
+import { isKnownTimezone } from '@accountable-books/utils/timezone';
 import { z } from 'zod';
 
 export {
@@ -19,6 +20,7 @@ export {
 };
 
 export type AccountingBasis = z.infer<typeof accountingBasis>;
+export type { CompanyType };
 
 export const userOnboardingStepKeys = {
   emailVerified: 'email_verified',
@@ -123,10 +125,7 @@ const trimmedNullishFormString = (max: number) =>
 const trimmedNullishTimezone = z
   .string()
   .trim()
-  .regex(
-    /^[A-Za-z]+\/[A-Za-z_]+$/,
-    'Use a valid IANA timezone (e.g. America/New_York)',
-  )
+  .refine(isKnownTimezone, 'Use a valid IANA timezone (e.g. America/New_York)')
   .nullish()
   .or(z.literal(''))
   .transform((value) => {

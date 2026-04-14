@@ -4,14 +4,14 @@ import { FormField } from '@/components/FormField';
 import { SimpleSelect } from '@/components/SimpleSelect';
 import { Input } from '@/components/ui/input';
 import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
+import {
+  getCompanyTimezoneOptions,
+  normalizeCompanyTimezone,
+} from '@/modules/company/companies';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useIndustries } from '@/shared/hooks/useIndustries';
-import {
-  getTimezonesForCountry,
-  normalizeTimezoneId,
-} from '@accountable-books/utils/timezone';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import type { FirmClientInviteWizardSteps123 } from '../model/types';
@@ -56,11 +56,7 @@ export function InviteWizardCompanyStep() {
     [countries, countryId],
   );
   const timezoneOptions = useMemo(
-    () =>
-      getTimezonesForCountry(selectedCountry?.code).map((timezone) => ({
-        value: timezone.id,
-        label: timezone.label,
-      })),
+    () => getCompanyTimezoneOptions(selectedCountry?.code),
     [selectedCountry?.code],
   );
 
@@ -144,7 +140,7 @@ export function InviteWizardCompanyStep() {
   }, [countryId, countries, currencies, getValues, setValue]);
 
   useEffect(() => {
-    const currentTimezone = normalizeTimezoneId(
+    const currentTimezone = normalizeCompanyTimezone(
       getValues('company.defaultTimezone'),
     );
 
@@ -164,7 +160,7 @@ export function InviteWizardCompanyStep() {
 
     if (isCurrentTimezoneValid) {
       if (currentTimezone !== getValues('company.defaultTimezone')) {
-        setValue('company.defaultTimezone', currentTimezone, {
+        setValue('company.defaultTimezone', currentTimezone ?? undefined, {
           shouldValidate: true,
         });
       }
@@ -301,7 +297,7 @@ export function InviteWizardCompanyStep() {
                 if (!selectedCountry?.code) return true;
                 if (timezoneOptions.length <= 1) return true;
 
-                const normalizedTimezone = normalizeTimezoneId(value);
+                const normalizedTimezone = normalizeCompanyTimezone(value);
                 if (!normalizedTimezone) return 'Select a timezone';
 
                 return timezoneOptions.some(

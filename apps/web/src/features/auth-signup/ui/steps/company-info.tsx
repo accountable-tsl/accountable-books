@@ -27,7 +27,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useSlugCheck } from '@/domains-pending-migration/firms/hooks';
 import { cn } from '@/lib/utils';
 import { newCompany } from '@/modules/auth';
-import { COMPANY_SIZE, COMPANY_TYPES } from '@/modules/company/companies';
+import {
+  COMPANY_SIZE,
+  COMPANY_TYPES,
+  getSignupCompanyInfoVisibilityRules,
+} from '@/modules/company/companies';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { useIndustries } from '@/shared/hooks/useIndustries';
@@ -91,8 +95,9 @@ export const SignupCompanyInfo = forwardRef<
   }
 >(({ companyData, userData, updateCompanyField }, ref) => {
   const userType = companyData.type;
-  const isFirm = userType === 'accounting_firm';
-  const isIndividual = userType === 'individual';
+  const companyVisibility = getSignupCompanyInfoVisibilityRules(userType);
+  const isFirm = companyVisibility.isAccountingFirm;
+  const isIndividual = companyVisibility.isIndividual;
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -345,14 +350,18 @@ export const SignupCompanyInfo = forwardRef<
           </FormField>
         </div>
 
-        {!isIndividual && (
+        {(companyVisibility.showFirmSlugField ||
+          companyVisibility.showIndustryField ||
+          companyVisibility.showYearEndField) && (
           <div
             className={cn(
               'flex overflow-hidden',
-              isFirm ? 'grid gap-2 md:grid-cols-2' : '',
+              companyVisibility.showFirmSlugField
+                ? 'grid gap-2 md:grid-cols-2'
+                : '',
             )}
           >
-            {isFirm ? (
+            {companyVisibility.showFirmSlugField ? (
               <Controller
                 name="slug"
                 control={control}
@@ -371,7 +380,7 @@ export const SignupCompanyInfo = forwardRef<
                   />
                 )}
               />
-            ) : (
+            ) : companyVisibility.showIndustryField ? (
               /* Industry */
               <FormField
                 id="industry"
@@ -402,10 +411,10 @@ export const SignupCompanyInfo = forwardRef<
                   onValueChange={(value) => handleChange('industry', value)}
                 />
               </FormField>
-            )}
+            ) : null}
 
             {/* Fiscal Period */}
-            {isFirm && (
+            {companyVisibility.showYearEndField && (
               <FormField
                 id="fiscalPeriod"
                 label="Year End"
@@ -510,33 +519,35 @@ export const SignupCompanyInfo = forwardRef<
             />
           </FormField>
 
-          {!isIndividual && showOptionalFieldsButton && (
-            <div>
-              <div
-                className={cn(
-                  'flex items-center justify-center',
-                  !isIndividual && showOptionalFieldsButton
-                    ? 'pointer-events-auto opacity-100'
-                    : 'pointer-events-none opacity-0',
-                )}
-              >
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-muted-foreground hover:text-foreground h-6 cursor-pointer self-center p-1"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setViewOptionalFields(true);
-                    }}
-                  >
-                    Fill other optional fields
-                  </Button>
-                  <TooltipHelper content="You can always complete these later" />
+          {companyVisibility.showOptionalFieldsToggle &&
+            showOptionalFieldsButton && (
+              <div>
+                <div
+                  className={cn(
+                    'flex items-center justify-center',
+                    companyVisibility.showOptionalFieldsToggle &&
+                      showOptionalFieldsButton
+                      ? 'pointer-events-auto opacity-100'
+                      : 'pointer-events-none opacity-0',
+                  )}
+                >
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-muted-foreground hover:text-foreground h-6 cursor-pointer self-center p-1"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setViewOptionalFields(true);
+                      }}
+                    >
+                      Fill other optional fields
+                    </Button>
+                    <TooltipHelper content="You can always complete these later" />
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
       </div>
 
@@ -545,7 +556,7 @@ export const SignupCompanyInfo = forwardRef<
         className={cn(
           'bg-card absolute inset-0 top-[17%] z-50 w-full rounded-sm border-[1px] py-4 md:top-1/3',
           'ease transform transition-all duration-500',
-          viewOptionalFields && !isIndividual
+          viewOptionalFields && companyVisibility.showOptionalFieldsPanel
             ? 'pointer-events-auto scale-100 opacity-100'
             : 'pointer-events-none scale-95 opacity-0',
         )}
@@ -562,45 +573,53 @@ export const SignupCompanyInfo = forwardRef<
           </div>
           <hr className="py-2" />
           <div className="flex flex-col gap-3 px-6 opacity-75">
-            <div className="grid gap-2 md:grid-cols-2">
-              {/* Company Registration Number */}
-              <FormField
-                id="registrationNumber"
-                label="Company Reg No."
-                error={errors.registrationNumber?.message}
-                helpTooltip={TOOLTIP.registrationNumber}
-                tooltipStyle="text-center"
-              >
-                <Input
-                  id="registrationNumber"
-                  {...register('registrationNumber')}
-                  onChange={(e) =>
-                    handleChange('registrationNumber', e.target.value)
-                  }
-                  aria-describedby={
-                    errors.registrationNumber
-                      ? 'registrationNumber-error'
-                      : undefined
-                  }
-                  placeholder="12345678"
-                />
-              </FormField>
-              <FormField
-                id="taxId"
-                label="Tax ID"
-                error={errors.taxId?.message}
-                helpTooltip={TOOLTIP.taxId}
-                tooltipStyle="text-center"
-              >
-                <Input
-                  id="taxId"
-                  {...register('taxId')}
-                  onChange={(e) => handleChange('taxId', e.target.value)}
-                  aria-describedby={errors.taxId ? 'taxId-error' : undefined}
-                  placeholder="AB123456C"
-                />
-              </FormField>
-            </div>
+            {companyVisibility.showBusinessRegistrationFields ||
+            companyVisibility.showTaxIdField ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {companyVisibility.showBusinessRegistrationFields ? (
+                  <FormField
+                    id="registrationNumber"
+                    label="Company Reg No."
+                    error={errors.registrationNumber?.message}
+                    helpTooltip={TOOLTIP.registrationNumber}
+                    tooltipStyle="text-center"
+                  >
+                    <Input
+                      id="registrationNumber"
+                      {...register('registrationNumber')}
+                      onChange={(e) =>
+                        handleChange('registrationNumber', e.target.value)
+                      }
+                      aria-describedby={
+                        errors.registrationNumber
+                          ? 'registrationNumber-error'
+                          : undefined
+                      }
+                      placeholder="12345678"
+                    />
+                  </FormField>
+                ) : null}
+                {companyVisibility.showTaxIdField ? (
+                  <FormField
+                    id="taxId"
+                    label="Tax ID"
+                    error={errors.taxId?.message}
+                    helpTooltip={TOOLTIP.taxId}
+                    tooltipStyle="text-center"
+                  >
+                    <Input
+                      id="taxId"
+                      {...register('taxId')}
+                      onChange={(e) => handleChange('taxId', e.target.value)}
+                      aria-describedby={
+                        errors.taxId ? 'taxId-error' : undefined
+                      }
+                      placeholder="AB123456C"
+                    />
+                  </FormField>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="grid gap-2 md:grid-cols-2">
               {/* Company Size */}
