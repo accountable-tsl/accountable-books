@@ -75,7 +75,6 @@ import {
   Repeat,
   Save,
   Send,
-  Tag,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -1059,38 +1058,41 @@ export function JournalDetailPane({
     }
   };
 
-  const openAttachment = useCallback(async (file: TxnFileBase) => {
-    if (!file.key) {
-      toast.error('Unable to open file (missing file key)');
-      return;
-    }
-
-    // Avoid pop-up blockers by opening a blank tab immediately.
-    const w = window.open('', '_blank', 'noopener,noreferrer');
-    if (!w) {
-      toast.error('Popup blocked. Please allow popups to open attachments.');
-      return;
-    }
-
-    try {
-      const res = await getObjectDownloadUrl({
-        companyId,
-        bucketType: 'txnFiles',
-        fileKey: file.key,
-        timeout: 3600,
-      });
-      if (res.success && res.data?.url) {
-        w.location.href = res.data.url;
+  const openAttachment = useCallback(
+    async (file: TxnFileBase) => {
+      if (!file.key) {
+        toast.error('Unable to open file (missing file key)');
         return;
       }
-      w.close();
-      toast.error(res.message ?? 'Unable to open attachment');
-    } catch (error) {
-      w.close();
-      logError('Open attachment failed', error);
-      toast.error(getErrorMessage(error, 'Unable to open attachment'));
-    }
-  }, []);
+
+      // Avoid pop-up blockers by opening a blank tab immediately.
+      const w = window.open('', '_blank', 'noopener,noreferrer');
+      if (!w) {
+        toast.error('Popup blocked. Please allow popups to open attachments.');
+        return;
+      }
+
+      try {
+        const res = await getObjectDownloadUrl({
+          companyId,
+          bucketType: 'txnFiles',
+          fileKey: file.key,
+          timeout: 3600,
+        });
+        if (res.success && res.data?.url) {
+          w.location.href = res.data.url;
+          return;
+        }
+        w.close();
+        toast.error(res.message ?? 'Unable to open attachment');
+      } catch (error) {
+        w.close();
+        logError('Open attachment failed', error);
+        toast.error(getErrorMessage(error, 'Unable to open attachment'));
+      }
+    },
+    [companyId],
+  );
 
   const handleSave = useCallback(async () => {
     if (!canSave) return;
@@ -2187,7 +2189,7 @@ export function JournalDetailPane({
                       items={contactItems}
                       onValueChange={(value) => setContactId(value || null)}
                       placeholder="Optional"
-                      className={`h-auto w-full bg-transparent text-sm dark:bg-transparent ${isMobile ? 'rounded-none border-0 border-b !px-0 py-1.5 shadow-none [&>span]:text-sm [&>span]:font-normal' : 'h-9'}`}
+                      className={`h-auto w-full bg-transparent text-sm dark:bg-transparent ${isMobile ? 'rounded-none border-0 border-b px-0! py-1.5 shadow-none [&>span]:text-sm [&>span]:font-normal' : 'h-9'}`}
                     />
                   </div>
 

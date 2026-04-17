@@ -11,8 +11,7 @@ class StatusEnum(str, Enum):
 
 class BreakGlassSessionResponse(BaseModel):
     id: UUID
-    companyId: UUID
-    companyShortCode: constr(max_length=50)
+    companyId: constr(min_length=1, max_length=50)
     superAdminUserId: UUID
     supportAccessLevel: Literal["company_profile_write"]
     status: StatusEnum

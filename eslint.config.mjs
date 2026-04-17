@@ -9,7 +9,13 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig([
   {
-    ignores: ['**/dist/**', '**/build/**', '**/node_modules/**', '**/.next/**'],
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/.claude/**',
+    ],
   },
 
   // TypeScript parser (no strict rules)

@@ -20,6 +20,7 @@ const result = await convertFolder({
   preserveStructure: false, // --flat
   generateInitFiles: true, // --init
   registerTsLoader: true,
+  trustedInput: true,
 });
 
 console.log(`✅ Converted ${result.files.length} schemas`);

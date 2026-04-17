@@ -13,7 +13,7 @@
       // Use of this source code is governed by a BSD-style license that can be
       // found in the LICENSE file.
       (function () {
-        "use strict";
+        'use strict';
         /**
          * T-Rex runner.
          * @param {string} outerContainerId Outer containing element id.
@@ -30,7 +30,7 @@
           this.outerContainerEl = document.querySelector(outerContainerId);
           this.containerEl = null;
           this.detailsButton =
-            this.outerContainerEl.querySelector("#details-button");
+            this.outerContainerEl.querySelector('#details-button');
           this.config = opt_config || Runner.config;
           this.dimensions = Runner.defaultDimensions;
           this.canvas = null;
@@ -60,7 +60,7 @@
           this.imagesLoaded = 0;
           this.loadImages();
         }
-        window["Runner"] = Runner;
+        window['Runner'] = Runner;
         /**
          * Default game width.
          * @const
@@ -75,13 +75,13 @@
         var IS_HIDPI = window.devicePixelRatio > 1;
         /** @const */
         var IS_IOS =
-          window.navigator.userAgent.indexOf("UIWebViewForStaticFileContent") >
+          window.navigator.userAgent.indexOf('UIWebViewForStaticFileContent') >
           -1;
         /** @const */
         var IS_MOBILE =
-          window.navigator.userAgent.indexOf("Mobi") > -1 || IS_IOS;
+          window.navigator.userAgent.indexOf('Mobi') > -1 || IS_IOS;
         /** @const */
-        var IS_TOUCH_ENABLED = "ontouchstart" in window;
+        var IS_TOUCH_ENABLED = 'ontouchstart' in window;
         /**
          * Default game configuration.
          * @enum {number}
@@ -101,7 +101,7 @@
           MAX_SPEED: 12,
           MIN_JUMP_HEIGHT: 35,
           MOBILE_SPEED_COEFFICIENT: 1.2,
-          RESOURCE_TEMPLATE_ID: "audio-resources",
+          RESOURCE_TEMPLATE_ID: 'audio-resources',
           SPEED: 6,
           SPEED_DROP_COEFFICIENT: 3,
         };
@@ -118,11 +118,11 @@
          * @enum {string}
          */
         Runner.classes = {
-          CANVAS: "runner-canvas",
-          CONTAINER: "runner-container",
-          CRASHED: "crashed",
-          ICON: "icon-offline",
-          TOUCH_CONTROLLER: "controller",
+          CANVAS: 'runner-canvas',
+          CONTAINER: 'runner-container',
+          CRASHED: 'crashed',
+          ICON: 'icon-offline',
+          TOUCH_CONTROLLER: 'controller',
         };
         /**
          * Image source urls.
@@ -130,22 +130,22 @@
          */
         Runner.imageSources = {
           LDPI: [
-            { name: "CACTUS_LARGE", id: "1x-obstacle-large" },
-            { name: "CACTUS_SMALL", id: "1x-obstacle-small" },
-            { name: "CLOUD", id: "1x-cloud" },
-            { name: "HORIZON", id: "1x-horizon" },
-            { name: "RESTART", id: "1x-restart" },
-            { name: "TEXT_SPRITE", id: "1x-text" },
-            { name: "TREX", id: "1x-trex" },
+            { name: 'CACTUS_LARGE', id: '1x-obstacle-large' },
+            { name: 'CACTUS_SMALL', id: '1x-obstacle-small' },
+            { name: 'CLOUD', id: '1x-cloud' },
+            { name: 'HORIZON', id: '1x-horizon' },
+            { name: 'RESTART', id: '1x-restart' },
+            { name: 'TEXT_SPRITE', id: '1x-text' },
+            { name: 'TREX', id: '1x-trex' },
           ],
           HDPI: [
-            { name: "CACTUS_LARGE", id: "2x-obstacle-large" },
-            { name: "CACTUS_SMALL", id: "2x-obstacle-small" },
-            { name: "CLOUD", id: "2x-cloud" },
-            { name: "HORIZON", id: "2x-horizon" },
-            { name: "RESTART", id: "2x-restart" },
-            { name: "TEXT_SPRITE", id: "2x-text" },
-            { name: "TREX", id: "2x-trex" },
+            { name: 'CACTUS_LARGE', id: '2x-obstacle-large' },
+            { name: 'CACTUS_SMALL', id: '2x-obstacle-small' },
+            { name: 'CLOUD', id: '2x-cloud' },
+            { name: 'HORIZON', id: '2x-horizon' },
+            { name: 'RESTART', id: '2x-restart' },
+            { name: 'TEXT_SPRITE', id: '2x-text' },
+            { name: 'TREX', id: '2x-trex' },
           ],
         };
         /**
@@ -153,9 +153,9 @@
          * @enum {string}
          */
         Runner.sounds = {
-          BUTTON_PRESS: "offline-sound-press",
-          HIT: "offline-sound-hit",
-          SCORE: "offline-sound-reached",
+          BUTTON_PRESS: 'offline-sound-press',
+          HIT: 'offline-sound-hit',
+          SCORE: 'offline-sound-reached',
         };
         /**
          * Key code mapping.
@@ -172,19 +172,19 @@
          * @enum {string}
          */
         Runner.events = {
-          ANIM_END: "webkitAnimationEnd",
-          CLICK: "click",
-          KEYDOWN: "keydown",
-          KEYUP: "keyup",
-          MOUSEDOWN: "mousedown",
-          MOUSEUP: "mouseup",
-          RESIZE: "resize",
-          TOUCHEND: "touchend",
-          TOUCHSTART: "touchstart",
-          VISIBILITY: "visibilitychange",
-          BLUR: "blur",
-          FOCUS: "focus",
-          LOAD: "load",
+          ANIM_END: 'webkitAnimationEnd',
+          CLICK: 'click',
+          KEYDOWN: 'keydown',
+          KEYUP: 'keyup',
+          MOUSEDOWN: 'mousedown',
+          MOUSEUP: 'mouseup',
+          RESIZE: 'resize',
+          TOUCHEND: 'touchend',
+          TOUCHSTART: 'touchstart',
+          VISIBILITY: 'visibilitychange',
+          BLUR: 'blur',
+          FOCUS: 'focus',
+          LOAD: 'load',
         };
         Runner.prototype = {
           /**
@@ -196,15 +196,15 @@
             if (setting in this.config && value != undefined) {
               this.config[setting] = value;
               switch (setting) {
-                case "GRAVITY":
-                case "MIN_JUMP_HEIGHT":
-                case "SPEED_DROP_COEFFICIENT":
+                case 'GRAVITY':
+                case 'MIN_JUMP_HEIGHT':
+                case 'SPEED_DROP_COEFFICIENT':
                   this.tRex.config[setting] = value;
                   break;
-                case "INITIAL_JUMP_VELOCITY":
+                case 'INITIAL_JUMP_VELOCITY':
                   this.tRex.setJumpVelocity(value);
                   break;
-                case "SPEED":
+                case 'SPEED':
                   this.setSpeed(value);
                   break;
               }
@@ -239,7 +239,7 @@
                 var soundSrc = resourceTemplate.getElementById(
                   Runner.sounds[sound],
                 ).src;
-                soundSrc = soundSrc.substr(soundSrc.indexOf(",") + 1);
+                soundSrc = soundSrc.substr(soundSrc.indexOf(',') + 1);
                 var buffer = decodeBase64ToArrayBuffer(soundSrc);
                 // Async, so no guarantee of order in array.
                 this.audioContext.decodeAudioData(
@@ -275,7 +275,7 @@
             //document.querySelector('.' + Runner.classes.ICON).style.visibility = 'hidden';
             this.adjustDimensions();
             this.setSpeed();
-            this.containerEl = document.createElement("div");
+            this.containerEl = document.createElement('div');
             this.containerEl.className = Runner.classes.CONTAINER;
             // Player canvas container.
             this.canvas = createCanvas(
@@ -284,7 +284,7 @@
               this.dimensions.HEIGHT,
               Runner.classes.PLAYER,
             );
-            this.canvasCtx = this.canvas.getContext("2d");
+            this.canvasCtx = this.canvas.getContext('2d');
             // Canvas background is transparent - body background will show through
             Runner.updateCanvasScaling(this.canvas);
             // Horizon contains clouds, obstacles and the ground.
@@ -317,7 +317,7 @@
            * Create the touch controller. A div that covers whole screen.
            */
           createTouchController: function () {
-            this.touchController = document.createElement("div");
+            this.touchController = document.createElement('div');
             this.touchController.className = Runner.classes.TOUCH_CONTROLLER;
           },
           /**
@@ -354,8 +354,8 @@
               this.tRex.update(0);
               // Outer container and distance meter.
               if (this.activated || this.crashed) {
-                this.containerEl.style.width = this.dimensions.WIDTH + "px";
-                this.containerEl.style.height = this.dimensions.HEIGHT + "px";
+                this.containerEl.style.width = this.dimensions.WIDTH + 'px';
+                this.containerEl.style.height = this.dimensions.HEIGHT + 'px';
                 this.distanceMeter.update(0, Math.ceil(this.distanceRan));
                 this.stop();
               } else {
@@ -378,22 +378,22 @@
               this.tRex.playingIntro = true;
               // CSS animation definition.
               var keyframes =
-                "@-webkit-keyframes intro { " +
-                "from { width:" +
+                '@-webkit-keyframes intro { ' +
+                'from { width:' +
                 Trex.config.WIDTH +
-                "px }" +
-                "to { width: " +
+                'px }' +
+                'to { width: ' +
                 this.dimensions.WIDTH +
-                "px }" +
-                "}";
+                'px }' +
+                '}';
               document.styleSheets[0].insertRule(keyframes, 0);
               this.containerEl.addEventListener(
                 Runner.events.ANIM_END,
                 this.startGame.bind(this),
               );
               this.containerEl.style.webkitAnimation =
-                "intro .4s ease-out 1 both";
-              this.containerEl.style.width = this.dimensions.WIDTH + "px";
+                'intro .4s ease-out 1 both';
+              this.containerEl.style.width = this.dimensions.WIDTH + 'px';
               if (this.touchController) {
                 this.outerContainerEl.appendChild(this.touchController);
               }
@@ -410,7 +410,7 @@
             this.runningTime = 0;
             this.playingIntro = false;
             this.tRex.playingIntro = false;
-            this.containerEl.style.webkitAnimation = "";
+            this.containerEl.style.webkitAnimation = '';
             this.playCount++;
             // Handle tabbing off the page. Pause the current game.
             window.addEventListener(
@@ -714,7 +714,7 @@
            * Pause the game if the tab is not in focus.
            */
           onVisibilityChange: function (e) {
-            if (document.hidden || document.webkitHidden || e.type == "blur") {
+            if (document.hidden || document.webkitHidden || e.type == 'blur') {
               this.stop();
             } else {
               this.play();
@@ -747,7 +747,7 @@
          * @return {boolean} Whether the canvas was scaled.
          */
         Runner.updateCanvasScaling = function (canvas, opt_width, opt_height) {
-          var context = canvas.getContext("2d");
+          var context = canvas.getContext('2d');
           // Query the various pixel ratios
           var devicePixelRatio = Math.floor(window.devicePixelRatio) || 1;
           var backingStoreRatio =
@@ -759,8 +759,8 @@
             var oldHeight = opt_height || canvas.height;
             canvas.width = oldWidth * ratio;
             canvas.height = oldHeight * ratio;
-            canvas.style.width = oldWidth + "px";
-            canvas.style.height = oldHeight + "px";
+            canvas.style.width = oldWidth + 'px';
+            canvas.style.height = oldHeight + 'px';
             // Scale the context to counter the fact that we've manually scaled
             // our canvas element.
             context.scale(ratio, ratio);
@@ -795,9 +795,9 @@
          * @return {HTMLCanvasElement}
          */
         function createCanvas(container, width, height, opt_classname) {
-          var canvas = document.createElement("canvas");
+          var canvas = document.createElement('canvas');
           canvas.className = opt_classname
-            ? Runner.classes.CANVAS + " " + opt_classname
+            ? Runner.classes.CANVAS + ' ' + opt_classname
             : Runner.classes.CANVAS;
           canvas.width = width;
           canvas.height = height;
@@ -836,7 +836,7 @@
          */
         function GameOverPanel(canvas, textSprite, restartImg, dimensions) {
           this.canvas = canvas;
-          this.canvasCtx = canvas.getContext("2d");
+          this.canvasCtx = canvas.getContext('2d');
           this.canvasDimensions = dimensions;
           this.textSprite = textSprite;
           this.restartImg = restartImg;
@@ -998,14 +998,14 @@
          */
         function drawCollisionBoxes(canvasCtx, tRexBox, obstacleBox) {
           canvasCtx.save();
-          canvasCtx.strokeStyle = "#f00";
+          canvasCtx.strokeStyle = '#f00';
           canvasCtx.strokeRect(
             tRexBox.x,
             tRexBox.y,
             tRexBox.width,
             tRexBox.height,
           );
-          canvasCtx.strokeStyle = "#0f0";
+          canvasCtx.strokeStyle = '#0f0';
           canvasCtx.strokeRect(
             obstacleBox.x,
             obstacleBox.y,
@@ -1207,8 +1207,8 @@
          */
         Obstacle.types = [
           {
-            type: "CACTUS_SMALL",
-            className: " cactus cactus-small ",
+            type: 'CACTUS_SMALL',
+            className: ' cactus cactus-small ',
             width: 17,
             height: 35,
             yPos: 105,
@@ -1221,8 +1221,8 @@
             ],
           },
           {
-            type: "CACTUS_LARGE",
-            className: " cactus cactus-large ",
+            type: 'CACTUS_LARGE',
+            className: ' cactus cactus-large ',
             width: 25,
             height: 50,
             yPos: 90,
@@ -1244,7 +1244,7 @@
          */
         function Trex(canvas, image) {
           this.canvas = canvas;
-          this.canvasCtx = canvas.getContext("2d");
+          this.canvasCtx = canvas.getContext('2d');
           this.image = image;
           this.xPos = 0;
           this.yPos = 0;
@@ -1301,10 +1301,10 @@
          * @enum {string}
          */
         Trex.status = {
-          CRASHED: "CRASHED",
-          JUMPING: "JUMPING",
-          RUNNING: "RUNNING",
-          WAITING: "WAITING",
+          CRASHED: 'CRASHED',
+          JUMPING: 'JUMPING',
+          RUNNING: 'RUNNING',
+          WAITING: 'WAITING',
         };
         /**
          * Blinking coefficient.
@@ -1531,7 +1531,7 @@
          */
         function DistanceMeter(canvas, spriteSheet, canvasWidth) {
           this.canvas = canvas;
-          this.canvasCtx = canvas.getContext("2d");
+          this.canvasCtx = canvas.getContext('2d');
           this.image = spriteSheet;
           this.x = 0;
           this.y = 5;
@@ -1541,7 +1541,7 @@
           this.container = null;
           this.digits = [];
           this.acheivement = false;
-          this.defaultString = "";
+          this.defaultString = '';
           this.flashTimer = 0;
           this.flashIterations = 0;
           this.config = DistanceMeter.config;
@@ -1583,13 +1583,13 @@
            * @param {number} width Canvas width in px.
            */
           init: function (width) {
-            var maxDistanceStr = "";
+            var maxDistanceStr = '';
             this.calcXPos(width);
             this.maxScore = this.config.MAX_DISTANCE_UNITS;
             for (var i = 0; i < this.config.MAX_DISTANCE_UNITS; i++) {
               this.draw(i, 0);
-              this.defaultString += "0";
-              maxDistanceStr += "9";
+              this.defaultString += '0';
+              maxDistanceStr += '9';
             }
             this.maxScore = parseInt(maxDistanceStr);
           },
@@ -1681,9 +1681,9 @@
                 var distanceStr = (this.defaultString + distance).substr(
                   -this.config.MAX_DISTANCE_UNITS,
                 );
-                this.digits = distanceStr.split("");
+                this.digits = distanceStr.split('');
               } else {
-                this.digits = this.defaultString.split("");
+                this.digits = this.defaultString.split('');
               }
             } else {
               // Control flashing of the score on reaching acheivement.
@@ -1731,7 +1731,7 @@
             var highScoreStr = (this.defaultString + distance).substr(
               -this.config.MAX_DISTANCE_UNITS,
             );
-            this.highScore = ["10", "11", ""].concat(highScoreStr.split(""));
+            this.highScore = ['10', '11', ''].concat(highScoreStr.split(''));
           },
           /**
            * Reset the distance meter back to '00000'.
@@ -1751,7 +1751,7 @@
          */
         function Cloud(canvas, cloudImg, containerWidth) {
           this.canvas = canvas;
-          this.canvasCtx = this.canvas.getContext("2d");
+          this.canvasCtx = this.canvas.getContext('2d');
           this.image = cloudImg;
           this.containerWidth = containerWidth;
           this.xPos = containerWidth;
@@ -1843,7 +1843,7 @@
         function HorizonLine(canvas, bgImg) {
           this.image = bgImg;
           this.canvas = canvas;
-          this.canvasCtx = canvas.getContext("2d");
+          this.canvasCtx = canvas.getContext('2d');
           this.sourceDimensions = {};
           this.dimensions = HorizonLine.dimensions;
           this.sourceXPos = [0, this.dimensions.WIDTH];
@@ -1869,7 +1869,7 @@
           setSourceDimensions: function () {
             for (var dimension in HorizonLine.dimensions) {
               if (IS_HIDPI) {
-                if (dimension != "YPOS") {
+                if (dimension != 'YPOS') {
                   this.sourceDimensions[dimension] =
                     HorizonLine.dimensions[dimension] * 2;
                 }
@@ -1966,7 +1966,7 @@
          */
         function Horizon(canvas, images, dimensions, gapCoefficient) {
           this.canvas = canvas;
-          this.canvasCtx = this.canvas.getContext("2d");
+          this.canvasCtx = this.canvas.getContext('2d');
           this.config = Horizon.config;
           this.dimensions = dimensions;
           this.gapCoefficient = gapCoefficient;
@@ -2173,7 +2173,6 @@
         }
       }
 
-
       body.safe-browsing {
         background-color: rgb(206, 52, 38);
         color: white;
@@ -2194,7 +2193,7 @@
         transition: box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      [dir="rtl"] button {
+      [dir='rtl'] button {
         float: left;
       }
 
@@ -2261,7 +2260,7 @@
         width: 72px;
       }
 
-      input[type="checkbox"] {
+      input[type='checkbox'] {
         visibility: hidden;
       }
 
@@ -2285,7 +2284,7 @@
 
       .nav-wrapper::after {
         clear: both;
-        content: "";
+        content: '';
         display: table;
         width: 100%;
       }
@@ -2344,7 +2343,7 @@
         width: 16px;
       }
 
-      [dir="rtl"] .styled-checkbox {
+      [dir='rtl'] .styled-checkbox {
         float: right;
       }
 
@@ -2365,7 +2364,7 @@
         border: 2px solid white;
         border-right-width: 0;
         border-top-width: 0;
-        content: "";
+        content: '';
         height: 4px;
         left: 2px;
         opacity: 0.3;
@@ -2375,7 +2374,7 @@
         width: 9px;
       }
 
-      .styled-checkbox input[type="checkbox"]:checked + label::after {
+      .styled-checkbox input[type='checkbox']:checked + label::after {
         opacity: 1;
       }
 
@@ -2393,7 +2392,7 @@
 
       @media (max-width: 400px) {
         button,
-        [dir="rtl"] button {
+        [dir='rtl'] button {
           float: none;
           font-size: 1em;
           width: 100%;
@@ -2479,9 +2478,9 @@
    * renderer process, so embed the resource manually.
    */
         content: -webkit-image-set(
-          url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACkAAAAyCAAAAADkGq1yAAAAAnRSTlMA/1uRIrUAAABLSURBVHhe7dOxDQAgCERRdrza/ScwscNYSKIhWAror9+VR7BjKZbkrSpKeA45K8PQuoYqcUNKbmUzpNkD8kvM/ErlkVFk8necCyU7IotT35DVJRIAAAAASUVORK5CYII=")
+          url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACkAAAAyCAAAAADkGq1yAAAAAnRSTlMA/1uRIrUAAABLSURBVHhe7dOxDQAgCERRdrza/ScwscNYSKIhWAror9+VR7BjKZbkrSpKeA45K8PQuoYqcUNKbmUzpNkD8kvM/ErlkVFk8necCyU7IotT35DVJRIAAAAASUVORK5CYII=')
             1x,
-          url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAABkCAAAAAAwZDj3AAAAAnRSTlMA/1uRIrUAAABiSURBVHhe7cy7CYAwFABAd8z+HyewskkTW+EFA3kgSu4GuK2ktI71SqWyjeyxirlS2aeMQczfKcuNUjny/1KpPCbKjA+WSqVSqVQqawmy5TlZKpVPQciVSuUEpVKZtVypVF5DHE3/NzR+1AAAAABJRU5ErkJggg==")
+          url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAABkCAAAAAAwZDj3AAAAAnRSTlMA/1uRIrUAAABiSURBVHhe7cy7CYAwFABAd8z+HyewskkTW+EFA3kgSu4GuK2ktI71SqWyjeyxirlS2aeMQczfKcuNUjny/1KpPCbKjA+WSqVSqVQqawmy5TlZKpVPQciVSuUEpVKZtVypVF5DHE3/NzR+1AAAAABJRU5ErkJggg==')
             2x
         );
         height: 50px;
@@ -2491,9 +2490,9 @@
 
       .icon-offline {
         content: -webkit-image-set(
-          url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAvAgMAAADlfsA8AAAADFBMVEX39/f////39/dTU1NOmoBdAAAAAnRSTlMAAHaTzTgAAAB6SURBVHherc2xDUIxDIThE6UbVmEZ9nN9TUZgJWo3Ju8UhGIrHX/1FScdnr82K+PMoZizbozLsfw+OP9mkpvNARuabB6OG6fIZr4uozi4noqTYrcKHoxi63ZodLBG0a0R0c2M5Uw5Z3rzoavqwNf3CGybKH4gYXTq6wPqOghb2tvIFQAAAABJRU5ErkJggg==")
+          url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAvAgMAAADlfsA8AAAADFBMVEX39/f////39/dTU1NOmoBdAAAAAnRSTlMAAHaTzTgAAAB6SURBVHherc2xDUIxDIThE6UbVmEZ9nN9TUZgJWo3Ju8UhGIrHX/1FScdnr82K+PMoZizbozLsfw+OP9mkpvNARuabB6OG6fIZr4uozi4noqTYrcKHoxi63ZodLBG0a0R0c2M5Uw5Z3rzoavqwNf3CGybKH4gYXTq6wPqOghb2tvIFQAAAABJRU5ErkJggg==')
             1x,
-          url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABeAgMAAADaoju6AAAADFBMVEX39/f////39/dTU1NOmoBdAAAAAnRSTlMAAHaTzTgAAACDSURBVHhe7dIhDgQhAEPR6jV7urnkN3PEbkIIICCQSdfNl8/UVNe0DA/R0p7BtTzjFkesLO8nX6YUYpj8IcO48Ie+GGa4XSqYYwO4lWUPSpjH4I8s5Vg8Z7RhkeeZE2fRNc/Y5oRtu7NrC26bCKNWktEp2xueT5on/F2yLQlAQGWt+AcZixZ9AfIcYgAAAABJRU5ErkJggg==")
+          url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABeAgMAAADaoju6AAAADFBMVEX39/f////39/dTU1NOmoBdAAAAAnRSTlMAAHaTzTgAAACDSURBVHhe7dIhDgQhAEPR6jV7urnkN3PEbkIIICCQSdfNl8/UVNe0DA/R0p7BtTzjFkesLO8nX6YUYpj8IcO48Ie+GGa4XSqYYwO4lWUPSpjH4I8s5Vg8Z7RhkeeZE2fRNc/Y5oRtu7NrC26bCKNWktEp2xueT5on/F2yLQlAQGWt+AcZixZ9AfIcYgAAAABJRU5ErkJggg==')
             2x
         );
         height: 47px;
@@ -2533,7 +2532,7 @@
         text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
       }
 
-      [jscontent="failedUrl"] {
+      [jscontent='failedUrl'] {
         overflow-wrap: break-word;
       }
 
@@ -2571,9 +2570,9 @@
 
       #search-image {
         content: -webkit-image-set(
-          url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAPCAQAAAB+HTb/AAAArElEQVR4Xn3NsUoCUBzG0XvB3U0chR4geo5qihpt6gkCx0bXFsMERWj2KWqIanAvmlUUoQapwU6g4l8H5bd9Z/iSPS0hu/RqZqrncBuzLl7U3Rn4cSpQFTeroejJl1Lgs7f4ceDPdeBMXYp86gaONYJkY83AnqHiGk9wHnjk16PKgo5N9BUCkzPf5j6M0PfuVg5MymoetFwoaKAlB26WdXAvJ7u5mezitqtkT//7Sv/u96CaLQAAAABJRU5ErkJggg==")
+          url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAPCAQAAAB+HTb/AAAArElEQVR4Xn3NsUoCUBzG0XvB3U0chR4geo5qihpt6gkCx0bXFsMERWj2KWqIanAvmlUUoQapwU6g4l8H5bd9Z/iSPS0hu/RqZqrncBuzLl7U3Rn4cSpQFTeroejJl1Lgs7f4ceDPdeBMXYp86gaONYJkY83AnqHiGk9wHnjk16PKgo5N9BUCkzPf5j6M0PfuVg5MymoetFwoaKAlB26WdXAvJ7u5mezitqtkT//7Sv/u96CaLQAAAABJRU5ErkJggg==')
             1x,
-          url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAeCAQAAACVzLYUAAABYElEQVR4Xr3VMUuVURzH8XO98jgkGikENkRD0KRGDUVDQy0h2SiC4IuIiktL4AvQt1CDBJUJwo1KXXS6cWdHw7tcjWwoC5Hrx+UZgnNO5CXiO/75jD/+QZf9MzjskVU7DrU1zRv9G9ir5hsA4Nii83+GA9ZI1nI1D6tWAE1TRlQMuuuFDthzMQefgo4nKr+f3dIGDdUUHPYD1ISoMQdgJgUfgqaKEOcxWE/BVTArJBvwC0cGY7gNLgiZNsD1GP4EPVn4EtyLYRuczcJ34HYMP4E7GdajDS7FcB48z8AJ8FmI4TjouBkzZ2yBuRQMlsButIZ+dfDVUBqOaIHvavpLVHXfFmAqv45r9gEHNr3y3hcAfLSgSMPgiiZR+6Z9AMuKNAwqpjUcA2h55pxgAfBWkYRlQ254YMJloaxPHbCkiGCymL5RlLA7GnRDXyuC7uhicLoKdRyaDE5Pl00K//93nABqPgBDK8sfWgAAAABJRU5ErkJggg==")
+          url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAeCAQAAACVzLYUAAABYElEQVR4Xr3VMUuVURzH8XO98jgkGikENkRD0KRGDUVDQy0h2SiC4IuIiktL4AvQt1CDBJUJwo1KXXS6cWdHw7tcjWwoC5Hrx+UZgnNO5CXiO/75jD/+QZf9MzjskVU7DrU1zRv9G9ir5hsA4Nii83+GA9ZI1nI1D6tWAE1TRlQMuuuFDthzMQefgo4nKr+f3dIGDdUUHPYD1ISoMQdgJgUfgqaKEOcxWE/BVTArJBvwC0cGY7gNLgiZNsD1GP4EPVn4EtyLYRuczcJ34HYMP4E7GdajDS7FcB48z8AJ8FmI4TjouBkzZ2yBuRQMlsButIZ+dfDVUBqOaIHvavpLVHXfFmAqv45r9gEHNr3y3hcAfLSgSMPgiiZR+6Z9AMuKNAwqpjUcA2h55pxgAfBWkYRlQ254YMJloaxPHbCkiGCymL5RlLA7GnRDXyuC7uhicLoKdRyaDE5Pl00K//93nABqPgBDK8sfWgAAAABJRU5ErkJggg==')
             2x
         );
         margin: auto;
@@ -2701,7 +2700,7 @@
 
       #buttons::after {
         clear: both;
-        content: "";
+        content: '';
         display: block;
         width: 100%;
       }
@@ -2903,7 +2902,7 @@
       </div>
     </div>
     <script type="text/javascript">
-      new Runner(".interstitial-wrapper");
+      new Runner('.interstitial-wrapper');
     </script>
   </body>
 </html>

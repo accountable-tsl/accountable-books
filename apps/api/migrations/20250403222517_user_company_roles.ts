@@ -73,6 +73,8 @@ export const assignSystemUserRole = async (knex: Knex) => {
 const tableName = 'user_company_roles';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+
     table
       .uuid('user_id')
       .notNullable()
@@ -109,7 +111,7 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(knex, table);
 
-    table.primary(['user_id', 'company_id']);
+    table.unique(['user_id', 'company_id']);
     table.index(['user_id', 'company_id'], 'user_company_composite_idx');
   });
 

@@ -150,24 +150,8 @@ clean: guard-nonprod ## Clean workspace: stop infra, clean caches
 	@docker system prune -f || true
 	@echo "$(GREEN)✅ Workspace cleaned$(RESET)"
 
-clean-all: guard-nonprod ## Nuclear cleanup: remove everything and reinstall
-	@echo "$(RED)💥 Nuclear cleanup starting...$(RESET)"
-	@echo "$(YELLOW)🛑 Stopping infrastructure...$(RESET)"
-	@$(MAKE) db-down || true
-	@echo "$(YELLOW)🗑️ Removing node_modules and caches...$(RESET)"
-	@rm -rf node_modules pnpm-lock.yaml apps/*/node_modules packages/*/node_modules
-	@rm -rf apps/*/dist packages/*/dist dist .pnpm-store .vscode
-	@rm -rf apps/*/coverage packages/*/coverage coverage
-	@rm -rf .turbo apps/*/.turbo packages/*/.turbo
-	@echo "$(YELLOW)📦 Cleaning pnpm cache...$(RESET)"
-	@pnpm store prune || true
-	@echo "$(YELLOW)🐳 Cleaning Docker...$(RESET)"
-	@docker system prune -f || true
-	@echo "$(GREEN)📦 Reinstalling dependencies...$(RESET)"
-	@pnpm install
-	@echo "$(GREEN)🔨 Running quality checks...$(RESET)"
-	@$(MAKE) check
-	@echo "$(GREEN)✅ Nuclear cleanup complete!$(RESET)"
+clean-all: guard-nonprod ## Nuclear cleanup: deps, lockfiles, build/caches, Python venvs; reinstall (not .env)
+	@bash ./scripts/clean-all.sh
 
 ##@ 🚢 Deployment & Quality
 deploy-check: ## Run all deployment checks (tests + lint + build)

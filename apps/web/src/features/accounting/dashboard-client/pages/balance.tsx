@@ -104,7 +104,10 @@ export function DashboardBalanceTab({
     framework: reportingFramework === 'us_gaap' ? 'us_gaap' : ('ifrs' as const),
   });
 
-  const statementLines = balanceData?.lines ?? [];
+  const statementLines = useMemo(
+    () => balanceData?.lines ?? [],
+    [balanceData?.lines],
+  );
   const visibleLines = useMemo(() => statementLines, [statementLines]);
 
   const parentLines = useMemo(

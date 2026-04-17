@@ -59,8 +59,7 @@ export type OpenBreakGlassRequest = z.infer<typeof openBreakGlassRequest>;
 
 export const supportGrantResponse = z.object({
   id: z.uuid(),
-  companyId: z.uuid(),
-  companyShortCode: z.string().max(50),
+  companyId: z.string().trim().min(1).max(50),
   supportUserId: z.uuid(),
   supportUserEmail: z.email(),
   supportUserRoleKey: roleKey,
@@ -86,8 +85,7 @@ export type ListSupportGrantsResponse = z.infer<
 
 export const breakGlassSessionResponse = z.object({
   id: z.uuid(),
-  companyId: z.uuid(),
-  companyShortCode: z.string().max(50),
+  companyId: z.string().trim().min(1).max(50),
   superAdminUserId: z.uuid(),
   supportAccessLevel: z.literal('company_profile_write'),
   status: breakGlassSessionStatus,

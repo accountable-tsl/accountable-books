@@ -104,7 +104,10 @@ export function DashboardIncomeTab({
     framework: reportingFramework === 'us_gaap' ? 'us_gaap' : ('ifrs' as const),
   });
 
-  const statementLines = incomeData?.lines ?? [];
+  const statementLines = useMemo(
+    () => incomeData?.lines ?? [],
+    [incomeData?.lines],
+  );
   const visibleLines = useMemo(() => statementLines, [statementLines]);
 
   const parentLines = useMemo(

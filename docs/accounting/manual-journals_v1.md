@@ -14,16 +14,16 @@ Covers: journal list, create/void/reverse/copy, recurring templates, auto-revers
 
 **Last Updated:** 2026-02-05
 
-| Component                                | Status       | Notes |
-| ---------------------------------------- | ------------ | ----- |
-| Database migrations                      | Complete     | Manual journals + recurring templates tables/fields are in place. |
-| Backend: Manual journals API             | Complete     | List/get/create/update draft/post/void/reverse/copy implemented. |
-| Backend: CSV import API                  | Complete     | Preflight + import endpoints exist under `/api/:companyId/journals/import/*`. |
-| Backend: Recurring templates API + worker| Complete     | CRUD + preview + run-now + scheduled scan worker implemented under `/api/:companyId/journals/templates`. |
-| Ops: Scheduler process (repeatable jobs) | In progress  | Fly process group is defined; needs deploy + scaling verification per environment. |
-| Frontend: Journals UI                    | Not started  | List/detail/create/post/void/reverse/copy. |
-| Frontend: Recurring templates UI         | Not started  | Template list + create/edit + status + run-now. |
-| Frontend: CSV import UX                  | Not started  | Upload → preflight → review → import. |
+| Component                                 | Status      | Notes                                                                                                    |
+| ----------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------- |
+| Database migrations                       | Complete    | Manual journals + recurring templates tables/fields are in place.                                        |
+| Backend: Manual journals API              | Complete    | List/get/create/update draft/post/void/reverse/copy implemented.                                         |
+| Backend: CSV import API                   | Complete    | Preflight + import endpoints exist under `/api/:companyId/journals/import/*`.                            |
+| Backend: Recurring templates API + worker | Complete    | CRUD + preview + run-now + scheduled scan worker implemented under `/api/:companyId/journals/templates`. |
+| Ops: Scheduler process (repeatable jobs)  | In progress | Fly process group is defined; needs deploy + scaling verification per environment.                       |
+| Frontend: Journals UI                     | Not started | List/detail/create/post/void/reverse/copy.                                                               |
+| Frontend: Recurring templates UI          | Not started | Template list + create/edit + status + run-now.                                                          |
+| Frontend: CSV import UX                   | Not started | Upload → preflight → review → import.                                                                    |
 
 **Next Steps (recommended order):**
 
@@ -225,7 +225,7 @@ Implemented schemas:
 | `voidDraftJournalsBatch()`   | ✅ DONE | Batch void existing drafts. Supports `partial` (default) and `all_or_nothing` modes.                                                                                                                                                           |
 | `reverseJournalRecord()`     | ✅ DONE | Reverse posted journal (creates reversing entry). Drafts should use `voidDraftJournal()` instead.                                                                                                                                              |
 | `copyJournal()`              | ✅ DONE | Copy any journal to a new draft (defaults `date=today`, `reference=null`). If `includeFiles=true`, creates new attachments referencing the same underlying file rows.                                                                          |
-| `importJournals()`           | ✅ DONE | CSV import (preflight + import) for regular (non-recurring) journals.                                                                                                                                                                         |
+| `importJournals()`           | ✅ DONE | CSV import (preflight + import) for regular (non-recurring) journals.                                                                                                                                                                          |
 
 **Helper functions added:**
 
@@ -518,11 +518,11 @@ POST   /:templateId/run     — run now (generate next occurrence immediately; u
    a. Fetch template entries
    b. Render placeholders in title/note/entry descriptions
    c. Determine whether to auto-post:
-      - if `auto_post = true` and fiscal period is open → post
-      - else save as draft and set `metadata.post_blocked_period = true` when blocked by period
-   e. Call `postJournalRecord()` with `is_recurring = true`, `recurring_template_id = template.id`
-   f. Advance `next_run_date` by frequency
-   g. If `next_run_date > end_date` (and end_date is set) → set template status to `'closed'`
+   - if `auto_post = true` and fiscal period is open → post
+   - else save as draft and set `metadata.post_blocked_period = true` when blocked by period
+     e. Call `postJournalRecord()` with `is_recurring = true`, `recurring_template_id = template.id`
+     f. Advance `next_run_date` by frequency
+     g. If `next_run_date > end_date` (and end_date is set) → set template status to `'closed'`
 4. **Idempotency:** enforced by a partial unique DB index on `(recurring_template_id, date)` for recurring journals (`is_recurring = true`).
 
 **Files:**

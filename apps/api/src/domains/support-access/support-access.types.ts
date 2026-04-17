@@ -51,7 +51,6 @@ export const BREAK_GLASS_MAX_TTL_MS = 60 * 60 * 1000;
 
 export type SupportGrantListRow = {
   id: string;
-  companyId: string;
   companyShortCode: string;
   supportUserId: string;
   supportUserEmail: string;
@@ -70,7 +69,6 @@ export type SupportGrantListRow = {
 
 export type BreakGlassSessionRow = {
   id: string;
-  companyId: string;
   companyShortCode: string;
   superAdminUserId: string;
   status: 'active' | 'closed' | 'expired';

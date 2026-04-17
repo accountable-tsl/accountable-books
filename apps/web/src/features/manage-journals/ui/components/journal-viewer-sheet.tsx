@@ -1,9 +1,8 @@
-import { useMemo } from 'react';
-
 import type { GetJournalResponse } from '@accountable-books/contracts/schema';
-
+import { useMemo } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
+import { FormattedAmount } from '@/components/FormattedAmount';
 import { Badge } from '@/components/ui/badge';
 import {
   Sheet,
@@ -12,7 +11,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { FormattedAmount } from '@/components/FormattedAmount';
 import { useJournal } from '@/modules/accounting/journals';
 
 import { getJournalStatusBadgeVariant } from '../lib/journal-ui';

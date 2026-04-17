@@ -95,6 +95,7 @@ export class RuleRepository {
   async fetchApplicableRules(params: RuleFetchParams): Promise<RuleEntity[]> {
     // Determine all possible scope keys that could apply to the given company context.
     const scopeKeys = this.deriveScopeKeys(params);
+    const { bankAccountId } = params;
 
     if (scopeKeys.length === 0) {
       return [];
@@ -133,13 +134,11 @@ export class RuleRepository {
         builder.where('r.bank_scope', 'all');
         // If a specific bank account is provided, include rules with 'subset' or 'single'
         // bank scope that match the bank account ID.
-        if (params.bankAccountId) {
+        if (bankAccountId) {
           builder.orWhere((clause) =>
             clause
               .whereIn('r.bank_scope', ['subset', 'single'])
-              .andWhereRaw('? = ANY(r.bank_account_ids)', [
-                params.bankAccountId,
-              ]),
+              .andWhereRaw('? = ANY(r.bank_account_ids)', [bankAccountId]),
           );
         }
       })

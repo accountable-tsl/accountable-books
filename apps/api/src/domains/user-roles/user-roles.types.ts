@@ -41,6 +41,7 @@ export type CompanyBaseFields = {
 };
 
 export type UserCompanyRoleWithDetails = CompanyBaseFields & {
+  membershipId: string;
   userId: string;
   roleId: string;
   roleKey: RoleKey;

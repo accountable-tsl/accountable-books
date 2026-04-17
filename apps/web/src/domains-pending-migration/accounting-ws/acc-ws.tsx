@@ -169,7 +169,11 @@ export function AccountingWorkspace() {
       icon: <NotepadText className="text-muted-foreground h-6 w-6" />,
       title: 'Journals',
       actions: [
-        { label: 'View', icon: <Eye className="h-4 w-4" />, onClick: () => navigate(tenantRoutes.accounting.journals()) },
+        {
+          label: 'View',
+          icon: <Eye className="h-4 w-4" />,
+          onClick: () => navigate(tenantRoutes.accounting.journals()),
+        },
         { label: 'Create new', icon: <ChevronRight className="h-4 w-4" /> },
       ],
       //   classNames: { actionsBox: "grid-cols-1" },

@@ -28,8 +28,7 @@ class GrantsItemStatusEnum(str, Enum):
 class ListSupportGrantsResponse(BaseModel):
     class GrantsItem(BaseModel):
         id: UUID
-        companyId: UUID
-        companyShortCode: constr(max_length=50)
+        companyId: constr(min_length=1, max_length=50)
         supportUserId: UUID
         supportUserEmail: str
         supportUserRoleKey: GrantsItemSupportUserRoleKeyEnum

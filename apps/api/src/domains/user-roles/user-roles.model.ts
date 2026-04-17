@@ -54,6 +54,7 @@ const getDirectCompanyRoles = async (
       )
       .where({ 'ucr.user_id': userId, 'ucr.is_deleted': false })
       .select(
+        'ucr.id as membershipId',
         'ucr.user_id as userId',
         'c.short_code as companyId',
         'c.legal_name as legalName',
@@ -137,6 +138,7 @@ const getFirmMediatedRoles = async (
         'ucr.is_deleted': false,
       })
       .select(
+        'ucr.id as membershipId',
         'fuca.firm_staff_user_id as userId',
         'c.short_code as companyId',
         'c.legal_name as legalName',

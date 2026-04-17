@@ -332,7 +332,6 @@ async function getSupportGrantListRows(
     })
     .select(
       `${grantsTable}.id as id`,
-      `${grantsTable}.company_id as companyId`,
       'c.short_code as companyShortCode',
       `${grantsTable}.support_user_id as supportUserId`,
       'support_users.email as supportUserEmail',
@@ -376,7 +375,6 @@ async function getBreakGlassSessionRow(
     })
     .select(
       `${breakGlassTable}.id as id`,
-      `${breakGlassTable}.company_id as companyId`,
       'c.short_code as companyShortCode',
       `${breakGlassTable}.super_admin_user_id as superAdminUserId`,
       `${breakGlassTable}.status as status`,
@@ -398,6 +396,7 @@ function mapSupportGrantRowToResponse(
 ): SupportGrantResponse {
   return supportGrantResponse.parse({
     ...row,
+    companyId: row.companyShortCode,
     status: computeGrantStatus(row),
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
@@ -411,8 +410,7 @@ function mapBreakGlassRowToResponse(
 ): BreakGlassSessionResponse {
   return {
     id: row.id,
-    companyId: row.companyId,
-    companyShortCode: row.companyShortCode,
+    companyId: row.companyShortCode,
     superAdminUserId: row.superAdminUserId,
     supportAccessLevel: 'company_profile_write',
     status: computeBreakGlassStatus(row),

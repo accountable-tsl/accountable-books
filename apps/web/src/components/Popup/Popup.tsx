@@ -1,10 +1,10 @@
 import './Popup.scss';
 
-import { RefObject, useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
+import { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { faCircleXmark } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
+//
 import { usePopup } from '../../contexts/PopupContext';
 
 interface PopupProps {
@@ -43,7 +43,7 @@ export default function Popup({ popupId, children }: PopupProps) {
       <div className="popup-content" ref={popupRef}>
         {children}
         <button className="popup-close" onClick={() => closePopup(popupId)}>
-          <FontAwesomeIcon icon={faCircleXmark} />
+          {/* <FontAwesomeIcon icon={faCircleXmark} /> */}
         </button>
       </div>
     </div>,

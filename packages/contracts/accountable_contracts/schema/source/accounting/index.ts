@@ -7,3 +7,4 @@ export * from './fiscal-period.js';
 export * from './financial-statements.js';
 export * from './ledger-audit.js';
 export * from './support-access.js';
+export * from './team-settings.js';

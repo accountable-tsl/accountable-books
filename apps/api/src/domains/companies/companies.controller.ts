@@ -109,13 +109,11 @@ export const updateCompanyController = async (
   }
 
   if (!req.company) {
-    return res
-      .status(500)
-      .json(
-        errorResponse('Company context missing', undefined, {
-          code: ErrorCode.GENERIC,
-        }),
-      );
+    return res.status(500).json(
+      errorResponse('Company context missing', undefined, {
+        code: ErrorCode.GENERIC,
+      }),
+    );
   }
 
   const patchDenied = getWorkspaceCompanyPatchDeniedReason(
