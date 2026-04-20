@@ -463,17 +463,17 @@ export function JournalDetailPane({
 
   // Helper: abbreviate large numbers for compact display (M, B, T)
   // Threshold at 100M — tens of millions are common enough to need full precision
-  const compactAmount = useCallback((val: number): string => {
-    const abs = Math.abs(val);
-    const sign = val < 0 ? '-' : '';
-    if (abs >= 1e12) return `${sign}${(abs / 1e12).toFixed(2)}T`;
-    if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(2)}B`;
-    if (abs >= 1e8) return `${sign}${(abs / 1e6).toFixed(2)}M`;
-    return abs.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }, []);
+  // const compactAmount = useCallback((val: number): string => {
+  //   const abs = Math.abs(val);
+  //   const sign = val < 0 ? '-' : '';
+  //   if (abs >= 1e12) return `${sign}${(abs / 1e12).toFixed(2)}T`;
+  //   if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(2)}B`;
+  //   if (abs >= 1e8) return `${sign}${(abs / 1e6).toFixed(2)}M`;
+  //   return abs.toLocaleString('en-US', {
+  //     minimumFractionDigits: 2,
+  //     maximumFractionDigits: 2,
+  //   });
+  // }, []);
 
   // Helper: determine smart default side for new entries
   const getSmartDefaultSide = useCallback((): 'debit' | 'credit' => {
@@ -1493,7 +1493,7 @@ export function JournalDetailPane({
 
   const currentStatus = journal?.status ?? 'draft';
   const isDraft = isCreatingNew || currentStatus === 'draft';
-  const isPosted = !isCreatingNew && currentStatus === 'posted';
+  // const isPosted = !isCreatingNew && currentStatus === 'posted';
   const isVoided = !isCreatingNew && currentStatus === 'voided';
   const recurringInfo = getRecurringState(journal);
 

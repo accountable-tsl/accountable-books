@@ -1,3 +1,4 @@
+import type { Table } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -6,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table } from '@tanstack/react-table';
 import {
   ChevronLeft,
   ChevronRight,

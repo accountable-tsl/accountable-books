@@ -1,6 +1,5 @@
+import type { BankProvider } from '@/modules/banking/providers';
 import { Button } from '@/components/ui/button';
-
-import type { BankProvider } from '../utils/providers';
 
 interface ProviderCardProps {
   provider: BankProvider;

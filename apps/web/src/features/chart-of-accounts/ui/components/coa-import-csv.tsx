@@ -199,8 +199,8 @@ export function CoaImportCsv({
           const validation = createCoaSchema.safeParse(coa);
           if (!validation.success) {
             // Format Zod errors more nicely
-            const errorMessages = validation.error.errors
-              .map((err) => `${err.path.join('.')}: ${err.message}`)
+            const errorMessages = validation.error.issues
+              .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
               .join(', ');
             allErrors.push({ row: rowNumber, errors: [errorMessages] });
             continue;

@@ -3,7 +3,7 @@ import './MultiSelectDropdown.scss';
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 
-import {
+import type {
   GroupableOption,
   MultiSelectOption,
   MultiSelectProps,

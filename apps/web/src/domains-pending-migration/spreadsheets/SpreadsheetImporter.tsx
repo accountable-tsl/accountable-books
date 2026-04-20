@@ -130,7 +130,7 @@ export const SpreadsheetImporter = ({
       }
 
       setIsProcessing(true);
-      const results: ParsedCsvResult[] = [];
+      // const results: ParsedCsvResult[] = [];
 
       const processPromises = files.map(async (file) => {
         const validationError = isValidFile(file, accept)

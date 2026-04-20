@@ -6,6 +6,7 @@ import { type BankFeedProvider } from '@/domains-pending-migration/bankFeedProvi
 import { cn } from '@/lib/utils';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { type Country } from '@/shared/types/core';
+import { getErrorMessage } from '@/shared/utils/get-error-message';
 import { useSession } from '@session';
 import { Dot, EyeOff, Lock, Shield } from 'lucide-react';
 import { toast } from 'sonner';
@@ -27,12 +28,13 @@ export default function ConnectBankAccount({
   const [showUnsupported, setShowUnsupported] = useState(false);
   // const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [connections, setConnections] = useState<ConnectionResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [_isLoading, setIsLoading] = useState(false);
 
   // Hooks
-  const { companyId, refetchSession } = useSession();
-  const { data: countriesData, isLoading: isLoadingCountries } = useCountries();
-  const { data: providersData, isLoading: isLoadingProviders } =
+  const { companyId } = useSession();
+  const { data: countriesData, isLoading: _isLoadingCountries } =
+    useCountries();
+  const { data: providersData, isLoading: _isLoadingProviders } =
     useBankFeedProviders({});
 
   const countries = useMemo(
@@ -135,11 +137,7 @@ export default function ConnectBankAccount({
         setConnections(result.data.connections || []);
         setCurrentStep(3);
       } catch (err: unknown) {
-        const fallbackMsg =
-          err?.response?.data?.message ||
-          err?.message ||
-          'Failed to add bank account';
-        toast.error(fallbackMsg);
+        toast.error(getErrorMessage(err, 'Failed to add bank account'));
         setCurrentStep(1);
       } finally {
         localStorage.removeItem(storageKey);

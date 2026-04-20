@@ -531,7 +531,7 @@ export function usePendingChangesEmitter() {
       );
 
       // Track when we send this intent for time-based clearing
-      const sendAt = Date.now();
+      // const sendAt = Date.now();
 
       try {
         const response = await sendIntentMutation.mutateAsync({

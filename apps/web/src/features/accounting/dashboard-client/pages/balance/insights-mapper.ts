@@ -4,6 +4,7 @@ import type {
   CategoryBreakdownDatum,
   FinancialInsightsContext,
   GroupedBarChartDatum,
+  InsightsChartCard,
   InsightsChartPayload,
   SimpleBarChartDatum,
 } from '../../insights/charts';
@@ -133,7 +134,7 @@ export function buildBalanceInsightsCharts({
       });
     }
 
-    const cards = [
+    const cards: [InsightsChartCard, InsightsChartCard] = [
       {
         id: 'bs_assets_composition',
         kind: 'category_breakdown',
@@ -156,7 +157,7 @@ export function buildBalanceInsightsCharts({
         emptyMessage: 'No liabilities or equity data for this period.',
         data: liaEqByCategory,
       },
-    ] as const;
+    ];
 
     return {
       context,
@@ -202,7 +203,7 @@ export function buildBalanceInsightsCharts({
       },
     ];
 
-    const cards = [
+    const cards: [InsightsChartCard, InsightsChartCard] = [
       {
         id: 'bs_snapshot_vs_prior',
         kind: 'grouped_bar',
@@ -224,7 +225,7 @@ export function buildBalanceInsightsCharts({
         emptyMessage: 'No movement in working capital or net debt.',
         data: wcDebtBars,
       },
-    ] as const;
+    ];
 
     return {
       context,
@@ -243,7 +244,7 @@ export function buildBalanceInsightsCharts({
     }),
   );
 
-  const cards = [
+  const cards: [InsightsChartCard, InsightsChartCard] = [
     {
       id: 'bs_trend_assets',
       kind: 'simple_bar',
@@ -267,7 +268,7 @@ export function buildBalanceInsightsCharts({
       emptyMessage: 'No trend data available.',
       data: trendWorkingCapital,
     },
-  ] as const;
+  ];
 
   return {
     context,

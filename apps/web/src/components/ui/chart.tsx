@@ -106,6 +106,21 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+/** Recharts tooltip payload values may be number, string, or arrays; narrow for formatters */
+function narrowTooltipValue(value: unknown): number | string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number' || typeof value === 'string') return value;
+  if (Array.isArray(value)) {
+    return value.map((v) => (typeof v === 'number' ? v : String(v))).join(', ');
+  }
+  return String(value);
+}
+
+function formatTooltipValueDefault(value: unknown): string {
+  const v = narrowTooltipValue(value);
+  return typeof v === 'number' ? v.toLocaleString() : v;
+}
+
 function ChartTooltipContent({
   active,
   payload,
@@ -241,8 +256,11 @@ function ChartTooltipContent({
                       {item.value !== undefined && item.value !== null && (
                         <span className="text-foreground font-mono font-medium tabular-nums">
                           {valueFormatter
-                            ? valueFormatter(item.value, item)
-                            : item.value.toLocaleString()}
+                            ? valueFormatter(
+                                narrowTooltipValue(item.value),
+                                item,
+                              )
+                            : formatTooltipValueDefault(item.value)}
                         </span>
                       )}
                     </div>

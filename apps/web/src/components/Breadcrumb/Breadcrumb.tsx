@@ -1,12 +1,12 @@
 import './Breadcrumb.scss';
 
 import { useEffect, useRef, useState } from 'react';
-import {
-  faChevronDown,
-  faChevronRight,
-  IconDefinition,
-} from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+// import {
+//   faChevronDown,
+//   faChevronRight,
+//   IconDefinition,
+// } from '@fortawesome/free-solid-svg-icons';
+// import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link } from 'react-router';
 
 type BreadcrumbItem = {
@@ -70,7 +70,7 @@ function BreadcrumbItemComponent({
     >
       {!isLastItem ? (
         <Link to={item.link || '#'} className="breadcrumb-item__link">
-          {item.icon ? (
+          {/* {item.icon ? (
             typeof item.icon === 'object' && 'iconName' in item.icon ? (
               <FontAwesomeIcon
                 icon={item.icon as IconDefinition}
@@ -79,7 +79,7 @@ function BreadcrumbItemComponent({
             ) : (
               <item.icon className="breadcrumb-item__icon" />
             )
-          ) : null}
+          ) : null} */}
 
           <span className="breadcrumb-item__text">
             {item.text || 'Unnamed'}
@@ -91,7 +91,7 @@ function BreadcrumbItemComponent({
           className="breadcrumb-item__link breadcrumb-item__link--last"
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
-          {item.icon ? (
+          {/* {item.icon ? (
             typeof item.icon === 'object' && 'iconName' in item.icon ? (
               <FontAwesomeIcon
                 icon={item.icon as IconDefinition}
@@ -100,7 +100,7 @@ function BreadcrumbItemComponent({
             ) : (
               <item.icon className="breadcrumb-item__icon" />
             )
-          ) : null}
+          ) : null} */}
 
           {/* {item.icon ? (
             typeof item.icon === "string" ? (
@@ -121,18 +121,18 @@ function BreadcrumbItemComponent({
           <span className="breadcrumb-item__text">
             {item.text || 'Unnamed'}
           </span>
-          {item.hasDropdown && (
+          {/* {item.hasDropdown && (
             <FontAwesomeIcon
               icon={faChevronDown}
               className="breadcrumb-item__dropdown-icon"
             />
-          )}
+          )} */}
         </Link>
       )}
 
       {!isLastItem && (
         <div className="breadcrumb-item__chevron">
-          <FontAwesomeIcon icon={faChevronRight} />
+          {/* <FontAwesomeIcon icon={faChevronRight} /> */}
         </div>
       )}
 

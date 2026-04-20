@@ -54,4 +54,4 @@ class TeamMembersListResponseSchema(BaseModel):
         admins: conint(ge=0)
     companyId: constr(min_length=1, max_length=50)
     members: List[Union[MembersItemOption0, MembersItemOption1]]
-    summary: Optional[Summary] = None
+    summary: Summary

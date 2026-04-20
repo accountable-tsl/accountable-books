@@ -34,7 +34,6 @@ export function DataTableBody<TData>({
   // Use getExpandedRowModel().flatRows when expandable rows are enabled
   // This automatically includes all visible rows (parent + expanded sub-rows)
   const rowModel = table.getRowModel();
-  const expandedState = table.getState().expanded;
   const rowsToRender = React.useMemo(() => {
     return rowModel.rows;
   }, [rowModel.rows]);
@@ -155,21 +154,21 @@ export function DataTableBody<TData>({
   }
 
   // Helper function to calculate indentation
-  const calculateIndent = (depth: number, indentSize: string): string => {
-    const num = parseFloat(indentSize);
-    const unit = indentSize.includes('rem')
-      ? 'rem'
-      : indentSize.includes('px')
-        ? 'px'
-        : 'rem';
-    return `${depth * num}${unit}`;
-  };
+  // const calculateIndent = (depth: number, indentSize: string): string => {
+  //   const num = parseFloat(indentSize);
+  //   const unit = indentSize.includes('rem')
+  //     ? 'rem'
+  //     : indentSize.includes('px')
+  //       ? 'px'
+  //       : 'rem';
+  //   return `${depth * num}${unit}`;
+  // };
 
   const renderRow = (row: Row<TData>) => {
     // Use stable row key based on original data rather than sorted position
     const stableRowKey = row.id;
     const isSubRow = row.depth > 0; // TanStack provides depth automatically
-    const indentSize = expandableRows?.indentSize ?? '1.5rem';
+    // const indentSize = expandableRows?.indentSize ?? '1.5rem';
 
     // Extract key separately to pass directly to JSX (React requirement)
     const rowProps = {

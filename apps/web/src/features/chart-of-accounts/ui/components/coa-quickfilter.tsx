@@ -1,5 +1,4 @@
 import type { QuickFilterOptions } from '@/modules/accounting/chart-of-accounts';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface QuickFilterProps {
@@ -27,7 +26,6 @@ export const QuickFilter: React.FC<QuickFilterProps> = ({
   // const isMobile = useIsMobile();
 
   // const [accountElementFilter, setAccountElementFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState('active');
 
   if (isMobile) return null;
 

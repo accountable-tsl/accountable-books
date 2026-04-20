@@ -1,13 +1,4 @@
-import { SmallScreenMessage } from '@/components/SmallScreenMessage';
-// import { UploadBankTransactions } from './upload';
-import { BankTransactionImporter } from '@/domains-pending-migration/bankConnection/manualUpload/BankTransactionImporter';
-import { useMediaQuery } from '@/shared/hooks/use-media-query';
-
 export function AddBankTransaction() {
-  const is1024 = useMediaQuery('(max-width: 1023px)');
-
-  // if (is1024) return <SmallScreenMessage />;
-
   return (
     <div className="h-full min-h-0 overflow-y-auto p-4">
       {/* <BankAccount /> */}

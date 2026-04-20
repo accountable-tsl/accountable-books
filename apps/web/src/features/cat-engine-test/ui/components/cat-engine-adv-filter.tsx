@@ -91,11 +91,6 @@ export function CatEngineAdvFilter({
     onFiltersChange({});
   };
 
-  const selectedContact = contacts.find((c) => c.id === filters.contactId);
-  const selectedBankAccount = bankAccounts.find(
-    (acc) => acc.id === filters.bankAccountId,
-  );
-
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>

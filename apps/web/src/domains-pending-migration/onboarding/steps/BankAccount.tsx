@@ -9,12 +9,10 @@ import { useSession } from '@session';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
-export const BankAccount = ({
-  onBankAccountComplete,
-}: {
+export const BankAccount = ({}: {
   onBankAccountComplete?: (status: OnboardingStatus) => void;
 }) => {
-  const { tenantRoutes, companyId, companyType } = useSession();
+  const { tenantRoutes, companyType } = useSession();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(() => {

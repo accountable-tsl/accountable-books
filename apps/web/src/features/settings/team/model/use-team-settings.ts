@@ -1,6 +1,11 @@
 export {
   formatMemberActivityLabel,
+  useInviteTeamMember,
+  useRemoveTeamMember,
+  useResendTeamInvite,
+  useRevokeTeamInvite,
   useTeamMembers,
+  useUpdateTeamMemberRole,
 } from '@/modules/company/team-settings';
 export type {
   InviteTeamMemberRequest,

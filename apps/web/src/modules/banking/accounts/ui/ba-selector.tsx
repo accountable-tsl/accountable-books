@@ -1,3 +1,4 @@
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
 import { useMemo, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
@@ -58,11 +59,13 @@ export default function BankAccountSelector({
   );
 
   // Functions
-  const onNewBankAccount = async (newAccount?: BankAccountWithMeta) => {
+  const onNewBankAccount = async (data?: CreateBankAccountRes) => {
     try {
-      await refetch();
-      if (newAccount) {
-        onSelect?.(newAccount);
+      const { data: querySnapshot } = await refetch();
+      const accounts = querySnapshot?.data;
+      if (data?.bankAccountId && accounts?.length) {
+        const created = accounts.find((a) => a.id === data.bankAccountId);
+        if (created) onSelect?.(created);
       }
     } catch (error) {
       console.error('Failed to refresh bank accounts:', error);
@@ -76,11 +79,11 @@ export default function BankAccountSelector({
     onSelect?.(selectedAccount);
   };
 
-  const handleAction = (actionId: string) => {
-    if (actionId === 'add-new') {
-      setDialogOpen(true);
-    }
-  };
+  // const handleAction = (actionId: string) => {
+  //   if (actionId === 'add-new') {
+  //     setDialogOpen(true);
+  //   }
+  // };
 
   if (isLoading) {
     return <CenteredLoader />;

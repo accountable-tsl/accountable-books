@@ -3,6 +3,7 @@ import type {
   BankTransactionImporterProps,
   FileTransaction,
 } from '@/domains-pending-migration/bankConnection/manualUpload/types';
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
 import React, { useEffect, useRef, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
@@ -303,7 +304,10 @@ export const BankTransactionImporter = ({
       setIsSubmitting(false);
     }
   };
-  const fetchBankAccounts = async (companyId: string) => {
+  const fetchBankAccounts = async (
+    companyId: string,
+    options?: { selectAccountId?: string },
+  ) => {
     if (isFetching.current) return;
     isFetching.current = true;
 
@@ -315,6 +319,10 @@ export const BankTransactionImporter = ({
         return;
       }
       setCompanyBankAccounts(res.data);
+      if (options?.selectAccountId && res.data) {
+        const match = res.data.find((a) => a.id === options.selectAccountId);
+        setSelectedBankAccount(match ?? null);
+      }
     } catch (error) {
       toast.error('Failed to fetch bank accounts');
     } finally {
@@ -322,17 +330,12 @@ export const BankTransactionImporter = ({
     }
   };
 
-  const onNewBankAccount = (newAccount?: BankAccountWithMeta) => {
-    if (newAccount) {
-      setCompanyBankAccounts((prev) =>
-        prev ? [...prev, newAccount] : [newAccount],
-      );
-    }
-
-    setSelectedBankAccount(newAccount ?? null);
+  const onNewBankAccount = (data?: CreateBankAccountRes) => {
     setDialogOpen(false);
     if (companyId) {
-      fetchBankAccounts(companyId); // re-fetch for consistency
+      void fetchBankAccounts(companyId, {
+        selectAccountId: data?.bankAccountId,
+      });
     }
   };
 
@@ -448,7 +451,7 @@ export const BankTransactionImporter = ({
                         </p>
                         <p className="text-sm">
                           {selectedBankAccount.displayName}{' '}
-                          {maskDigits(selectedBankAccount.accountNumber)}
+                          {/* {maskDigits(selectedBankAccount.accountNumber)} */}
                         </p>
                       </div>
                     </div>
@@ -546,7 +549,7 @@ export const BankTransactionImporter = ({
                             </p>
                             <p className="text-sm">
                               {bankAccount.displayName}{' '}
-                              {maskDigits(bankAccount.accountNumber)}
+                              {/* {maskDigits(bankAccount.accountNumber)} */}
                             </p>
                           </div>
                         </div>

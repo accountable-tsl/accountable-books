@@ -43,9 +43,9 @@ export function DataTable<TData>({
     return colSizes;
   }, [table]);
 
-  const hasPinnedColumns =
-    (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
-    (table.getState().columnPinning?.right?.length ?? 0) > 0;
+  // const hasPinnedColumns =
+  //   (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
+  //   (table.getState().columnPinning?.right?.length ?? 0) > 0;
 
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody

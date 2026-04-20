@@ -43,8 +43,12 @@ export function CoaActionBar({
     [originalRows],
   );
 
-  const { canArchive, canDelete, canExport, summary } =
-    analyzeSelectedAccounts(originalRows);
+  const {
+    canArchive,
+    canDelete,
+    canExport: _canExport,
+    summary,
+  } = analyzeSelectedAccounts(originalRows);
   const { total, locked, archived } = summary;
 
   const parts = [

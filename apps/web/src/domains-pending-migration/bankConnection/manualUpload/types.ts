@@ -1,4 +1,4 @@
-import type { BankAccountWithMeta } from '@/modules/bank-accounts/ba-types';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts/model/types';
 import { debitCredit } from '@/shared/types/core';
 import Decimal from 'decimal.js';
 import { z } from 'zod';

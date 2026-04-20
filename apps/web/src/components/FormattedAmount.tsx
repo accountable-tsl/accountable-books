@@ -23,7 +23,7 @@ type DisplayScale = 'unit' | 'thousands' | 'millions' | 'billions';
 type CurrencyDisplayType = 'symbol' | 'narrowSymbol' | 'code' | 'name';
 
 type FormatAmountBase = {
-  amount: number | string;
+  amount: number | string | Decimal;
   currency?: string;
   locale?: string;
   showSymbol?: boolean;

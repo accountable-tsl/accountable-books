@@ -52,12 +52,12 @@ export const pageStore = create<PageStore>()(
   })),
 );
 
-function getDefaultPageName(): string {
-  const path = window.location.pathname.split('/').filter(Boolean).pop();
-  return path
-    ? path.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-    : 'Home';
-}
+// function getDefaultPageName(): string {
+//   const path = window.location.pathname.split('/').filter(Boolean).pop();
+//   return path
+//     ? path.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+//     : 'Home';
+// }
 
 /**
  * Hook that watches the URL and updates the page store

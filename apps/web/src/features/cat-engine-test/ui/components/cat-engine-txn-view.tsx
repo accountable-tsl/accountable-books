@@ -1,5 +1,8 @@
-import type { GroupedTransaction } from '@modules/accounting/categorization';
-import { memo, useCallback, useMemo, useState } from 'react';
+import type {
+  CategorizationTransaction,
+  GroupedTransactionOld as GroupedTransaction,
+} from '@/modules/accounting/categorization';
+import { memo, useMemo, useState } from 'react';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -259,30 +262,32 @@ const TransactionView = memo(
                   {curr.id === 'reviewed' ? 'Accounts' : 'Predicted Categories'}
                 </div>
                 <div className="space-y-2">
-                  {transactionGroup.lines.map((line, index) => (
-                    <div
-                      key={line.id || index}
-                      className={cn(
-                        'flex items-center gap-1 rounded border p-1 px-2',
-                        curr.borderClass || '',
-                      )}
-                    >
-                      <div className="flex-1 truncate">
-                        {line.coa_name || DEFAULT_ACCOUNT_TEXT}
-                      </div>
-                      {line.confidence !== null && (
-                        <div
-                          className={cn(
-                            'flex items-center justify-center rounded-xl px-2 text-sm',
-                            curr.backgroundClass,
-                            curr.textClass,
-                          )}
-                        >
-                          {Math.round(line.confidence * 100)}%
+                  {transactionGroup.lines.map(
+                    (line: CategorizationTransaction, index: number) => (
+                      <div
+                        key={line.id || index}
+                        className={cn(
+                          'flex items-center gap-1 rounded border p-1 px-2',
+                          curr.borderClass || '',
+                        )}
+                      >
+                        <div className="flex-1 truncate">
+                          {line.coa_name || DEFAULT_ACCOUNT_TEXT}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        {line.confidence !== null && (
+                          <div
+                            className={cn(
+                              'flex items-center justify-center rounded-xl px-2 text-sm',
+                              curr.backgroundClass,
+                              curr.textClass,
+                            )}
+                          >
+                            {Math.round(line.confidence * 100)}%
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
             ) : (
@@ -344,27 +349,29 @@ const JournalEntriesSection = memo(
           </div>
 
           {/* Non-Bank Legs */}
-          {transactionGroup.lines.map((line, index) => {
-            const isDebit = line.reporting_amount > 0;
-            return (
-              <div
-                key={line.id || index}
-                className="grid grid-cols-[2fr_1fr_2fr] p-1 text-sm"
-              >
-                <div className="truncate">
-                  {line.coa_name || DEFAULT_ACCOUNT_TEXT}
+          {transactionGroup.lines.map(
+            (line: CategorizationTransaction, index: number) => {
+              const isDebit = line.reporting_amount > 0;
+              return (
+                <div
+                  key={line.id || index}
+                  className="grid grid-cols-[2fr_1fr_2fr] p-1 text-sm"
+                >
+                  <div className="truncate">
+                    {line.coa_name || DEFAULT_ACCOUNT_TEXT}
+                  </div>
+                  <div className="truncate">{isDebit ? 'Debit' : 'Credit'}</div>
+                  <FormattedAmount
+                    amount={Math.abs(line.reporting_amount)}
+                    currency={transactionGroup.bank_currency_code}
+                    showSymbol
+                    accountingNegatives={false}
+                    className="truncate text-right"
+                  />
                 </div>
-                <div className="truncate">{isDebit ? 'Debit' : 'Credit'}</div>
-                <FormattedAmount
-                  amount={Math.abs(line.reporting_amount)}
-                  currency={transactionGroup.bank_currency_code}
-                  showSymbol
-                  accountingNegatives={false}
-                  className="truncate text-right"
-                />
-              </div>
-            );
-          })}
+              );
+            },
+          )}
         </div>
 
         {/* Totals */}

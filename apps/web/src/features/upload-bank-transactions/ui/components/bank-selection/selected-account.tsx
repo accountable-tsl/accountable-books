@@ -1,5 +1,4 @@
 import type { BankAccountWithMeta } from '@/modules/banking/accounts';
-import { maskDigits } from '@/shared/utils/formatting-utils';
 import { Building } from 'lucide-react';
 
 export function SelectedBankAccount({
@@ -18,10 +17,7 @@ export function SelectedBankAccount({
 
             <div>
               <p className="font-medium">{selectedBankAccount.bankName}</p>
-              <p className="text-sm">
-                {selectedBankAccount.displayName}{' '}
-                {maskDigits(selectedBankAccount.accountNumber)}
-              </p>
+              <p className="text-sm">{selectedBankAccount.displayName} </p>
             </div>
           </div>
           <div className="text-right">

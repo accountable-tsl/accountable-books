@@ -1,4 +1,4 @@
-import type { GroupedTransaction } from '@modules/accounting/categorization';
+import type { GroupedTransactionOld as GroupedTransaction } from '@/modules/accounting/categorization';
 
 /**
  * Legacy transaction data type for backward compatibility

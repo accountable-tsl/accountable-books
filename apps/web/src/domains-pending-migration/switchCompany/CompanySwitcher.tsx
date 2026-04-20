@@ -102,8 +102,8 @@ export function CompanySwitcher() {
     // If searching for demo, show all demo companies
     if (isDemoSearch) {
       return demoCompanies.sort((a, b) => {
-        if (a.id === user.currentCompanyId) return -1;
-        if (b.id === user.currentCompanyId) return 1;
+        if (a.id === user?.currentCompanyId) return -1;
+        if (b.id === user?.currentCompanyId) return 1;
         return getCompanyName(a).localeCompare(getCompanyName(b));
       });
     }
@@ -117,8 +117,8 @@ export function CompanySwitcher() {
             .includes(searchTerm.toLowerCase()),
         )
         .sort((a, b) => {
-          if (a.id === user.currentCompanyId) return -1;
-          if (b.id === user.currentCompanyId) return 1;
+          if (a.id === user?.currentCompanyId) return -1;
+          if (b.id === user?.currentCompanyId) return 1;
           return getCompanyName(a).localeCompare(getCompanyName(b));
         });
     }

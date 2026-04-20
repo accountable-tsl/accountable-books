@@ -1,9 +1,12 @@
 import type { FirmViewerRole } from '../model/types';
 
 export function getFirmTransactionStatsLabel(
-  viewerRole: FirmViewerRole,
+  viewerRole: FirmViewerRole | undefined,
   firmUserCount: number,
 ): string {
+  if (viewerRole == null) {
+    return 'Transactions';
+  }
   const isFreelancer = firmUserCount === 1;
   if (isFreelancer || viewerRole === 'staff') return 'Transactions';
   if (viewerRole === 'manager') return 'Team transactions';

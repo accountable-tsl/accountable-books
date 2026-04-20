@@ -106,14 +106,14 @@ export function JournalsListPage() {
     return undefined;
   }, [hasRecurringFilter, hideGenerated]);
 
-  const clientKindConstraint = useMemo<JournalServerKind[] | undefined>(() => {
-    const hasRecurring =
-      status === 'recurring' || advancedStatusFilters.has('recurring');
-    if (hasRecurring) {
-      return ['recurring_template'];
-    }
-    return undefined;
-  }, [advancedStatusFilters, status]);
+  // const clientKindConstraint = useMemo<JournalServerKind[] | undefined>(() => {
+  //   const hasRecurring =
+  //     status === 'recurring' || advancedStatusFilters.has('recurring');
+  //   if (hasRecurring) {
+  //     return ['recurring_template'];
+  //   }
+  //   return undefined;
+  // }, [advancedStatusFilters, status]);
 
   const query = useJournalsInfinite({
     companyId: companyId ?? '',

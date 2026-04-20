@@ -16,8 +16,8 @@ import { AddProjectDialog } from './components/projects-add';
 import { getProjectColumns } from './config/projects-columns';
 
 export const Projects = () => {
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(30);
+  const [page, _setPage] = useState(1);
+  const [limit, _setLimit] = useState(30);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { companyId, loading } = useSession();

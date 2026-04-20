@@ -5,11 +5,6 @@ import { FormattedAmount } from '@/components/FormattedAmount';
 import { SmallScreenMessage } from '@/components/SmallScreenMessage';
 import { SimpleTooltip, TooltipHelper } from '@/components/TooltipHelper';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
 import { useManualTransactionSync } from '@/modules/transactions/sync';

@@ -62,7 +62,7 @@ export type TeamSettingsSummary = z.infer<typeof teamSettingsSummarySchema>;
 export const teamMembersListResponseSchema = z.object({
   companyId: z.string().trim().min(1).max(50),
   members: z.array(teamMemberRowSchema),
-  summary: teamSettingsSummarySchema.optional(),
+  summary: teamSettingsSummarySchema,
 });
 export type TeamMembersListResponse = z.infer<
   typeof teamMembersListResponseSchema

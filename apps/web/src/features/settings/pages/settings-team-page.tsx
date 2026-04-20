@@ -3,18 +3,11 @@ import type {
   TeamMemberRole,
   TeamMemberStatus,
 } from '@/features/settings/team';
-import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -27,93 +20,26 @@ import {
 } from '@/components/ui/table';
 import {
   formatMemberActivityLabel,
+  getInitials,
+  getRoleLabel,
+  getStatusBadgeVariant,
+  getStatusLabel,
+  getTeamInviteAssignableWorkspaceRoles,
+  getTeamMemberRowKey,
+  InviteTeamMemberDialog,
+  MemberActionDialogs,
+  MemberActionsMenu,
+  pickDefaultInviteRole,
+  SummaryCard,
+  useInviteTeamMember,
+  useRemoveTeamMember,
+  useResendTeamInvite,
+  useRevokeTeamInvite,
   useTeamMembers,
+  useUpdateTeamMemberRole,
 } from '@/features/settings/team';
-import { TEAM_SETTINGS_UI_ACTIONS_ENABLED } from '@/modules/company/team-settings';
-import {
-  ChevronDown,
-  ChevronUp,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Users,
-} from 'lucide-react';
-
-function getRoleLabel(role: TeamMemberRole): string {
-  switch (role) {
-    case 'owner':
-      return 'Owner';
-    case 'admin':
-      return 'Admin';
-    case 'accountant':
-      return 'Accountant';
-    case 'bookkeeper':
-      return 'Bookkeeper';
-    case 'viewer':
-      return 'Viewer';
-    default:
-      return role;
-  }
-}
-
-function getStatusBadgeVariant(status: TeamMemberStatus) {
-  switch (status) {
-    case 'active':
-      return 'secondary' as const;
-    case 'invited':
-      return 'outline' as const;
-    default:
-      return 'outline' as const;
-  }
-}
-
-function getStatusLabel(status: TeamMemberStatus): string {
-  switch (status) {
-    case 'active':
-      return 'Active';
-    case 'invited':
-      return 'Invited';
-    default:
-      return status;
-  }
-}
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-function getTeamMemberRowKey(member: TeamMember): string {
-  if (member.status === 'invited') {
-    return member.inviteId;
-  }
-  return member.membershipId;
-}
-
-function SummaryCard({
-  label,
-  value,
-  helper,
-  className,
-}: {
-  label: string;
-  value: ReactNode;
-  helper: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`border-border/60 bg-background flex flex-col gap-1 rounded-md border p-3 ${className ?? ''}`}
-    >
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <div className="text-base font-semibold">{value}</div>
-      <div className="text-muted-foreground text-xs">{helper}</div>
-    </div>
-  );
-}
+import { useSession } from '@session';
+import { ChevronDown, ChevronUp, Plus, Search, Users } from 'lucide-react';
 
 export function SettingsTeamPage() {
   const [query, setQuery] = useState('');
@@ -121,11 +47,87 @@ export function SettingsTeamPage() {
     'all',
   );
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [editRoleDialogMember, setEditRoleDialogMember] =
+    useState<TeamMember | null>(null);
+  const [editRoleValue, setEditRoleValue] = useState<TeamMemberRole>('viewer');
+  const [removeMemberDialogMember, setRemoveMemberDialogMember] =
+    useState<TeamMember | null>(null);
+  const [revokeDialogMember, setRevokeDialogMember] =
+    useState<TeamMember | null>(null);
 
-  const { members, isLoading, summary, isError, error, refetch, companyId } =
-    useTeamMembers();
+  const { companyId, user } = useSession();
+  const teamMembersQuery = useTeamMembers(companyId);
+  const members = useMemo(
+    () => teamMembersQuery.data?.members ?? [],
+    [teamMembersQuery.data?.members],
+  );
+  const summary = teamMembersQuery.data?.summary ?? {
+    total: 0,
+    active: 0,
+    invited: 0,
+    admins: 0,
+  };
+  const isLoading = teamMembersQuery.isPending && Boolean(companyId);
+  const isError = teamMembersQuery.isError;
+  const error = teamMembersQuery.error;
+  const refetch = teamMembersQuery.refetch;
+  const inviteTeamMemberMutation = useInviteTeamMember(companyId);
+  const updateTeamMemberRoleMutation = useUpdateTeamMemberRole(companyId);
+  const removeTeamMemberMutation = useRemoveTeamMember(companyId);
+  const resendTeamInviteMutation = useResendTeamInvite(companyId);
+  const revokeTeamInviteMutation = useRevokeTeamInvite(companyId);
+  // Single source of role-management capability for both invite and active-member role changes.
+  const assignableWorkspaceRoles = useMemo(
+    () =>
+      getTeamInviteAssignableWorkspaceRoles({
+        user,
+        companyAccess: user?.currentCompany,
+      }),
+    [user],
+  );
+  const canInviteTeamMembers = assignableWorkspaceRoles.length > 0;
+  const editableRoleOptions = assignableWorkspaceRoles;
+  const canEditRoles = editableRoleOptions.length > 0;
+  const canManageActiveMembers = canEditRoles;
 
-  const actionsEnabled = TEAM_SETTINGS_UI_ACTIONS_ENABLED;
+  const inviteActionPendingInviteId = useMemo(() => {
+    if (resendTeamInviteMutation.isPending) {
+      return resendTeamInviteMutation.variables?.inviteId;
+    }
+    if (revokeTeamInviteMutation.isPending) {
+      return revokeTeamInviteMutation.variables?.inviteId;
+    }
+    return undefined;
+  }, [
+    resendTeamInviteMutation.isPending,
+    resendTeamInviteMutation.variables?.inviteId,
+    revokeTeamInviteMutation.isPending,
+    revokeTeamInviteMutation.variables?.inviteId,
+  ]);
+  const inviteActionsBusy =
+    resendTeamInviteMutation.isPending || revokeTeamInviteMutation.isPending;
+  const activeActionPendingMembershipId = useMemo(() => {
+    if (updateTeamMemberRoleMutation.isPending) {
+      return updateTeamMemberRoleMutation.variables?.membershipId;
+    }
+    if (removeTeamMemberMutation.isPending) {
+      return removeTeamMemberMutation.variables?.membershipId;
+    }
+    return undefined;
+  }, [
+    updateTeamMemberRoleMutation.isPending,
+    updateTeamMemberRoleMutation.variables?.membershipId,
+    removeTeamMemberMutation.isPending,
+    removeTeamMemberMutation.variables?.membershipId,
+  ]);
+  const activeActionsBusy =
+    updateTeamMemberRoleMutation.isPending ||
+    removeTeamMemberMutation.isPending;
+  const anyMemberActionsBusy = inviteActionsBusy || activeActionsBusy;
+  const activeActionPermissionReason = canManageActiveMembers
+    ? undefined
+    : 'You do not have permission to manage active members in this workspace.';
   const needsCompanyContext = !companyId;
   const summaryLoading = Boolean(companyId) && isLoading && !isError;
   const summaryReady = Boolean(companyId) && !isLoading && !isError;
@@ -145,6 +147,92 @@ export function SettingsTeamPage() {
       return matchesSearch && matchesStatus;
     });
   }, [members, query, statusFilter]);
+  const editRoleSelectionValid = editableRoleOptions.includes(editRoleValue);
+  const editRoleUnchanged =
+    editRoleDialogMember?.status === 'active' &&
+    editRoleDialogMember.role === editRoleValue;
+  const editRoleSaveDisabled =
+    updateTeamMemberRoleMutation.isPending ||
+    !editRoleDialogMember ||
+    !editRoleSelectionValid ||
+    editRoleUnchanged;
+
+  const handleResendInvite = async (member: TeamMember) => {
+    if (member.status !== 'invited') {
+      return;
+    }
+    try {
+      await resendTeamInviteMutation.mutateAsync({
+        inviteId: member.inviteId,
+      });
+    } catch {
+      // Mutation hook already surfaces user-facing errors.
+    }
+  };
+
+  const handleConfirmRevokeInvite = async () => {
+    if (!revokeDialogMember || revokeDialogMember.status !== 'invited') {
+      return;
+    }
+    try {
+      await revokeTeamInviteMutation.mutateAsync({
+        inviteId: revokeDialogMember.inviteId,
+      });
+      setRevokeDialogMember(null);
+    } catch {
+      // Mutation hook already surfaces user-facing errors.
+    }
+  };
+
+  const handleOpenEditRoleDialog = (member: TeamMember) => {
+    if (member.status !== 'active' || !canEditRoles) {
+      return;
+    }
+    const defaultRole = editableRoleOptions.includes(member.role)
+      ? member.role
+      : pickDefaultInviteRole(editableRoleOptions);
+    setEditRoleDialogMember(member);
+    setEditRoleValue(defaultRole);
+  };
+
+  const handleConfirmEditRole = async () => {
+    if (!editRoleDialogMember || editRoleDialogMember.status !== 'active') {
+      return;
+    }
+    if (
+      !editableRoleOptions.includes(editRoleValue) ||
+      editRoleDialogMember.role === editRoleValue
+    ) {
+      setEditRoleDialogMember(null);
+      return;
+    }
+    try {
+      await updateTeamMemberRoleMutation.mutateAsync({
+        membershipId: editRoleDialogMember.membershipId,
+        role: editRoleValue,
+      });
+      setEditRoleDialogMember(null);
+    } catch {
+      // Mutation hook already surfaces user-facing errors.
+    }
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (
+      !removeMemberDialogMember ||
+      removeMemberDialogMember.status !== 'active'
+    ) {
+      return;
+    }
+    try {
+      await removeTeamMemberMutation.mutateAsync({
+        membershipId: removeMemberDialogMember.membershipId,
+      });
+      setRemoveMemberDialogMember(null);
+    } catch {
+      // Mutation hook already surfaces user-facing errors.
+    }
+  };
 
   return (
     <div
@@ -177,14 +265,15 @@ export function SettingsTeamPage() {
             <Button
               type="button"
               size="sm"
-              disabled={!actionsEnabled || needsCompanyContext}
+              disabled={needsCompanyContext || !canInviteTeamMembers}
               title={
-                !actionsEnabled
-                  ? 'Invites will be available when team actions are connected.'
-                  : needsCompanyContext
-                    ? 'Select a workspace to invite members.'
+                needsCompanyContext
+                  ? 'Select a workspace to invite members.'
+                  : !canInviteTeamMembers
+                    ? 'You do not have permission to invite members for this workspace.'
                     : undefined
               }
+              onClick={() => setInviteDialogOpen(true)}
             >
               <Plus className="mr-1.5 size-4" />
               Invite member
@@ -401,43 +490,26 @@ export function SettingsTeamPage() {
                       </p>
                     </div>
                   </div>
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        type="button"
-                        disabled={!actionsEnabled}
-                        title={
-                          !actionsEnabled
-                            ? 'Member actions will be available when connected.'
-                            : undefined
-                        }
-                      >
-                        <MoreHorizontal className="size-4" />
-                        <span className="sr-only">Open member actions</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem disabled={!actionsEnabled}>
-                        Edit role
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!actionsEnabled}>
-                        Assign clients
-                      </DropdownMenuItem>
-                      {member.status === 'invited' ? (
-                        <DropdownMenuItem disabled={!actionsEnabled}>
-                          Resend invite
-                        </DropdownMenuItem>
-                      ) : null}
-                      <DropdownMenuItem
-                        variant="destructive"
-                        disabled={!actionsEnabled}
-                      >
-                        Remove member
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <MemberActionsMenu
+                    member={member}
+                    anyMemberActionsBusy={anyMemberActionsBusy}
+                    canEditRoles={canEditRoles}
+                    canManageActiveMembers={canManageActiveMembers}
+                    activeActionPermissionReason={activeActionPermissionReason}
+                    inviteActionPendingInviteId={inviteActionPendingInviteId}
+                    activeActionPendingMembershipId={
+                      activeActionPendingMembershipId
+                    }
+                    resendInvitePending={resendTeamInviteMutation.isPending}
+                    updateRolePending={updateTeamMemberRoleMutation.isPending}
+                    removeMemberPending={removeTeamMemberMutation.isPending}
+                    onEditRole={handleOpenEditRoleDialog}
+                    onResendInvite={(m) => {
+                      void handleResendInvite(m);
+                    }}
+                    onRevokeInvite={setRevokeDialogMember}
+                    onRemoveMember={setRemoveMemberDialogMember}
+                  />
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -590,45 +662,36 @@ export function SettingsTeamPage() {
                         )}
                       </TableCell>
                       <TableCell className="pr-3 text-right">
-                        <DropdownMenu modal={false}>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              type="button"
-                              disabled={!actionsEnabled}
-                              title={
-                                !actionsEnabled
-                                  ? 'Member actions will be available when connected.'
-                                  : undefined
-                              }
-                            >
-                              <MoreHorizontal className="size-4" />
-                              <span className="sr-only">
-                                Open member actions
-                              </span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled={!actionsEnabled}>
-                              Edit role
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!actionsEnabled}>
-                              Assign clients
-                            </DropdownMenuItem>
-                            {member.status === 'invited' ? (
-                              <DropdownMenuItem disabled={!actionsEnabled}>
-                                Resend invite
-                              </DropdownMenuItem>
-                            ) : null}
-                            <DropdownMenuItem
-                              variant="destructive"
-                              disabled={!actionsEnabled}
-                            >
-                              Remove member
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <MemberActionsMenu
+                          member={member}
+                          anyMemberActionsBusy={anyMemberActionsBusy}
+                          canEditRoles={canEditRoles}
+                          canManageActiveMembers={canManageActiveMembers}
+                          activeActionPermissionReason={
+                            activeActionPermissionReason
+                          }
+                          inviteActionPendingInviteId={
+                            inviteActionPendingInviteId
+                          }
+                          activeActionPendingMembershipId={
+                            activeActionPendingMembershipId
+                          }
+                          resendInvitePending={
+                            resendTeamInviteMutation.isPending
+                          }
+                          updateRolePending={
+                            updateTeamMemberRoleMutation.isPending
+                          }
+                          removeMemberPending={
+                            removeTeamMemberMutation.isPending
+                          }
+                          onEditRole={handleOpenEditRoleDialog}
+                          onResendInvite={(m) => {
+                            void handleResendInvite(m);
+                          }}
+                          onRevokeInvite={setRevokeDialogMember}
+                          onRemoveMember={setRemoveMemberDialogMember}
+                        />
                       </TableCell>
                     </TableRow>
                   ))
@@ -638,6 +701,40 @@ export function SettingsTeamPage() {
           </div>
         </div>
       </section>
+
+      <MemberActionDialogs
+        editRoleDialogMember={editRoleDialogMember}
+        setEditRoleDialogMember={setEditRoleDialogMember}
+        editRoleValue={editRoleValue}
+        setEditRoleValue={setEditRoleValue}
+        editableRoleOptions={editableRoleOptions}
+        editRoleSaveDisabled={editRoleSaveDisabled}
+        updateTeamMemberRolePending={updateTeamMemberRoleMutation.isPending}
+        onConfirmEditRole={handleConfirmEditRole}
+        removeMemberDialogMember={removeMemberDialogMember}
+        setRemoveMemberDialogMember={setRemoveMemberDialogMember}
+        removeTeamMemberPending={removeTeamMemberMutation.isPending}
+        onConfirmRemoveMember={handleConfirmRemoveMember}
+        revokeDialogMember={revokeDialogMember}
+        setRevokeDialogMember={setRevokeDialogMember}
+        revokeTeamInvitePending={revokeTeamInviteMutation.isPending}
+        onConfirmRevokeInvite={handleConfirmRevokeInvite}
+      />
+
+      <InviteTeamMemberDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        assignableRoles={assignableWorkspaceRoles}
+        submitEnabled={Boolean(companyId) && canInviteTeamMembers}
+        onInviteSubmit={async (input) => {
+          try {
+            await inviteTeamMemberMutation.mutateAsync(input);
+            setInviteDialogOpen(false);
+          } catch {
+            // Mutation hook already surfaces user-facing errors.
+          }
+        }}
+      />
     </div>
   );
 }

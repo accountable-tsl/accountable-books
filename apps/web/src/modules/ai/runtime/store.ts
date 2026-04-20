@@ -111,6 +111,23 @@ function applyMessageRetention(messages: AiMessage[]): AiMessage[] {
   return messages.slice(-MAX_MESSAGES_PER_THREAD);
 }
 
+/** Dedupes concurrent work per key and clears the map entry when this run finishes (if still current). */
+function runInFlight<K, T>(
+  inflight: Map<K, Promise<T>>,
+  key: K,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const existing = inflight.get(key);
+  if (existing) return existing;
+
+  const pending = fn();
+  inflight.set(key, pending);
+  pending.finally(() => {
+    if (inflight.get(key) === pending) inflight.delete(key);
+  });
+  return pending;
+}
+
 export const aiRuntimeStore = create<AiRuntimeState>()(
   persist(
     (set, get) => ({
@@ -148,10 +165,7 @@ export const aiRuntimeStore = create<AiRuntimeState>()(
 
       hydrateFromServer: async (companyId: string) => {
         if (hasBootstrapCooldown(companyId)) return;
-        const existing = hydrateInFlightByCompany.get(companyId);
-        if (existing) return existing;
-
-        const run = (async () => {
+        return runInFlight(hydrateInFlightByCompany, companyId, async () => {
           try {
             const res = await api.get(`/api/${companyId}/ai/threads`);
             const items = res.data?.items ?? [];
@@ -187,15 +201,8 @@ export const aiRuntimeStore = create<AiRuntimeState>()(
           } catch (error) {
             if (isRateLimitedError(error)) markBootstrapCooldown(companyId);
             console.error('Failed to hydrate AI history from server.', error);
-          } finally {
-            if (hydrateInFlightByCompany.get(companyId) === run) {
-              hydrateInFlightByCompany.delete(companyId);
-            }
           }
-        })();
-
-        hydrateInFlightByCompany.set(companyId, run);
-        return run;
+        });
       },
 
       setPolicy: (patch) =>
@@ -394,42 +401,36 @@ export const aiRuntimeStore = create<AiRuntimeState>()(
         if (!companyId) return null;
         if (hasBootstrapCooldown(companyId)) return null;
 
-        const existing = ensureThreadInFlightByCompany.get(companyId);
-        if (existing) return existing;
+        return runInFlight(
+          ensureThreadInFlightByCompany,
+          companyId,
+          async () => {
+            try {
+              const latest = get();
+              if (latest.activeThreadId && isUuid(latest.activeThreadId)) {
+                return latest.activeThreadId;
+              }
 
-        const run = (async () => {
-          try {
-            const latest = get();
-            if (latest.activeThreadId && isUuid(latest.activeThreadId)) {
-              return latest.activeThreadId;
+              const res = await api.post(`/api/${companyId}/ai/threads`);
+              const id = res.data?.id;
+              if (!id || !isUuid(String(id))) return null;
+
+              set((s) => ({
+                activeThreadId: id,
+                threads: {
+                  ...s.threads,
+                  [id]: { id, messages: [], updatedAt: now() },
+                },
+                pendingConfirm: null,
+              }));
+              return id;
+            } catch (error) {
+              if (isRateLimitedError(error)) markBootstrapCooldown(companyId);
+              console.error('Failed to ensure active AI thread', error);
+              return null;
             }
-
-            const res = await api.post(`/api/${companyId}/ai/threads`);
-            const id = res.data?.id;
-            if (!id || !isUuid(String(id))) return null;
-
-            set((s) => ({
-              activeThreadId: id,
-              threads: {
-                ...s.threads,
-                [id]: { id, messages: [], updatedAt: now() },
-              },
-              pendingConfirm: null,
-            }));
-            return id;
-          } catch (error) {
-            if (isRateLimitedError(error)) markBootstrapCooldown(companyId);
-            console.error('Failed to ensure active AI thread', error);
-            return null;
-          } finally {
-            if (ensureThreadInFlightByCompany.get(companyId) === run) {
-              ensureThreadInFlightByCompany.delete(companyId);
-            }
-          }
-        })();
-
-        ensureThreadInFlightByCompany.set(companyId, run);
-        return run;
+          },
+        );
       },
 
       appendMessage: (msg: AiMessage) =>

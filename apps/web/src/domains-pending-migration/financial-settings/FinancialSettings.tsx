@@ -123,14 +123,14 @@ export const FinancialSettings = () => {
               <div className="flex flex-1 items-center justify-between gap-2">
                 <p>Start Date</p>
                 <Badge>
-                  {fyStart.monthName} {fyStart.dayNumber}
+                  {fyStart?.monthName} {fyStart?.dayNumber}
                 </Badge>
               </div>
               <Separator orientation="vertical" />
               <div className="flex flex-1 items-center justify-between gap-2">
                 <p>End Date</p>
                 <Badge>
-                  {fyEnd.monthName} {fyEnd.dayNumber}
+                  {fyEnd?.monthName} {fyEnd?.dayNumber}
                 </Badge>
               </div>
             </div>
