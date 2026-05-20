@@ -79,7 +79,7 @@ export const FinancialSettings = () => {
           </p>
         </div>
         <div className="bg-muted flex items-center gap-2 p-2 px-8 text-sm">
-          <Info className="h-4 w-4 flex-shrink-0" />
+          <Info className="h-4 w-4 shrink-0" />
           <p>
             These settings were configured during the initial setup of your
             account and cannot be changed.

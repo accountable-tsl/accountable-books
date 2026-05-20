@@ -23,6 +23,7 @@
 - [ ] Contact Type in Add new contact dialog
 - [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
 - [ ] Privacy Policy, Terms of Use, GDPR,
+- [ ] We should (for now) verify firms manually before they are allowed to add clients
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
@@ -55,6 +56,7 @@
 
 ### LATER (Future Versions / Nice-to-Have)
 
+- [ ] Notification to deactivate account if not used after 45 days of sign up
 - [ ] Consider unifying timezone stuff (UTC everywhere)
 - [ ] REVIEW CONSTRAINTS AND THEIR TEST e.g Projects check is not fully setup etc
 - [ ] Versioning account types

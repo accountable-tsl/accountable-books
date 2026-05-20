@@ -664,7 +664,7 @@ const BankLogo = memo(
       contentStyle="w-fit"
       trigger={
         <div
-          className="bg-muted flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border"
+          className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border"
           role="img"
           aria-label={`${bankName || TOOLTIPS.BANK_LOGO} logo`}
         >

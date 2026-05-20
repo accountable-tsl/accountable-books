@@ -99,7 +99,7 @@ export default function BankAccountSelector({
 
   return (
     <>
-      <FormField className="w-full flex-shrink-0 space-y-0">
+      <FormField className="w-full shrink-0 space-y-0">
         <AutocompleteDropdown
           id="bank-account"
           drawerTitle="Select Bank Account"

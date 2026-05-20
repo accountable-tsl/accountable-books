@@ -111,7 +111,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
             hasPinnedColumns ? 'min-w-max' : '',
           )}
         >
-          <div className="bg-sidebar-accent sticky !left-0 z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-r border-b">
+          <div className="bg-sidebar-accent sticky left-0! z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-r border-b">
             {leftGroups.map((header) => renderHeaderCell(header, 'left'))}
           </div>
 
@@ -121,7 +121,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
             </div>
           </div>
 
-          <div className="bg-sidebar-accent sticky !right-0 z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-b border-l">
+          <div className="bg-sidebar-accent sticky right-0! z-30 flex h-10 min-h-10 border-collapse flex-row items-center justify-center border-b border-l">
             {rightGroups.map((header) => renderHeaderCell(header, 'right'))}
           </div>
         </TableRow>

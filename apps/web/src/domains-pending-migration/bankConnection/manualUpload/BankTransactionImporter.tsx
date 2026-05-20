@@ -398,7 +398,7 @@ export const BankTransactionImporter = ({
           {/* Transaction Importer */}
           <div className="flex h-full min-h-0 flex-col overflow-hidden border">
             {/* Select or add a bank account */}
-            <FormField className="w-full flex-shrink-0 space-y-0">
+            <FormField className="w-full shrink-0 space-y-0">
               <AutocompleteDropdown
                 id="bank-account"
                 drawerTitle="Select Bank Account"
@@ -437,7 +437,7 @@ export const BankTransactionImporter = ({
             <hr />
             {/* Selected Bank Account */}
             {selectedBankAccount && (
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="bg-muted px-4 py-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">

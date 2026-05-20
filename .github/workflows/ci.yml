@@ -36,6 +36,12 @@ jobs:
       - name: 'Contracts: Generate Pydantic models'
         run: pnpm --filter @accountable-books/contracts build
 
+      - name: 'Contracts: verify committed generated output matches build'
+        run: |
+          git diff --exit-code -- \
+            packages/contracts/accountable_contracts/schema/py \
+            packages/contracts/accountable_contracts/data/generated
+
       - name: Lint workspace
         run: pnpm run lint
 
@@ -109,6 +115,12 @@ jobs:
       - name: Run database migrations
         if: matrix.package == 'api'
         run: pnpm --filter @accountable-books/api run migrate:test
+
+      - name: Validate billing catalog v1 seed snapshot
+        if: matrix.package == 'api'
+        run: |
+          pnpm --filter @accountable-books/contracts build
+          pnpm --filter @accountable-books/api billing:validate-catalog-seed
 
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build

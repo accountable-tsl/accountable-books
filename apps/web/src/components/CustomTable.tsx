@@ -96,7 +96,7 @@ const TableRow = React.forwardRef<
 });
 
 const baseCellClassNames =
-  'block truncate min-w-0 relative flex-shrink-0' +
+  'block truncate min-w-0 relative shrink-0' +
   ' [&:first-child:has([data-slot=checkbox])]:flex-none' +
   ' [&:first-child:has([data-slot=checkbox])]:text-clip' +
   ' [&:first-child:has([data-slot=checkbox])]:border-r-0' +

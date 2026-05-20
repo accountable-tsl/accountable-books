@@ -326,7 +326,7 @@ const ErrorBanner = ({
 }) => (
   <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
     <div className="flex">
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <XCircle className="h-5 w-5 text-red-400" />
       </div>
       <div className="ml-3">

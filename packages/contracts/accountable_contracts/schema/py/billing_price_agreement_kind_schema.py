@@ -1,0 +1,7 @@
+from enum import Enum
+
+class BillingPriceAgreementKindSchema(str, Enum):
+    CUSTOM = "custom"
+    NEGOTIATED = "negotiated"
+    LIFETIME = "lifetime"
+    PARTNER = "partner"

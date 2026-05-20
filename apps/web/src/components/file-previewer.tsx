@@ -47,7 +47,7 @@ export function FilePreviewer({
   return (
     <div className="dark:bg-background/50 fixed inset-0 z-[100] flex h-screen flex-col overflow-hidden bg-black/50 backdrop-blur-sm duration-200 dark:backdrop-blur-md">
       {/* Header */}
-      <div className="bg-background/50 flex h-16 flex-shrink-0 items-center justify-between p-4">
+      <div className="bg-background/50 flex h-16 shrink-0 items-center justify-between p-4">
         <div className="flex flex-col">
           <h3 className="text-foreground text-sm font-medium">
             {currentFile.file_name}

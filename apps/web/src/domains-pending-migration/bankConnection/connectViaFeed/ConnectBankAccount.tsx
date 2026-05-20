@@ -228,7 +228,7 @@ export default function ConnectBankAccount({
         <div className={cn('min-h-0 flex-1 overflow-hidden', stepClassName)}>
           {stepContent}
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <BankAccountFooter />
         </div>
       </div>
@@ -239,7 +239,7 @@ export default function ConnectBankAccount({
 }
 
 const BankAccountFooter = React.memo(() => (
-  <footer className="flex flex-shrink-0 flex-col items-center gap-1">
+  <footer className="flex shrink-0 flex-col items-center gap-1">
     <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
       <div className="flex items-center space-x-2">
         <Shield className="h-4 w-4 text-green-600" />

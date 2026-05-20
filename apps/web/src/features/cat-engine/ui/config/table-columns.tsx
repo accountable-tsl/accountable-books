@@ -431,7 +431,7 @@ function AccountCell({
             !txn.isEditable ? 'cursor-not-allowed opacity-60' : 'cursor-help',
           )}
         >
-          {isUncategorized && <HelpCircle className="h-4 w-4 flex-shrink-0" />}
+          {isUncategorized && <HelpCircle className="h-4 w-4 shrink-0" />}
           {displayName}
         </div>
       </TooltipTrigger>
@@ -471,7 +471,7 @@ const BankCell = memo(function BankCell({ txn }: { txn: GroupedTransaction }) {
     <div className="flex items-center gap-2" title={title}>
       <div
         className={cn(
-          'relative flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden',
+          'relative flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden',
           'rounded-full border dark:bg-white',
           !showImage && 'dark:bg-muted',
         )}

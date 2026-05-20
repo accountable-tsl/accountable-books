@@ -21,6 +21,7 @@ import bankingRoutes from './domains/banking/banking.routes.js';
 import bankRoutes from './domains/banking/banks/banks.routes.js';
 import plaidWebhookRoutes from './domains/banking/webhooks/plaid.webhook.js';
 import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
+import billingRoutes from './domains/billing/billing.routes.js';
 import categorizationRoutes from './domains/categorization/categorization.routes.js';
 import coaRoutes from './domains/chart-of-accounts/coa.routes.js';
 import companiesRoutes from './domains/companies/companies.routes.js';
@@ -40,7 +41,7 @@ import usersCompaniesRolesRoutes from './domains/user-roles/user-roles.routes.js
 import usersRoutes from './domains/users/users.routes.js';
 import {
   conditionalCsrf,
-  verifyRefreshToken,
+  verifyAccessToken,
 } from './features/auth/auth.middleware.js';
 import authRoutes from './features/auth/auth.routes.js';
 import onboardingRoutes from './features/onboarding/onboarding.routes.js';
@@ -170,8 +171,9 @@ export async function setupApp() {
   // Webhooks (no auth required)
   app.use('/', plaidWebhookRoutes);
 
-  app.use('/api', verifyRefreshToken);
+  app.use('/api', verifyAccessToken);
 
+  app.use('/api/billing', billingRoutes);
   app.use('/api/onboarding', onboardingRoutes);
   app.use('/api/companies', companiesRoutes);
   app.use('/api/users', usersRoutes);

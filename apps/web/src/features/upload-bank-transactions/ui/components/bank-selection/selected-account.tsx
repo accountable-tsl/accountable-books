@@ -7,7 +7,7 @@ export function SelectedBankAccount({
   selectedBankAccount: BankAccountWithMeta;
 }) {
   return (
-    <div className="flex-shrink-0">
+    <div className="shrink-0">
       <div className="bg-muted px-4 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">

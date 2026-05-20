@@ -316,7 +316,7 @@ export function MultiSelectValue({
         }}
         variant="outline"
         ref={overflowRef}
-        className="flex-shrink-0 text-xs font-normal whitespace-nowrap"
+        className="shrink-0 text-xs font-normal whitespace-nowrap"
       >
         +{overflowAmount}
       </Badge>

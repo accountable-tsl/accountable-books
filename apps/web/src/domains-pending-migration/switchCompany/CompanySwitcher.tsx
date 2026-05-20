@@ -249,7 +249,7 @@ export function CompanySwitcher() {
                     onClick={() => handleCompanySwitch(company)}
                     disabled={isCurrentCompany || isSwitching}
                   >
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {(() => {
                         const { icon: Icon } = getCompanyConfig(
                           company.companyType,

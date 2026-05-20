@@ -84,7 +84,7 @@ export const AccountLinked = ({
   const renderSuccess = () => (
     <>
       <div className="flex h-full flex-col gap-4 py-4">
-        <div className="flex-shrink-0 text-center">
+        <div className="shrink-0 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
             <Waypoints className="h-8 w-8 text-green-600" />
           </div>
@@ -249,7 +249,7 @@ export const AccountLinked = ({
           )}
         </div>
 
-        <div className="flex flex-shrink-0 justify-between gap-2">
+        <div className="flex shrink-0 justify-between gap-2">
           <Button
             variant="outline"
             disabled={

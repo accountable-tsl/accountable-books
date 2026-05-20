@@ -81,7 +81,7 @@ export const BankAccount = ({}: {
         onValueChange={handleTabChange}
         className="relative mx-auto h-full w-full overflow-hidden p-4"
       >
-        <TabsList className="mx-auto grid w-full max-w-3xl flex-shrink-0 grid-cols-2 border bg-transparent">
+        <TabsList className="mx-auto grid w-full max-w-3xl shrink-0 grid-cols-2 border bg-transparent">
           <TabsTrigger value="connect">Connect Bank Account</TabsTrigger>
           <TabsTrigger value="upload">Manually Add Bank Account</TabsTrigger>
         </TabsList>

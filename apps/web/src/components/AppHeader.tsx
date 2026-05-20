@@ -37,7 +37,7 @@ export function AppHeader({ company }: AppHeaderProps) {
       className={cn(
         'flex h-12 shrink-0 group-has-data-[collapsible=icon]/sidebar-wrapper:h-12',
         'relative items-center gap-2 border-b transition-[width,height] ease-linear',
-        'z-50 flex-shrink-0',
+        'z-50 shrink-0',
       )}
     >
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2">

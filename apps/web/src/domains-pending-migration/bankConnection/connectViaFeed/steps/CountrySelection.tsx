@@ -96,7 +96,7 @@ export default function CountrySelection({
 
   return (
     <div className="flex max-h-full min-h-0 flex-1 flex-col gap-6 p-4">
-      <div className="flex-shrink-0 text-center">
+      <div className="shrink-0 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
           <Globe className="h-8 w-8 text-blue-600" />
         </div>
@@ -109,7 +109,7 @@ export default function CountrySelection({
 
       {/* <div className="flex-1 min-h-0 overflow-y-auto"> */}
       {detectedCountry && (
-        <div className="flex-shrink-0 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-slate-600 dark:bg-slate-800">
+        <div className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-slate-600 dark:bg-slate-800">
           <div className="flex items-center space-x-3">
             <MapPin className="h-5 w-5 text-blue-600" />
             <div className="flex-1">
@@ -140,7 +140,7 @@ export default function CountrySelection({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Label
             htmlFor="country-search"
             className="text-sm font-medium text-gray-700"
@@ -260,7 +260,7 @@ export default function CountrySelection({
         </div>
       </div>
 
-      <div className="flex flex-shrink-0 justify-between">
+      <div className="flex shrink-0 justify-between">
         <Button variant="outline" onClick={handleCancel}>
           Cancel
         </Button>

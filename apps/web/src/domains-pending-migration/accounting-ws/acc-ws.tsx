@@ -253,8 +253,8 @@ export function AccountingWorkspace() {
                 key={acc.id}
                 className="flex h-full flex-col overflow-clip rounded-md border shadow-sm"
               >
-                <div className="flex flex-shrink-0 p-4 pb-2">
-                  <div className="bg-muted flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-clip rounded-full opacity-80 dark:bg-white/80">
+                <div className="flex shrink-0 p-4 pb-2">
+                  <div className="bg-muted flex h-12 w-12 shrink-0 items-center justify-center overflow-clip rounded-full opacity-80 dark:bg-white/80">
                     {acc.bankLogo ? (
                       <img
                         src={acc.bankLogo}
@@ -375,8 +375,8 @@ export function AccountingWorkspace() {
         </div>
       </div>
       {is1440 && (
-        <div className="ml-auto flex min-h-0 w-sm min-w-sm flex-shrink-0 flex-col">
-          <div className="text-muted-foreground flex-shrink-0 pt-4 text-sm">
+        <div className="ml-auto flex min-h-0 w-sm min-w-sm shrink-0 flex-col">
+          <div className="text-muted-foreground shrink-0 pt-4 text-sm">
             Bank Accounts
           </div>
           <Separator className="mb-4" />
@@ -386,8 +386,8 @@ export function AccountingWorkspace() {
                 key={g.bankId}
                 className="flex flex-col overflow-clip rounded-md border p-2"
               >
-                <div className="flex flex-shrink-0 items-center gap-2 px-2">
-                  <div className="bg-muted dark:bg-primary/80 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full">
+                <div className="flex shrink-0 items-center gap-2 px-2">
+                  <div className="bg-muted dark:bg-primary/80 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
                     {g.logo ? (
                       <img
                         src={g.logo}
@@ -458,7 +458,7 @@ function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
       <Separator />
       <div
         className={cn(
-          'grid flex-shrink-0 grid-cols-2 divide-x',
+          'grid shrink-0 grid-cols-2 divide-x',
           classNames?.actionsBox,
         )}
       >

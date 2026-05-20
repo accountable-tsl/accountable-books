@@ -16,6 +16,7 @@
     "test:watch": "pnpm build && NODE_OPTIONS='--import tsx/esm' NODE_ENV=test vitest --watch",
     "test:coverage": "pnpm build && NODE_OPTIONS='--import tsx/esm' NODE_ENV=test vitest run --coverage",
     "generate-env": "tsx config/env-schema.ts",
+    "billing:validate-catalog-seed": "tsx scripts/validate-billing-catalog-seed.ts",
     "knex": "tsx node_modules/knex/bin/cli.js",
     "migrate:make": "pnpm run knex migrate:make -x ts --knexfile knexfile.ts",
     "migrate:local": "pnpm run knex migrate:latest --env local --knexfile knexfile.ts",

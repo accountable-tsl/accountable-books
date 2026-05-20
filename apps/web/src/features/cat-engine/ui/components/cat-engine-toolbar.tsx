@@ -233,12 +233,12 @@ export function CenterCatEngineToolbar({
                   className="px-1"
                 >
                   <div className="flex items-center gap-1">
-                    <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-[0.5px] object-contain p-0.25">
+                    <div className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[0.5px] object-contain p-0.25">
                       {account.bankLogo ? (
                         <img
                           src={account.bankLogo}
                           alt={`${account.bankName} logo`}
-                          className="h-4 w-4 flex-shrink-0 object-contain"
+                          className="h-4 w-4 shrink-0 object-contain"
                         />
                       ) : (
                         <Building strokeWidth={1} className="!h-3 !w-3" />
