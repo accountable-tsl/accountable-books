@@ -17,6 +17,12 @@ class UserCurrentCompanyCompanyTypeEnum(str, Enum):
     INDIVIDUAL = "individual"
     ACCOUNTING_FIRM = "accounting_firm"
 
+class UserCurrentCompanyWorkspaceClassEnum(str, Enum):
+    CUSTOMER = "customer"
+    DEMO = "demo"
+    PLATFORM = "platform"
+    PARTNER = "partner"
+
 class UserCurrentCompanyRoleKeyOption0Enum(str, Enum):
     SUPER_ADMIN = "super_admin"
     SYSTEM_USER = "system_user"
@@ -78,6 +84,7 @@ class AuthSessionPayload(BaseModel):
             displayName: Optional[str]
             assignedFirmSlug: str
             companyType: UserCurrentCompanyCompanyTypeEnum
+            workspaceClass: UserCurrentCompanyWorkspaceClassEnum
             hasExplicitAccess: bool
             roleKey: Union[UserCurrentCompanyRoleKeyOption0Enum, Literal[None]]
             roleScope: Union[UserCurrentCompanyRoleScopeOption0Enum, Literal[None]]
@@ -105,6 +112,7 @@ class AuthSessionPayload(BaseModel):
             displayName: Optional[str]
             assignedFirmSlug: str
             companyType: UserCurrentCompanyCompanyTypeEnum
+            workspaceClass: UserCurrentCompanyWorkspaceClassEnum
             hasExplicitAccess: bool
             roleKey: Union[UserCurrentCompanyRoleKeyOption0Enum, Literal[None]]
             roleScope: Union[UserCurrentCompanyRoleScopeOption0Enum, Literal[None]]

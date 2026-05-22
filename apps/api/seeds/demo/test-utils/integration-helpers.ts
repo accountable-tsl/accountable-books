@@ -144,7 +144,7 @@ export class SeedIntegrationTestHelper {
     return {
       users: await this.countRecords('users', { user_type: 'demo' }),
       companies: await this.countRecords('companies', {
-        is_demo_company: true,
+        workspace_class: 'demo',
       }),
       contacts: await this.countRecords('contacts', {}),
       projects: await this.countRecords('projects', {}),
@@ -197,7 +197,7 @@ export const TestDataFactories = {
     display_name: 'Test Company',
     short_code: 'testCo',
     type: 'business',
-    is_demo_company: true,
+    workspace_class: 'demo',
     year_end_day: 31,
     year_end_month: 12,
     accounting_basis: 'modified_accrual_basis',
@@ -231,7 +231,7 @@ export const SeedTestAssertions = {
     expectedCount: number,
   ): Promise<void> {
     const count = await helper.countRecords('companies', {
-      is_demo_company: true,
+      workspace_class: 'demo',
     });
     if (count !== expectedCount) {
       throw new Error(
@@ -253,7 +253,7 @@ export const SeedTestAssertions = {
       SELECT c.id, c.short_code 
       FROM companies c 
       LEFT JOIN users u ON c.created_by_id = u.id 
-      WHERE c.is_demo_company = true AND u.id IS NULL
+      WHERE c.workspace_class = 'demo' AND u.id IS NULL
     `);
 
     if (companiesWithInvalidUsers.rows.length > 0) {
@@ -267,7 +267,7 @@ export const SeedTestAssertions = {
       SELECT ct.id, ct.normalized_name 
       FROM contacts ct 
       LEFT JOIN companies c ON ct.company_id = c.id 
-      WHERE c.id IS NULL OR c.is_demo_company = false
+      WHERE c.id IS NULL OR c.workspace_class <> 'demo'
     `);
 
     if (contactsWithInvalidCompanies.rows.length > 0) {
@@ -287,7 +287,7 @@ export const SeedTestAssertions = {
 
     // All demo companies should have proper short codes
     const invalidShortCodes = await trx('companies')
-      .where('is_demo_company', true)
+      .where('workspace_class', 'demo')
       .whereNot('short_code', 'like', '%Demo%')
       .select('id', 'short_code');
 

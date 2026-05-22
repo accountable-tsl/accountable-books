@@ -259,7 +259,7 @@ export class DemoSeedRunner {
             break;
           case 'companies':
             count = await this.knex('companies')
-              .where('is_demo_company', true)
+              .where('workspace_class', 'demo')
               .count('* as count')
               .first()
               .then((r) => Number(r?.count) || 0);
@@ -267,7 +267,7 @@ export class DemoSeedRunner {
           case 'chart-of-accounts':
             count = await this.knex('coa')
               .join('companies', 'coa.company_id', 'companies.id')
-              .where('companies.is_demo_company', true)
+              .where('companies.workspace_class', 'demo')
               .count('coa.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);
@@ -275,7 +275,7 @@ export class DemoSeedRunner {
           case 'contacts':
             count = await this.knex('contacts')
               .join('companies', 'contacts.company_id', 'companies.id')
-              .where('companies.is_demo_company', true)
+              .where('companies.workspace_class', 'demo')
               .count('contacts.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);
@@ -283,7 +283,7 @@ export class DemoSeedRunner {
           case 'projects':
             count = await this.knex('projects')
               .join('companies', 'projects.company_id', 'companies.id')
-              .where('companies.is_demo_company', true)
+              .where('companies.workspace_class', 'demo')
               .count('projects.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);
@@ -291,7 +291,7 @@ export class DemoSeedRunner {
           case 'bank-accounts':
             count = await this.knex('bank_accounts')
               .join('companies', 'bank_accounts.company_id', 'companies.id')
-              .where('companies.is_demo_company', true)
+              .where('companies.workspace_class', 'demo')
               .count('bank_accounts.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);
@@ -304,7 +304,7 @@ export class DemoSeedRunner {
                 'bank_accounts.id',
               )
               .join('companies', 'bank_accounts.company_id', 'companies.id')
-              .where('companies.is_demo_company', true)
+              .where('companies.workspace_class', 'demo')
               .count('bank_transactions.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);
@@ -312,7 +312,7 @@ export class DemoSeedRunner {
           case 'journals':
             count = await this.knex('journal_batches')
               .join('companies', 'journal_batches.company_id', 'companies.id')
-              .where('companies.is_demo_company', true)
+              .where('companies.workspace_class', 'demo')
               .count('journal_batches.id as count')
               .first()
               .then((r) => Number(r?.count) || 0);

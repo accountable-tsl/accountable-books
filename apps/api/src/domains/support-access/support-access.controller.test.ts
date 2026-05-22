@@ -48,6 +48,7 @@ function explicitCompanyAdminAccess(
     displayName: 'Display Name',
     assignedFirmSlug: '',
     companyType: 'business',
+    workspaceClass: 'customer',
     hasExplicitAccess: true,
     roleKey: 'client_admin',
     roleScope: 'company',

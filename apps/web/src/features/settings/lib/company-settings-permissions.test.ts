@@ -13,6 +13,7 @@ function company(overrides: Partial<AuthCompanyContext>): AuthCompanyContext {
     displayName: null,
     assignedFirmSlug: '',
     companyType: 'business',
+    workspaceClass: 'customer',
     hasExplicitAccess: true,
     roleKey: 'client_admin',
     roleScope: 'company',

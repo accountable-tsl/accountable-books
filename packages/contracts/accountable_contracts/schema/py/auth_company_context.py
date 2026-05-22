@@ -8,6 +8,12 @@ class CompanyTypeEnum(str, Enum):
     INDIVIDUAL = "individual"
     ACCOUNTING_FIRM = "accounting_firm"
 
+class WorkspaceClassEnum(str, Enum):
+    CUSTOMER = "customer"
+    DEMO = "demo"
+    PLATFORM = "platform"
+    PARTNER = "partner"
+
 class RoleKeyOption0Enum(str, Enum):
     SUPER_ADMIN = "super_admin"
     SYSTEM_USER = "system_user"
@@ -53,6 +59,7 @@ class AuthCompanyContext(BaseModel):
     displayName: Optional[str]
     assignedFirmSlug: str
     companyType: CompanyTypeEnum
+    workspaceClass: WorkspaceClassEnum
     hasExplicitAccess: bool
     roleKey: Union[RoleKeyOption0Enum, Literal[None]]
     roleScope: Union[RoleScopeOption0Enum, Literal[None]]

@@ -9,6 +9,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { isPlatformWorkspace } from '../companies/workspace-class.js';
 import { newAccFirm } from './firms.types.js';
 import {
   firmSlugRedisKey,
@@ -39,7 +40,7 @@ export const resolveFirm = async (
 
   const platformFirm = await trx('accounting_firms_meta as af')
     .join('companies as c', 'af.company_id', 'c.id')
-    .where('c.is_platform', true)
+    .where('c.workspace_class', 'platform')
     .select('af.id');
 
   if (!platformFirm || platformFirm.length > 1) {
@@ -189,7 +190,7 @@ export const updateFirm = async (
       });
     }
 
-    if (company.is_platform) {
+    if (isPlatformWorkspace(company.workspace_class)) {
       return errorResponse('Cannot update', null, {
         code: ErrorCode.FORBIDDEN,
       });

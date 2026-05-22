@@ -44,9 +44,9 @@ const mockQueryBuilder = {
 };
 
 const createMockCompanies = () => [
-  { id: 'company-1', short_code: 'bizDemoUS', is_demo_company: true },
-  { id: 'company-2', short_code: 'firmDemoUS', is_demo_company: true },
-  { id: 'company-3', short_code: 'indDemoUS', is_demo_company: true },
+  { id: 'company-1', short_code: 'bizDemoUS', workspace_class: 'demo' },
+  { id: 'company-2', short_code: 'firmDemoUS', workspace_class: 'demo' },
+  { id: 'company-3', short_code: 'indDemoUS', workspace_class: 'demo' },
 ];
 
 const createMockAccountTypes = () => [
@@ -256,8 +256,8 @@ describe('deleteDemoData', () => {
       'companies.id',
     );
     expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-      'companies.is_demo_company',
-      true,
+      'companies.workspace_class',
+      'demo',
     );
     expect(mockQueryBuilder.delete).toHaveBeenCalled();
   });

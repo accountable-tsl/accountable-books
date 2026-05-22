@@ -194,7 +194,7 @@ export class KnexMockFactory {
         legal_name: 'Demo Business US',
         display_name: 'Demo Business US',
         type: 'business',
-        is_demo_company: true,
+        workspace_class: 'demo',
         created_by_id: 'user-1',
       },
       {
@@ -203,7 +203,7 @@ export class KnexMockFactory {
         legal_name: 'Demo Business NG',
         display_name: 'Demo Business NG',
         type: 'business',
-        is_demo_company: true,
+        workspace_class: 'demo',
         created_by_id: 'user-2',
       },
     ];

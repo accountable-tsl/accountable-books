@@ -13,6 +13,7 @@ import {
   type NewCompanyInput,
   type NewCompanyInputCamel,
 } from '../../domains/companies/companies.types.js';
+import { isDemoWorkspace } from '../../domains/companies/workspace-class.js';
 import { type RoleKey } from '../../domains/roles/roles.types.js';
 import { grantDirectAccess } from '../../domains/user-roles/user-roles.model.js';
 import { createUserDirect } from '../../domains/users/users.model.js';
@@ -188,7 +189,7 @@ export const registerNewAccount = async (input: {
       warnings.push('Failed to track signup events');
     }
 
-    if (!companyRes.is_demo_company) {
+    if (!isDemoWorkspace(companyRes.workspace_class)) {
       try {
         const url = buildEmailServiceUrl('verify-email', {
           userId: user.id,
@@ -260,7 +261,7 @@ const createUserAndCompany = async (
 
   const platformFirm = await trx('accounting_firms_meta as af')
     .join('companies as c', 'af.company_id', 'c.id')
-    .where('c.is_platform', true)
+    .where('c.workspace_class', 'platform')
     .first<{ company_id: string; slug: string }>();
 
   if (!platformFirm) {
@@ -277,7 +278,7 @@ const createUserAndCompany = async (
       ...restOfCompanyInput,
       created_by_id: userResponse.data?.id,
       assigned_firm_id: platformFirmId,
-      ...(restOfCompanyInput.is_demo_company
+      ...(restOfCompanyInput.workspace_class === 'demo'
         ? {
             onboarding_state: createCompleteCompanyOnboardingState(
               restOfCompanyInput.type,

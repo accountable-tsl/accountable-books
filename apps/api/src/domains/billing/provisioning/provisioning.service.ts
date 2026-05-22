@@ -18,6 +18,7 @@ type CompanyBillingContext = {
   type: string;
   legal_name: string;
   assigned_firm_id: string | null;
+  workspace_class: string;
   country_code: string;
   currency_code: string;
 };
@@ -27,6 +28,7 @@ type RawCompanyBillingContext = {
   type: string;
   legal_name: string;
   assigned_firm_id: string | null;
+  workspace_class: string;
   country_code: string | null;
   currency_code: string | null;
 };
@@ -57,6 +59,7 @@ async function loadCompanyBillingContext(
       'c.type',
       'c.legal_name',
       'c.assigned_firm_id',
+      'c.workspace_class',
       'countries.code as country_code',
       'currencies.code as currency_code',
     )
@@ -124,11 +127,29 @@ async function resolveCommercialMode(
       .where({
         id: assignedFirmId,
         type: 'accounting_firm',
-        is_platform: false,
+        workspace_class: 'customer',
       })
       .first('id');
 
     if (firm) {
+      return 'firm_managed';
+    }
+  }
+
+  if (
+    company.type !== 'accounting_firm' &&
+    assignedFirmId &&
+    assignedFirmId !== company.id
+  ) {
+    const partnerFirm = await db('companies')
+      .where({
+        id: assignedFirmId,
+        type: 'accounting_firm',
+        workspace_class: 'partner',
+      })
+      .first('id');
+
+    if (partnerFirm) {
       return 'firm_managed';
     }
   }

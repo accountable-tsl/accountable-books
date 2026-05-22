@@ -34,7 +34,7 @@ export const buildPlatformCompany = (adminUserId: string) => ({
   year_end_day: 31,
   year_end_month: 12,
   reporting_framework: 'ifrs',
-  is_platform: true,
+  workspace_class: 'platform',
   accounting_basis: 'modified_accrual_basis',
   onboarding_state: completeOnbState,
 });
@@ -75,6 +75,7 @@ export const createPlatformCompany = async (knex: Knex) => {
 };
 
 const tableName = 'companies';
+const WORKSPACE_CLASSES = ['customer', 'demo', 'platform', 'partner'];
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
@@ -96,8 +97,11 @@ export async function up(knex: Knex): Promise<void> {
     table.string('tax_id').nullable();
     table.jsonb('onboarding_state').nullable();
     table.timestamp('onboarding_completed_at', { useTz: true }).nullable();
-    table.boolean('is_demo_company').defaultTo(false);
-    table.boolean('is_platform').defaultTo(false);
+    table
+      .string('workspace_class')
+      .checkIn(WORKSPACE_CLASSES, 'companies_workspace_class_check')
+      .notNullable()
+      .defaultTo('customer');
     table.date('conversion_date').nullable();
 
     table
@@ -140,6 +144,12 @@ export async function up(knex: Knex): Promise<void> {
 
     table.index('short_code');
   });
+
+  await knex.raw(`
+    CREATE UNIQUE INDEX companies_single_platform_workspace_idx
+    ON companies (workspace_class)
+    WHERE workspace_class = 'platform'
+  `);
 
   await createUpdateTimestampTrigger(knex, tableName);
 
@@ -197,6 +207,9 @@ export async function down(knex: Knex): Promise<void> {
   await knex.schema.alterTable('users', (table) => {
     table.dropForeign(['last_active_company_id']);
   });
+  await knex.raw(
+    `DROP INDEX IF EXISTS companies_single_platform_workspace_idx`,
+  );
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

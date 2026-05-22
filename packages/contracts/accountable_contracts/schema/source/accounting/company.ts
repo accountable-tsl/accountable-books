@@ -5,6 +5,7 @@ import {
   companyType,
   firmType,
   reportingFramework,
+  workspaceClass,
 } from '../common/enums.js';
 
 const isValidWireTimezone = (timezone?: string | null): boolean => {
@@ -104,6 +105,7 @@ export const companyResponse = z.object({
   id: z.string().max(50),
   legalName: z.string(),
   companyType,
+  workspaceClass,
   yearEndDay: z.number().min(1).max(31),
   yearEndMonth: z.number().min(1).max(12),
   countryId: z.uuid(),

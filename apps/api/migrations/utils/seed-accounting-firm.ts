@@ -60,8 +60,7 @@ export async function seedAccountingFirmCompany(
       year_end_day: 31,
       year_end_month: 12,
       reporting_framework: input.reportingFramework,
-      is_platform: false,
-      is_demo_company: false,
+      workspace_class: 'partner',
       accounting_basis: 'modified_accrual_basis',
       onboarding_state: completeOnbState,
     })

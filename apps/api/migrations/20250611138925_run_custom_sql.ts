@@ -65,9 +65,6 @@ export async function down(knex: Knex): Promise<void> {
     'guard_ledger_entries_update',
     'prevent_ledger_entries_delete',
 
-    // Platform functions
-    'prevent_platform_flag_update',
-
     // Utility functions (may be created by multiple migrations)
     'update_timestamp',
     'prevent_update_or_delete',

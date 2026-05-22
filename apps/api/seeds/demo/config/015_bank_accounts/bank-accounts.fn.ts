@@ -180,7 +180,7 @@ export const deleteDemoBankAccounts = async (
   // Use the same filtering logic as deleteDemoData to ensure consistency
   const bankAccountsQuery = trx('bank_accounts')
     .join('companies', 'bank_accounts.company_id', 'companies.id')
-    .where('companies.is_demo_company', true);
+    .where('companies.workspace_class', 'demo');
 
   // Apply shortCode-based filtering (same as deleteDemoData does)
   if (filters) {

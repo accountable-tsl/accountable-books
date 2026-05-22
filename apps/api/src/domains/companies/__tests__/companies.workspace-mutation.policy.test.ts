@@ -11,6 +11,7 @@ function access(overrides: Partial<AccessibleCompanies>): AccessibleCompanies {
     displayName: null,
     assignedFirmSlug: 'firm',
     companyType: 'business',
+    workspaceClass: 'customer',
     hasExplicitAccess: true,
     roleKey: 'client_admin',
     roleScope: 'company',

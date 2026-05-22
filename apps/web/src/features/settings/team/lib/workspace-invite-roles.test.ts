@@ -15,6 +15,7 @@ function company(overrides: Partial<AuthCompanyContext>): AuthCompanyContext {
     displayName: null,
     assignedFirmSlug: '',
     companyType: 'business',
+    workspaceClass: 'customer',
     hasExplicitAccess: true,
     roleKey: 'client_owner',
     roleScope: 'company',

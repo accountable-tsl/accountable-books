@@ -380,7 +380,7 @@ export const deleteDemoBankTransactions = async (
   // Get bank account IDs for demo companies (filtered)
   const bankAccountIdsQuery = trx('bank_accounts')
     .join('companies', 'bank_accounts.company_id', 'companies.id')
-    .where('companies.is_demo_company', true)
+    .where('companies.workspace_class', 'demo')
     .select('bank_accounts.id');
 
   if (shortCodes.length > 0) {

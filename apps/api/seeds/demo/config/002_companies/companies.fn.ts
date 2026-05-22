@@ -79,7 +79,7 @@ export const createDemoCompaniesAndUsers = async (
         reporting_framework: c.country.code === 'US' ? 'us_gaap' : 'ifrs',
         onboarding_state: completeOnbState(c.companyType),
         onboarding_completed_at: new Date(),
-        is_demo_company: true,
+        workspace_class: 'demo',
         country_id: c.country.id,
         reporting_currency_id: c.currency.id,
         created_by_id: getUserId(c.createdBy.email),
@@ -143,8 +143,7 @@ export const createDemoCompaniesAndUsers = async (
       'companies.id',
       'accounting_firms_meta.company_id',
     )
-    .where('companies.type', 'accounting_firm')
-    .where('companies.is_demo_company', false)
+    .where('companies.workspace_class', 'platform')
     .first();
 
   // Get role IDs for admin and client_owner
@@ -307,7 +306,7 @@ export const deleteDemoCompanies = async (
   // Convert shortCodes to actual database IDs
   const companies = await trx('companies')
     .whereIn('short_code', shortCodes)
-    .where('is_demo_company', true)
+    .where('workspace_class', 'demo')
     .select('id');
 
   const companyIds = companies.map((c) => c.id);

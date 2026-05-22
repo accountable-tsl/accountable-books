@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { dbBaseFields } from '../../core/types/core.js';
 import { type CompanyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
-import { type CompanyType } from '../companies/companies.types.js';
+import {
+  type CompanyType,
+  type WorkspaceClass,
+} from '../companies/companies.types.js';
 import { type RoleKey, type RoleScope } from '../roles/roles.types.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
@@ -36,6 +39,7 @@ export type CompanyBaseFields = {
   legalName: string;
   displayName: string | null;
   companyType: CompanyType;
+  workspaceClass: WorkspaceClass;
   firmSlug: string | null;
   isPlatformCompany: boolean;
 };

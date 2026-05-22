@@ -1,11 +1,11 @@
+import type { CompanyType } from '@accountable-books/contracts/schema';
 import {
   accountingBasis,
   companyType,
-  companyVerificationClaim,
-  companyVerification as companyVerificationSchema,
   updateCompanyPayload as contractUpdateCompanySchema,
   companyResponse as getCompanyResponse,
   reportingFramework,
+  workspaceClass,
 } from '@accountable-books/contracts/schema';
 import {
   isKnownTimezone,
@@ -16,6 +16,20 @@ import { z } from 'zod';
 import { dbBaseFields } from '../../core/types/core.js';
 import { companyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+
+export {
+  companyVerificationClaim,
+  companyVerification,
+} from '@accountable-books/contracts/schema';
+
+export type {
+  WorkspaceClass,
+  CompanyType,
+  AccountingBasis,
+  ReportingFramework,
+  CompanyVerificationClaim,
+  CompanyVerification,
+} from '@accountable-books/contracts/schema';
 
 const trimmedOptionalString = (max: number) =>
   z.preprocess((value) => {
@@ -54,8 +68,13 @@ const trimmedOptionalTimezone = z.preprocess(
     .optional(),
 );
 
-export { accountingBasis, companyType, getCompanyResponse, reportingFramework };
-export { companyVerificationClaim, companyVerificationSchema };
+export {
+  accountingBasis,
+  companyType,
+  getCompanyResponse,
+  reportingFramework,
+  workspaceClass,
+};
 
 export const newCompanyInput = z.object({
   id: z.uuid().optional(),
@@ -86,7 +105,7 @@ export const newCompanyInput = z.object({
   registration_number: trimmedNullishString(256),
   tax_id: trimmedNullishString(256),
   default_timezone: trimmedOptionalTimezone,
-  is_demo_company: z.boolean().prefault(false).optional(),
+  workspace_class: workspaceClass.prefault('customer').optional(),
   slug: trimmedOptionalString(20),
   onboarding_state: companyOnboardingState.optional(),
 });
@@ -121,8 +140,7 @@ export const newCompany = newCompanyInput
     created_by_id: z.uuid(),
     created_at: z.date().optional(),
     updated_at: z.date().optional(),
-    is_demo_company: z.boolean().prefault(false),
-    is_platform: z.boolean().prefault(false).optional(),
+    workspace_class: workspaceClass.prefault('customer'),
     conversion_date: z.date().nullish(),
   })
   .omit({ slug: true });
@@ -132,11 +150,6 @@ export const company = z.object({
   ...dbBaseFields.shape,
 });
 
-export type CompanyType = z.infer<typeof companyType>;
-export type ReportingFramework = z.infer<typeof reportingFramework>;
-export type AccountingBasis = z.infer<typeof accountingBasis>;
-export type CompanyVerificationClaim = z.infer<typeof companyVerificationClaim>;
-export type CompanyVerification = z.infer<typeof companyVerificationSchema>;
 export type NewCompanyInput = z.infer<typeof newCompanyInput>;
 export type NewCompany = z.infer<typeof newCompany>;
 export type Company = z.infer<typeof company>;

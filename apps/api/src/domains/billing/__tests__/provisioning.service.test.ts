@@ -44,7 +44,7 @@ async function insertCompany(
       accounting_basis: 'modified_accrual_basis',
       created_by_id: testUserId,
       assigned_firm_id: opts.assignedFirmId ?? null,
-      is_platform: opts.isPlatform ?? false,
+      workspace_class: opts.isPlatform ? 'platform' : 'customer',
     })
     .returning('id');
 
@@ -145,7 +145,7 @@ describe('provisioning.service', () => {
 
   it('provisions business on platform firm as self_serve', async () => {
     const platformFirm = await trx('companies')
-      .where({ is_platform: true })
+      .where({ workspace_class: 'platform' })
       .first<{ id: string }>();
     if (!platformFirm) throw new Error('Platform firm not found');
 
@@ -237,7 +237,7 @@ describe('provisioning.service', () => {
 
   it('reconciles ownership when firm self-assignment changes commercial mode', async () => {
     const platformFirm = await trx('companies')
-      .where({ is_platform: true })
+      .where({ workspace_class: 'platform' })
       .first<{ id: string }>();
     if (!platformFirm) throw new Error('Platform firm not found');
 

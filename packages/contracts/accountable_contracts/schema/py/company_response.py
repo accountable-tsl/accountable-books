@@ -8,6 +8,12 @@ class CompanyTypeEnum(str, Enum):
     INDIVIDUAL = "individual"
     ACCOUNTING_FIRM = "accounting_firm"
 
+class WorkspaceClassEnum(str, Enum):
+    CUSTOMER = "customer"
+    DEMO = "demo"
+    PLATFORM = "platform"
+    PARTNER = "partner"
+
 class ReportingFrameworkEnum(str, Enum):
     IFRS = "ifrs"
     US_GAAP = "us_gaap"
@@ -43,6 +49,7 @@ class CompanyResponse(BaseModel):
     id: constr(max_length=50)
     legalName: str
     companyType: CompanyTypeEnum
+    workspaceClass: WorkspaceClassEnum
     yearEndDay: confloat(ge=1, le=31)
     yearEndMonth: confloat(ge=1, le=12)
     countryId: UUID

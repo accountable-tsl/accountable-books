@@ -21,7 +21,7 @@ let demoUsersCache: DemoUserRecord[] | null = null;
 type CompanyRecord = {
   id: string;
   short_code: string;
-  is_demo_company: boolean;
+  workspace_class: 'demo';
 };
 
 type AccountTypeRecord = {
@@ -117,7 +117,7 @@ export const deleteDemoData = async ({
 
   const qb = trx(table)
     .join('companies', `${table}.${targetCompanyIdCol}`, 'companies.id')
-    .where('companies.is_demo_company', true);
+    .where('companies.workspace_class', 'demo');
 
   if (shortCodes.length) {
     qb.whereIn('companies.short_code', shortCodes);
@@ -145,8 +145,8 @@ export const loadDemoCompanies = async (
   }
 
   demoCompaniesCache = (await trx('companies')
-    .where('is_demo_company', true)
-    .select('id', 'short_code', 'is_demo_company')) as CompanyRecord[];
+    .where('workspace_class', 'demo')
+    .select('id', 'short_code', 'workspace_class')) as CompanyRecord[];
 
   return demoCompaniesCache;
 };

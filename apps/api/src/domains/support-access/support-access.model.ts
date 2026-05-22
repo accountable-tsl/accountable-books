@@ -9,6 +9,10 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import {
+  isDemoWorkspace,
+  isPlatformWorkspace,
+} from '../companies/workspace-class.js';
 import { roleKey } from '../roles/roles.types.js';
 import {
   writeBreakGlassClosedAudit,
@@ -34,7 +38,10 @@ import {
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type { AuditContextInput } from '../audit/audit.types.js';
-import type { CompanyType } from '../companies/companies.types.js';
+import type {
+  CompanyType,
+  WorkspaceClass,
+} from '../companies/companies.types.js';
 import type { RoleKey } from '../roles/roles.types.js';
 import type { AccessibleCompanies } from '../user-roles/user-roles.types.js';
 import type {
@@ -68,10 +75,9 @@ type CompanyAccessRow = {
   legalName: string;
   displayName: string | null;
   companyType: CompanyType;
+  workspaceClass: string;
   assignedFirmSlug: string | null;
   onboardingState: CompanyOnboardingState | null;
-  isDemoCompany: boolean;
-  isPlatformCompany: boolean;
 };
 
 type CompanyAdminRecipient = {
@@ -166,11 +172,12 @@ function buildAccessibleCompany(
     displayName: row.displayName,
     assignedFirmSlug: row.assignedFirmSlug || '',
     companyType: row.companyType,
+    workspaceClass: row.workspaceClass as WorkspaceClass,
     hasExplicitAccess: false,
     roleKey: options.roleKey,
     roleScope: 'platform',
-    isDemoCompany: row.isDemoCompany,
-    isPlatformCompany: row.isPlatformCompany,
+    isDemoCompany: isDemoWorkspace(row.workspaceClass),
+    isPlatformCompany: isPlatformWorkspace(row.workspaceClass),
     onboardingState: row.onboardingState,
     accessOrigin: options.accessOrigin,
     supportAccessLevel: options.supportAccessLevel ?? null,
@@ -189,7 +196,7 @@ async function getPlatformRoleForUserInternal(
     .where({
       'ucr.user_id': userId,
       'ucr.is_deleted': false,
-      'c.is_platform': true,
+      'c.workspace_class': 'platform',
     })
     .whereIn('r.key', PLATFORM_ROLE_PRIORITY)
     .select('r.key as roleKey');
@@ -217,10 +224,9 @@ async function getCompanyAccessRow(
       'c.legal_name as legalName',
       'c.display_name as displayName',
       'c.type as companyType',
+      'c.workspace_class as workspaceClass',
       'af.slug as assignedFirmSlug',
       'c.onboarding_state as onboardingState',
-      'c.is_demo_company as isDemoCompany',
-      'c.is_platform as isPlatformCompany',
     )
     .first();
 
@@ -459,8 +465,7 @@ export async function getActiveSupportGrantCompaniesForUser({
     })
     .andWhere(`${grantsTable}.expires_at`, '>', now())
     .where({
-      'c.is_demo_company': false,
-      'c.is_platform': false,
+      'c.workspace_class': 'customer',
     })
     .select(
       'c.id as companyId',
@@ -468,10 +473,9 @@ export async function getActiveSupportGrantCompaniesForUser({
       'c.legal_name as legalName',
       'c.display_name as displayName',
       'c.type as companyType',
+      'c.workspace_class as workspaceClass',
       'af.slug as assignedFirmSlug',
       'c.onboarding_state as onboardingState',
-      'c.is_demo_company as isDemoCompany',
-      'c.is_platform as isPlatformCompany',
       `${grantsTable}.id as supportGrantId`,
       `${grantsTable}.support_access_level as supportAccessLevel`,
     );
@@ -514,8 +518,7 @@ export async function getActiveBreakGlassCompaniesForUser({
     })
     .andWhere(`${breakGlassTable}.expires_at`, '>', now())
     .where({
-      'c.is_demo_company': false,
-      'c.is_platform': false,
+      'c.workspace_class': 'customer',
     })
     .select(
       'c.id as companyId',
@@ -523,10 +526,9 @@ export async function getActiveBreakGlassCompaniesForUser({
       'c.legal_name as legalName',
       'c.display_name as displayName',
       'c.type as companyType',
+      'c.workspace_class as workspaceClass',
       'af.slug as assignedFirmSlug',
       'c.onboarding_state as onboardingState',
-      'c.is_demo_company as isDemoCompany',
-      'c.is_platform as isPlatformCompany',
       `${breakGlassTable}.id as breakGlassSessionId`,
     );
 
@@ -616,7 +618,10 @@ export async function createSupportGrant({
           },
         );
       }
-      if (company.isDemoCompany || company.isPlatformCompany) {
+      if (
+        isDemoWorkspace(company.workspaceClass) ||
+        isPlatformWorkspace(company.workspaceClass)
+      ) {
         return errorResponse<SupportGrantResponse>(
           'Support grants are not allowed for demo or internal companies',
           undefined,
@@ -866,7 +871,10 @@ export async function openBreakGlassSession({
           },
         );
       }
-      if (company.isDemoCompany || company.isPlatformCompany) {
+      if (
+        isDemoWorkspace(company.workspaceClass) ||
+        isPlatformWorkspace(company.workspaceClass)
+      ) {
         return errorResponse<BreakGlassSessionResponse>(
           'Break-glass access is only for customer companies',
           undefined,

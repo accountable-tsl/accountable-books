@@ -59,6 +59,7 @@ import {
   updateCompanySchema,
 } from './companies.types.js';
 import { companyNullableStringsEqual } from './companies.utils.js';
+import { isDemoWorkspace, isPlatformWorkspace } from './workspace-class.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
@@ -123,6 +124,17 @@ function mapQueryRowToGetCompanyResponse(
 
   const candidate = {
     ...rest,
+    isDemoCompany: isDemoWorkspace(
+      typeof rest.workspaceClass === 'string' ? rest.workspaceClass : null,
+    ),
+    isPlatform: isPlatformWorkspace(
+      typeof rest.workspaceClass === 'string' ? rest.workspaceClass : null,
+    ),
+    assignedFirmIsPlatform: isPlatformWorkspace(
+      typeof rest.assignedFirmWorkspaceClass === 'string'
+        ? rest.assignedFirmWorkspaceClass
+        : null,
+    ),
     defaultTimezone,
     verification: {
       legalName: { verifiedAt: legalNameVerifiedAt },
@@ -336,7 +348,7 @@ export const createCompany = async (
       });
       const [firm] = await trx('accounting_firms_meta as af')
         .join('companies as c', 'af.company_id', 'c.id')
-        .where('c.is_platform', true)
+        .where('c.workspace_class', 'platform')
         .select('af.company_id as id');
 
       firmId = firm?.id;
@@ -384,9 +396,6 @@ export const createCompany = async (
     const companyData = {
       ...sanitizedData,
       ...(sanitizedData.id ? { id: sanitizedData.id } : {}),
-      ...(sanitizedData.is_demo_company
-        ? { is_demo_company: sanitizedData.is_demo_company }
-        : {}),
       legal_name: sanitizedData.legal_name,
       display_name: sanitizedData.display_name,
       short_code: shortCode,
@@ -396,7 +405,7 @@ export const createCompany = async (
       created_by_id: userExists.id,
       last_updated_by_id: userExists.id,
       accounting_basis: sanitizedData.accounting_basis ?? 'modified_cash_basis',
-      is_demo_company: sanitizedData.is_demo_company || false,
+      workspace_class: sanitizedData.workspace_class ?? 'customer',
       industry:
         sanitizedData.industry ||
         (sanitizedData.type === 'accounting_firm'
@@ -653,7 +662,7 @@ const companyFields = [
   'companies.country_id as countryId',
   'companies.created_by_id as createdById',
   'companies.created_at as createdAt',
-  'companies.is_platform as isPlatform',
+  'companies.workspace_class as workspaceClass',
 
   'companies.default_timezone as defaultTimezone',
   'companies.legal_name_verified_at as legalNameVerifiedAt',
@@ -670,7 +679,6 @@ const companyFields = [
   'companies.reporting_framework as reportingFramework',
   'companies.accounting_basis as accountingBasis',
   'companies.onboarding_state as onboardingState',
-  'companies.is_demo_company as isDemoCompany',
 
   'companies.reporting_currency_id as reportingCurrencyId',
   'currencies.code as reportingCurrencyCode',
@@ -681,7 +689,7 @@ const companyFields = [
   'companies.assigned_firm_id as assignedFirmId',
   'accounting_firms_meta.slug as assignedFirmSlug',
   'firm_meta.display_name as assignedFirmName',
-  'firm_meta.is_platform as assignedFirmIsPlatform',
+  'firm_meta.workspace_class as assignedFirmWorkspaceClass',
   'firm_logo_file.url as assignedFirmLogo',
 ];
 
@@ -784,9 +792,12 @@ export const fetchCompanies = async (
       }
 
       if (typeof filters?.isDemoCompany !== 'undefined') {
-        query.where('companies.is_demo_company', filters.isDemoCompany);
+        query.where(
+          'companies.workspace_class',
+          filters.isDemoCompany ? 'demo' : 'customer',
+        );
       } else {
-        query.where('companies.is_demo_company', false); // Exclude demo companies by default
+        query.whereNot('companies.workspace_class', 'demo'); // Exclude demo companies by default
       }
     }
 

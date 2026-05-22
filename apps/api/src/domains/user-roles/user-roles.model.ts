@@ -9,6 +9,10 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import {
+  isDemoWorkspace,
+  isPlatformWorkspace,
+} from '../companies/workspace-class.js';
 import { roleKey } from '../roles/roles.types.js';
 import {
   getActiveBreakGlassCompaniesForUser,
@@ -61,13 +65,12 @@ const getDirectCompanyRoles = async (
         'c.display_name as displayName',
         'af.slug as firmSlug',
         'c.type as companyType',
-        'c.is_platform as isPlatformCompany',
+        'c.workspace_class as workspaceClass',
         'r.id as roleId',
         'r.key as roleKey',
         'r.name as roleName',
         'r.scope as roleScope',
         'c.onboarding_state as onboardingState',
-        'c.is_demo_company as isDemoCompany',
       );
 
     // Log only if no results or slow query
@@ -144,14 +147,13 @@ const getFirmMediatedRoles = async (
         'c.legal_name as legalName',
         'c.display_name as displayName',
         'c.type as companyType',
-        'c.is_platform as isPlatformCompany',
+        'c.workspace_class as workspaceClass',
         'af.slug as firmSlug',
         'r.id as roleId',
         'r.key as roleKey',
         'r.name as roleName',
         'r.scope as roleScope',
         'c.onboarding_state as onboardingState',
-        'c.is_demo_company as isDemoCompany',
       );
 
     // Log only if slow query
@@ -202,10 +204,10 @@ const getDemoCompanies = async ({
         'c.display_name as displayName',
         'c.short_code as companyId',
         'c.type as companyType',
-        'c.is_platform as isPlatformCompany',
+        'c.workspace_class as workspaceClass',
         'af.slug as firmSlug',
       )
-      .where('is_demo_company', true)
+      .where('c.workspace_class', 'demo')
       .whereNotIn('c.short_code', excludeCompanyIds || []);
 
     // Only log if slow or excessive demo companies
@@ -241,14 +243,15 @@ const userRoleToAccessibleCompany = (
   displayName: role.displayName,
   assignedFirmSlug: role.firmSlug || '',
   companyType: role.companyType,
+  workspaceClass: role.workspaceClass,
   hasExplicitAccess: true,
-  isDemoCompany: role.isDemoCompany || false,
-  isPlatformCompany: role.isPlatformCompany || false,
+  isDemoCompany: isDemoWorkspace(role.workspaceClass),
+  isPlatformCompany: isPlatformWorkspace(role.workspaceClass),
   roleKey: role.roleKey,
   roleScope: role.roleScope,
   onboardingState: role.onboardingState,
   accessOrigin:
-    role.roleScope === 'platform' || role.isPlatformCompany
+    role.roleScope === 'platform' || isPlatformWorkspace(role.workspaceClass)
       ? 'platform_internal'
       : role.roleScope === 'firm'
         ? 'explicit_firm'
@@ -269,9 +272,10 @@ const demoToAccessibleCompany = (
   displayName: demo.displayName,
   assignedFirmSlug: demo.firmSlug || '',
   companyType: demo.companyType,
+  workspaceClass: demo.workspaceClass,
   hasExplicitAccess: false,
   isDemoCompany: true,
-  isPlatformCompany: demo.isPlatformCompany || false,
+  isPlatformCompany: isPlatformWorkspace(demo.workspaceClass),
   roleKey: null,
   roleScope: null,
   onboardingState: null,

@@ -31,6 +31,7 @@ function workspaceCompany(
     displayName: 'Display',
     assignedFirmSlug: 'firm-slug',
     companyType: 'business',
+    workspaceClass: 'customer',
     hasExplicitAccess: true,
     roleKey: 'client_owner',
     roleScope: 'company',

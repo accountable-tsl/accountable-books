@@ -7,6 +7,14 @@ export const companyType = z.enum([
 ]);
 export type CompanyType = z.infer<typeof companyType>;
 
+export const workspaceClass = z.enum([
+  'customer',
+  'demo',
+  'platform',
+  'partner',
+]);
+export type WorkspaceClass = z.infer<typeof workspaceClass>;
+
 export const reportingFramework = z.enum(['ifrs', 'us_gaap']);
 export type ReportingFramework = z.infer<typeof reportingFramework>;
 

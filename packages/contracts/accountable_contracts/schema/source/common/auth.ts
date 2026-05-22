@@ -5,7 +5,7 @@ import {
   supportAccessLevel,
   supportAccessOrigin,
 } from '../accounting/support-access.js';
-import { companyType } from './enums.js';
+import { companyType, workspaceClass } from './enums.js';
 import { roleKey, roleScope } from './roles.js';
 
 export const authOnboardingStepKey = z.enum([
@@ -32,6 +32,7 @@ export const authCompanyContext = z.object({
   displayName: z.string().nullable(),
   assignedFirmSlug: z.string(),
   companyType,
+  workspaceClass,
   hasExplicitAccess: z.boolean(),
   roleKey: z.union([roleKey, z.null()]),
   roleScope: z.union([roleScope, z.null()]),

@@ -19,6 +19,7 @@ export function getDefaultCompanyData(): CompanyData {
     id: '',
     legalName: '',
     companyType: 'business',
+    workspaceClass: 'customer',
     yearEndDay: 31,
     yearEndMonth: 12,
     countryId: '',
