@@ -6,6 +6,20 @@ import {
   deleteDemoCompanies,
 } from './companies.fn.js';
 
+vi.mock(
+  '../../../../src/domains/billing/provisioning/provisioning.service.js',
+  () => ({
+    finalizeAccountingFirmBillingBootstrap: vi
+      .fn()
+      .mockResolvedValue(undefined),
+    provisionBillingForCompany: vi.fn().mockResolvedValue(undefined),
+  }),
+);
+
+vi.mock('../../../../src/domains/settings/settings.service.js', () => ({
+  initializeCompanySettings: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock utilities - getDemoUserMap provides user ID lookup, resolveFiltersToIds handles filtering
 vi.mock('../../shared/utils.js', () => ({
   resolveFiltersToIds: vi
@@ -101,6 +115,10 @@ const createMockTransaction = (): Knex.Transaction => {
           { id: 'role-1', key: 'admin' },
           { id: 'role-2', key: 'client_owner' },
         ]);
+        break;
+      case 'users':
+        queryBuilder.select.mockReturnValue(queryBuilder);
+        queryBuilder.first.mockResolvedValue({ email: 'demo.us@example.com' });
         break;
       default:
         queryBuilder.first.mockResolvedValue({ id: 'platform-firm-1' });
