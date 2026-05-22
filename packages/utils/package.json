@@ -19,10 +19,16 @@
       "types": "./src/timezone/index.ts",
       "import": "./dist/timezone/index.js",
       "default": "./dist/timezone/index.js"
+    },
+    "./firm-slugs": {
+      "types": "./src/firm-slugs/index.ts",
+      "import": "./dist/firm-slugs/index.js",
+      "default": "./dist/firm-slugs/index.js"
     }
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "clean": "rm -rf dist",
     "generate:timezones": "node ./scripts/generate-timezones.mjs",
     "typecheck": "tsc --noEmit"

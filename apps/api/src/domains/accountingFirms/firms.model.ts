@@ -59,6 +59,15 @@ export const createAccountingFirm = async (
   }
   const { data } = validatedInput;
 
+  if (data.slug) {
+    if (!isValidSlug(data.slug)) {
+      return errorResponse('Invalid slug format');
+    }
+    if (isReservedSlug(data.slug)) {
+      return errorResponse('Slug is reserved');
+    }
+  }
+
   try {
     const [newFirm] = await knexTrx('accounting_firms_meta')
       .insert(data)

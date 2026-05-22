@@ -41,6 +41,7 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { updateFirm } from '../accountingFirms/firms.model.js';
+import { provisionBillingForCompany } from '../billing/provisioning/provisioning.service.js';
 import {
   getCountryFromCode,
   getCountryFromId,
@@ -445,6 +446,24 @@ export const createCompany = async (
       { companyId: company.id, firmId },
       'Company assigned to firm successfully',
     );
+
+    await trx('companies')
+      .where({ id: company.id })
+      .update({ assigned_firm_id: firmId });
+
+    // Accounting firms provision after firm self-assignment (signup setupAccountingFirm
+    // or demo seed). Provisioning here would only see the interim platform assignment.
+    if (sanitizedData.type !== 'accounting_firm') {
+      await provisionBillingForCompany(company.id, {
+        billingEmail: userExists.email,
+        db: trx,
+      });
+
+      companyLogger.info(
+        { companyId: company.id },
+        'Billing account and ownership provisioned',
+      );
+    }
 
     // Enqueue fiscal calendar generation (very fast, ~10ms)
     // Don't fail company creation if calendar generation fails

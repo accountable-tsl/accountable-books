@@ -1,5 +1,9 @@
 import type { Knex } from 'knex';
 
+import {
+  finalizeAccountingFirmBillingBootstrap,
+  provisionBillingForCompany,
+} from '../../../../src/domains/billing/provisioning/provisioning.service.js';
 import { initializeCompanySettings } from '../../../../src/domains/settings/settings.service.js';
 import { COMPANY_TYPES } from '../../shared/config.js';
 import { getDemoUserMap, resolveFiltersToIds } from '../../shared/utils.js';
@@ -214,6 +218,53 @@ export const createDemoCompaniesAndUsers = async (
       .insert(userCompanyRoles)
       .onConflict(['user_id', 'company_id'])
       .ignore();
+  }
+
+  const companiesForBilling = [...existingCompanies].sort((a, b) => {
+    if (
+      a.type === COMPANY_TYPES.ACCOUNTING_FIRM &&
+      b.type !== COMPANY_TYPES.ACCOUNTING_FIRM
+    ) {
+      return -1;
+    }
+    if (
+      b.type === COMPANY_TYPES.ACCOUNTING_FIRM &&
+      a.type !== COMPANY_TYPES.ACCOUNTING_FIRM
+    ) {
+      return 1;
+    }
+    return 0;
+  });
+
+  for (const company of companiesForBilling) {
+    const originalCompany = data.find(
+      (d) => d.c.short_code === company.short_code,
+    );
+    if (!originalCompany) continue;
+
+    const creator = await trx('users')
+      .where({ id: originalCompany.c.created_by_id })
+      .select('email')
+      .first<{ email: string }>();
+    if (!creator?.email) {
+      throw new Error(
+        `Demo user email not found for company ${company.short_code}`,
+      );
+    }
+    const billingEmail = creator.email;
+
+    if (company.type === COMPANY_TYPES.ACCOUNTING_FIRM) {
+      await finalizeAccountingFirmBillingBootstrap(company.id, {
+        billingEmail,
+        db: trx,
+      });
+    } else {
+      await provisionBillingForCompany(company.id, {
+        billingEmail,
+        db: trx,
+      });
+    }
+    console.log(`Billing provisioned: ${company.short_code}`);
   }
 
   // Initialize default settings for all created/existing companies

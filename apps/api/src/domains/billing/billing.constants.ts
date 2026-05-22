@@ -25,19 +25,21 @@ export const BILLING_INVOICE_STATUSES = [
   'uncollectible',
 ] as const;
 
+export const BILLING_ACCOUNT_STATUSES = [
+  'active',
+  'suspended',
+  'closed',
+] as const;
+
 export const BILLING_COMMERCIAL_MODES = [
   'self_serve',
   'firm_managed',
   'firm_internal',
 ] as const;
 
-export const BILLING_SOFTWARE_PAYERS = ['firm', 'client', 'platform'] as const;
-
-export const BILLING_WORKSPACE_AI_PAYERS = [
-  'firm',
-  'client',
-  'platform',
-  'disabled',
+export const BILLING_SOFTWARE_PAYERS = [
+  'billing_account',
+  'client_billing_account',
 ] as const;
 
 export const BILLING_ACTOR_TYPES = [

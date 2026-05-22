@@ -1,5 +1,6 @@
 export * from './accounts.js';
 export * from './catalog.js';
+export * from './ownership.js';
 export * from './credits.js';
 export * from './entitlements.js';
 export * from './invoices.js';

@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/node';
 import { knexClient } from '../../db/knexClient.js';
 import { createAccountingFirm } from '../../domains/accountingFirms/firms.model.js';
 import { newAccFirm } from '../../domains/accountingFirms/firms.types.js';
+import { finalizeAccountingFirmBillingBootstrap } from '../../domains/billing/provisioning/provisioning.service.js';
 import { loadCoaTemplateForCompany } from '../../domains/chart-of-accounts/coa-template.model.js';
 import { createDefaultAccounts } from '../../domains/chart-of-accounts/coa.model.js';
 import { createCompany } from '../../domains/companies/companies.model.js';
@@ -108,6 +109,11 @@ export const registerNewAccount = async (input: {
       firm = await setupAccountingFirm(knex, {
         companyId: company.id,
         firmData: companyInput,
+      });
+
+      await finalizeAccountingFirmBillingBootstrap(company.id, {
+        billingEmail: user.email,
+        db: knex,
       });
     }
 

@@ -1,6 +1,6 @@
 # Billing Domain
 
-Status: In progress
+Status: Phase 2 complete (subscriptions next)
 Owner: Engineering
 
 ## Purpose
@@ -75,7 +75,7 @@ Expected subdomains:
 
 ### Authentication
 
-Requires a valid `refreshToken` cookie. The route is mounted after `verifyRefreshToken` on `/api` (session-authenticated only at launch; not public).
+Requires a valid `accessToken` cookie. Billing routes are mounted after `verifyAccessToken` on `/api` (session-authenticated only at launch; not public).
 
 ### Query parameters
 
@@ -107,7 +107,7 @@ Clients must read catalog payload from `response.data`, not the top level.
 | Status | When                                  |
 | ------ | ------------------------------------- |
 | 400    | Invalid query parameters              |
-| 401    | Missing or invalid refresh token      |
+| 401    | Missing or invalid access token       |
 | 500    | Assembly or unexpected server failure |
 
 ### Catalog invariants
@@ -126,6 +126,57 @@ Clients must read catalog payload from `response.data`, not the top level.
 - `BILLING_LAUNCH_PLAN_KEYS` / `billingLaunchPlanKeySchema` lock the **v1 seed snapshot** for migrations and tests only — not a runtime catalog boundary. New plans added via migration do not require updating that list.
 
 Types for catalog responses live in `@accountable-books/contracts/schema` under `billing.*`.
+
+## Phase 2: Accounts, ownership, resolver
+
+### Tables
+
+- `billing_accounts` — one row per `owner_company_id` (payer identity)
+- `billing_account_profiles` — invoice-facing identity per account
+- `workspace_billing_ownership` — effective-dated workspace → payer mapping
+
+DB enforces allowed ownership combinations (not only the model layer):
+
+- `software_payer = billing_account` in Phase 2
+- `self_serve` / `firm_internal` → `client_billing_account_id IS NULL`
+- `client_billing_account_id` must differ from `billing_account_id` when set
+
+### Resolver
+
+`resolveWorkspaceBillingContext(workspaceCompanyId, { at?, db? })` in
+`resolver/ownership-resolver.service.ts` returns `billing.WorkspaceBillingContext`
+or `null` when no ownership exists. `ownerType` on embedded accounts is derived
+from `companies.type` (`accounting_firm` → `firm`).
+
+Contracts: `billing.workspaceBillingContextSchema` in `schema/source/billing/ownership.ts`.
+
+### Provisioning
+
+`provisionBillingForCompany(companyId, { billingEmail, db })` in
+`provisioning/provisioning.service.ts`:
+
+1. `ensureBillingAccountForCompany` — account + profile (idempotent)
+2. `ensureWorkspaceBillingOwnershipForCompany` — ownership from company type,
+   `assigned_firm_id`, and platform flag (reconciles if mode changes)
+
+**Commercial mode rules:**
+
+- `firm_internal` — `accounting_firm` assigned to itself
+- `firm_managed` — non-firm workspace assigned to a non-platform accounting firm
+- `self_serve` — everything else (including platform-assigned businesses)
+
+**Hooks:**
+
+- `createCompany` — provisions non–accounting-firm companies only (firms wait for self-assignment)
+- Signup — `finalizeAccountingFirmBillingBootstrap` after `setupAccountingFirm`
+- Demo seed — firms use `finalizeAccountingFirmBillingBootstrap`, then clients
+  provision after them (`companies.fn.ts`)
+
+`finalizeAccountingFirmBillingBootstrap` is intentionally stricter than plain
+`provisionBillingForCompany`: it rejects calls before an accounting firm is
+self-assigned, so firm bootstrap cannot silently land in `self_serve`.
+
+`companies.assigned_firm_id` references `accounting_firms_meta.company_id`.
 
 ## Important constraints
 
