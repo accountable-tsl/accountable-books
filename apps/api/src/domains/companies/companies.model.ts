@@ -1,8 +1,5 @@
 import type { Knex } from 'knex';
-import {
-  getDefaultTimezoneForCountry,
-  normalizeTimezoneId,
-} from '@accountable-books/utils/timezone';
+import { normalizeTimezoneId } from '@accountable-books/utils/timezone';
 import z from 'zod';
 
 import { NODE_ENV } from '../../config/env.js';
@@ -15,24 +12,13 @@ import {
   buildAuthContext,
   generateAuthTokens,
 } from '../../features/auth/auth.utils.js';
-import {
-  createInitialCompanyOnboardingState,
-  markCompanyOnboardingStepComplete,
-} from '../../features/onboarding/onboarding.utils.js';
+import { markCompanyOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
 import { redis } from '../../lib/redis.js';
-import generateSecureShortCode, {
-  shortCodelooksWeird,
-} from '../../shared/utils/crypto.utils.js';
 import {
   isValidUUID,
   snakeToCamel,
 } from '../../shared/utils/formatting.utils.js';
-import {
-  logDatabaseOperation,
-  logError,
-  logger,
-  logTiming,
-} from '../../shared/utils/logger.js';
+import { logError, logger, logTiming } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
@@ -41,24 +27,22 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { updateFirm } from '../accountingFirms/firms.model.js';
-import { provisionBillingForCompany } from '../billing/provisioning/provisioning.service.js';
-import {
-  getCountryFromCode,
-  getCountryFromId,
-} from '../countries/countries.utils.js';
-import { getCurrency } from '../currencies/currencies.utils.js';
-import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
-import { initializeCompanySettings } from '../settings/settings.service.js';
 import { writeCompanyProfileUpdatedAudit } from './companies.audit.js';
 import {
   companyType,
   fieldToColumnMap,
   getCompanyResponse,
-  newCompany,
   newCompanyInput,
   updateCompanySchema,
 } from './companies.types.js';
 import { companyNullableStringsEqual } from './companies.utils.js';
+import {
+  ensureCompanyBilling,
+  ensureCompanyFirmAssignment,
+  ensureCompanySettings,
+  insertCompanyRecord,
+  runWorkspaceProvisioningSideEffects,
+} from './company-provisioning.service.js';
 import { isDemoWorkspace, isPlatformWorkspace } from './workspace-class.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
@@ -160,61 +144,6 @@ function mapQueryRowToGetCompanyResponse(
 }
 
 /**
- * Generates a unique short code for a company with collision handling
- *
- * @param trx - Database transaction
- * @param providedShortCode - Optional specific short code to use
- * @param operationLogger - Logger instance for this operation
- * @returns Object with generated short code and attempt count
- */
-async function generateUniqueShortCode(
-  trx: Knex.Transaction,
-  providedShortCode: string | undefined,
-  operationLogger: any,
-): Promise<{ shortCode: string; attempts: number }> {
-  let shortCode: string;
-  let exists = false;
-  let attempts = 0;
-  const maxAttempts = 5;
-
-  do {
-    shortCode = providedShortCode || generateSecureShortCode();
-
-    // If no provided short code, check if generated code looks weird
-    if (!providedShortCode && shortCodelooksWeird(shortCode, 4)) {
-      attempts++;
-      continue; // Skip the database check, just generate another
-    }
-
-    exists = !!(await trx('companies')
-      .where({ short_code: shortCode })
-      .first());
-    attempts++;
-
-    // If we provided a specific short_code and it exists, fail immediately
-    if (providedShortCode && exists) {
-      operationLogger.warn(
-        { providedShortCode },
-        'Provided short code already exists',
-      );
-      throw new AppError(
-        'Provided short code already exists',
-        { shortCode: providedShortCode },
-        true,
-      );
-    }
-  } while (exists && attempts < maxAttempts);
-
-  if (exists) {
-    const error = `Unable to generate unique short code after ${maxAttempts} attempts`;
-    operationLogger.error({ attempts: maxAttempts }, error);
-    throw new AppError(error, { attempts: maxAttempts }, true);
-  }
-
-  return { shortCode, attempts };
-}
-
-/**
  * Options for creating a company
  */
 export interface CreateCompanyOptions {
@@ -274,198 +203,51 @@ export const createCompany = async (
     return errorResponse(userIdError);
   }
 
-  const {
-    slug,
-    reporting_currency_id,
-    reporting_currency_code,
-    country_code,
-    country_id,
-    default_timezone,
-    ...rest
-  } = validateInput.data;
-
-  const resolvedCountry = country_code
-    ? await getCountryFromCode(country_code)
-    : country_id
-      ? await getCountryFromId(country_id)
-      : undefined;
-
-  const countryId = country_id ?? resolvedCountry?.id;
-  const countryCode = country_code ?? resolvedCountry?.code;
-
-  const reportingCurrencyId = reporting_currency_id
-    ? reporting_currency_id
-    : reporting_currency_code &&
-      (await getCurrency(reporting_currency_code)).id;
-
-  const timezone =
-    normalizeTimezoneId(default_timezone) ??
-    getDefaultTimezoneForCountry(countryCode);
-  const sanitizedData = {
-    ...rest,
-    legal_name: rest.legal_name,
-    display_name: rest.display_name || rest.legal_name,
-    reporting_currency_id: reportingCurrencyId,
-    country_id: countryId,
-    ...(timezone ? { default_timezone: timezone } : {}),
-  };
-
-  const { assigned_firm_id } = sanitizedData;
-
   // Execute company creation within the provided transaction
   try {
-    // Verify user exists and has permission
-    logDatabaseOperation('SELECT', 'users', {
-      userId: validateInput.data.created_by_id,
-    });
-    const userExists = await trx('users')
-      .where({ id: validateInput.data.created_by_id })
-      .first();
+    const createdById = validateInput.data.created_by_id;
+    const creator = await trx('users')
+      .where({ id: createdById })
+      .first<{ id: string; email: string }>(['id', 'email']);
 
-    if (!userExists) {
-      const authError = `Non-existent user attempting to create company`;
-      companyLogger.warn(
-        { userId: validateInput.data.created_by_id },
-        authError,
-      );
+    if (!creator?.id || !creator.email) {
       throw new AppError(
         'Unauthorized',
-        `${authError}: ${sanitizedData.legal_name} with userId: ${validateInput.data.created_by_id}`,
+        `Non-existent user attempting to create company: ${validateInput.data.legal_name} with userId: ${createdById}`,
         true,
       );
     }
 
-    companyLogger.debug(
-      { userId: userExists.id },
-      'User authorization verified',
-    );
-
-    // Resolve firm assignment
-    let firmId = assigned_firm_id || null;
-    if (!firmId) {
-      logDatabaseOperation('SELECT', 'accounting_firms_meta', {
-        isPlatform: true,
-      });
-      const [firm] = await trx('accounting_firms_meta as af')
-        .join('companies as c', 'af.company_id', 'c.id')
-        .where('c.workspace_class', 'platform')
-        .select('af.company_id as id');
-
-      firmId = firm?.id;
-      if (!firmId) {
-        const firmError = 'No platform firm available for company assignment';
-        companyLogger.error(firmError);
-        throw new AppError('Company must be assigned to a firm');
-      }
-      companyLogger.debug({ firmId }, 'Assigned to platform firm');
-    } else {
-      companyLogger.debug({ firmId }, 'Using provided firm assignment');
-    }
-
-    // Generate unique short code with collision handling
-    const { shortCode, attempts } = await generateUniqueShortCode(
+    const company = await insertCompanyRecord({
       trx,
-      validateInput.data.short_code,
-      companyLogger,
-    );
-    companyLogger.debug(
-      { shortCode, attempts },
-      'Short code generated successfully',
-    );
-
-    // Prepare company data with defaults
-    const onboardingState =
-      sanitizedData.onboarding_state ||
-      createInitialCompanyOnboardingState(sanitizedData.type);
-
-    // Determine fiscal year-end defaults based on country and company type
-    // UK individuals: April 5 (tax year end)
-    // All others: December 31
-    let defaultYearEndMonth = 12;
-    let defaultYearEndDay = 31;
-
-    if (country_code === 'GB' && sanitizedData.type === 'individual') {
-      defaultYearEndMonth = 4;
-      defaultYearEndDay = 5;
-      companyLogger.debug(
-        { countryCode: country_code, companyType: sanitizedData.type },
-        'Using UK individual fiscal year-end (April 5)',
-      );
-    }
-
-    const companyData = {
-      ...sanitizedData,
-      ...(sanitizedData.id ? { id: sanitizedData.id } : {}),
-      legal_name: sanitizedData.legal_name,
-      display_name: sanitizedData.display_name,
-      short_code: shortCode,
-      year_end_day: sanitizedData.year_end_day || defaultYearEndDay,
-      year_end_month: sanitizedData.year_end_month || defaultYearEndMonth,
-      reporting_framework: sanitizedData.reporting_framework || 'ifrs',
-      created_by_id: userExists.id,
-      last_updated_by_id: userExists.id,
-      accounting_basis: sanitizedData.accounting_basis ?? 'modified_cash_basis',
-      workspace_class: sanitizedData.workspace_class ?? 'customer',
-      industry:
-        sanitizedData.industry ||
-        (sanitizedData.type === 'accounting_firm'
-          ? 'professional_services'
-          : null),
-      onboarding_state: onboardingState,
-    };
-
-    // Insert company record
-    logDatabaseOperation('INSERT', 'companies', {
-      legalName: sanitizedData.legal_name,
-      shortCode,
+      company: validateInput.data,
     });
-    const [company] = await trx('companies').insert(companyData).returning('*');
-
-    if (!company?.id) {
-      const insertError =
-        'Failed to create company record - no company returned';
-      companyLogger.error(insertError);
-      throw new AppError(insertError);
-    }
 
     companyLogger.info(
       { companyId: company.id },
       'Company record created successfully',
     );
 
-    // Create firm assignment
-    logDatabaseOperation('INSERT', 'client_firm_assignments', {
-      clientCompanyId: company.id,
-      firmId,
+    const assignment = await ensureCompanyFirmAssignment({
+      trx,
+      companyId: company.id,
+      actorUserId: creator.id,
+      strategy: validateInput.data.assigned_firm_id
+        ? 'explicit'
+        : 'default_platform',
+      assignedFirmId: validateInput.data.assigned_firm_id,
     });
-    const firmAssignment = await trx('client_firm_assignments').insert({
-      client_company_id: company.id,
-      accounting_firm_company_id: firmId,
-      created_by_id: userExists.id,
-      updated_by_id: userExists.id,
-    });
-
-    if (!firmAssignment) {
-      const assignmentError = 'Failed to assign company to firm';
-      companyLogger.error({ companyId: company.id, firmId }, assignmentError);
-      throw new AppError(assignmentError);
-    }
 
     companyLogger.info(
-      { companyId: company.id, firmId },
+      { companyId: company.id, firmId: assignment.assignedFirmId },
       'Company assigned to firm successfully',
     );
 
-    await trx('companies')
-      .where({ id: company.id })
-      .update({ assigned_firm_id: firmId });
-
-    // Accounting firms provision after firm self-assignment (signup setupAccountingFirm
-    // or demo seed). Provisioning here would only see the interim platform assignment.
-    if (sanitizedData.type !== 'accounting_firm') {
-      await provisionBillingForCompany(company.id, {
-        billingEmail: userExists.email,
-        db: trx,
+    if (validateInput.data.type !== 'accounting_firm') {
+      await ensureCompanyBilling({
+        trx,
+        companyId: company.id,
+        billingEmail: creator.email,
       });
 
       companyLogger.info(
@@ -474,52 +256,16 @@ export const createCompany = async (
       );
     }
 
-    // Enqueue fiscal calendar generation (very fast, ~10ms)
-    // Don't fail company creation if calendar generation fails
     try {
-      await enqueueFiscalCalendarGeneration({
-        type: 'generate-calendar',
+      await ensureCompanySettings({
+        trx,
         companyId: company.id,
-        yearsBack: 2,
-        yearsForward: 10,
-        triggeredBy: 'company_creation',
-        userId: userExists.id,
+        userId: creator.id,
       });
       companyLogger.info(
         { companyId: company.id },
-        'Fiscal calendar generation job enqueued',
+        'Default company settings initialized',
       );
-    } catch (error) {
-      companyLogger.error(
-        {
-          companyId: company.id,
-          error: error instanceof Error ? error : new Error(String(error)),
-        },
-        'Failed to enqueue fiscal calendar generation (non-critical)',
-      );
-      // Non-critical: Calendar can be generated manually later if needed
-    }
-
-    // Initialize default company settings
-    // Don't fail company creation if settings initialization fails
-    try {
-      const settingsResult = await initializeCompanySettings({
-        companyId: company.id,
-        userId: userExists.id,
-        trx,
-      });
-
-      if (settingsResult.success) {
-        companyLogger.info(
-          { companyId: company.id },
-          'Default company settings initialized',
-        );
-      } else {
-        companyLogger.warn(
-          { companyId: company.id, error: settingsResult.message },
-          'Settings initialization returned error (non-critical)',
-        );
-      }
     } catch (error) {
       companyLogger.error(
         {
@@ -528,14 +274,13 @@ export const createCompany = async (
         },
         'Failed to initialize company settings (non-critical)',
       );
-      // Non-critical: Settings will use defaults from registry until explicitly set
     }
 
-    // Validate and return company data
-    const companyDataValidation = newCompany.safeParse(company);
-    const finalCompanyData = companyDataValidation.success
-      ? companyDataValidation.data
-      : company;
+    await runWorkspaceProvisioningSideEffects({
+      companyId: company.id,
+      userId: creator.id,
+      mode: 'normal',
+    });
 
     logTiming('createCompany', startTime, {
       companyId: company.id,
@@ -546,7 +291,7 @@ export const createCompany = async (
       { companyId: company.id },
       'Company creation completed successfully',
     );
-    return successResponse('Company created successfully', finalCompanyData);
+    return successResponse('Company created successfully', company);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -560,7 +305,7 @@ export const createCompany = async (
 
     logError(error instanceof Error ? error : new Error(String(error)), {
       operation: 'createCompany',
-      legalName: sanitizedData.legal_name,
+      legalName: validateInput.data.legal_name,
       operationId,
     });
 

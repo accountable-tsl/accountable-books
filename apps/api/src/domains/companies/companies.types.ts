@@ -100,7 +100,7 @@ export const newCompanyInput = z.object({
   revenue: trimmedNullishString(256),
   reporting_framework: reportingFramework.nullish(),
   short_code: trimmedOptionalString(50),
-  assigned_firm_id: z.uuid().optional(),
+  assigned_firm_id: z.uuid().nullish(),
   load_coa_template: z.boolean().optional(),
   registration_number: trimmedNullishString(256),
   tax_id: trimmedNullishString(256),

@@ -35,19 +35,14 @@ export async function resolveJournalCompanyContext(p: {
   traceId: string;
 }): Promise<JournalCompanyContext> {
   const idType = getIdentifierType(p.companyId);
-  const company =
-    (await p
-      .trx('companies')
-      .where(
-        idType === 'uuid' ? { id: p.companyId } : { short_code: p.companyId },
-      )
-      .where('is_deleted', false)
-      .first<{ id: string; reporting_currency_id: string }>(
-        'id',
-        'reporting_currency_id',
-      )) ?? null;
+  const company = await p
+    .trx('companies')
+    .where(idType === 'uuid' ? 'id' : 'short_code', p.companyId)
+    .where('is_deleted', false)
+    .select('id', 'reporting_currency_id')
+    .first<{ id: string; reporting_currency_id: string | null }>();
 
-  if (!company?.id || !company?.reporting_currency_id) {
+  if (!company || !company?.id || !company?.reporting_currency_id) {
     throw new AppError(
       `Company not found: ${p.companyId}`,
       { traceId: p.traceId, companyId: p.companyId },

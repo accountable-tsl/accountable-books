@@ -1,4 +1,5 @@
 import type { Knex } from 'knex';
+import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
@@ -56,7 +57,7 @@ export const createAccountingFirm = async (
   const validatedInput = newAccFirm.safeParse(input);
 
   if (!validatedInput.success) {
-    return errorResponse('Invalid input', validatedInput.error.flatten());
+    return errorResponse('Invalid input', z.flattenError(validatedInput.error));
   }
   const { data } = validatedInput;
 

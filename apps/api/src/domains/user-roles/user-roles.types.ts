@@ -67,6 +67,14 @@ export type GrantDirectAccess = {
   grantedBy: string;
 };
 
+export type UpsertDirectCompanyRole = {
+  trx?: Knex.Transaction;
+  userId: string;
+  companyUUID: string;
+  roleKey: RoleKey;
+  grantedBy: string;
+};
+
 export type GrantAccessToFirmClient = Omit<GrantDirectAccess, 'companyId'> & {
   clientCompanyId: string;
   firmId: string;

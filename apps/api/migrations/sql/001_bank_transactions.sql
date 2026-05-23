@@ -225,30 +225,13 @@ CREATE TABLE IF NOT EXISTS bank_transactions_before_2024
   PARTITION OF bank_transactions
   FOR VALUES FROM ('1970-01-01') TO ('2024-01-01');
 
--- Current year parent (sub-partitioned) + its year-default LEAF, so the year can accept rows now
-DO $$
-DECLARE y int := EXTRACT(YEAR FROM CURRENT_DATE);
-BEGIN
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
-    PARTITION OF bank_transactions
-    FOR VALUES FROM (%L) TO (%L)
-    PARTITION BY RANGE (date)
-  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
-
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
-    PARTITION OF public.bank_transactions_%s DEFAULT
-  $sql$, y, y);
-END$$;
-
--- Global DEFAULT partition (for any out-of-window dates)
+-- Global DEFAULT partition (safety net — must exist before year partitions so
+-- that rows landing outside the rolling window are never rejected)
 CREATE TABLE IF NOT EXISTS bank_transactions_default
   PARTITION OF bank_transactions DEFAULT;
 
--- Ensure indexes exist on the known leaves and are attached
+-- Ensure leaf indexes exist & are attached for the historical partition
 SELECT ensure_bt_leaf_indexes_before_2024();
-SELECT ensure_bt_leaf_indexes_for_year(EXTRACT(YEAR FROM CURRENT_DATE)::int);
 
 -- Monthly helper (dormant for now; used when you flip to monthly later)
 CREATE OR REPLACE FUNCTION ensure_month_partition(d date)
@@ -286,17 +269,25 @@ BEGIN
     RETURN;
   END IF;
 
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
-    PARTITION OF bank_transactions
-    FOR VALUES FROM (%L) TO (%L)
-    PARTITION BY RANGE (date)
-  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+  BEGIN
+    EXECUTE format($sql$
+      CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
+      PARTITION OF bank_transactions
+      FOR VALUES FROM (%L) TO (%L)
+      PARTITION BY RANGE (date)
+    $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'ensure_year_partition(%): year table failed: %', y, SQLERRM;
+  END;
 
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
-    PARTITION OF public.bank_transactions_%s DEFAULT
-  $sql$, y, y);
+  BEGIN
+    EXECUTE format($sql$
+      CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
+      PARTITION OF public.bank_transactions_%s DEFAULT
+    $sql$, y, y);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'ensure_year_partition(%): default table failed: %', y, SQLERRM;
+  END;
 
   PERFORM ensure_bt_leaf_indexes_for_year(y);
 END$$;
@@ -312,6 +303,9 @@ BEGIN
     PERFORM ensure_year_partition(y);
   END LOOP;
 END$$;
+
+-- Create rolling window of year partitions (current year ± 2) with leaf indexes
+SELECT create_bank_transactions_partitions();
 
 -- Before-insert trigger (simplified - no dynamic partition creation)
 CREATE OR REPLACE FUNCTION bt_ensure_partition_before_insert()

@@ -215,7 +215,7 @@ export const createDemoCompaniesAndUsers = async (
   if (userCompanyRoles.length > 0) {
     await trx('user_company_roles')
       .insert(userCompanyRoles)
-      .onConflict(['user_id', 'company_id'])
+      .onConflict()
       .ignore();
   }
 

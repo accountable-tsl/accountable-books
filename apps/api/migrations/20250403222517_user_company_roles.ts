@@ -110,10 +110,13 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     addStandardColumns(knex, table);
-
-    table.unique(['user_id', 'company_id']);
-    table.index(['user_id', 'company_id'], 'user_company_composite_idx');
   });
+
+  await knex.raw(`
+    CREATE UNIQUE INDEX user_company_roles_active_unique
+    ON user_company_roles (user_id, company_id)
+    WHERE is_deleted = false
+  `);
 
   await createUpdateTimestampTrigger(knex, tableName);
   // await assignAdminRole(knex);

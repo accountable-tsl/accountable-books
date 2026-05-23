@@ -32,7 +32,7 @@
     "migrate:view": "tsx scripts/run-view-migration.ts",
     "db:reset:local": "NODE_ENV=local tsx scripts/resetDatabase.ts",
     "db:reset:test": "NODE_ENV=test tsx scripts/resetDatabase.ts",
-    "db:reset": "pnpm run db:reset:local && pnpm run migrate && pnpm run demo:apply",
+    "db:reset": "pnpm run db:reset:local && pnpm run db:reset:test && pnpm run migrate && pnpm run demo:apply",
     "demo": "tsx seeds/demo/cli.ts",
     "demo:apply:test": "NODE_ENV=test pnpm run demo apply --all",
     "demo:apply:local": "pnpm run demo apply --all",

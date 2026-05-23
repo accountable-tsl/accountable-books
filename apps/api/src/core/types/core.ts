@@ -15,7 +15,7 @@ export const dbStandardFields = z.object({
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
   is_deleted: z.boolean().optional(),
-  deleted_at: z.date().optional(),
+  deleted_at: z.date().nullish(),
 });
 export type StandardFields = z.infer<typeof dbStandardFields>;
 

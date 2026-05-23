@@ -205,7 +205,6 @@ export async function createLedgerRecord({
     // STEP 4: PARTITION MANAGEMENT
     // PostgreSQL partitions the ledger_entries table by date for performance
     // We must ensure the partitions exist before inserting data
-    // This must be inside the transaction to prevent race conditions
     const { transactionDates, bounds, minYMD, maxYMD } =
       processEntriesDates(entries);
     await ensurePartitionsForDates('ledger_entries', transactionDates, txn);

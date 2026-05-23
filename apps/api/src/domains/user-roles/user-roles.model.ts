@@ -2,6 +2,7 @@ import { type Knex } from 'knex';
 
 import { type ApiResponse } from '../../core/types/api.types.js';
 import { knexClient } from '../../db/knexClient.js';
+import { getCompanyUUID } from '../../shared/index.js';
 import { logger } from '../../shared/utils/logger.js';
 import {
   AppError,
@@ -28,6 +29,7 @@ import type {
   GrantAccessResponse,
   GrantAccessToFirmClient,
   GrantDirectAccess,
+  UpsertDirectCompanyRole,
   UserCompanyRoleAssignmentRes,
   UserCompanyRoleWithDetails,
 } from './user-roles.types.js';
@@ -669,74 +671,24 @@ export const isUserCompanyOwner = async ({
 export const grantDirectAccess = async ({
   trx,
   userId,
-  companyId: inputedCompanyId,
+  companyId: companyIdentifier,
   roleKey,
   grantedBy,
 }: GrantDirectAccess): Promise<ApiResponse<GrantAccessResponse>> => {
-  const executeWithTransaction = async (knex: Knex | Knex.Transaction) => {
-    // Validate all entities exist first
-    const [companyResult, userExists, roleResult] = await Promise.all([
-      knex
-        .select('id')
-        .from('companies')
-        .where('short_code', inputedCompanyId)
-        .first(),
-      knex('users').where('id', userId).first(),
-      knex('roles').where('key', roleKey).select('id').first(),
-    ]);
+  const executeWithTransaction = async (knex: Knex.Transaction) => {
+    const companyUUID = await getCompanyUUID(companyIdentifier, knex);
 
-    if (!companyResult) {
+    if (!companyUUID) {
       throw new AppError('Company not found');
     }
-    if (!userExists) {
-      throw new AppError('User not found');
-    }
-    if (!roleResult) {
-      throw new AppError(`Role '${roleKey}' not found`);
-    }
 
-    // Check if user already has a role at this company
-    const existingRole = await knex('user_company_roles')
-      .where({
-        user_id: userId,
-        company_id: companyResult.id,
-        is_deleted: false,
-      })
-      .first();
-
-    let action: 'no change' | 'updated' | 'created';
-
-    if (existingRole) {
-      if (existingRole.role_id === roleResult.id) {
-        action = 'no change';
-      } else {
-        // Update existing role
-        await knex('user_company_roles')
-          .where({
-            user_id: userId,
-            company_id: companyResult.id,
-            is_deleted: false,
-          })
-          .update({
-            role_id: roleResult.id,
-            updated_by_id: grantedBy,
-            updated_at: knex.fn.now(),
-          });
-        action = 'updated';
-      }
-    } else {
-      // Create new role assignment
-      await knex('user_company_roles').insert({
-        user_id: userId,
-        company_id: companyResult.id,
-        role_id: roleResult.id,
-        created_by_id: grantedBy,
-        updated_by_id: grantedBy,
-      });
-      action = 'created';
-    }
-
-    return { action };
+    return upsertDirectCompanyRole({
+      trx: knex,
+      userId,
+      companyUUID: companyUUID,
+      roleKey,
+      grantedBy,
+    });
   };
 
   try {
@@ -748,7 +700,7 @@ export const grantDirectAccess = async ({
         logger.info(
           {
             userId,
-            companyId: inputedCompanyId,
+            companyId: companyIdentifier,
             roleKey,
             grantedBy,
             action: result.action,
@@ -766,7 +718,7 @@ export const grantDirectAccess = async ({
           logger.info(
             {
               userId,
-              companyId: inputedCompanyId,
+              companyId: companyIdentifier,
               roleKey,
               grantedBy,
               action: result.action,
@@ -779,11 +731,75 @@ export const grantDirectAccess = async ({
     }
   } catch (error) {
     logger.error(
-      { userId, companyId: inputedCompanyId, roleKey, error },
+      { userId, companyId: companyIdentifier, roleKey, error },
       'Error granting direct access',
     );
     return errorResponse('Failed to grant access', error);
   }
+};
+
+export const upsertDirectCompanyRole = async ({
+  trx,
+  userId,
+  companyUUID,
+  roleKey,
+  grantedBy,
+}: UpsertDirectCompanyRole): Promise<GrantAccessResponse> => {
+  const knex = trx || knexClient;
+
+  const [companyResult, userExists, roleResult] = await Promise.all([
+    knex.select('id').from('companies').where('id', companyUUID).first(),
+    knex('users').where('id', userId).first(),
+    knex('roles').where('key', roleKey).select('id').first(),
+  ]);
+
+  if (!companyResult) {
+    throw new AppError('Company not found');
+  }
+  if (!userExists) {
+    throw new AppError('User not found');
+  }
+  if (!roleResult) {
+    throw new AppError(`Role '${roleKey}' not found`);
+  }
+
+  const existingRole = await knex('user_company_roles')
+    .where({
+      user_id: userId,
+      company_id: companyUUID,
+      is_deleted: false,
+    })
+    .first();
+
+  if (existingRole) {
+    if (existingRole.role_id === roleResult.id) {
+      return { action: 'no change' };
+    }
+
+    await knex('user_company_roles')
+      .where({
+        user_id: userId,
+        company_id: companyUUID,
+        is_deleted: false,
+      })
+      .update({
+        role_id: roleResult.id,
+        updated_by_id: grantedBy,
+        updated_at: knex.fn.now(),
+      });
+
+    return { action: 'updated' };
+  }
+
+  await knex('user_company_roles').insert({
+    user_id: userId,
+    company_id: companyUUID,
+    role_id: roleResult.id,
+    created_by_id: grantedBy,
+    updated_by_id: grantedBy,
+  });
+
+  return { action: 'created' };
 };
 
 /**

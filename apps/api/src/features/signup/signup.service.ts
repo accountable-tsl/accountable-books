@@ -2,17 +2,19 @@ import type { Knex } from 'knex';
 import * as Sentry from '@sentry/node';
 
 import { knexClient } from '../../db/knexClient.js';
-import { createAccountingFirm } from '../../domains/accountingFirms/firms.model.js';
 import { newAccFirm } from '../../domains/accountingFirms/firms.types.js';
 import { finalizeAccountingFirmBillingBootstrap } from '../../domains/billing/provisioning/provisioning.service.js';
-import { loadCoaTemplateForCompany } from '../../domains/chart-of-accounts/coa-template.model.js';
-import { createDefaultAccounts } from '../../domains/chart-of-accounts/coa.model.js';
 import { createCompany } from '../../domains/companies/companies.model.js';
 import {
   type CompanyType,
   type NewCompanyInput,
   type NewCompanyInputCamel,
 } from '../../domains/companies/companies.types.js';
+import {
+  ensureAccountingFirmMeta,
+  ensureCompanyChartOfAccounts,
+  ensureCompanyFirmAssignment,
+} from '../../domains/companies/company-provisioning.service.js';
 import { isDemoWorkspace } from '../../domains/companies/workspace-class.js';
 import { type RoleKey } from '../../domains/roles/roles.types.js';
 import { grantDirectAccess } from '../../domains/user-roles/user-roles.model.js';
@@ -122,7 +124,7 @@ export const registerNewAccount = async (input: {
       companyUUID: company.id,
       reportingCurrencyId: company.reporting_currency_id,
       userId: user.id,
-      loadCoaTemplate: companyInput.load_coa_template || true,
+      loadCoaTemplate: companyInput.load_coa_template,
     });
 
     const [{ count }] = (await knex('companies')
@@ -340,25 +342,26 @@ const setupAccountingFirm = async (
     throw new AppError('Invalid input', firmInput.error.flatten());
   }
 
-  // Create accounting firm
-  const firmResponse = await createAccountingFirm(trx, firmInput.data);
-  if (!firmResponse.success || !firmResponse.data?.id) {
-    throw new AppError(`Firm creation failed: ${firmResponse.message}`);
-  }
+  const firmMeta = await ensureAccountingFirmMeta({
+    trx,
+    companyId,
+    actorUserId: firmData.created_by_id!,
+    meta: firmInput.data,
+  });
 
-  // Update the company's assigned_firm_id
-  await trx('companies')
-    .where('id', companyId)
-    .update({ assigned_firm_id: firmResponse.data.id });
+  await ensureCompanyFirmAssignment({
+    trx,
+    companyId,
+    actorUserId: firmData.created_by_id!,
+    strategy: 'self',
+    allowReassignment: true,
+  });
 
-  // Assign the company to the firm
-  await trx('client_firm_assignments')
-    .where('client_company_id', companyId)
-    .update({
-      accounting_firm_company_id: firmResponse.data.id,
-    });
-
-  return firmResponse.data;
+  return {
+    id: companyId,
+    slug: firmMeta.slug,
+    firm_type: firmInput.data.firm_type ?? null,
+  };
 };
 const attachChartOfAccounts = async (
   trx: Knex.Transaction,
@@ -369,22 +372,19 @@ const attachChartOfAccounts = async (
     loadCoaTemplate?: boolean;
   },
 ): Promise<void> => {
-  const { companyUUID, userId, reportingCurrencyId, loadCoaTemplate } = params;
+  const {
+    companyUUID,
+    userId,
+    reportingCurrencyId: _reportingCurrencyId,
+    loadCoaTemplate,
+  } = params;
   try {
-    if (loadCoaTemplate === false) {
-      await createDefaultAccounts({
-        trx,
-        companyUUID,
-        userId,
-        reportingCurrencyId,
-      });
-    } else {
-      await loadCoaTemplateForCompany(trx, {
-        companyId: companyUUID,
-        created_by_id: userId,
-        use_code: true, // Default value
-      });
-    }
+    await ensureCompanyChartOfAccounts({
+      trx,
+      companyId: companyUUID,
+      userId,
+      mode: loadCoaTemplate === false ? 'default' : 'template',
+    });
   } catch (error: any) {
     throw new AppError('Failed to attach chart of accounts', error);
   }

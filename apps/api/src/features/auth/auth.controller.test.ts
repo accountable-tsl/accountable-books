@@ -51,6 +51,7 @@ function companyContext() {
     displayName: 'Acme',
     assignedFirmSlug: '',
     companyType: 'business' as const,
+    workspaceClass: 'customer' as const,
     hasExplicitAccess: true,
     roleKey: 'client_admin' as const,
     roleScope: 'company' as const,
