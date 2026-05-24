@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
-import pino from 'pino';
 
 import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { emitTxnEnrichedEvent } from '../events/transaction-events.service.js';
 import { incrementContactStats } from '../stats/stats.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
@@ -20,7 +21,10 @@ import type {
   EnrichmentResult,
 } from './enrichment.types.js';
 
-const logger = pino();
+const logger = getLogger({
+  component: 'enrichment-worker',
+  processSource: 'worker',
+});
 
 /**
  * Bank Transaction Enrichment Worker
@@ -51,7 +55,7 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
       jobId: job.id,
       companyId: job.data.companyId,
       transactionCount: job.data.bankTransactionIds.length,
-      source: job.data.source,
+      taskSource: job.data.source,
     },
     'Starting enrichment job',
   );
@@ -402,7 +406,7 @@ const persistEnrichedTransaction = upsertCategorizationTask;
 export function startEnrichmentWorker(): Worker<EnrichmentJobData> {
   const worker = new Worker<EnrichmentJobData>(
     ENRICHMENT_QUEUE_NAME,
-    processEnrichmentJob,
+    (job) => runWithJobContext(job, () => processEnrichmentJob(job)),
     ENRICHMENT_WORKER_OPTIONS,
   );
 

@@ -2,9 +2,49 @@ import type { Knex } from 'knex';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  provisionCompanyWorkspace,
+  reconcileCompanyWorkspace,
+} from '../../../../src/domains/companies/company-provisioning.service.js';
+import {
   createDemoCompaniesAndUsers,
   deleteDemoCompanies,
 } from './companies.fn.js';
+
+vi.mock(
+  '../../../../src/domains/companies/company-provisioning.service.js',
+  () => ({
+    provisionCompanyWorkspace: vi.fn().mockResolvedValue({
+      company: { id: 'a0000000-0000-4000-8000-000000000001' },
+      policy: { kind: 'demo' },
+      assignment: {
+        assignedFirmId: 'a0000000-0000-4000-8000-000000000002',
+        created: true,
+        updated: false,
+      },
+      firmMeta: null,
+      billing: null,
+      chartOfAccounts: { skipped: false, mode: 'template' },
+      roleGrant: { granted: true },
+      additionalRoleGrants: [],
+      sideEffects: { skipped: true, enqueued: false },
+    }),
+    reconcileCompanyWorkspace: vi.fn().mockResolvedValue({
+      company: { id: 'a0000000-0000-4000-8000-000000000001' },
+      policy: { kind: 'demo' },
+      assignment: {
+        assignedFirmId: 'a0000000-0000-4000-8000-000000000002',
+        created: false,
+        updated: false,
+      },
+      firmMeta: null,
+      billing: null,
+      chartOfAccounts: { skipped: true, mode: 'template' },
+      roleGrant: { granted: true },
+      additionalRoleGrants: [],
+      sideEffects: { skipped: true, enqueued: false },
+    }),
+  }),
+);
 
 vi.mock(
   '../../../../src/domains/billing/provisioning/provisioning.service.js',
@@ -172,13 +212,61 @@ describe('createDemoCompaniesAndUsers', () => {
     expect(mockTransaction).toHaveBeenCalledWith('companies');
   });
 
+  test('reconciles an existing company instead of skipping it', async () => {
+    const mockTransaction = createMockTransaction();
+
+    mockTransaction.mockImplementation((tableName: string) => {
+      const queryBuilder = {
+        insert: vi.fn().mockReturnThis(),
+        onConflict: vi.fn().mockReturnThis(),
+        ignore: vi.fn().mockReturnThis(),
+        returning: vi.fn().mockReturnThis(),
+        whereIn: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        join: vi.fn().mockReturnThis(),
+        update: vi.fn().mockReturnThis(),
+        first: vi.fn(),
+        select: vi.fn(),
+        delete: vi.fn(),
+      };
+
+      if (tableName === 'companies') {
+        queryBuilder.first.mockResolvedValue({ id: 'existing-company-id' });
+        queryBuilder.select.mockResolvedValue([]);
+        queryBuilder.delete.mockResolvedValue(0);
+      } else if (tableName === 'users') {
+        queryBuilder.select.mockReturnValue(queryBuilder);
+        queryBuilder.first.mockResolvedValue({ email: 'demo.us@example.com' });
+      } else {
+        queryBuilder.first.mockResolvedValue(undefined);
+        queryBuilder.select.mockResolvedValue([]);
+        queryBuilder.delete.mockResolvedValue(0);
+      }
+
+      return queryBuilder;
+    });
+
+    await createDemoCompaniesAndUsers(mockTransaction);
+
+    expect(vi.mocked(reconcileCompanyWorkspace)).toHaveBeenCalled();
+    expect(vi.mocked(provisionCompanyWorkspace)).not.toHaveBeenCalled();
+  });
+
   test('should handle accounting firm metadata', async () => {
     const mockTransaction = createMockTransaction();
 
     await createDemoCompaniesAndUsers(mockTransaction);
 
-    // Should query accounting_firms_meta table
-    expect(mockTransaction).toHaveBeenCalledWith('accounting_firms_meta');
+    // Accounting firm should be provisioned with its slug
+    expect(provisionCompanyWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        policy: { kind: 'demo' },
+        company: expect.objectContaining({
+          type: 'accounting_firm',
+          slug: 'us-demo',
+        }),
+      }),
+    );
   });
 
   test('should handle empty companies list', async () => {

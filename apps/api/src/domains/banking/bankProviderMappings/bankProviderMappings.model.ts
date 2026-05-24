@@ -4,12 +4,7 @@ import axios from 'axios';
 import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
-import {
-  logDatabaseOperation,
-  logError,
-  logger,
-  logTiming,
-} from '../../../shared/utils/logger.js';
+import { logger } from '../../../shared/utils/logger.js';
 import { retryAxios } from '../../../shared/utils/random.utils.js';
 import {
   errorResponse,
@@ -84,11 +79,14 @@ export async function createBankProviderMappings({
         }
       }
 
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'createBankProviderMappings',
-        userId,
-        recordCount: toInsert.length,
-      });
+      logger.error(
+        {
+          err: error instanceof Error ? error : new Error(String(error)),
+          userId,
+          recordCount: toInsert.length,
+        },
+        'createBankProviderMappings failed',
+      );
 
       return errorResponse<{ id: string }[]>(
         'Failed to create bank provider mapping(s)',

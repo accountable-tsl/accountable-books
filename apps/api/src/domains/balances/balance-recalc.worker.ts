@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
-import pino from 'pino';
 
 import { ENV } from '../../config/env.js';
 import { redis } from '../../lib/redis.js';
+import { runWithJobContext } from '../../shared/telemetry/request-context.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import {
   bankBalanceJobDataSchema,
   glBalanceJobDataSchema,
@@ -18,7 +19,10 @@ import type {
   GLBalanceJobData,
 } from './balance-recalc.queue.js';
 
-const logger = pino();
+const logger = getLogger({
+  component: 'balance-recalc-worker',
+  processSource: 'worker',
+});
 
 /**
  * Balance recalculation worker
@@ -254,7 +258,7 @@ async function processBankBalance(
 export function startBalanceRecalcWorker(): Worker<BalanceJobData> {
   const worker = new Worker<BalanceJobData>(
     'balance-recalc',
-    processBalanceRecalcJob,
+    (job) => runWithJobContext(job, () => processBalanceRecalcJob(job)),
     BALANCE_RECALC_WORKER_OPTIONS,
   );
 

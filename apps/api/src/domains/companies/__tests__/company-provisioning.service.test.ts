@@ -16,7 +16,12 @@ import {
   ensureWorkspaceRoleGrant,
   insertCompanyRecord,
   provisionCompanyWorkspace,
+  reconcileCompanyWorkspace,
 } from '../company-provisioning.service.js';
+import {
+  VEYRA_NG_PARTNER_SLUG,
+  VEYRA_US_PARTNER_SLUG,
+} from '../workspace-bootstrap.config.js';
 
 /** Lowercase letters only — firm slugs reject digits (see isValidFirmSlug). */
 function randomFirmSlug(): string {
@@ -52,6 +57,17 @@ function buildCompanyInput(overrides: Record<string, unknown> = {}): {
     workspace_class: 'customer',
     ...overrides,
   };
+}
+
+async function getAssignedFirmSlug(
+  trx: Knex.Transaction,
+  assignedFirmId: string,
+): Promise<string | null> {
+  const firmMeta = await trx('accounting_firms_meta')
+    .where({ company_id: assignedFirmId })
+    .first<{ slug: string | null }>('slug');
+
+  return firmMeta?.slug ?? null;
 }
 
 describe('company-provisioning.service', () => {
@@ -171,7 +187,7 @@ describe('company-provisioning.service', () => {
       trx,
       companyId: company.id,
       actorUserId: userId,
-      strategy: 'default_platform',
+      strategy: 'default',
     });
 
     const firstBilling = await ensureCompanyBilling({
@@ -283,14 +299,73 @@ describe('company-provisioning.service', () => {
       })
       .first();
 
-    expect(result.assignment.assignedFirmId).toBeTruthy();
-    expect(result.assignment.assignedFirmId).not.toBe(result.company.id);
-    expect(result.billing?.commercialMode).toBe('self_serve');
-    expect(billingContext?.commercialMode).toBe('self_serve');
+    expect(
+      await getAssignedFirmSlug(trx, result.assignment.assignedFirmId),
+    ).toBe(VEYRA_US_PARTNER_SLUG);
+    expect(result.billing?.commercialMode).toBe('firm_managed');
+    expect(billingContext?.commercialMode).toBe('firm_managed');
     expect(result.chartOfAccounts.mode).toBe('default');
     expect(result.roleGrant.action).toBe('created');
-    expect(result.sideEffects.skipped).toBe(true);
+    expect(result.pendingSideEffects.mode === 'skip_jobs').toBe(true);
     expect(Number(settingsCount?.count ?? 0)).toBeGreaterThan(0);
+    expect(role).toBeTruthy();
+  });
+
+  it('provisions a demo workspace end to end through the unified policy', async () => {
+    const result = await provisionCompanyWorkspace({
+      trx,
+      actorUserId: userId,
+      ownerUserId: userId,
+      billingEmail: 'demo-provision@example.com',
+      policy: { kind: 'demo' },
+      company: {
+        ...buildCompanyInput({
+          created_by_id: userId,
+          short_code: `dw${randomUUID().slice(0, 8)}`,
+          workspace_class: 'demo',
+        }),
+        skip_side_effects: true,
+      },
+    });
+
+    const persistedCompany = await trx('companies')
+      .where({ id: result.company.id })
+      .select('workspace_class', 'assigned_firm_id')
+      .first<{
+        workspace_class: 'customer' | 'demo' | 'platform' | 'partner';
+        assigned_firm_id: string | null;
+      }>();
+    const billingContext = await resolveWorkspaceBillingContext(
+      result.company.id,
+      {
+        db: trx,
+      },
+    );
+    const role = await trx('user_company_roles')
+      .where({
+        company_id: result.company.id,
+        user_id: userId,
+        is_deleted: false,
+      })
+      .first();
+    const coaCount = await trx('coa')
+      .where({ company_id: result.company.id })
+      .count<{ count: string }>('* as count')
+      .first();
+
+    expect(result.company.workspace_class).toBe('demo');
+    expect(persistedCompany?.workspace_class).toBe('demo');
+    expect(
+      await getAssignedFirmSlug(trx, result.assignment.assignedFirmId),
+    ).toBe(VEYRA_US_PARTNER_SLUG);
+    expect(persistedCompany?.assigned_firm_id).toBe(
+      result.assignment.assignedFirmId,
+    );
+    expect(result.billing?.commercialMode).toBe('firm_managed');
+    expect(billingContext?.commercialMode).toBe('firm_managed');
+    expect(result.chartOfAccounts.mode).toBe('template');
+    expect(result.pendingSideEffects.mode === 'skip_jobs').toBe(true);
+    expect(Number(coaCount?.count ?? 0)).toBeGreaterThan(0);
     expect(role).toBeTruthy();
   });
 
@@ -330,8 +405,187 @@ describe('company-provisioning.service', () => {
     expect(result.billing?.commercialMode).toBe('firm_internal');
     expect(billingContext?.commercialMode).toBe('firm_internal');
     expect(result.roleGrant.action).toBe('created');
-    expect(result.sideEffects.skipped).toBe(true);
+    expect(result.pendingSideEffects.mode === 'skip_jobs').toBe(true);
     expect(meta).toBeTruthy();
+  });
+
+  it('routes auto-assigned Nigerian customer workspaces to the Nigerian partner firm', async () => {
+    const result = await provisionCompanyWorkspace({
+      trx,
+      actorUserId: userId,
+      ownerUserId: userId,
+      billingEmail: 'ng-routing@example.com',
+      policy: { kind: 'signup' },
+      company: {
+        ...buildCompanyInput({
+          created_by_id: userId,
+          country_code: 'NG',
+          reporting_currency_code: 'NGN',
+          short_code: `ng${randomUUID().slice(0, 8)}`,
+        }),
+        coa_mode: 'default',
+        skip_side_effects: true,
+      },
+    });
+
+    expect(
+      await getAssignedFirmSlug(trx, result.assignment.assignedFirmId),
+    ).toBe(VEYRA_NG_PARTNER_SLUG);
+  });
+
+  it('routes explicit default assignment to the platform workspace', async () => {
+    const company = await insertCompanyRecord({
+      trx,
+      company: buildCompanyInput({
+        created_by_id: userId,
+        short_code: `pd${randomUUID().slice(0, 8)}`,
+      }),
+    });
+
+    const assignment = await ensureCompanyFirmAssignment({
+      trx,
+      companyId: company.id,
+      actorUserId: userId,
+      strategy: 'default',
+    });
+
+    const platform = await trx('companies')
+      .where({ workspace_class: 'platform' })
+      .first<{ id: string }>('id');
+
+    expect(assignment.assignedFirmId).toBe(platform?.id);
+  });
+
+  it('provisions an accounting firm via signup policy (self-assigned, customer class, admin role)', async () => {
+    const slug = randomFirmSlug();
+    const result = await provisionCompanyWorkspace({
+      trx,
+      actorUserId: userId,
+      ownerUserId: userId,
+      billingEmail: 'firm-signup@example.com',
+      policy: { kind: 'signup' },
+      company: {
+        ...buildCompanyInput({
+          created_by_id: userId,
+          type: 'accounting_firm',
+          short_code: `sf${randomUUID().slice(0, 8)}`,
+          slug,
+        }),
+        skip_side_effects: true,
+      },
+    });
+
+    const meta = await trx('accounting_firms_meta')
+      .where({ company_id: result.company.id })
+      .first<{ slug: string }>();
+    const role = await trx('user_company_roles as ucr')
+      .join('roles as r', 'r.id', 'ucr.role_id')
+      .where({
+        'ucr.company_id': result.company.id,
+        'ucr.user_id': userId,
+        'ucr.is_deleted': false,
+      })
+      .select('r.key')
+      .first<{ key: string }>();
+
+    expect(result.company.workspace_class).toBe('customer');
+    expect(result.firmMeta?.slug).toBe(slug);
+    expect(result.assignment.assignedFirmId).toBe(result.company.id);
+    expect(meta?.slug).toBe(slug);
+    expect(role?.key).toBe('admin');
+    expect(result.pendingSideEffects.mode === 'skip_jobs').toBe(true);
+  });
+
+  it('reconciles a workspace idempotently (billing, CoA, settings, role not duplicated)', async () => {
+    const input = {
+      actorUserId: userId,
+      ownerUserId: userId,
+      billingEmail: 'reconcile@example.com',
+      policy: { kind: 'signup' as const },
+      company: {
+        ...buildCompanyInput({
+          created_by_id: userId,
+          short_code: `rc${randomUUID().slice(0, 8)}`,
+        }),
+        coa_mode: 'default' as const,
+        role_key: 'client_owner' as const,
+        skip_side_effects: true,
+      },
+    };
+
+    const provisioned = await provisionCompanyWorkspace({ trx, ...input });
+
+    const reconciled = await reconcileCompanyWorkspace({
+      trx,
+      companyId: provisioned.company.id,
+      ...input,
+    });
+
+    const coaCount = await trx('coa')
+      .where({ company_id: provisioned.company.id })
+      .count<{ count: string }>('* as count')
+      .first();
+    const settingsCount = await trx('company_settings')
+      .where({ company_id: provisioned.company.id })
+      .count<{ count: string }>('* as count')
+      .first();
+    const roleCount = await trx('user_company_roles')
+      .where({
+        company_id: provisioned.company.id,
+        user_id: userId,
+        is_deleted: false,
+      })
+      .count<{ count: string }>('* as count')
+      .first();
+
+    expect(reconciled.company.id).toBe(provisioned.company.id);
+    expect(reconciled.billing?.billingAccountId).toBe(
+      provisioned.billing?.billingAccountId,
+    );
+    expect(reconciled.chartOfAccounts.skipped).toBe(true);
+    expect(reconciled.roleGrant.action).toBe('no change');
+    expect(Number(coaCount?.count ?? 0)).toBeGreaterThan(0);
+    expect(Number(settingsCount?.count ?? 0)).toBeGreaterThan(0);
+    expect(Number(roleCount?.count ?? 0)).toBe(1);
+  });
+
+  // platform_bootstrap policy is intentionally not tested here: the unique partial index
+  // on workspace_class='platform' prevents inserting a second platform workspace while
+  // the bootstrapped one exists. Coverage lives in workspace-bootstrap.service.test.ts.
+
+  it('provisions a workspace with admin policy (behaves like signup)', async () => {
+    const result = await provisionCompanyWorkspace({
+      trx,
+      actorUserId: userId,
+      ownerUserId: userId,
+      billingEmail: 'admin-policy@example.com',
+      policy: { kind: 'admin' },
+      company: {
+        ...buildCompanyInput({
+          created_by_id: userId,
+          short_code: `ap${randomUUID().slice(0, 8)}`,
+        }),
+        coa_mode: 'default',
+        role_key: 'client_owner',
+        skip_side_effects: true,
+      },
+    });
+
+    const persistedCompany = await trx('companies')
+      .where({ id: result.company.id })
+      .select('workspace_class')
+      .first<{ workspace_class: string }>();
+    const billingContext = await resolveWorkspaceBillingContext(
+      result.company.id,
+      { db: trx },
+    );
+
+    expect(persistedCompany?.workspace_class).toBe('customer');
+    expect(result.assignment.assignedFirmId).toBeTruthy();
+    expect(result.assignment.assignedFirmId).not.toBe(result.company.id);
+    expect(billingContext?.commercialMode).toBe('firm_managed');
+    expect(result.roleGrant.action).toBe('created');
+    expect(result.pendingSideEffects.mode === 'skip_jobs').toBe(true);
   });
 
   it('keeps createCompany behavior compatible for current callers', async () => {
@@ -362,7 +616,7 @@ describe('company-provisioning.service', () => {
       .first();
 
     expect(persistedCompany?.assigned_firm_id).toBeTruthy();
-    expect(billingContext?.commercialMode).toBe('self_serve');
+    expect(billingContext?.commercialMode).toBe('firm_managed');
     expect(Number(settingsCount?.count ?? 0)).toBeGreaterThan(0);
   });
 });

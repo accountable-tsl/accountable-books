@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { knexClient } from '../../../db/knexClient.js';
 import { createBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
-import { logError, logger } from '../../../shared/utils/logger.js';
+import { logger } from '../../../shared/utils/logger.js';
 import {
   errorResponse,
   successResponse,
@@ -309,14 +309,6 @@ export class ConnectAccountsService {
     } catch (error: unknown) {
       log('transaction_failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
-      });
-
-      logError(error as Error, {
-        traceId,
-        companyId: params.companyId,
-        providerKey: params.providerKey,
-        operation: 'connectBankAccounts',
-        duration_ms: Date.now() - startTime,
       });
 
       const message =

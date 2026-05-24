@@ -1,10 +1,11 @@
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
-import pino from 'pino';
 
 import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import {
   AUTOPOST_QUEUE_NAME,
   autopostJobDataSchema,
@@ -14,7 +15,10 @@ import { postCandidateToLedger } from './autopost.service.js';
 import type { CandidateLineDraft } from '../candidates/candidates.types.js';
 import type { AutopostJobData } from './autopost.queue.js';
 
-const logger = pino({ name: 'autopost-worker' });
+const logger = getLogger({
+  component: 'autopost-worker',
+  processSource: 'worker',
+});
 
 /**
  * Autopost Worker
@@ -259,7 +263,7 @@ async function processAutopostJob(job: Job<AutopostJobData>) {
 export function startAutopostWorker(): Worker<AutopostJobData> {
   const worker = new Worker<AutopostJobData>(
     AUTOPOST_QUEUE_NAME,
-    processAutopostJob,
+    (job) => runWithJobContext(job, () => processAutopostJob(job)),
     AUTOPOST_WORKER_OPTIONS,
   );
 

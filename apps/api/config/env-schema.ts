@@ -231,7 +231,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ANALYTICS & MONITORING
   // ============================================================================
   MIXPANEL_TOKEN: {
-    description: 'Mixpanel analytics token',
+    description: 'Mixpanel analytics token (retire after PostHog cutover)',
     type: 'secret',
     required: false,
   },
@@ -247,6 +247,42 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Sentry release version',
     type: 'string',
     default: '0.0.0',
+  },
+
+  POSTHOG_API_KEY: {
+    description: 'PostHog server-side project API key',
+    type: 'secret',
+    required: false,
+  },
+
+  POSTHOG_HOST: {
+    description: 'PostHog ingestion host (EU cloud)',
+    type: 'url',
+    required: false,
+    local: 'https://eu.i.posthog.com',
+    staging: 'https://eu.i.posthog.com',
+    production: 'https://eu.i.posthog.com',
+  },
+
+  POSTHOG_ENABLED: {
+    description: 'Enable PostHog product analytics (server-side)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
+  },
+
+  TELEMETRY_ENABLED: {
+    description:
+      'Master switch for non-Sentry telemetry (PostHog, OTel traces)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
   },
 
   // ============================================================================
@@ -361,7 +397,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Test admin user ID (UUID)',
     type: 'string',
     required: false,
-    local: '018f7e5e-0000-0000-0000-000000000001',
+    local: '00000000-0000-4000-8000-000000000000',
   },
 
   TEST_ADMIN_EMAIL: {

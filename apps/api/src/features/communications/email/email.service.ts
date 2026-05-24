@@ -1,6 +1,6 @@
 import type { Transporter } from 'nodemailer';
 import nodemailer from 'nodemailer';
-import postmark from 'postmark';
+import { ServerClient as PostmarkServerClient } from 'postmark';
 
 import { ENV } from '../../../config/env.js';
 import { type ApiResponse } from '../../../core/types/api.types.js';
@@ -19,8 +19,7 @@ import {
   type TokenBasedEmailPayload,
 } from './email.types.js';
 
-// Union type for email sender - can be either nodemailer Transporter or Postmark ServerClient
-type EmailSender = Transporter | postmark.ServerClient;
+type EmailSender = Transporter | PostmarkServerClient;
 
 let emailSender: EmailSender | null = null;
 
@@ -52,7 +51,7 @@ async function createEmailSender(): Promise<EmailSender> {
       }
       console.log('📮 Using Postmark API client');
 
-      return new postmark.ServerClient(ENV.POSTMARK_API_KEY);
+      return new PostmarkServerClient(ENV.POSTMARK_API_KEY);
     }
 
     case 'ses':
@@ -82,10 +81,8 @@ async function getEmailSender() {
 }
 
 // Helper function to check if sender is Postmark client
-function isPostmarkClient(
-  sender: EmailSender,
-): sender is postmark.ServerClient {
-  return sender instanceof postmark.ServerClient;
+function isPostmarkClient(sender: EmailSender): sender is PostmarkServerClient {
+  return sender instanceof PostmarkServerClient;
 }
 
 export async function sendEmail(payload: EmailPayload) {

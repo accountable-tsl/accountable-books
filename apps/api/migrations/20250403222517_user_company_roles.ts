@@ -1,74 +1,10 @@
 import type { Knex } from 'knex';
 
-import { seedSystemUser } from './20250403184441_users.js';
-import { createPlatformCompany } from './20250403194332_companies.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db.js';
-
-export const assignAdminRole = async (knex: Knex) => {
-  const platformCompany = await createPlatformCompany(knex);
-
-  const role = await knex('roles').where('key', 'super_admin').first();
-  const roleId = role?.id;
-  if (!roleId) {
-    throw new Error('Admin role not found');
-  }
-
-  const existing = await knex(tableName)
-    .where({
-      user_id: platformCompany.created_by_id,
-      company_id: platformCompany.id,
-      role_id: roleId,
-    })
-    .first();
-
-  if (existing) {
-    console.log('Admin role already assigned to platform user.');
-    return;
-  }
-
-  await knex(tableName).insert({
-    user_id: platformCompany.created_by_id,
-    company_id: platformCompany.id,
-    role_id: roleId,
-    created_by_id: platformCompany.created_by_id,
-  });
-  console.log('Assigned admin role to platform company creator.');
-};
-export const assignSystemUserRole = async (knex: Knex) => {
-  const platformCompany = await createPlatformCompany(knex);
-  const systemAdminUser = await seedSystemUser(knex);
-
-  const role = await knex('roles').where('key', 'system_user').first();
-  const roleId = role?.id;
-  if (!roleId) {
-    throw new Error('System user role not found');
-  }
-
-  const existing = await knex(tableName)
-    .where({
-      user_id: systemAdminUser.id,
-      company_id: platformCompany.id,
-      role_id: roleId,
-    })
-    .first();
-
-  if (existing) {
-    console.log('System user role already assigned to platform user.');
-    return;
-  }
-
-  await knex(tableName).insert({
-    user_id: systemAdminUser.id,
-    company_id: platformCompany.id,
-    role_id: roleId,
-    created_by_id: platformCompany.created_by_id,
-  });
-  console.log('Assigned system user role to platform company creator.');
-};
 
 const tableName = 'user_company_roles';
 export async function up(knex: Knex): Promise<void> {
@@ -119,7 +55,6 @@ export async function up(knex: Knex): Promise<void> {
   `);
 
   await createUpdateTimestampTrigger(knex, tableName);
-  // await assignAdminRole(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

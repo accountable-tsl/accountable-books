@@ -2,22 +2,16 @@ import type { Knex } from 'knex';
 import * as Sentry from '@sentry/node';
 
 import { knexClient } from '../../db/knexClient.js';
-import { newAccFirm } from '../../domains/accountingFirms/firms.types.js';
-import { finalizeAccountingFirmBillingBootstrap } from '../../domains/billing/provisioning/provisioning.service.js';
-import { createCompany } from '../../domains/companies/companies.model.js';
 import {
   type CompanyType,
   type NewCompanyInput,
   type NewCompanyInputCamel,
 } from '../../domains/companies/companies.types.js';
 import {
-  ensureAccountingFirmMeta,
-  ensureCompanyChartOfAccounts,
-  ensureCompanyFirmAssignment,
+  provisionCompanyWorkspace,
+  runWorkspaceProvisioningSideEffects,
 } from '../../domains/companies/company-provisioning.service.js';
 import { isDemoWorkspace } from '../../domains/companies/workspace-class.js';
-import { type RoleKey } from '../../domains/roles/roles.types.js';
-import { grantDirectAccess } from '../../domains/user-roles/user-roles.model.js';
 import { createUserDirect } from '../../domains/users/users.model.js';
 import {
   type CreateUserResponse,
@@ -26,6 +20,7 @@ import {
 } from '../../domains/users/users.types.js';
 import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
 import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
+import { scrubForTelemetry } from '../../shared/telemetry/scrub.js';
 import { trackEvent } from '../../shared/utils/analytics.utils.js';
 import {
   camelToSnake,
@@ -49,28 +44,6 @@ import type {
   NewCompanyResCamel,
 } from './signup.types.js';
 
-/**
- * Registers a new user and company.
- *
- * @param knex - Knex instance
- * @param input - Object with user and company data
- * @returns ApiResponse
- *
- * This function will register a new user and company, and assign the company to the user.
- * If the company type is an accounting firm, it will also create an accounting_firm entity.
- * If the company type is not an accounting firm, it will not create an accounting_firm entity.
- * After the user and company are created, it will also assign a chart of accounts to the company.
- * If the company type is an accounting firm, it will load the default chart of accounts for the company.
- * If the company type is not an accounting firm, it will not load the default chart of accounts.
- * The function will also track events for the signup.
- *
- * If the input is invalid, the function will throw an error.
- * If the user or company creation fails, the function will throw an error.
- * If the accounting_firm creation fails, the function will throw an error.
- * If the chart of accounts assignment fails, the function will throw an error.
- *
- * @throws AppError
- */
 export const registerNewAccount = async (input: {
   user: NewUserInputCamel;
   company: NewCompanyInputCamel;
@@ -96,36 +69,11 @@ export const registerNewAccount = async (input: {
   // For firms, we use company data to create firm as well to ease onboarding
   const { user: userInput, company: companyInput } = validateInput.data;
 
-  // Begin signup transaction
-  // Once user is created, company is created & assigned to firm,
-  // Once this fn is successful, return successful, even if everything else fails
+  // Begin signup transaction: user + company provisioning are atomic.
+  // Post-transaction side effects (email, analytics) are best-effort and never block the response.
   const registerNewAccountFn = async (knex: Knex.Transaction) => {
-    const { user, company } = await createUserAndCompany(
-      knex,
-      userInput,
-      companyInput,
-    );
-
-    let firm;
-    // For an accounting firm, create accounting_firm
-    if (companyInput.type === 'accounting_firm') {
-      firm = await setupAccountingFirm(knex, {
-        companyId: company.id,
-        firmData: companyInput,
-      });
-
-      await finalizeAccountingFirmBillingBootstrap(company.id, {
-        billingEmail: user.email,
-        db: knex,
-      });
-    }
-
-    await attachChartOfAccounts(knex, {
-      companyUUID: company.id,
-      reportingCurrencyId: company.reporting_currency_id,
-      userId: user.id,
-      loadCoaTemplate: companyInput.load_coa_template,
-    });
+    const { user, company, firm, pendingSideEffects } =
+      await createUserAndCompany(knex, userInput, companyInput);
 
     const [{ count }] = (await knex('companies')
       .where('created_by_id', user.id)
@@ -137,6 +85,7 @@ export const registerNewAccount = async (input: {
       user,
       company: { ...company, totalCompaniesByUser: numericCount },
       firm,
+      pendingSideEffects,
     };
   };
 
@@ -158,7 +107,7 @@ export const registerNewAccount = async (input: {
       extra: {
         company_type: companyInput.type,
         method: 'direct',
-        input,
+        input: scrubForTelemetry(input),
       },
       tags: {
         flow: 'newUserSignup',
@@ -174,7 +123,9 @@ export const registerNewAccount = async (input: {
 
   // Run side effects outside transaction, best effort
   (async () => {
-    const { user, company: companyRes, firm } = result;
+    const { user, company: companyRes, firm, pendingSideEffects } = result;
+
+    await runWorkspaceProvisioningSideEffects(pendingSideEffects);
 
     try {
       await trackSignupEvents(
@@ -238,7 +189,16 @@ const createUserAndCompany = async (
   trx: Knex.Transaction,
   userInput: NewUserDirect,
   companyInput: NewCompanyInput,
-): Promise<{ user: CreateUserResponse; company: NewCompanyRes }> => {
+): Promise<{
+  user: CreateUserResponse;
+  company: NewCompanyRes;
+  firm?: { id: string; slug: string; firm_type: string | null };
+  pendingSideEffects: {
+    companyId: string;
+    userId: string;
+    mode: 'normal' | 'skip_jobs';
+  };
+}> => {
   const now = new Date();
 
   // Create user
@@ -261,133 +221,53 @@ const createUserAndCompany = async (
     );
   }
 
-  const platformFirm = await trx('accounting_firms_meta as af')
-    .join('companies as c', 'af.company_id', 'c.id')
-    .where('c.workspace_class', 'platform')
-    .first<{ company_id: string; slug: string }>();
-
-  if (!platformFirm) {
-    throw new AppError('Unable to retrieve platform firm');
-  }
-
-  const platformFirmId = platformFirm.company_id; // new PK
-  const platformFirmSlug = platformFirm.slug;
-
-  const { slug, ...restOfCompanyInput } = companyInput;
-  // Create company
-  const companyResponse = await createCompany({
+  const provisioned = await provisionCompanyWorkspace({
+    trx,
+    actorUserId: userResponse.data.id,
+    ownerUserId: userResponse.data.id,
+    billingEmail: userResponse.data.email,
+    policy: { kind: userInput.user_type === 'demo' ? 'demo' : 'signup' },
     company: {
-      ...restOfCompanyInput,
-      created_by_id: userResponse.data?.id,
-      assigned_firm_id: platformFirmId,
-      ...(restOfCompanyInput.workspace_class === 'demo'
+      ...companyInput,
+      created_by_id: userResponse.data.id,
+      ...(companyInput.workspace_class === 'demo'
         ? {
             onboarding_state: createCompleteCompanyOnboardingState(
-              restOfCompanyInput.type,
+              companyInput.type,
             ),
             onboarding_completed_at: now,
           }
         : {}),
     },
-    transaction: trx,
   });
 
-  if (!companyResponse.success || !companyResponse.data?.id) {
-    throw new AppError(`Company creation failed: ${companyResponse.error}`);
-  }
+  const assignedFirm = await trx('accounting_firms_meta')
+    .where({ company_id: provisioned.assignment.assignedFirmId })
+    .select('slug')
+    .first<{ slug: string | null }>();
 
-  // Assign role
-  const roleKey: RoleKey =
-    companyInput.type === 'accounting_firm' ? 'admin' : 'client_owner';
-  const assignRole = await grantDirectAccess({
-    trx,
-    userId: userResponse.data.id,
-    companyId: companyResponse.data.short_code,
-    roleKey,
-    grantedBy: userResponse.data.id,
-  });
-  if (!assignRole.success) {
-    throw new AppError(`Role assignment failed: ${assignRole.message}`);
+  if (!assignedFirm?.slug) {
+    throw new AppError(
+      `Managing firm slug not found for company ${provisioned.company.id}`,
+    );
   }
 
   const coy: NewCompanyRes = {
-    id: companyResponse.data.id,
-    ...companyResponse.data,
-    slug: platformFirmSlug,
+    ...provisioned.company,
+    slug: provisioned.firmMeta?.slug ?? assignedFirm.slug,
   };
   return {
     user: userResponse.data,
     company: coy,
+    firm: provisioned.firmMeta
+      ? {
+          id: provisioned.company.id,
+          slug: provisioned.firmMeta.slug,
+          firm_type: null,
+        }
+      : undefined,
+    pendingSideEffects: provisioned.pendingSideEffects,
   };
-};
-
-const setupAccountingFirm = async (
-  trx: Knex.Transaction,
-  {
-    companyId,
-    firmData,
-  }: {
-    companyId: string;
-    firmData: NewCompanyInput;
-  },
-) => {
-  // Validate Input
-  const firmInput = newAccFirm.safeParse({
-    ...firmData,
-    company_id: companyId,
-  });
-
-  // Check if validation succeeded
-  if (!firmInput.success || !firmInput.data) {
-    throw new AppError('Invalid input', firmInput.error.flatten());
-  }
-
-  const firmMeta = await ensureAccountingFirmMeta({
-    trx,
-    companyId,
-    actorUserId: firmData.created_by_id!,
-    meta: firmInput.data,
-  });
-
-  await ensureCompanyFirmAssignment({
-    trx,
-    companyId,
-    actorUserId: firmData.created_by_id!,
-    strategy: 'self',
-    allowReassignment: true,
-  });
-
-  return {
-    id: companyId,
-    slug: firmMeta.slug,
-    firm_type: firmInput.data.firm_type ?? null,
-  };
-};
-const attachChartOfAccounts = async (
-  trx: Knex.Transaction,
-  params: {
-    companyUUID: string;
-    userId: string;
-    reportingCurrencyId: string;
-    loadCoaTemplate?: boolean;
-  },
-): Promise<void> => {
-  const {
-    companyUUID,
-    userId,
-    reportingCurrencyId: _reportingCurrencyId,
-    loadCoaTemplate,
-  } = params;
-  try {
-    await ensureCompanyChartOfAccounts({
-      trx,
-      companyId: companyUUID,
-      userId,
-      mode: loadCoaTemplate === false ? 'default' : 'template',
-    });
-  } catch (error: any) {
-    throw new AppError('Failed to attach chart of accounts', error);
-  }
 };
 
 export const trackSignupEvents = async (

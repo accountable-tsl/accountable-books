@@ -2,7 +2,6 @@
 import '../config/env-loader.js';
 
 import * as Sentry from '@sentry/node';
-import pino from 'pino';
 
 import { ENV, NODE_ENV } from './config/env.js';
 import {
@@ -12,17 +11,10 @@ import {
 } from './jobs/workers/index.js';
 import { getRedisStats, initRedisMonitoring } from './lib/redis-monitor.js';
 import { initSentry } from './sentry.bootstrap.js';
+import { getLogger } from './shared/utils/logger.js';
 
 // Initialize logger
-const logger =
-  NODE_ENV === 'local'
-    ? pino({
-        transport: {
-          target: 'pino-pretty',
-          options: { colorize: true, singleLine: true },
-        },
-      })
-    : pino();
+const logger = getLogger({ component: 'worker', processSource: 'worker' });
 
 /**
  * Main worker process entry point
@@ -128,6 +120,6 @@ async function main() {
 
 // Start the worker process
 main().catch((error) => {
-  console.error('💥 Fatal error in worker process:', error);
+  logger.error({ error }, 'Fatal error in worker process');
   process.exit(1);
 });

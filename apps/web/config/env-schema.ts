@@ -47,7 +47,8 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
   // ANALYTICS & MONITORING
   // ============================================================================
   VITE_MIXPANEL_TOKEN: {
-    description: 'Mixpanel analytics token for frontend tracking',
+    description:
+      'Mixpanel analytics token for frontend tracking (retire after PostHog cutover)',
     type: 'string',
     required: false,
   },
@@ -56,6 +57,41 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
     description: 'Sentry error tracking DSN for frontend',
     type: 'url',
     required: false,
+  },
+
+  VITE_POSTHOG_KEY: {
+    description: 'PostHog project API key for browser SDK',
+    type: 'string',
+    required: false,
+  },
+
+  VITE_POSTHOG_HOST: {
+    description: 'PostHog ingestion host (EU cloud)',
+    type: 'url',
+    required: false,
+    local: 'https://eu.i.posthog.com',
+    staging: 'https://eu.i.posthog.com',
+    production: 'https://eu.i.posthog.com',
+  },
+
+  VITE_POSTHOG_ENABLED: {
+    description: 'Enable PostHog product analytics in browser',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
+  },
+
+  VITE_TELEMETRY_ENABLED: {
+    description: 'Master switch for browser telemetry (PostHog)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
   },
 
   // ============================================================================

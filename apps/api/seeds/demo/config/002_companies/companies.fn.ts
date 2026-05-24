@@ -1,10 +1,9 @@
 import type { Knex } from 'knex';
 
 import {
-  finalizeAccountingFirmBillingBootstrap,
-  provisionBillingForCompany,
-} from '../../../../src/domains/billing/provisioning/provisioning.service.js';
-import { initializeCompanySettings } from '../../../../src/domains/settings/settings.service.js';
+  provisionCompanyWorkspace,
+  reconcileCompanyWorkspace,
+} from '../../../../src/domains/companies/company-provisioning.service.js';
 import { COMPANY_TYPES } from '../../shared/config.js';
 import { getDemoUserMap, resolveFiltersToIds } from '../../shared/utils.js';
 import {
@@ -31,7 +30,6 @@ export const createDemoCompaniesAndUsers = async (
   filters?: DemoFilter,
 ) => {
   const companiesMap = generateDemoCompaniesMap(filters);
-  console.log('companiesMap', companiesMap.length);
 
   if (companiesMap.length === 0) {
     console.log('No companies to create based on filters');
@@ -50,16 +48,6 @@ export const createDemoCompaniesAndUsers = async (
     return userId;
   };
 
-  /**
-   * For each company,
-   * - insert company (idempotent)
-   * - if firm, insert accounting firm metadata (idempotent)
-   * - In client_firm_assignments table; Assign company to platform firm, if firm, assign to the company itself (the one just inserted)
-   * - Assign roles to user in user_company_roles table
-   * ----for firm, assign role with key 'admin'
-   * ----for others, assign role with key 'client_owner'
-
-   */
   const data = companiesMap.map((item) => {
     const c = item.company;
     const isFirm =
@@ -76,10 +64,11 @@ export const createDemoCompaniesAndUsers = async (
         year_end_day: 31,
         year_end_month: 12,
         accounting_basis: c.accountingBasis ?? 'modified_cash_basis',
-        reporting_framework: c.country.code === 'US' ? 'us_gaap' : 'ifrs',
+        reporting_framework:
+          c.country.code === 'US' ? ('us_gaap' as const) : ('ifrs' as const),
         onboarding_state: completeOnbState(c.companyType),
         onboarding_completed_at: new Date(),
-        workspace_class: 'demo',
+        workspace_class: 'demo' as const,
         country_id: c.country.id,
         reporting_currency_id: c.currency.id,
         created_by_id: getUserId(c.createdBy.email),
@@ -101,196 +90,52 @@ export const createDemoCompaniesAndUsers = async (
     };
   });
 
-  // Insert companies with idempotency (ignore conflicts on short_code)
-  const companiesToInsert = data.map((item) => item.c);
-  const insertedCompanies = await trx('companies')
-    .insert(companiesToInsert)
-    .onConflict(['short_code'])
-    .ignore()
-    .returning('*');
+  let insertedCount = 0;
+  let reconciledCount = 0;
 
-  // Get all companies (including existing ones) for further processing
-  const allShortCodes = companiesToInsert.map((c) => c.short_code);
-  const existingCompanies = await trx('companies')
-    .whereIn('short_code', allShortCodes)
-    .select('*');
-
-  // For accounting firms, insert metadata using the company ID (idempotent)
-  const firmMetadataToInsert = data
-    .map((item) => {
-      const company = existingCompanies.find(
-        (c) => c.short_code === item.c.short_code,
-      );
-      return { item, companyId: company?.id };
-    })
-    .filter(({ item, companyId }) => 'f' in item && companyId)
-    .map(({ item, companyId }) => ({
-      company_id: companyId,
-      slug: (item as any).f.slug,
-    }));
-
-  if (firmMetadataToInsert.length > 0) {
-    await trx('accounting_firms_meta')
-      .insert(firmMetadataToInsert)
-      .onConflict(['company_id'])
-      .ignore();
-  }
-
-  // Get platform firm (first accounting firm in the system)
-  const platformFirm = await trx('companies')
-    .join(
-      'accounting_firms_meta',
-      'companies.id',
-      'accounting_firms_meta.company_id',
-    )
-    .where('companies.workspace_class', 'platform')
-    .first();
-
-  // Get role IDs for admin and client_owner
-  const roles = await trx('roles')
-    .whereIn('key', ['admin', 'client_owner'])
-    .select('id', 'key');
-
-  const roleMap = new Map(roles.map((r) => [r.key, r.id]));
-
-  // Assign companies to platform firm and set up user roles (idempotent)
-  const clientFirmAssignments: any[] = [];
-  const userCompanyRoles: any[] = [];
-
-  for (const company of existingCompanies) {
-    const originalCompany = data.find(
-      (d) => d.c.short_code === company.short_code,
-    );
-    if (!originalCompany) continue;
-
-    const isFirm = company.type === COMPANY_TYPES.ACCOUNTING_FIRM;
-
-    // Client firm assignments
-    if (isFirm) {
-      // Firm assigns itself
-      clientFirmAssignments.push({
-        client_company_id: company.id,
-        accounting_firm_company_id: company.id,
-        created_by_id: originalCompany.c.created_by_id,
-      });
-    } else if (platformFirm) {
-      // Other companies assign to platform firm
-      clientFirmAssignments.push({
-        client_company_id: company.id,
-        accounting_firm_company_id: platformFirm.id,
-        created_by_id: originalCompany.c.created_by_id,
-      });
-    }
-
-    // User company roles
-    const roleKey = isFirm ? 'admin' : 'client_owner';
-    const roleId = roleMap.get(roleKey);
-
-    if (roleId) {
-      userCompanyRoles.push({
-        user_id: originalCompany.c.created_by_id,
-        company_id: company.id,
-        role_id: roleId,
-        created_by_id: originalCompany.c.created_by_id,
-      });
-    }
-  }
-
-  // Insert client firm assignments (idempotent)
-  if (clientFirmAssignments.length > 0) {
-    await trx('client_firm_assignments')
-      .insert(clientFirmAssignments)
-      .onConflict(['client_company_id'])
-      .ignore();
-
-    // Update assigned_firm_id for each company after successful client-firm assignment
-    for (const assignment of clientFirmAssignments) {
-      await trx('companies')
-        .where({ id: assignment.client_company_id })
-        .update({ assigned_firm_id: assignment.accounting_firm_company_id });
-    }
-  }
-
-  // Insert user company roles (idempotent)
-  if (userCompanyRoles.length > 0) {
-    await trx('user_company_roles')
-      .insert(userCompanyRoles)
-      .onConflict()
-      .ignore();
-  }
-
-  const companiesForBilling = [...existingCompanies].sort((a, b) => {
-    if (
-      a.type === COMPANY_TYPES.ACCOUNTING_FIRM &&
-      b.type !== COMPANY_TYPES.ACCOUNTING_FIRM
-    ) {
-      return -1;
-    }
-    if (
-      b.type === COMPANY_TYPES.ACCOUNTING_FIRM &&
-      a.type !== COMPANY_TYPES.ACCOUNTING_FIRM
-    ) {
-      return 1;
-    }
-    return 0;
-  });
-
-  for (const company of companiesForBilling) {
-    const originalCompany = data.find(
-      (d) => d.c.short_code === company.short_code,
-    );
-    if (!originalCompany) continue;
+  for (const item of data) {
+    const existing = await trx('companies')
+      .where({ short_code: item.c.short_code })
+      .first<{ id: string }>('id');
 
     const creator = await trx('users')
-      .where({ id: originalCompany.c.created_by_id })
+      .where({ id: item.c.created_by_id })
       .select('email')
       .first<{ email: string }>();
+
     if (!creator?.email) {
       throw new Error(
-        `Demo user email not found for company ${company.short_code}`,
+        `Demo user email not found for company ${item.c.short_code}`,
       );
     }
-    const billingEmail = creator.email;
 
-    if (company.type === COMPANY_TYPES.ACCOUNTING_FIRM) {
-      await finalizeAccountingFirmBillingBootstrap(company.id, {
-        billingEmail,
-        db: trx,
+    const provisioningInput = {
+      trx,
+      actorUserId: item.c.created_by_id,
+      ownerUserId: item.c.created_by_id,
+      billingEmail: creator.email,
+      policy: { kind: 'demo' } as const,
+      company: {
+        ...item.c,
+        ...(item.f ? { slug: item.f.slug } : {}),
+        skip_side_effects: true,
+      },
+    };
+
+    if (existing?.id) {
+      await reconcileCompanyWorkspace({
+        ...provisioningInput,
+        companyId: existing.id,
       });
+      reconciledCount++;
     } else {
-      await provisionBillingForCompany(company.id, {
-        billingEmail,
-        db: trx,
-      });
-    }
-    console.log(`Billing provisioned: ${company.short_code}`);
-  }
-
-  // Initialize default settings for all created/existing companies
-  for (const company of existingCompanies) {
-    const originalCompany = data.find(
-      (d) => d.c.short_code === company.short_code,
-    );
-    if (!originalCompany) continue;
-
-    try {
-      await initializeCompanySettings({
-        companyId: company.id,
-        userId: originalCompany.c.created_by_id,
-        trx,
-      });
-      console.log(`Settings initialized: ${company.short_code}`);
-    } catch (error) {
-      console.warn(
-        `Settings init failed for ${company.short_code} (non-critical):`,
-        error,
-      );
-      // Continue with other companies
+      await provisionCompanyWorkspace(provisioningInput);
+      insertedCount++;
     }
   }
 
   console.log(
-    `Companies processed: ${insertedCompanies.length} inserted, ${existingCompanies.length - insertedCompanies.length} already existed`,
+    `Companies processed: ${insertedCount} inserted, ${reconciledCount} reconciled`,
   );
 };
 

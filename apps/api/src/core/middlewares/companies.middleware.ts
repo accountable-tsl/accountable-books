@@ -2,6 +2,7 @@ import { type NextFunction, type Response } from 'express';
 
 import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
 import { getAccessibleCompaniesForUser } from '../../domains/user-roles/user-roles.model.js';
+import { updateRequestContext } from '../../shared/telemetry/request-context.js';
 import {
   AppError,
   ErrorCode,
@@ -113,6 +114,7 @@ export const checkCompanyId = async (
       uuid: companyUuid,
       shortCode: companyShortCode,
     };
+    updateRequestContext({ companyId: companyUuid });
 
     next();
   } catch (error: unknown) {

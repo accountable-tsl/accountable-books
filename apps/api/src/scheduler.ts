@@ -2,24 +2,19 @@
 import '../config/env-loader.js';
 
 import * as Sentry from '@sentry/node';
-import pino from 'pino';
 
 import { ENV, NODE_ENV } from './config/env.js';
 import { startAllSchedules } from './jobs/schedule-registry.js';
 import { getJobSchedules } from './jobs/schedules.js';
 import { getRedisStats, initRedisMonitoring } from './lib/redis-monitor.js';
 import { initSentry } from './sentry.bootstrap.js';
+import { getLogger } from './shared/utils/logger.js';
 
 // Initialize logger
-const logger =
-  NODE_ENV === 'local'
-    ? pino({
-        transport: {
-          target: 'pino-pretty',
-          options: { colorize: true, singleLine: true },
-        },
-      })
-    : pino();
+const logger = getLogger({
+  component: 'scheduler',
+  processSource: 'scheduler',
+});
 
 /**
  * Scheduler process entry point
@@ -126,6 +121,6 @@ async function main() {
 
 // Start the scheduler process
 main().catch((error) => {
-  console.error('💥 Fatal error in scheduler process:', error);
+  logger.error({ error }, 'Fatal error in scheduler process');
   process.exit(1);
 });

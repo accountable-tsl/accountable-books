@@ -22,7 +22,10 @@ import { taskEvaluationQueue } from '../domains/tasks/task-evaluation.queue.js';
 import { startTaskEvaluationWorker } from '../domains/tasks/task-evaluation.worker.js';
 import { emailQueue } from '../features/communications/email/email.queue.js';
 import { startEmailWorker } from '../features/communications/email/index.js';
-import { startTransactionSyncWorker } from '../integrations/banking/index.js';
+import {
+  closeTransactionSyncScheduler,
+  startTransactionSyncWorker,
+} from '../integrations/banking/index.js';
 import { transactionSyncQueue } from '../integrations/banking/jobs/transaction-sync.queue.js';
 import { partitionMaintenanceQueue } from './queues/partition-maintenance.queue.js';
 import { startPartitionMaintenanceWorker } from './workers/partition-maintenance.worker.js';
@@ -31,6 +34,8 @@ export interface JobDefinition {
   name: string;
   queue: Queue;
   factory: (concurrency?: number) => Worker;
+  /** Extra async cleanup called by stopAllWorkers after worker.close() */
+  teardown?: () => Promise<void>;
   label: string;
   icon?: string;
   critical?: boolean;
@@ -57,6 +62,7 @@ export const JOB_REGISTRY: JobDefinition[] = [
     name: 'transactionSync',
     queue: transactionSyncQueue,
     factory: (concurrency) => startTransactionSyncWorker(concurrency),
+    teardown: closeTransactionSyncScheduler,
     label: 'Transaction sync worker',
     icon: '💳',
     critical: true,

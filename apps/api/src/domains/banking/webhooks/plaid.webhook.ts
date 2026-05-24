@@ -5,7 +5,7 @@ import express, { Router } from 'express';
 import { transactionSyncQueue } from '../../../integrations/banking/index.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
-import { logError, logger } from '../../../shared/utils/logger.js';
+import { logger } from '../../../shared/utils/logger.js';
 
 const router = Router();
 
@@ -116,11 +116,13 @@ router.post(
 
       log('completed', {});
     } catch (error) {
-      logError(error as Error, {
-        message: 'Plaid webhook processing failed',
-        traceId,
-        body: req.body,
-      });
+      logger.error(
+        {
+          err: error instanceof Error ? error : new Error(String(error)),
+          traceId,
+        },
+        'Plaid webhook processing failed',
+      );
 
       // Still return 200 to prevent Plaid from retrying
       res.status(200).json({ received: true, error: true });

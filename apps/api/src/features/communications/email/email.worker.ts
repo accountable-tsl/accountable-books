@@ -2,6 +2,8 @@ import { Worker } from 'bullmq';
 
 import { ENV } from '../../../config/env.js';
 import { redis } from '../../../lib/redis.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import {
   getUserInviteTemplate,
   getVerifyEmailTemplate,
@@ -14,6 +16,10 @@ import {
 
 const baseUrl = ENV.BACKEND_URL;
 if (!redis) throw new Error('Missing redis connection');
+const logger = getLogger({
+  component: 'email-worker',
+  processSource: 'worker',
+});
 
 // Optimized worker settings to reduce Redis polling by 95%+
 const EMAIL_WORKER_OPTIONS = {
@@ -78,36 +84,30 @@ async function processEmailJob(job: any) {
 
 // Worker startup function
 export function startEmailWorker() {
-  const worker = new Worker('email', processEmailJob, EMAIL_WORKER_OPTIONS);
+  const worker = new Worker(
+    'email',
+    (job) => runWithJobContext(job, () => processEmailJob(job)),
+    EMAIL_WORKER_OPTIONS,
+  );
 
   // Logging for observability
   worker.on('completed', (job) => {
-    console.log(`Email job ${job.id} completed`);
+    logger.info({ jobId: job.id, jobName: job.name }, 'Email job completed');
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`Email job ${job?.id} failed: ${err.message}`);
+    logger.error(
+      { jobId: job?.id, jobName: job?.name, error: err },
+      'Email job failed',
+    );
   });
 
   worker.on('ready', () => {
-    console.log('Email worker ready with optimized Redis settings');
+    logger.info('Email worker ready with optimized Redis settings');
   });
 
   worker.on('error', (err) => {
-    console.error('Email worker error:', err);
-  });
-
-  // Graceful shutdown handling
-  process.on('SIGTERM', async () => {
-    console.log('Shutting down email worker...');
-    await worker.close();
-    process.exit(0);
-  });
-
-  process.on('SIGINT', async () => {
-    console.log('Shutting down email worker...');
-    await worker.close();
-    process.exit(0);
+    logger.error({ error: err }, 'Email worker error');
   });
 
   return worker;
@@ -132,6 +132,6 @@ export function getEmailWorkerMetrics() {
 
 // Only start worker if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('Starting email worker directly...');
+  logger.info('Starting email worker directly');
   emailWorkerInstance = startEmailWorker();
 }

@@ -1,10 +1,11 @@
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
-import pino from 'pino';
 
 import { ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
+import { runWithJobContext } from '../../shared/telemetry/request-context.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import { getSystemUser } from '../users/users.model.js';
 import {
   JOURNAL_AUTO_REVERSAL_QUEUE_NAME,
@@ -14,7 +15,10 @@ import { reverseJournalRecord } from './journals.command.js';
 
 import type { JournalAutoReversalJobData } from './auto-reversal.queue.js';
 
-const logger = pino({ name: 'journal-auto-reversal-worker' });
+const logger = getLogger({
+  component: 'journal-auto-reversal-worker',
+  processSource: 'worker',
+});
 const PAGE_SIZE = 200;
 
 function extractApiErrorMessage(result: {
@@ -221,7 +225,7 @@ export function startJournalAutoReversalWorker(
 ): Worker {
   const worker = new Worker(
     JOURNAL_AUTO_REVERSAL_QUEUE_NAME,
-    processAutoReversalJob,
+    (job) => runWithJobContext(job, () => processAutoReversalJob(job)),
     {
       connection: redis,
       concurrency,

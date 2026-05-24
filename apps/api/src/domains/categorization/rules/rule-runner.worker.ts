@@ -2,20 +2,27 @@ import { Worker } from 'bullmq';
 
 import { ENV } from '../../../config/env.js';
 import { redis } from '../../../lib/redis.js';
-import { logger } from '../../../shared/index.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { RULE_RUNNER_QUEUE_NAME } from './rule-runner.queue.js';
 import { runRulesForEnrichedTransaction } from './rule-runner.service.js';
 
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
+
+const logger = getLogger({
+  component: 'rule-runner-worker',
+  processSource: 'worker',
+});
 
 export function startRuleRunnerWorker(
   concurrency = Number(ENV.RULE_RUNNER_CONCURRENCY ?? 5),
 ): Worker<TransactionEnrichedEventData> {
   const worker = new Worker<TransactionEnrichedEventData>(
     RULE_RUNNER_QUEUE_NAME,
-    async (job) => {
-      await runRulesForEnrichedTransaction(job.data);
-    },
+    (job) =>
+      runWithJobContext(job, async () => {
+        await runRulesForEnrichedTransaction(job.data);
+      }),
     {
       connection: redis,
       concurrency,

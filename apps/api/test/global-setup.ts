@@ -1,4 +1,6 @@
 import { closeTestDbConnection, setupTestDatabase } from '../config/test-db.js';
+import { knexClient } from '../src/db/knexClient.js';
+import { redis } from '../src/lib/redis.js';
 
 /**
  * Runs once per Vitest suite (main thread), ensuring migrations happen a single time
@@ -9,5 +11,7 @@ export default async function globalSetup() {
 
   return async () => {
     await closeTestDbConnection();
+    await knexClient.destroy();
+    await redis.quit();
   };
 }

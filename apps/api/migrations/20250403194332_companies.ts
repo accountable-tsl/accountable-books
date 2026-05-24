@@ -1,78 +1,10 @@
 import type { Knex } from 'knex';
 
-import { ENV, isProd } from '../config/env-loader.js';
-import { adminUser } from './20250403184441_users.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db.js';
-
-const completeOnbState = {
-  steps: {
-    company_details_confirmed: true,
-    first_bank_account_added: true,
-  },
-  completed_at: {
-    company_details_confirmed: new Date(),
-    first_bank_account_added: new Date(),
-  },
-  metadata: null,
-};
-
-export const buildPlatformCompany = (adminUserId: string) => ({
-  id: ENV.PLATFORM_COMPANY_ID || 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-  legal_name: ENV.PLATFORM_COMPANY_NAME || 'Accountable Techserve Ltd',
-  display_name: 'Accountable HQ',
-  type: 'accounting_firm',
-  country_id: '84258bff-b7ab-4d9f-83f5-1bd1f4e39ace',
-  default_timezone: 'Africa/Lagos',
-  reporting_currency_id: '1d6a1e31-7e36-4eab-94e1-42f2173ea972',
-  created_by_id: adminUserId,
-  short_code: ENV.PLATFORM_COMPANY_SHORT_CODE || 'platform',
-  website: 'getaccountable.com',
-  year_end_day: 31,
-  year_end_month: 12,
-  reporting_framework: 'ifrs',
-  workspace_class: 'platform',
-  accounting_basis: 'modified_accrual_basis',
-  onboarding_state: completeOnbState,
-});
-
-export const createPlatformCompany = async (knex: Knex) => {
-  if (isProd && !process.env.CONFIRM_PLATFORM_SETUP) {
-    throw new Error(
-      'Must set CONFIRM_PLATFORM_SETUP=yes to create platform company',
-    );
-  }
-
-  if (!adminUser.id) throw new Error('adminUserId is required');
-  const platformCompany = buildPlatformCompany(adminUser.id);
-
-  return await knex.transaction(async (trx) => {
-    // Check if company exists
-    const existingPlatformCompany = await trx('companies')
-      .where({ id: platformCompany.id })
-      .first();
-
-    if (existingPlatformCompany) {
-      console.log('Platform company already exists. Skipping insert.');
-      return existingPlatformCompany;
-    }
-
-    if (!platformCompany.legal_name)
-      throw new Error('PLATFORM_COMPANY_NAME must be set');
-
-    if (platformCompany.type !== 'accounting_firm')
-      throw new Error('PLATFORM_COMPANY_TYPE must be set to accounting_firm');
-
-    const [inserted] = await knex(tableName)
-      .insert(platformCompany)
-      .returning('*');
-    console.log(`Created platform company: ${platformCompany.legal_name}`);
-    return inserted;
-  });
-};
 
 const tableName = 'companies';
 const WORKSPACE_CLASSES = ['customer', 'demo', 'platform', 'partner'];
@@ -169,7 +101,6 @@ export async function up(knex: Knex): Promise<void> {
     ADD CONSTRAINT companies_tz_chk
     CHECK (is_valid_iana_timezone(default_timezone));
   `);
-  // await createPlatformCompany(knex);
 
   // Update last_active_company_id column in users table
   await knex.schema.alterTable('users', (table) => {

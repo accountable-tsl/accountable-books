@@ -156,6 +156,7 @@ export const seedSystemUser = async (knex: Knex) => {
         firstname: 'System',
         lastname: 'User',
         email: systemUserEmail,
+        user_type: 'system',
         password: await bcrypt.hash('system', 12),
         email_verified_at: new Date(),
         onboarding_state: completeOnbState,

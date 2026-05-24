@@ -7,7 +7,7 @@ export const VEYRA_NG_COMPANY_ID =
   process.env.VEYRA_NG_COMPANY_ID ?? '8a7b6c5d-4e3f-2a1b-9c0d-1e2f3a4b5c6d';
 
 export const VEYRA_US_COMPANY_ID =
-  process.env.VEYRA_US_COMPANY_ID ?? '9b8c7d6e-5f4a-3b2c-0d1e-2f3a4b5c6d7e';
+  process.env.VEYRA_US_COMPANY_ID ?? '9b8c7d6e-5f4a-4b2c-9d1e-2f3a4b5c6d7e';
 
 export const VEYRA_COUNTRY_IDS = {
   NG: '84258bff-b7ab-4d9f-83f5-1bd1f4e39ace',
@@ -18,8 +18,6 @@ export const VEYRA_CURRENCY_IDS = {
   NGN: '1d6a1e31-7e36-4eab-94e1-42f2173ea972',
   USD: 'f3a1b0b1-c658-4af8-b5d0-b93467829a4d',
 } as const;
-
-export const VEYRA_COA_TEMPLATE = 'acc:prof:basic:code:v1';
 
 export type VeyraAdvisoryFirmSeed = {
   id: string;

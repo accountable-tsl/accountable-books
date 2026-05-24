@@ -2,11 +2,17 @@ import { Worker } from 'bullmq';
 
 import { ENV } from '../../../config/env.js';
 import { redis } from '../../../lib/redis.js';
-import { logger } from '../../../shared/index.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { ML_PREDICTION_QUEUE_NAME } from './ml-prediction.queue.js';
 import { processMLPrediction } from './ml-prediction.service.js';
 
 import type { MLPredictionJobData } from './ml-prediction.types.js';
+
+const logger = getLogger({
+  component: 'ml-prediction-worker',
+  processSource: 'worker',
+});
 
 /**
  * Start the ML prediction worker
@@ -24,9 +30,10 @@ export function startMLPredictionWorker(
 ): Worker<MLPredictionJobData> {
   const worker = new Worker<MLPredictionJobData>(
     ML_PREDICTION_QUEUE_NAME,
-    async (job) => {
-      await processMLPrediction(job.data);
-    },
+    (job) =>
+      runWithJobContext(job, async () => {
+        await processMLPrediction(job.data);
+      }),
     {
       connection: redis,
       concurrency,

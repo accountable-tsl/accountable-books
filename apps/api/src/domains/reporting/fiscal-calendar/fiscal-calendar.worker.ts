@@ -5,8 +5,9 @@ import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import { acquireAdvisoryXactLockPair } from '../../../shared/services/advisoryLocks.service.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../../shared/utils/date.utils.js';
-import logger from '../../../shared/utils/logger.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { enqueueAutoExtend } from './fiscal-calendar.queue.js';
 import { fiscalCalendarService } from './fiscal-calendar.service.js';
 
@@ -17,6 +18,10 @@ import type {
 
 const WORKER_CONCURRENCY = Number(ENV.FISCAL_CALENDAR_CONCURRENCY) || 3;
 const PAGE_SIZE = 200;
+const logger = getLogger({
+  component: 'fiscal-calendar-worker',
+  processSource: 'worker',
+});
 
 const DEFAULT_PERIOD_TYPES: FiscalPeriodType[] = [
   'monthly',
@@ -266,7 +271,7 @@ export function startFiscalCalendarWorker(
 ): Worker {
   const worker = new Worker<FiscalCalendarJobData>(
     'fiscal-calendar',
-    processFiscalCalendarJob,
+    (job) => runWithJobContext(job, () => processFiscalCalendarJob(job)),
     {
       connection: redis,
       concurrency,

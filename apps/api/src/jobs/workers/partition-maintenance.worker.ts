@@ -7,6 +7,8 @@ import {
   ensureYearPartition,
   runPartitionMaintenance,
 } from '../../shared/services/partitionManagement.service.js';
+import { runWithJobContext } from '../../shared/telemetry/request-context.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import { type PartitionMaintenanceJobData } from '../queues/partition-maintenance.queue.js';
 
 /**
@@ -18,28 +20,32 @@ import { type PartitionMaintenanceJobData } from '../queues/partition-maintenanc
  * don't exist during data insertion.
  */
 
+const logger = getLogger({
+  component: 'partition-maintenance-worker',
+  processSource: 'worker',
+});
+
 async function processPartitionMaintenanceJob(
   job: Job<PartitionMaintenanceJobData>,
 ) {
   const { type, tableName, year, options } = job.data;
 
-  console.log(`🗂️  Processing partition maintenance job: ${type}`, {
-    tableName,
-    year,
-    options,
-  });
+  logger.info(
+    { type, tableName, year, options, jobId: job.id },
+    'Processing partition maintenance job',
+  );
 
   try {
     switch (type) {
       case 'smart_maintenance':
         await runPartitionMaintenance(options);
-        console.log('✅ Smart partition maintenance completed');
+        logger.info('Smart partition maintenance completed');
         break;
 
       case 'drain_defaults':
         await drainDefaultPartition('bank_transactions');
         await drainDefaultPartition('ledger_entries');
-        console.log('✅ Default partition draining completed');
+        logger.info('Default partition draining completed');
         break;
 
       case 'manual_year_creation':
@@ -47,16 +53,17 @@ async function processPartitionMaintenanceJob(
           throw new Error('Manual year creation requires tableName and year');
         }
         await ensureYearPartition(tableName, year);
-        console.log(
-          `✅ Manual partition created for ${tableName} year ${year}`,
-        );
+        logger.info({ tableName, year }, 'Manual partition created');
         break;
 
       default:
         throw new Error(`Unknown partition maintenance job type: ${type}`);
     }
   } catch (error) {
-    console.error(`❌ Partition maintenance job failed (${type}):`, error);
+    logger.error(
+      { type, error, jobId: job.id },
+      'Partition maintenance job failed',
+    );
     throw error; // Re-throw to trigger retry logic
   }
 }
@@ -67,7 +74,7 @@ async function processPartitionMaintenanceJob(
 export function startPartitionMaintenanceWorker(): Worker {
   const worker = new Worker(
     'partition-maintenance',
-    processPartitionMaintenanceJob,
+    (job) => runWithJobContext(job, () => processPartitionMaintenanceJob(job)),
     {
       connection: redis,
       concurrency: 1, // Process partition maintenance jobs one at a time
@@ -80,33 +87,36 @@ export function startPartitionMaintenanceWorker(): Worker {
 
   // Worker event handlers
   worker.on('ready', () => {
-    console.log('🗂️  Partition maintenance worker is ready');
+    logger.info('Partition maintenance worker is ready');
   });
 
   worker.on('active', (job: Job<PartitionMaintenanceJobData>) => {
-    console.log(`🗂️  Processing partition job: ${job.data.type} (${job.id})`);
+    logger.info({ type: job.data.type, jobId: job.id }, 'Partition job active');
   });
 
   worker.on('completed', (job: Job<PartitionMaintenanceJobData>) => {
-    console.log(`✅ Partition job completed: ${job.data.type} (${job.id})`);
+    logger.info(
+      { type: job.data.type, jobId: job.id },
+      'Partition job completed',
+    );
   });
 
   worker.on(
     'failed',
     (job: Job<PartitionMaintenanceJobData> | undefined, err: Error) => {
-      console.error(
-        `❌ Partition job failed: ${job?.data.type} (${job?.id})`,
-        err,
+      logger.error(
+        { type: job?.data.type, jobId: job?.id, error: err },
+        'Partition job failed',
       );
     },
   );
 
   worker.on('stalled', (jobId: string) => {
-    console.warn(`⚠️  Partition job stalled: ${jobId}`);
+    logger.warn({ jobId }, 'Partition job stalled');
   });
 
   worker.on('error', (err: Error) => {
-    console.error('❌ Partition maintenance worker error:', err);
+    logger.error({ error: err }, 'Partition maintenance worker error');
   });
 
   return worker;

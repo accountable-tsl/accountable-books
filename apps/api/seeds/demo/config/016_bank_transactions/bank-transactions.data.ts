@@ -82,6 +82,7 @@ export type BankTransaction = {
   date: Date;
   amount: number;
   payee?: string;
+  contact_id?: string;
   description?: string;
   bank_account_id?: string;
   reference?: string;

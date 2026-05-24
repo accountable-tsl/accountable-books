@@ -53,6 +53,7 @@
 - [ ] When implementing payments, do not do stripe only. Make sure to have a fallback ready by default
 - [ ] Make sure we are not allowing users to add heavy files and where relevant necessary, don't load large or many files into memory
 - [ ] Agent that connects to the company's Slack or email to auto-generate journals from invoices, bills, etc., and add them here as drafts. Especially helpful for companies using accrual accounting.
+- [ ] AI Gateways with Reversible PII Redaction, Zero-Trust Access Controls for RAG
 
 ### LATER (Future Versions / Nice-to-Have)
 

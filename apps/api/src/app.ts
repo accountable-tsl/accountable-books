@@ -3,7 +3,6 @@ import cookieParser from 'cookie-parser';
 // Load env solely via config/env to avoid duplicate dotenv loads
 import cors from 'cors';
 import helmet from 'helmet';
-import pino from 'pino';
 import { pinoHttp } from 'pino-http';
 
 import { ENV, isDev, NODE_ENV } from './config/env.js';
@@ -47,22 +46,16 @@ import authRoutes from './features/auth/auth.routes.js';
 import onboardingRoutes from './features/onboarding/onboarding.routes.js';
 import signupRoutes from './features/signup/signup.routes.js';
 import { serverAdapter } from './lib/bullboard.js';
+import { requestContextMiddleware } from './shared/telemetry/request-context.js';
+import { logger } from './shared/utils/logger.js';
 
 export const FRONTEND_URL = ENV.FRONTEND_URL!;
 
 export const app = express();
-const logger = isDev
-  ? pino({
-      level: 'debug',
-      transport: {
-        target: 'pino-pretty',
-        options: { colorize: true, singleLine: false },
-      },
-    })
-  : pino();
 
 app.use(conditionalJsonParser());
 app.use(cookieParser());
+app.use(requestContextMiddleware);
 
 app.use(
   helmet({
@@ -74,6 +67,9 @@ app.use(
 app.use(
   pinoHttp({
     logger,
+    genReqId(req) {
+      return (req as typeof req & { id?: string }).id;
+    },
     redact: {
       paths: [
         'req.headers.authorization',

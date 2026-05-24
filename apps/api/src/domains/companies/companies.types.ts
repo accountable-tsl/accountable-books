@@ -90,7 +90,7 @@ export const newCompanyInput = z.object({
   year_end_day: z.coerce.number().optional(),
   year_end_month: z.coerce.number().optional(),
   created_by_id: z.uuid().optional(),
-  last_updated_by_id: z.uuid().optional(),
+  last_updated_by_id: z.uuid().nullish(),
   address: trimmedNullishString(512),
   logo_file_id: z.uuid().nullish(),
   description: trimmedNullishString(2000),

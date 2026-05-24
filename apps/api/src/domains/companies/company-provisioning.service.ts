@@ -11,8 +11,8 @@ import generateSecureShortCode, {
 } from '../../shared/utils/crypto.utils.js';
 import { logger } from '../../shared/utils/logger.js';
 import { AppError } from '../../shared/utils/response.utils.js';
-import { createAccountingFirm } from '../accountingFirms/firms.model.js';
 import { isReservedSlug, isValidSlug } from '../accountingFirms/firms.utils.js';
+import { resolvePartnerFirmForCompany } from '../accountingFirms/partner-firm.service.js';
 import { provisionBillingForCompany } from '../billing/provisioning/provisioning.service.js';
 import { loadCoaTemplateForCompany } from '../chart-of-accounts/coa-template.model.js';
 import { createDefaultAccounts } from '../chart-of-accounts/coa.model.js';
@@ -21,7 +21,6 @@ import {
   getCountryFromId,
 } from '../countries/countries.utils.js';
 import { getCurrency } from '../currencies/currencies.utils.js';
-import { enqueueFiscalCalendarGeneration } from '../reporting/fiscal-calendar/index.js';
 import { type RoleKey } from '../roles/roles.types.js';
 import { initializeCompanySettings } from '../settings/settings.service.js';
 import { upsertDirectCompanyRole } from '../user-roles/user-roles.model.js';
@@ -34,6 +33,10 @@ import {
   writeFirmAssignmentProvisioningAudit,
   writeWorkspaceRoleGrantProvisioningAudit,
 } from './company-provisioning.audit.js';
+import {
+  PLATFORM_COA_TEMPLATE,
+  VEYRA_COA_TEMPLATE,
+} from './workspace-provisioning.constants.js';
 
 import type { CompanyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import type { NewAccFirmInput } from '../accountingFirms/firms.types.js';
@@ -53,10 +56,18 @@ export type WorkspaceProvisioningPolicy =
   | { kind: 'demo' }
   | { kind: 'admin' };
 
+/**
+ * How to resolve the managing accounting firm for a workspace:
+ * - self: the workspace acts as its own managing firm
+ * - explicit: caller provides the firm ID directly via assignedFirmId
+ * - auto: system resolves the appropriate partner firm by jurisdiction, falling back to platform
+ * - default: explicitly assign to the platform workspace
+ */
 export type CompanyAssignmentStrategy =
+  | 'self'
   | 'explicit'
-  | 'default_platform'
-  | 'self';
+  | 'auto'
+  | 'default';
 export type CompanyCoaMode = 'template' | 'default';
 export type WorkspaceSideEffectMode = 'normal' | 'skip_jobs';
 
@@ -72,8 +83,16 @@ export type ProvisionCompanyWorkspaceInput = {
     firm_type?: NewAccFirmInput['firm_type'];
     role_key?: RoleKey;
     skip_side_effects?: boolean;
+    additional_role_grants?: Array<{
+      user_id: string;
+      role_key: RoleKey;
+    }>;
   };
   policy: WorkspaceProvisioningPolicy;
+};
+
+export type ReconcileCompanyWorkspaceInput = ProvisionCompanyWorkspaceInput & {
+  companyId: string;
 };
 
 export type EnsureAccountingFirmMetaInput = {
@@ -82,6 +101,7 @@ export type EnsureAccountingFirmMetaInput = {
   actorUserId: string;
   meta: NewAccFirmInput;
   allowUpdate?: boolean;
+  allowReservedSlug?: boolean;
 };
 
 export type EnsureCompanyFirmAssignmentInput = {
@@ -127,6 +147,33 @@ type ResolvedCompanyInsertInput = Omit<
   industry: string | null;
   last_updated_by_id: string;
 };
+
+type ProvisioningRoleGrant = {
+  userId: string;
+  roleKey: RoleKey;
+};
+
+type ResolvedProvisioningPlan = {
+  workspaceClass: WorkspaceClass;
+  assignmentStrategy: CompanyAssignmentStrategy;
+  roleKey: RoleKey;
+  sideEffectMode: WorkspaceSideEffectMode;
+  coaMode: CompanyCoaMode;
+  coaTemplateName?: string;
+  requireFirmMeta: boolean;
+  allowFirmMetaUpdate: boolean;
+  allowReservedSlug: boolean;
+  allowReassignment: boolean;
+  additionalRoleGrants: ProvisioningRoleGrant[];
+};
+
+const DEMO_BUSINESS_TEMPLATES = [
+  'biz:int_design:adv:code:v1',
+  'biz:int_design:adv:nocode:v1',
+  'biz:saas:basic:code:v1',
+  'biz:none:basic:nocode:v1',
+  'biz:saas:basic:nocode:v1',
+] as const;
 
 function resolveDefaultYearEnd(
   countryCode: string | undefined,
@@ -285,7 +332,9 @@ async function resolvePlatformFirmId(trx: Knex.Transaction): Promise<string> {
     .first<{ id: string }>();
 
   if (!firm?.id) {
-    throw new AppError('Company must be assigned to a firm');
+    throw new AppError(
+      'Platform workspace is required before assigning customer workspaces',
+    );
   }
 
   return firm.id;
@@ -309,6 +358,170 @@ async function loadProvisionedCompany(
   }
 
   return company;
+}
+
+async function loadCompanyRecord(
+  trx: Knex.Transaction,
+  companyId: string,
+): Promise<Company> {
+  const company = await trx('companies').where({ id: companyId }).first();
+
+  const parsed = companySchema.safeParse(company);
+  if (!parsed.success) {
+    throw new AppError(
+      `Failed to validate existing company ${companyId}`,
+      z.flattenError(parsed.error),
+      true,
+    );
+  }
+
+  return parsed.data;
+}
+
+function resolveSideEffectMode(
+  policy: WorkspaceProvisioningPolicy,
+  company: ProvisionCompanyWorkspaceInput['company'],
+): WorkspaceSideEffectMode {
+  if (company.skip_side_effects) {
+    return 'skip_jobs';
+  }
+
+  return policy.kind === 'demo' ||
+    policy.kind === 'platform_bootstrap' ||
+    policy.kind === 'system_seed'
+    ? 'skip_jobs'
+    : 'normal';
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function resolveDemoCoaTemplateName(
+  company: ProvisionCompanyWorkspaceInput['company'],
+): string {
+  if (company.type === 'individual') {
+    return 'ind:none:basic:nocode:v1';
+  }
+
+  if (company.type === 'accounting_firm') {
+    return VEYRA_COA_TEMPLATE;
+  }
+
+  const seed = company.short_code ?? company.legal_name;
+  return DEMO_BUSINESS_TEMPLATES[
+    hashString(seed) % DEMO_BUSINESS_TEMPLATES.length
+  ];
+}
+
+function resolveCoaTemplateName(
+  policy: WorkspaceProvisioningPolicy,
+  company: ProvisionCompanyWorkspaceInput['company'],
+): string | undefined {
+  if (company.coa_template_name) {
+    return company.coa_template_name;
+  }
+
+  if (policy.kind === 'platform_bootstrap') {
+    return PLATFORM_COA_TEMPLATE;
+  }
+
+  if (policy.kind === 'system_seed') {
+    return VEYRA_COA_TEMPLATE;
+  }
+
+  if (policy.kind === 'demo') {
+    return resolveDemoCoaTemplateName(company);
+  }
+
+  return undefined;
+}
+
+function resolveProvisioningPlan(
+  input: ProvisionCompanyWorkspaceInput,
+): ResolvedProvisioningPlan {
+  const { company, policy } = input;
+  const requireFirmMeta = company.type === 'accounting_firm';
+  const sideEffectMode = resolveSideEffectMode(policy, company);
+  const assignmentStrategy =
+    company.assignment_strategy ??
+    (company.type === 'accounting_firm' ? 'self' : 'auto');
+  const roleKey =
+    company.role_key ??
+    (company.type === 'accounting_firm' ? 'admin' : 'client_owner');
+  const coaMode =
+    company.coa_mode ??
+    (company.load_coa_template === false ? 'default' : 'template');
+  const coaTemplateName = resolveCoaTemplateName(policy, company);
+  const additionalRoleGrants =
+    company.additional_role_grants?.map((grant) => ({
+      userId: grant.user_id,
+      roleKey: grant.role_key,
+    })) ?? [];
+
+  switch (policy.kind) {
+    case 'platform_bootstrap':
+      return {
+        workspaceClass: 'platform',
+        assignmentStrategy: 'self',
+        roleKey: 'super_admin',
+        sideEffectMode,
+        coaMode: company.coa_mode ?? 'template',
+        coaTemplateName,
+        requireFirmMeta: true,
+        allowFirmMetaUpdate: true,
+        allowReservedSlug: true,
+        allowReassignment: true,
+        additionalRoleGrants,
+      };
+    case 'system_seed':
+      return {
+        workspaceClass: 'partner',
+        assignmentStrategy: 'self',
+        roleKey: 'admin',
+        sideEffectMode,
+        coaMode: company.coa_mode ?? 'template',
+        coaTemplateName,
+        requireFirmMeta: true,
+        allowFirmMetaUpdate: true,
+        allowReservedSlug: true,
+        allowReassignment: true,
+        additionalRoleGrants,
+      };
+    case 'demo':
+      return {
+        workspaceClass: 'demo',
+        assignmentStrategy,
+        roleKey,
+        sideEffectMode,
+        coaMode: company.coa_mode ?? 'template',
+        coaTemplateName,
+        requireFirmMeta,
+        allowFirmMetaUpdate: false,
+        allowReservedSlug: false,
+        allowReassignment: company.type === 'accounting_firm',
+        additionalRoleGrants,
+      };
+    case 'admin':
+    case 'signup':
+      return {
+        workspaceClass: company.workspace_class ?? 'customer',
+        assignmentStrategy,
+        roleKey,
+        sideEffectMode,
+        coaMode,
+        coaTemplateName,
+        requireFirmMeta,
+        allowFirmMetaUpdate: false,
+        allowReservedSlug: false,
+        allowReassignment: company.type === 'accounting_firm',
+        additionalRoleGrants,
+      };
+  }
 }
 
 export async function insertCompanyRecord({
@@ -339,6 +552,7 @@ export async function ensureAccountingFirmMeta({
   actorUserId,
   meta,
   allowUpdate = false,
+  allowReservedSlug = false,
 }: EnsureAccountingFirmMetaInput): Promise<{
   companyId: string;
   slug: string;
@@ -353,7 +567,7 @@ export async function ensureAccountingFirmMeta({
     throw new AppError('Invalid slug format');
   }
 
-  if (isReservedSlug(meta.slug)) {
+  if (!allowReservedSlug && isReservedSlug(meta.slug)) {
     throw new AppError('Slug is reserved');
   }
 
@@ -362,25 +576,20 @@ export async function ensureAccountingFirmMeta({
     .first<{ company_id: string; slug: string; firm_type: string | null }>();
 
   if (!existing) {
-    const response = await createAccountingFirm(trx, {
-      company_id: companyId,
-      slug: meta.slug,
-      firm_type: meta.firm_type,
-    });
-
-    if (!response.success || !response.data?.id) {
-      throw new AppError(
-        response.message || 'Failed to create accounting firm metadata',
-        response.error,
-      );
-    }
+    const [created] = await trx('accounting_firms_meta')
+      .insert({
+        company_id: companyId,
+        slug: meta.slug,
+        firm_type: meta.firm_type,
+      })
+      .returning(['company_id', 'slug']);
 
     await writeAccountingFirmMetaProvisioningAudit({
       companyId,
       entityId: companyId,
       actor: { type: 'user', userId: actorUserId },
       payload: {
-        slug: response.data.slug,
+        slug: created.slug,
         firmType: meta.firm_type ?? null,
         operation: 'created',
       },
@@ -389,7 +598,7 @@ export async function ensureAccountingFirmMeta({
 
     return {
       companyId,
-      slug: response.data.slug,
+      slug: created.slug,
       created: true,
       updated: false,
     };
@@ -456,9 +665,14 @@ export async function ensureCompanyFirmAssignment({
   const targetFirmId =
     strategy === 'self'
       ? companyId
-      : strategy === 'default_platform'
+      : strategy === 'default'
         ? await resolvePlatformFirmId(trx)
-        : assignedFirmId;
+        : strategy === 'auto'
+          ? ((await resolvePartnerFirmForCompany({
+              trx,
+              companyUUID: companyId,
+            })) ?? (await resolvePlatformFirmId(trx)))
+          : assignedFirmId;
 
   if (!targetFirmId) {
     throw new AppError('Company must be assigned to a firm');
@@ -711,6 +925,10 @@ export async function runWorkspaceProvisioningSideEffects({
   }
 
   try {
+    const { enqueueFiscalCalendarGeneration } = await import(
+      '../reporting/fiscal-calendar/index.js'
+    );
+
     await enqueueFiscalCalendarGeneration({
       type: 'generate-calendar',
       companyId,
@@ -734,86 +952,52 @@ export async function runWorkspaceProvisioningSideEffects({
   }
 }
 
-function resolveAssignmentStrategy(
-  company: ProvisionCompanyWorkspaceInput['company'],
-): CompanyAssignmentStrategy {
-  if (company.assignment_strategy) {
-    return company.assignment_strategy;
-  }
-
-  if (company.type === 'accounting_firm') {
-    return 'self';
-  }
-
-  if (company.assigned_firm_id) {
-    return 'explicit';
-  }
-
-  return 'default_platform';
-}
-
-function resolveRoleKey(
-  company: ProvisionCompanyWorkspaceInput['company'],
-): RoleKey {
-  return (
-    company.role_key ||
-    (company.type === 'accounting_firm' ? 'admin' : 'client_owner')
-  );
-}
-
-function resolveCoaMode(
-  company: ProvisionCompanyWorkspaceInput['company'],
-): CompanyCoaMode {
-  if (company.coa_mode) {
-    return company.coa_mode;
-  }
-
-  return company.load_coa_template === false ? 'default' : 'template';
-}
-
-export async function provisionCompanyWorkspace(
-  input: ProvisionCompanyWorkspaceInput,
-): Promise<{
-  company: Company;
-  policy: WorkspaceProvisioningPolicy;
-  assignment: { assignedFirmId: string; created: boolean; updated: boolean };
+type WorkspacePipelineResult = {
   firmMeta: {
     companyId: string;
     slug: string;
     created: boolean;
     updated: boolean;
   } | null;
+  assignment: { assignedFirmId: string; created: boolean; updated: boolean };
   billing: ProvisionBillingForCompanyResult | null;
   chartOfAccounts: { skipped: boolean; mode: CompanyCoaMode };
   roleGrant: GrantAccessResponse;
-  sideEffects: { skipped: boolean; enqueued: boolean };
-}> {
-  const company = await insertCompanyRecord({
-    trx: input.trx,
-    company: input.company,
-  });
+  additionalRoleGrants: GrantAccessResponse[];
+  pendingSideEffects: {
+    companyId: string;
+    userId: string;
+    mode: WorkspaceSideEffectMode;
+  };
+};
 
-  const firmMeta =
-    company.type === 'accounting_firm'
-      ? await ensureAccountingFirmMeta({
-          trx: input.trx,
-          companyId: company.id,
-          actorUserId: input.actorUserId,
-          meta: {
-            company_id: company.id,
-            slug: input.company.slug,
-            firm_type: input.company.firm_type ?? null,
-          },
-        })
-      : null;
+async function runWorkspacePipeline(
+  company: Company,
+  plan: ResolvedProvisioningPlan,
+  input: ProvisionCompanyWorkspaceInput,
+): Promise<WorkspacePipelineResult> {
+  const firmMeta = plan.requireFirmMeta
+    ? await ensureAccountingFirmMeta({
+        trx: input.trx,
+        companyId: company.id,
+        actorUserId: input.actorUserId,
+        meta: {
+          company_id: company.id,
+          slug: input.company.slug,
+          firm_type: input.company.firm_type ?? null,
+        },
+        allowReservedSlug: plan.allowReservedSlug,
+        allowUpdate: plan.allowFirmMetaUpdate,
+      })
+    : null;
 
   const assignment = await ensureCompanyFirmAssignment({
     trx: input.trx,
     companyId: company.id,
     actorUserId: input.actorUserId,
-    strategy: resolveAssignmentStrategy(input.company),
+    strategy: plan.assignmentStrategy,
     assignedFirmId: input.company.assigned_firm_id,
-    allowReassignment: input.company.type === 'accounting_firm',
+    allowReassignment: plan.allowReassignment,
   });
 
   const billing = await ensureCompanyBilling({
@@ -826,8 +1010,8 @@ export async function provisionCompanyWorkspace(
     trx: input.trx,
     companyId: company.id,
     userId: input.ownerUserId,
-    mode: resolveCoaMode(input.company),
-    templateName: input.company.coa_template_name,
+    mode: plan.coaMode,
+    templateName: plan.coaTemplateName,
   });
 
   await ensureCompanySettings({
@@ -840,24 +1024,88 @@ export async function provisionCompanyWorkspace(
     trx: input.trx,
     companyId: company.id,
     userId: input.ownerUserId,
-    roleKey: resolveRoleKey(input.company),
+    roleKey: plan.roleKey,
     grantedBy: input.actorUserId,
   });
 
-  const sideEffects = await runWorkspaceProvisioningSideEffects({
-    companyId: company.id,
-    userId: input.actorUserId,
-    mode: input.company.skip_side_effects ? 'skip_jobs' : 'normal',
+  const additionalRoleGrants: GrantAccessResponse[] = [];
+  for (const grant of plan.additionalRoleGrants) {
+    additionalRoleGrants.push(
+      await ensureWorkspaceRoleGrant({
+        trx: input.trx,
+        companyId: company.id,
+        userId: grant.userId,
+        roleKey: grant.roleKey,
+        grantedBy: input.actorUserId,
+      }),
+    );
+  }
+
+  return {
+    firmMeta,
+    assignment,
+    billing,
+    chartOfAccounts,
+    roleGrant,
+    additionalRoleGrants,
+    pendingSideEffects: {
+      companyId: company.id,
+      userId: input.actorUserId,
+      mode: plan.sideEffectMode,
+    },
+  };
+}
+
+export async function provisionCompanyWorkspace(
+  input: ProvisionCompanyWorkspaceInput,
+): Promise<
+  {
+    company: Company;
+    policy: WorkspaceProvisioningPolicy;
+  } & WorkspacePipelineResult
+> {
+  const plan = resolveProvisioningPlan(input);
+  if (plan.requireFirmMeta && !input.company.slug) {
+    throw new AppError(
+      'Accounting firm workspace provisioning requires a slug',
+    );
+  }
+
+  const company = await insertCompanyRecord({
+    trx: input.trx,
+    company: {
+      ...input.company,
+      workspace_class: plan.workspaceClass,
+    },
   });
 
   return {
     company,
     policy: input.policy,
-    assignment,
-    firmMeta,
-    billing,
-    chartOfAccounts,
-    roleGrant,
-    sideEffects,
+    ...(await runWorkspacePipeline(company, plan, input)),
+  };
+}
+
+export async function reconcileCompanyWorkspace(
+  input: ReconcileCompanyWorkspaceInput,
+): Promise<
+  {
+    company: Company;
+    policy: WorkspaceProvisioningPolicy;
+  } & WorkspacePipelineResult
+> {
+  const plan = resolveProvisioningPlan(input);
+  if (plan.requireFirmMeta && !input.company.slug) {
+    throw new AppError(
+      'Accounting firm workspace provisioning requires a slug',
+    );
+  }
+
+  const company = await loadCompanyRecord(input.trx, input.companyId);
+
+  return {
+    company,
+    policy: input.policy,
+    ...(await runWorkspacePipeline(company, plan, input)),
   };
 }

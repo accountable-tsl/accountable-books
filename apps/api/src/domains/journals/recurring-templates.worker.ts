@@ -1,9 +1,10 @@
 import type { Job } from 'bullmq';
 import { Worker } from 'bullmq';
-import pino from 'pino';
 
 import { ENV } from '../../config/env.js';
 import { redis } from '../../lib/redis.js';
+import { runWithJobContext } from '../../shared/telemetry/request-context.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import { processDueRecurringTemplates } from './recurring-templates.model.js';
 import {
   RECURRING_TEMPLATES_QUEUE_NAME,
@@ -12,7 +13,10 @@ import {
 
 import type { RecurringTemplatesJobData } from './recurring-templates.queue.js';
 
-const logger = pino({ name: 'recurring-templates-worker' });
+const logger = getLogger({
+  component: 'recurring-templates-worker',
+  processSource: 'worker',
+});
 
 async function processRecurringTemplatesJob(
   job: Job<RecurringTemplatesJobData>,
@@ -41,7 +45,7 @@ export function startRecurringTemplatesWorker(
 ): Worker {
   const worker = new Worker(
     RECURRING_TEMPLATES_QUEUE_NAME,
-    processRecurringTemplatesJob,
+    (job) => runWithJobContext(job, () => processRecurringTemplatesJob(job)),
     {
       connection: redis,
       concurrency,

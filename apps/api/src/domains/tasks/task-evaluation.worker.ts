@@ -1,15 +1,19 @@
 import { Job, Worker } from 'bullmq';
-import pino from 'pino';
 
 import { ENV } from '../../config/env.js';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
+import { runWithJobContext } from '../../shared/telemetry/request-context.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import { enqueueEvaluateClient } from './task-evaluation.queue.js';
 import { evaluateForClient } from './task-evaluation.service.js';
 
 import type { TaskEvaluationJobData } from './task-evaluation.queue.js';
 
-const logger = pino({ name: 'task-evaluation-worker' });
+const logger = getLogger({
+  component: 'task-evaluation-worker',
+  processSource: 'worker',
+});
 
 async function processJob(job: Job<TaskEvaluationJobData>): Promise<void> {
   const { data } = job;
@@ -66,7 +70,7 @@ export function startTaskEvaluationWorker(
 
   const worker = new Worker<TaskEvaluationJobData>(
     'task-evaluation',
-    processJob,
+    (job) => runWithJobContext(job, () => processJob(job)),
     {
       connection: redis,
       concurrency: c,

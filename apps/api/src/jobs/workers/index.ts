@@ -1,9 +1,16 @@
 import type { Worker } from 'bullmq';
 
+import { getLogger } from '../../shared/utils/logger.js';
 import { WORKER_REGISTRY } from '../registry.js';
 
+type WorkerEntry = { worker: Worker; teardown?: () => Promise<void> };
+
 // Active workers tracking
-const activeWorkers: Map<string, Worker> = new Map();
+const activeWorkers: Map<string, WorkerEntry> = new Map();
+const logger = getLogger({
+  component: 'worker-registry',
+  processSource: 'worker',
+});
 
 /**
  * Start all configured workers
@@ -12,7 +19,10 @@ const activeWorkers: Map<string, Worker> = new Map();
 export async function startAllWorkers(): Promise<Worker[]> {
   const workers: Worker[] = [];
 
-  console.log(`🚀 Starting ${WORKER_REGISTRY.length} workers...`);
+  logger.info(
+    { workerCount: WORKER_REGISTRY.length },
+    'Starting registered workers',
+  );
 
   for (const definition of WORKER_REGISTRY) {
     const {
@@ -25,7 +35,7 @@ export async function startAllWorkers(): Promise<Worker[]> {
     } = definition;
 
     try {
-      console.log(`${icon} Starting ${name} worker...`);
+      logger.info({ workerName: name, icon }, 'Starting worker');
 
       let worker: Worker;
       if (config) {
@@ -37,20 +47,24 @@ export async function startAllWorkers(): Promise<Worker[]> {
         worker = factory();
       }
 
-      activeWorkers.set(name, worker);
+      activeWorkers.set(name, { worker, teardown: definition.teardown });
       workers.push(worker);
-      console.log(`✅ ${label} started successfully`);
+      logger.info({ workerName: name, label }, 'Worker started successfully');
     } catch (error) {
-      console.error(`❌ Failed to start ${name} worker:`, error);
+      logger.error({ workerName: name, error }, 'Failed to start worker');
       if (critical) {
         throw error;
       }
-      console.log(`⚠️  Continuing without ${name} worker`);
+      logger.warn({ workerName: name }, 'Continuing without worker');
     }
   }
 
-  console.log(
-    `✅ Started ${workers.length}/${WORKER_REGISTRY.length} workers successfully`,
+  logger.info(
+    {
+      startedCount: workers.length,
+      workerCount: WORKER_REGISTRY.length,
+    },
+    'Worker startup finished',
   );
   return workers;
 }
@@ -59,23 +73,24 @@ export async function startAllWorkers(): Promise<Worker[]> {
  * Stop all active workers gracefully
  */
 export async function stopAllWorkers(): Promise<void> {
-  console.log('🛑 Stopping all workers...');
+  logger.info('Stopping all workers');
 
   const stopPromises = Array.from(activeWorkers.entries()).map(
-    async ([name, worker]) => {
+    async ([name, { worker, teardown }]) => {
       try {
-        console.log(`⏹️  Stopping ${name} worker...`);
+        logger.info({ workerName: name }, 'Stopping worker');
         await worker.close();
-        console.log(`✅ ${name} worker stopped`);
+        if (teardown) await teardown();
+        logger.info({ workerName: name }, 'Worker stopped');
       } catch (error) {
-        console.error(`❌ Error stopping ${name} worker:`, error);
+        logger.error({ workerName: name, error }, 'Error stopping worker');
       }
     },
   );
 
   await Promise.all(stopPromises);
   activeWorkers.clear();
-  console.log('✅ All workers stopped');
+  logger.info('All workers stopped');
 }
 
 /**
@@ -84,7 +99,7 @@ export async function stopAllWorkers(): Promise<void> {
 export function getWorkersStatus() {
   const status: Record<string, any> = {};
 
-  activeWorkers.forEach((worker, name) => {
+  activeWorkers.forEach(({ worker }, name) => {
     status[name] = {
       isRunning: worker.isRunning(),
       isPaused: worker.isPaused(),
@@ -102,33 +117,5 @@ export function getWorkersStatus() {
  * Get a specific worker by name
  */
 export function getWorker(name: string): Worker | undefined {
-  return activeWorkers.get(name);
+  return activeWorkers.get(name)?.worker;
 }
-
-// Graceful shutdown handlers
-process.on('SIGTERM', async () => {
-  console.log('🔄 SIGTERM received, shutting down workers...');
-  await stopAllWorkers();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('🔄 SIGINT received, shutting down workers...');
-  await stopAllWorkers();
-  process.exit(0);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit immediately, log and continue
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('🚨 Uncaught Exception:', error);
-  // For uncaught exceptions, we should exit after cleanup
-  stopAllWorkers().finally(() => {
-    process.exit(1);
-  });
-});

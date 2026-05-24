@@ -1,5 +1,7 @@
 import { type NextFunction, type Response } from 'express';
 
+import { getRequestContext } from '../../shared/telemetry/request-context.js';
+
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 import type { AuditContextInput } from './audit.types.js';
 
@@ -13,11 +15,13 @@ export function buildRequestAuditContext(
     typeof getHeader('x-correlation-id') === 'string'
       ? getHeader('x-correlation-id')
       : null;
+  const context = getRequestContext();
 
   return {
     source: 'api',
-    requestId: typeof req.id === 'string' ? req.id : null,
-    correlationId: rawCorrelationId?.trim() || null,
+    requestId:
+      context?.requestId ?? (typeof req.id === 'string' ? req.id : null),
+    correlationId: context?.correlationId ?? rawCorrelationId?.trim() ?? null,
     ip: req.ip ?? null,
     userAgent: getHeader('user-agent') ?? null,
   };

@@ -2,6 +2,7 @@ import { type NextFunction, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { redis } from '../../lib/redis.js';
+import { updateRequestContext } from '../../shared/telemetry/request-context.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 import { publicPaths } from './auth.constants.js';
 import {
@@ -41,6 +42,7 @@ export const verifyAccessToken = async (
       ...req.user,
       id: decoded.sub,
     };
+    updateRequestContext({ userId: decoded.sub });
 
     // proceed
     next();
@@ -87,6 +89,7 @@ export const verifyRefreshToken = async (
       ...req.user,
       id: decoded.sub,
     };
+    updateRequestContext({ userId: decoded.sub });
 
     next();
   } catch (error) {
@@ -127,6 +130,7 @@ export const verifySessionToken = async (
         ...req.user,
         id: decoded.sub,
       };
+      updateRequestContext({ userId: decoded.sub });
 
       return next();
     } catch (error) {
@@ -175,6 +179,7 @@ export const verifySessionToken = async (
       ...req.user,
       id: decoded.sub,
     };
+    updateRequestContext({ userId: decoded.sub });
 
     return next();
   } catch (error) {

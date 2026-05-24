@@ -1,13 +1,17 @@
 import type { Job } from 'bullmq';
 import { JobScheduler, Worker } from 'bullmq';
-import pino from 'pino';
 
 import { getAllActiveCredentials } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { redis } from '../../../lib/redis.js';
+import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { transactionSyncService } from '../services/transaction-sync.service.js';
 import { scheduleTransactionSync } from './transaction-sync.queue.js';
 
-const logger = pino();
+const logger = getLogger({
+  component: 'transaction-sync-worker',
+  processSource: 'worker',
+});
 
 // Shared scheduler instance to drive repeatable jobs (cron-based daily scans)
 let transactionSyncScheduler: JobScheduler | null = null;
@@ -319,7 +323,7 @@ export function startTransactionSyncWorker(concurrency = 3) {
 
   const worker = new Worker(
     'transaction-sync',
-    processTransactionSyncJob,
+    (job) => runWithJobContext(job, () => processTransactionSyncJob(job)),
     buildTransactionSyncWorkerOptions(concurrency),
   );
 
@@ -368,21 +372,15 @@ export function startTransactionSyncWorker(concurrency = 3) {
     logger.warn({ jobId }, 'Transaction sync job stalled - will be retried');
   });
 
-  // Graceful shutdown handling
-  const gracefulShutdown = async () => {
-    logger.info('Shutting down transaction sync worker...');
-    await worker.close();
-    if (transactionSyncScheduler) {
-      logger.info('Shutting down transaction sync scheduler...');
-      await transactionSyncScheduler.close();
-      transactionSyncScheduler = null;
-    }
-  };
-
-  process.on('SIGTERM', gracefulShutdown);
-  process.on('SIGINT', gracefulShutdown);
-
   return worker;
+}
+
+export async function closeTransactionSyncScheduler(): Promise<void> {
+  if (transactionSyncScheduler) {
+    logger.info('Shutting down transaction sync scheduler...');
+    await transactionSyncScheduler.close();
+    transactionSyncScheduler = null;
+  }
 }
 
 // Export worker instance for metrics

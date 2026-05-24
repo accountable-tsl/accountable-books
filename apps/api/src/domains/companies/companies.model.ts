@@ -14,11 +14,12 @@ import {
 } from '../../features/auth/auth.utils.js';
 import { markCompanyOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
 import { redis } from '../../lib/redis.js';
+import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
 import {
   isValidUUID,
   snakeToCamel,
 } from '../../shared/utils/formatting.utils.js';
-import { logError, logger, logTiming } from '../../shared/utils/logger.js';
+import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
@@ -232,9 +233,7 @@ export const createCompany = async (
       trx,
       companyId: company.id,
       actorUserId: creator.id,
-      strategy: validateInput.data.assigned_firm_id
-        ? 'explicit'
-        : 'default_platform',
+      strategy: validateInput.data.assigned_firm_id ? 'explicit' : 'auto',
       assignedFirmId: validateInput.data.assigned_firm_id,
     });
 
@@ -282,9 +281,12 @@ export const createCompany = async (
       mode: 'normal',
     });
 
-    logTiming('createCompany', startTime, {
+    logFlowStep({
+      flow: 'company',
+      step: 'create_company',
+      status: 'ok',
+      durationMs: Date.now() - startTime,
       companyId: company.id,
-      operationId,
     });
 
     companyLogger.info(
@@ -302,12 +304,6 @@ export const createCompany = async (
       },
       `Company creation failed: ${errorMessage}`,
     );
-
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      operation: 'createCompany',
-      legalName: validateInput.data.legal_name,
-      operationId,
-    });
 
     return errorResponse(
       'Unable to create company',

@@ -6,18 +6,14 @@ import { knexClient } from '../../db/knexClient.js';
 import { newUserDirect } from '../../domains/users/users.types.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
 import { redis } from '../../lib/redis.js';
+import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
 import {
   generateRandomToken,
   hashPassword,
   hashToken,
 } from '../../shared/utils/crypto.utils.js';
 import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
-import {
-  logDatabaseOperation,
-  logError,
-  logger,
-  logTiming,
-} from '../../shared/utils/logger.js';
+import { logger } from '../../shared/utils/logger.js';
 import {
   errorResponse,
   successResponse,
@@ -98,8 +94,6 @@ export async function createUserDirect(
 
   // Execute user creation within the provided transaction
   try {
-    logDatabaseOperation('SELECT', 'users', { email: sanitizedEmail });
-
     // Check for existing user
     const existingUser = await trx('users')
       .select(['id', 'firstname', 'lastname', 'email', 'onboarding_state'])
@@ -123,7 +117,6 @@ export async function createUserDirect(
     const onboardingState = createInitialUserOnboardingState();
 
     // Insert user
-    logDatabaseOperation('INSERT', 'users', { email: sanitizedEmail });
     const [user] = await trx('users')
       .insert({
         ...rest,
@@ -144,11 +137,6 @@ export async function createUserDirect(
 
     // Create verification token
     const hashedVerificationToken = await hashToken(verificationToken);
-
-    logDatabaseOperation('INSERT', 'tokens', {
-      userId: user.id,
-      tokenType: 'email_verification',
-    });
 
     await addNewToken(
       {
@@ -171,9 +159,12 @@ export async function createUserDirect(
       verificationToken,
     };
 
-    logTiming('createUserDirect', startTime, {
+    logFlowStep({
+      flow: 'user',
+      step: 'create_user',
+      status: 'ok',
+      durationMs: Date.now() - startTime,
       userId: user.id,
-      operationId,
     });
 
     userLogger.info(
@@ -192,10 +183,11 @@ export async function createUserDirect(
       `User creation failed: ${errorMessage}`,
     );
 
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      operation: 'createUserDirect',
-      email: sanitizedEmail,
-      operationId,
+    logFlowStep({
+      flow: 'user',
+      step: 'create_user',
+      status: 'failed',
+      err: error instanceof Error ? error : new Error(String(error)),
     });
 
     return errorResponse(
