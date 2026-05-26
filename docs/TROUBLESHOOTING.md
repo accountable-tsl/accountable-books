@@ -261,7 +261,7 @@ make setup      # Re-setup environment
 1. Verify API is running on correct port:
 
    ```bash
-   curl http://localhost:5000/health
+   curl http://localhost:5000/health/ready
    ```
 
 2. Check environment variables match:

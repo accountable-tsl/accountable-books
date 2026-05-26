@@ -1,10 +1,9 @@
-import pino from 'pino';
-
 import { scheduleDailyJournalAutoReversalScan } from '../domains/journals/auto-reversal.queue.js';
 import { scheduleRecurringTemplateScan } from '../domains/journals/recurring-templates.queue.js';
 import { scheduleNightlyAutoExtend } from '../domains/reporting/fiscal-calendar/index.js';
 import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.queue.js';
 import { scheduleDailySyncScan } from '../integrations/banking/jobs/transaction-sync.queue.js';
+import { getLogger } from '../shared/utils/logger.js';
 import {
   scheduleDefaultPartitionDraining,
   scheduleSmartPartitionMaintenance,
@@ -13,7 +12,7 @@ import { getJobSchedule } from './schedules.js';
 
 import type { JobSchedule, JobScheduleKey } from './schedules.js';
 
-const logger = pino({ name: 'schedule-registry' });
+const logger = getLogger({ component: 'schedule-registry' });
 
 export interface ScheduleDefinition {
   key: string;

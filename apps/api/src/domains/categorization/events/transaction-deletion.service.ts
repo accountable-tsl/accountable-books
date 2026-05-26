@@ -1,11 +1,11 @@
 import type { Knex } from 'knex';
-import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { decrementContactStats } from '../stats/stats.service.js';
 import { softDeleteCategorizationTasks } from '../tasks/tasks.service.js';
 
-const logger = pino({ name: 'transaction-deletion-service' });
+const logger = getLogger({ component: 'transaction-deletion-service' });
 
 export async function handleTransactionsDeleted({
   bankTransactionIds,

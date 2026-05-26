@@ -160,7 +160,7 @@ The API uses BullMQ for background job processing:
 ### Available Queues
 
 - **Email Queue**: Sending emails via Postmark
-- **Analytics Queue**: Tracking events to Mixpanel
+- **Analytics**: Product events via PostHog (`captureProductEvent`)
 
 ### Development
 
@@ -228,7 +228,7 @@ API endpoints are implemented with:
 ### Production Ready
 
 - **Sentry**: Error tracking (configure `SENTRY_DSN`)
-- **Mixpanel**: User analytics (configure `MIXPANEL_TOKEN`)
+- **PostHog**: Product analytics (configure `POSTHOG_API_KEY`, `POSTHOG_ENABLED`, `TELEMETRY_ENABLED`)
 
 ## 🚢 Deployment
 
@@ -249,8 +249,8 @@ Production requires:
 
 ### Health Checks
 
-- **GET /health**: Basic health check
-- **GET /health/detailed**: Database and Redis connectivity
+- **GET /health/live**: Process liveness check
+- **GET /health/ready**: Startup and dependency readiness check
 
 ## 🛠️ Development Workflow
 

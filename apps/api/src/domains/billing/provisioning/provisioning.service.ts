@@ -28,7 +28,7 @@ type RawCompanyBillingContext = {
   type: string;
   legal_name: string;
   assigned_firm_id: string | null;
-  workspace_class: string;
+  workspace_class: string | null;
   country_code: string | null;
   currency_code: string | null;
 };
@@ -77,10 +77,17 @@ async function loadCompanyBillingContext(
     );
   }
 
+  if (!company.workspace_class) {
+    throw new Error(
+      `Company ${companyId} is missing workspace_class — cannot resolve billing`,
+    );
+  }
+
   return {
     ...company,
     country_code: company.country_code,
     currency_code: company.currency_code,
+    workspace_class: company.workspace_class,
   };
 }
 
@@ -124,32 +131,11 @@ async function resolveCommercialMode(
     assignedFirmId !== company.id
   ) {
     const firm = await db('companies')
-      .where({
-        id: assignedFirmId,
-        type: 'accounting_firm',
-        workspace_class: 'customer',
-      })
+      .where({ id: assignedFirmId, type: 'accounting_firm' })
+      .whereIn('workspace_class', ['customer', 'partner', 'platform'])
       .first('id');
 
     if (firm) {
-      return 'firm_managed';
-    }
-  }
-
-  if (
-    company.type !== 'accounting_firm' &&
-    assignedFirmId &&
-    assignedFirmId !== company.id
-  ) {
-    const partnerFirm = await db('companies')
-      .where({
-        id: assignedFirmId,
-        type: 'accounting_firm',
-        workspace_class: 'partner',
-      })
-      .first('id');
-
-    if (partnerFirm) {
       return 'firm_managed';
     }
   }

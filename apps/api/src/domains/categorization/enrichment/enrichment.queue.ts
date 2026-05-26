@@ -1,17 +1,18 @@
 import type { JobsOptions } from 'bullmq';
 import { Queue } from 'bullmq';
-import pino from 'pino';
 
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
 
 import type { EnrichmentJobData } from './enrichment.types.js';
 
-const logger = pino();
+const logger = getLogger({ component: 'enrichment-queue' });
 
 /**
  * Queue for bank transaction enrichment jobs
@@ -97,7 +98,7 @@ export async function enqueueTransactionEnrichment(
 
     try {
       await executeQueueOperation(QueueName.ENRICHMENT, () =>
-        enrichmentQueue.add('enrich-transactions', batchJob, {
+        enrichmentQueue.add('enrich-transactions', withJobTelemetry(batchJob), {
           jobId,
           priority:
             firstJob.source === 'manual'

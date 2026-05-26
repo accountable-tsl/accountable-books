@@ -49,18 +49,21 @@ primary_region = "iad"  # Washington DC (US East)
 
   [[http_service.checks]]
     method = "GET"
-    path = "/health"
+    path = "/health/ready"
     interval = "10s"
-    timeout = "2s"
+    timeout = "5s"
     grace_period = "20s"
-  
+
 [[checks]]
-  name = "worker_tcp"
-  type = "tcp"
-  port = 9091
-  interval = "30s"
-  timeout = "10s"
-  processes = ["worker"]
+  name = "web_live"
+  type = "http"
+  port = 5001
+  method = "GET"
+  path = "/health/live"
+  interval = "15s"
+  timeout = "2s"
+  grace_period = "10s"
+  processes = ["web"]
 
 [metrics]
   port = 9091

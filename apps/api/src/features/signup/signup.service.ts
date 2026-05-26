@@ -1,5 +1,4 @@
 import type { Knex } from 'knex';
-import * as Sentry from '@sentry/node';
 
 import { knexClient } from '../../db/knexClient.js';
 import {
@@ -20,14 +19,15 @@ import {
 } from '../../domains/users/users.types.js';
 import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
 import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
-import { scrubForTelemetry } from '../../shared/telemetry/scrub.js';
-import { trackEvent } from '../../shared/utils/analytics.utils.js';
+import { captureProductEvent } from '../../shared/telemetry/capture-product-event.js';
+import { captureSentryException } from '../../shared/telemetry/capture-sentry-exception.js';
 import {
   camelToSnake,
   snakeToCamel,
 } from '../../shared/utils/formatting.utils.js';
 import {
   AppError,
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
@@ -53,7 +53,15 @@ export const registerNewAccount = async (input: {
 > => {
   // Check that company type exists
   if (!input.user || !input.company.type) {
-    return errorResponse('Invalid input or missing company type');
+    captureSignupFailedEvent({
+      companyType: input.company?.type,
+      errorCode: ErrorCode.INVALID_INPUT,
+      step: 'validate_input',
+    });
+
+    return errorResponse('Invalid input or missing company type', undefined, {
+      code: ErrorCode.INVALID_INPUT,
+    });
   }
 
   const { trx, ...rest } = input;
@@ -62,7 +70,15 @@ export const registerNewAccount = async (input: {
 
   const validateInput = newSignup.safeParse(snakeInput);
   if (!validateInput.success) {
-    return errorResponse('Invalid input', validateInput.error.issues);
+    captureSignupFailedEvent({
+      companyType: input.company.type,
+      errorCode: ErrorCode.INVALID_INPUT,
+      step: 'validate_input',
+    });
+
+    return errorResponse('Invalid input', validateInput.error.issues, {
+      code: ErrorCode.INVALID_INPUT,
+    });
   }
 
   // Destructure and retrieve user and company input
@@ -99,19 +115,16 @@ export const registerNewAccount = async (input: {
       );
     }
   } catch (error: any) {
-    Sentry.captureException(error, {
-      user: {
-        email: userInput?.email,
-        name: `${userInput.firstname} ${userInput.lastname ? userInput.lastname : ''}`,
-      },
-      extra: {
-        company_type: companyInput.type,
-        method: 'direct',
-        input: scrubForTelemetry(input),
-      },
-      tags: {
-        flow: 'newUserSignup',
-      },
+    captureSignupFailedEvent({
+      companyType: companyInput.type,
+      errorCode: error instanceof AppError ? error.code : ErrorCode.GENERIC,
+      step: 'register_account',
+    });
+
+    captureSentryException(error, {
+      flow: 'signup',
+      step: 'register_account',
+      errorCode: error instanceof AppError ? error.code : ErrorCode.GENERIC,
     });
     return errorResponse(
       `Unable to signup user ${userInput?.email || ''}`,
@@ -127,20 +140,7 @@ export const registerNewAccount = async (input: {
 
     await runWorkspaceProvisioningSideEffects(pendingSideEffects);
 
-    try {
-      await trackSignupEvents(
-        user.id,
-        user.email,
-        companyRes.type,
-        companyRes.id,
-        firm?.id,
-      );
-    } catch (error: any) {
-      Sentry.captureException(error, {
-        tags: { flow: 'postSignupEvents' },
-      });
-      warnings.push('Failed to track signup events');
-    }
+    await trackSignupEvents(user.id, companyRes.type, companyRes.id, firm?.id);
 
     if (!isDemoWorkspace(companyRes.workspace_class)) {
       try {
@@ -158,20 +158,13 @@ export const registerNewAccount = async (input: {
 
         if (!sentVerEmail) {
           warnings.push('Verification email was not sent');
-          errorResponse(
-            'Unable to send verification email on signup',
-            sentVerEmail,
-            {
-              report: true,
-            },
-          );
         }
-      } catch (error: any) {
-        errorResponse('Unable to send verification email on signup', error, {
-          report: true,
-        });
-        Sentry.captureException(error, {
-          tags: { flow: 'postSignupEvents' },
+      } catch (error: unknown) {
+        captureSentryException(error, {
+          flow: 'signup',
+          step: 'send_verification_email',
+          userId: user.id,
+          companyId: companyRes.id,
         });
         warnings.push('Failed to send verification email on signup');
       }
@@ -272,25 +265,47 @@ const createUserAndCompany = async (
 
 export const trackSignupEvents = async (
   userId: string,
-  email: string,
   companyType: CompanyType,
   companyId: string,
   firmId?: string,
 ) => {
   try {
-    await Promise.all([
-      trackEvent('User Signed Up', userId, {
-        email,
-        role: companyType === 'accounting_firm' ? 'admin' : 'client',
-        firm_id: firmId,
-      }),
-      trackEvent('Company Created', userId, {
-        company_id: companyId,
-        company_type: companyType,
-        firm_id: firmId,
-      }),
-    ]);
-  } catch (error: any) {
-    errorResponse('Analytics event failed', { userId, error });
+    captureProductEvent('signup.completed', {
+      assigned_firm_id: firmId,
+      company_id: companyId,
+      company_type: companyType,
+      role: companyType === 'accounting_firm' ? 'admin' : 'client',
+      user_id: userId,
+    });
+    captureProductEvent('workspace.created', {
+      assigned_firm_id: firmId,
+      company_id: companyId,
+      company_type: companyType,
+      user_id: userId,
+    });
+  } catch (error: unknown) {
+    captureSentryException(error, {
+      flow: 'signup',
+      step: 'track_signup_events',
+      userId,
+      companyId,
+    });
   }
 };
+
+function captureSignupFailedEvent(input: {
+  companyId?: string;
+  companyType?: string;
+  errorCode: string;
+  step: string;
+  userId?: string;
+}) {
+  captureProductEvent('signup.failed', {
+    company_id: input.companyId,
+    company_type: input.companyType,
+    error_code: input.errorCode,
+    flow: 'signup',
+    step: input.step,
+    user_id: input.userId,
+  });
+}

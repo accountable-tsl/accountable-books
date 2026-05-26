@@ -1,43 +1,22 @@
-// Normalized sensitive key patterns (lowercase, hyphens/underscores stripped)
-const SENSITIVE_KEYS = new Set([
-  'password',
-  'token',
-  'secret',
-  'authorization',
-  'cookie',
-  'accountnumber',
-  'taxid',
-  'ssn',
-  'sortcode',
-  'iban',
-  'cardnumber',
-  'cvv',
-  'pin',
-  'privatekey',
-  'apikey',
-  'otp',
-  'verificationtoken',
-  'refreshtoken',
-  'accesstoken',
+export { scrubForTelemetry } from '@accountable-books/utils/telemetry/scrub';
+
+const SENTRY_USER_PII_FIELDS = new Set([
+  'email',
+  'username',
+  'ip_address',
+  'name',
 ]);
 
-function isSensitiveKey(key: string): boolean {
-  return SENSITIVE_KEYS.has(key.toLowerCase().replace(/[_-]/g, ''));
-}
-
-export function scrubForTelemetry<T>(value: T, depth = 0): T {
-  if (depth > 10 || value === null || value === undefined) return value;
-  if (typeof value !== 'object') return value;
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      scrubForTelemetry(item, depth + 1),
-    ) as unknown as T;
+/** Strip PII from Sentry user context before send. */
+export function scrubSentryUser(
+  user: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!user) return undefined;
+  const kept: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(user)) {
+    if (!SENTRY_USER_PII_FIELDS.has(key)) {
+      kept[key] = value;
+    }
   }
-  const result: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-    result[key] = isSensitiveKey(key)
-      ? '[REDACTED]'
-      : scrubForTelemetry(val, depth + 1);
-  }
-  return result as T;
+  return Object.keys(kept).length > 0 ? kept : undefined;
 }

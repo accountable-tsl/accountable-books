@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { scrubForTelemetry } from './scrub.js';
+import { scrubForTelemetry, scrubSentryUser } from './scrub.js';
 
 describe('scrubForTelemetry', () => {
   it('redacts top-level sensitive keys', () => {
@@ -8,7 +8,10 @@ describe('scrubForTelemetry', () => {
       password: 'secret123',
       email: 'a@b.com',
     });
-    expect(result).toEqual({ password: '[REDACTED]', email: 'a@b.com' });
+    expect(result).toEqual({
+      password: '[REDACTED]',
+      email: '[REDACTED]',
+    });
   });
 
   it('redacts nested sensitive keys', () => {
@@ -17,8 +20,8 @@ describe('scrubForTelemetry', () => {
       company: { name: 'Acme' },
     });
     expect(result).toEqual({
-      user: { email: 'a@b.com', password: '[REDACTED]' },
-      company: { name: 'Acme' },
+      user: { email: '[REDACTED]', password: '[REDACTED]' },
+      company: { name: '[REDACTED]' },
     });
   });
 
@@ -62,14 +65,29 @@ describe('scrubForTelemetry', () => {
     });
   });
 
+  it('redacts financial fields', () => {
+    const result = scrubForTelemetry({
+      amount: 100.5,
+      balance: 200,
+      description: 'Wire transfer',
+      memo: 'Rent',
+    });
+    expect(result).toEqual({
+      amount: '[REDACTED]',
+      balance: '[REDACTED]',
+      description: '[REDACTED]',
+      memo: '[REDACTED]',
+    });
+  });
+
   it('handles arrays by scrubbing each element', () => {
     const result = scrubForTelemetry([
       { password: 'a', name: 'Alice' },
       { password: 'b', name: 'Bob' },
     ]);
     expect(result).toEqual([
-      { password: '[REDACTED]', name: 'Alice' },
-      { password: '[REDACTED]', name: 'Bob' },
+      { password: '[REDACTED]', name: '[REDACTED]' },
+      { password: '[REDACTED]', name: '[REDACTED]' },
     ]);
   });
 
@@ -90,7 +108,7 @@ describe('scrubForTelemetry', () => {
     expect(scrubForTelemetry(input)).toEqual(input);
   });
 
-  it('matches the real signup input shape — password is redacted', () => {
+  it('matches the real signup input shape — PII and secrets redacted', () => {
     const signupInput = {
       user: {
         email: 'temi@example.com',
@@ -105,10 +123,21 @@ describe('scrubForTelemetry', () => {
       },
     };
     const result = scrubForTelemetry(signupInput);
-    expect((result.user as any).password).toBe('[REDACTED]');
-    expect((result.user as any).email).toBe('temi@example.com');
-    expect((result.user as any).firstname).toBe('Temi');
-    expect((result.company as any).name).toBe('My Biz');
+    expect((result.user as Record<string, unknown>).password).toBe(
+      '[REDACTED]',
+    );
+    expect((result.user as Record<string, unknown>).email).toBe('[REDACTED]');
+    expect((result.user as Record<string, unknown>).firstname).toBe(
+      '[REDACTED]',
+    );
+    expect((result.user as Record<string, unknown>).lastname).toBe(
+      '[REDACTED]',
+    );
+    expect((result.user as Record<string, unknown>).user_type).toBe(
+      'individual',
+    );
+    expect((result.company as Record<string, unknown>).name).toBe('[REDACTED]');
+    expect((result.company as Record<string, unknown>).type).toBe('individual');
   });
 
   it('does not mutate the original object', () => {
@@ -118,10 +147,31 @@ describe('scrubForTelemetry', () => {
   });
 
   it('handles deeply nested objects without blowing the stack', () => {
-    // depth limit is 10; beyond that values pass through as-is
-    let deep: any = { password: 'deep-secret' };
+    let deep: Record<string, unknown> = { password: 'deep-secret' };
     for (let i = 0; i < 12; i++) deep = { nested: deep };
-    // should not throw
     expect(() => scrubForTelemetry(deep)).not.toThrow();
+  });
+});
+
+describe('scrubSentryUser', () => {
+  it('removes email, username, ip_address, and name', () => {
+    expect(
+      scrubSentryUser({
+        email: 'a@b.com',
+        username: 'temi',
+        ip_address: '1.2.3.4',
+        name: 'Temi A',
+        id: 'user-1',
+      }),
+    ).toEqual({ id: 'user-1' });
+  });
+
+  it('returns undefined when only PII fields were present', () => {
+    expect(
+      scrubSentryUser({
+        email: 'a@b.com',
+        name: 'Temi',
+      }),
+    ).toBeUndefined();
   });
 });

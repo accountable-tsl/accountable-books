@@ -2,7 +2,7 @@
 
 ### CRITICAL (Must Fix Before Launch)
 
-- [x] Demo companies have null assigned firm ids
+- [ ] Noone should be able to mistakenly access the staging environment mistakenly
 - [ ] Make sure noone can access or make a request to a company they do not have access to (special case for support and admin)
 - [ ] URL resolves to null subdomain in frontend, should resolve to app
 - [ ] Backup database for postgres

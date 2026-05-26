@@ -1,8 +1,8 @@
 import type { Knex } from 'knex';
-import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { generateChecksumSync, toYMD } from '../../../shared/index.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { getContactStats } from '../stats/stats.service.js';
 import { getCompanyContext } from './company-context.service.js';
 import {
@@ -22,8 +22,8 @@ import type {
   EnrichmentResult,
 } from './enrichment.types.js';
 
-const logger = pino({
-  name: 'enrichment-service',
+const logger = getLogger({
+  component: 'enrichment-service',
 });
 
 /**

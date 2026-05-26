@@ -7,6 +7,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type {
   InviteEmailPayload,
@@ -31,7 +32,7 @@ export async function enqueueVerificationEmail(
   payload: TokenBasedEmailPayload & { url: string },
 ): Promise<Job | null> {
   return executeQueueOperation(QueueName.EMAIL, () =>
-    emailQueue.add('send_verification_email', payload),
+    emailQueue.add('send_verification_email', withJobTelemetry(payload)),
   );
 }
 
@@ -43,6 +44,6 @@ export async function enqueueUserInviteEmail(
   payload: InviteEmailPayload & { url: string },
 ): Promise<Job | null> {
   return executeQueueOperation(QueueName.EMAIL, () =>
-    emailQueue.add('send_user_invite_email', payload),
+    emailQueue.add('send_user_invite_email', withJobTelemetry(payload)),
   );
 }

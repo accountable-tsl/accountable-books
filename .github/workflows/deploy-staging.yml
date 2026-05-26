@@ -67,6 +67,15 @@ jobs:
           pnpm -F @accountable-books/api run migrate:staging:remote
           echo "✅ Database migrations completed successfully"
 
+      - name: Bootstrap application workspaces
+        env:
+          DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+        run: |
+          echo "🔄 Bootstrapping application workspaces..."
+          pnpm -F @accountable-books/api run bootstrap:staging:remote
+          echo "✅ Workspace bootstrap completed"
+
   # Step 2: Deploy API only after migrations succeed
   deploy-api:
     runs-on: ubuntu-latest
@@ -127,7 +136,7 @@ jobs:
           max_attempts=30
           attempt=0
           while [ $attempt -lt $max_attempts ]; do
-            if curl -f https://accountable-books-api-staging.fly.dev/health; then
+            if curl -f https://accountable-books-api-staging.fly.dev/health/ready; then
               echo "✅ API is healthy"
               break
             fi
@@ -302,7 +311,7 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "API URL: https://accountable-books-api-staging.fly.dev"
-          echo "API Health: https://accountable-books-api-staging.fly.dev/health"
+          echo "API Health: https://accountable-books-api-staging.fly.dev/health/ready"
           echo "ML Engine URL: https://accountable-books-ml-engine-staging.fly.dev"
           echo "ML Engine Health: https://accountable-books-ml-engine-staging.fly.dev/health"
           echo "Frontend URL: https://staging.getaccountable.com"

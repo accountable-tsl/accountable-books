@@ -1,8 +1,8 @@
 import type { Knex } from 'knex';
-import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { generateChecksumSync, toDate, toYMD } from '../../../shared/index.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { type BaseContactStats } from '../enrichment/enrichment.types.js';
 
 import type {
@@ -11,7 +11,7 @@ import type {
   NewStatEntry,
 } from './stats.types.js';
 
-const logger = pino();
+const logger = getLogger({ component: 'categorization-stats-service' });
 
 /**
  * Get contact stats for enrichment

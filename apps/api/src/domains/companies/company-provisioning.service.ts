@@ -662,6 +662,10 @@ export async function ensureCompanyFirmAssignment({
   created: boolean;
   updated: boolean;
 }> {
+  if (strategy === 'explicit' && !assignedFirmId) {
+    throw new AppError('assignedFirmId is required when strategy is explicit');
+  }
+
   const targetFirmId =
     strategy === 'self'
       ? companyId

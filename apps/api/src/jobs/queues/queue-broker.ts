@@ -1,8 +1,7 @@
-import pino from 'pino';
-
 import { isTest } from '../../config/env.js';
+import { getLogger } from '../../shared/utils/logger.js';
 
-const logger = pino({ name: 'queue-broker' });
+const logger = getLogger({ component: 'queue-broker' });
 
 /**
  * Queue names in the system
@@ -60,10 +59,13 @@ class QueueBroker {
    * Wrap an async queue operation
    * Returns the result if enabled, or null if disabled
    */
-  async execute<T>(operation: () => Promise<T>): Promise<T | null> {
+  async execute<T>(
+    queueName: QueueName,
+    operation: () => Promise<T>,
+  ): Promise<T | null> {
     if (!this.shouldExecute()) {
       if (this.logSkipped) {
-        logger.debug('Queue operation skipped');
+        logger.debug({ queueName }, 'Queue operation skipped');
       }
       return null;
     }
@@ -73,6 +75,7 @@ class QueueBroker {
     } catch (error) {
       logger.error(
         {
+          queueName,
           error: error instanceof Error ? error.message : 'Unknown error',
         },
         'Queue operation failed',
@@ -96,5 +99,5 @@ export async function executeQueueOperation<T>(
   queueName: QueueName,
   operation: () => Promise<T>,
 ): Promise<T | null> {
-  return queueBroker.execute(operation);
+  return queueBroker.execute(queueName, operation);
 }

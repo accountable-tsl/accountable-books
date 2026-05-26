@@ -3,7 +3,7 @@ import pino from 'pino';
 
 import { getRequestContext } from '../telemetry/request-context.js';
 
-const LOG_LEVELS = {
+export const LOG_LEVELS = {
   local: 'debug',
   test: 'silent',
   staging: 'info',

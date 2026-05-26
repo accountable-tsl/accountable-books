@@ -7,6 +7,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
 
@@ -46,6 +47,6 @@ export async function enqueueRuleRunJob(
     : defaultJobOptions;
 
   await executeQueueOperation(QueueName.RULE_RUNNER, () =>
-    ruleRunnerQueue.add('run-rule', data, jobOptions),
+    ruleRunnerQueue.add('run-rule', withJobTelemetry(data), jobOptions),
   );
 }

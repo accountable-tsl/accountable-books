@@ -7,6 +7,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type { MLPredictionJobData } from './ml-prediction.types.js';
 
@@ -48,6 +49,6 @@ export async function enqueueMLPredictionJob(
   };
 
   await executeQueueOperation(QueueName.ML_PREDICTION, () =>
-    mlPredictionQueue.add('predict', data, jobOptions),
+    mlPredictionQueue.add('predict', withJobTelemetry(data), jobOptions),
   );
 }

@@ -8,6 +8,7 @@ import {
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
 import { redis } from '../../lib/redis.js';
+import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 
 export const JOURNAL_AUTO_REVERSAL_QUEUE_NAME = 'journal-auto-reversal';
 
@@ -77,12 +78,12 @@ export async function scheduleJournalAutoReversal({
   return executeQueueOperation(QueueName.JOURNAL_AUTO_REVERSAL, () =>
     journalAutoReversalQueue.add(
       'journal-auto-reversal-single',
-      {
+      withJobTelemetry({
         type: 'reverse-one',
         journalBatchId,
         companyId,
         reversalDate: date.toISOString(),
-      },
+      }),
       { jobId, delay: delayMs },
     ),
   );

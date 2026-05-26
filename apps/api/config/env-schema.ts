@@ -230,12 +230,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   // ANALYTICS & MONITORING
   // ============================================================================
-  MIXPANEL_TOKEN: {
-    description: 'Mixpanel analytics token (retire after PostHog cutover)',
-    type: 'secret',
-    required: false,
-  },
-
   SENTRY_DSN: {
     description: 'Sentry error tracking DSN',
     type: 'secret',

@@ -1,6 +1,5 @@
 import type { JobsOptions } from 'bullmq';
 import { Queue } from 'bullmq';
-import pino from 'pino';
 import z from 'zod';
 
 import {
@@ -8,8 +7,10 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 
-const logger = pino({ name: 'autopost-queue' });
+const logger = getLogger({ component: 'autopost-queue' });
 
 /**
  * Queue for delayed autopost jobs
@@ -85,11 +86,15 @@ export async function enqueueDelayedAutopost({
 
   try {
     await executeQueueOperation(QueueName.AUTOPOST, () =>
-      autopostQueue.add('autopost-candidate', validation.data, {
-        jobId,
-        delay: delayMs,
-        priority: 2, // Lower priority than immediate operations
-      }),
+      autopostQueue.add(
+        'autopost-candidate',
+        withJobTelemetry(validation.data),
+        {
+          jobId,
+          delay: delayMs,
+          priority: 2, // Lower priority than immediate operations
+        },
+      ),
     );
 
     logger.info(

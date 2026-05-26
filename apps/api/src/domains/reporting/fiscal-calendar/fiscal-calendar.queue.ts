@@ -7,6 +7,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../../shared/utils/date.utils.js';
 
 import type {
@@ -136,7 +137,7 @@ export async function enqueueFiscalCalendarGeneration(
   const job = await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
     fiscalCalendarQueue.add(
       'generate-calendar',
-      {
+      withJobTelemetry({
         type: 'generate-calendar',
         companyId,
         yearsBack,
@@ -144,7 +145,7 @@ export async function enqueueFiscalCalendarGeneration(
         periodTypes: normalizeTypes(periodTypes),
         triggeredBy,
         userId,
-      },
+      }),
       {
         jobId,
         priority:
@@ -195,13 +196,13 @@ export async function enqueueAutoExtend(p: AutoExtendJobData): Promise<string> {
   const job = await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
     fiscalCalendarQueue.add(
       'auto-extend',
-      {
+      withJobTelemetry({
         type: 'auto-extend',
         companyId,
         minFutureMonths,
         triggeredBy,
         userId,
-      },
+      }),
       {
         jobId,
         priority: PRIORITIES.AUTO_EXTEND,
@@ -265,7 +266,7 @@ export async function enqueueFillCoverageGaps(
   const job = await executeQueueOperation(QueueName.FISCAL_CALENDAR, () =>
     fiscalCalendarQueue.add(
       'fill-coverage-gaps',
-      {
+      withJobTelemetry({
         type: 'fill-coverage-gaps',
         companyId,
         startDate,
@@ -273,7 +274,7 @@ export async function enqueueFillCoverageGaps(
         periodTypes: norm,
         triggeredBy,
         userId,
-      },
+      }),
       {
         jobId,
         priority: PRIORITIES.DATA_IMPORT,

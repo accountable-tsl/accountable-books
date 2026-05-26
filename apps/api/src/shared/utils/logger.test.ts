@@ -2,7 +2,7 @@ import pino from 'pino';
 import { describe, expect, it } from 'vitest';
 
 import { runWithRequestContext } from '../telemetry/request-context.js';
-import { getLogger, logger } from './logger.js';
+import { getLogger, LOG_LEVELS, logger } from './logger.js';
 
 function parseLastLogLine(lines: string[]) {
   const line = lines.at(-1);
@@ -35,6 +35,29 @@ async function captureJsonLog(run: () => void | Promise<void>) {
 
   return parseLastLogLine(lines);
 }
+
+describe('logger contract (B12)', () => {
+  it('emits JSON with base service fields when no request context', async () => {
+    const payload = await captureJsonLog(() => {
+      getLogger({ component: 'contract-test', processSource: 'api' }).info(
+        'baseline',
+      );
+    });
+
+    expect(payload.service).toBe('accountable-books-api');
+    expect(payload.level).toBe(30);
+    expect(payload.msg).toBe('baseline');
+    expect(payload.component).toBe('contract-test');
+    expect(payload.processSource).toBe('api');
+  });
+
+  it('defines silent level for test and info for staging/production', () => {
+    expect(LOG_LEVELS.test).toBe('silent');
+    expect(LOG_LEVELS.local).toBe('debug');
+    expect(LOG_LEVELS.staging).toBe('info');
+    expect(LOG_LEVELS.production).toBe('info');
+  });
+});
 
 describe('getLogger', () => {
   it('adds ALS fields to emitted logs', async () => {

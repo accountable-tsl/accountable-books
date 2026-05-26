@@ -24,6 +24,16 @@
       "types": "./src/firm-slugs/index.ts",
       "import": "./dist/firm-slugs/index.js",
       "default": "./dist/firm-slugs/index.js"
+    },
+    "./telemetry/event-catalog": {
+      "types": "./src/telemetry/event-catalog.ts",
+      "import": "./dist/telemetry/event-catalog.js",
+      "default": "./dist/telemetry/event-catalog.js"
+    },
+    "./telemetry/scrub": {
+      "types": "./src/telemetry/scrub.ts",
+      "import": "./dist/telemetry/scrub.js",
+      "default": "./dist/telemetry/scrub.js"
     }
   },
   "scripts": {

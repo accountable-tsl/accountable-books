@@ -36,14 +36,15 @@ async function run(): Promise<void> {
   console.log(`  system_user:  ${result.systemUserId}`);
 }
 
-run()
-  .then(() => {
-    process.exit(0);
-  })
-  .catch((err) => {
+(async () => {
+  let exitCode = 0;
+  try {
+    await run();
+  } catch (err) {
     console.error('Bootstrap failed:', err);
-    process.exit(1);
-  })
-  .finally(() => {
-    knexClient.destroy();
-  });
+    exitCode = 1;
+  } finally {
+    await knexClient.destroy();
+  }
+  process.exit(exitCode);
+})();

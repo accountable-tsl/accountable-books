@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 import { addMonths, format, isAfter, isBefore, subMonths } from 'date-fns';
-import pino from 'pino';
 
 import { knexClient as db } from '../../../db/knexClient.js';
 import {
@@ -10,6 +9,7 @@ import {
   toDate,
   toYMD,
 } from '../../../shared/utils/date.utils.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import {
   checkDraftJournals,
@@ -29,7 +29,7 @@ import type {
   NewFiscalCalendar,
 } from './fiscal-calendar.types.js';
 
-const logger = pino();
+const logger = getLogger({ component: 'fiscal-calendar-service' });
 
 /**
  * Calculate fiscal year and period for a given date based on company's year-end

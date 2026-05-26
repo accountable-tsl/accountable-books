@@ -143,11 +143,17 @@ describe('provisioning.service', () => {
     expect(account).toBeNull();
   });
 
-  it('provisions business on platform firm as self_serve', async () => {
+  it('provisions business on platform firm as firm_managed', async () => {
     const platformFirm = await trx('companies')
       .where({ workspace_class: 'platform' })
       .first<{ id: string }>();
     if (!platformFirm) throw new Error('Platform firm not found');
+
+    // Platform firm must have a billing account before clients can be provisioned under it
+    await ensureBillingAccountForCompany(platformFirm.id, {
+      billingEmail,
+      db: trx,
+    });
 
     const businessId = await insertCompany(trx, {
       suffix: 'biz',
@@ -156,20 +162,24 @@ describe('provisioning.service', () => {
     });
 
     const mode = await resolveCommercialModeForCompany(businessId, trx);
-    expect(mode).toBe('self_serve');
+    expect(mode).toBe('firm_managed');
 
     const result = await provisionBillingForCompany(businessId, {
       billingEmail,
       db: trx,
     });
 
-    expect(result.commercialMode).toBe('self_serve');
+    expect(result.commercialMode).toBe('firm_managed');
 
+    const platformFirmAccount = await getBillingAccountByOwnerCompanyId(
+      platformFirm.id,
+      trx,
+    );
     const context = await resolveWorkspaceBillingContext(businessId, {
       db: trx,
     });
-    expect(context?.billingAccount.ownerCompanyId).toBe(businessId);
-    expect(context?.billingAccountId).toBe(result.billingAccountId);
+    expect(context?.billingAccount.ownerCompanyId).toBe(platformFirm.id);
+    expect(context?.billingAccountId).toBe(platformFirmAccount?.id);
   });
 
   it('provisions business under non-platform firm as firm_managed', async () => {

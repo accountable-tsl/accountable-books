@@ -41,6 +41,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import Popup from './components/Popup/Popup';
+import { SentryAppBoundary } from './components/SentryAppBoundary';
 import { PopupProvider, usePopup } from './contexts/PopupContext';
 import { AccountingWorkspaceSetup } from './domains-pending-migration/accounting-setup/AccountingSetup';
 import {
@@ -55,12 +56,14 @@ function App() {
       <PopupProvider>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
-            <SessionProvider>
-              <TooltipProvider>
-                <Toaster />
-                <AppRoutes />
-              </TooltipProvider>
-            </SessionProvider>
+            <SentryAppBoundary>
+              <SessionProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <AppRoutes />
+                </TooltipProvider>
+              </SessionProvider>
+            </SentryAppBoundary>
           </BrowserRouter>
         </QueryClientProvider>
       </PopupProvider>

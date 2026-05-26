@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/node';
 
 import { isProd, NODE_ENV } from '../../config/env.js';
+import { scrubForTelemetry } from '../telemetry/scrub.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 
@@ -50,7 +51,10 @@ export function errorResponse<T = null>(
     Sentry.captureException(
       error instanceof Error ? error : new Error(finalMessage),
       {
-        extra: { error: parsedError, code: finalCode },
+        extra: scrubForTelemetry({
+          error: parsedError,
+          code: finalCode,
+        }) as Record<string, unknown>,
       },
     );
   }

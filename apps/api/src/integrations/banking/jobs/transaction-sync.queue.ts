@@ -1,4 +1,4 @@
-import type { Job } from 'bullmq';
+import type { Job, JobsOptions } from 'bullmq';
 import { Queue } from 'bullmq';
 
 import { isProd } from '../../../config/env.js';
@@ -7,6 +7,7 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { redis } from '../../../lib/redis.js';
+import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type {
   BulkSyncJobData,
@@ -33,14 +34,17 @@ export async function scheduleTransactionSync(
   options: {
     delay?: number;
     priority?: number;
+    attempts?: number;
+    backoff?: JobsOptions['backoff'];
   } = {},
 ): Promise<Job<TransactionSyncJobData> | null> {
   const job = await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
-    transactionSyncQueue.add('sync-transactions', data, {
+    transactionSyncQueue.add('sync-transactions', withJobTelemetry(data), {
       delay: options.delay,
       priority: options.priority || 0,
       // Override default attempts for manual syncs
-      attempts: data.syncType === 'manual' ? 3 : 5,
+      attempts: options.attempts ?? (data.syncType === 'manual' ? 3 : 5),
+      backoff: options.backoff,
     }),
   );
   return job;
@@ -57,7 +61,7 @@ export async function scheduleBulkTransactionSync(
   } = {},
 ): Promise<Job<BulkSyncJobData> | null> {
   const job = await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
-    transactionSyncQueue.add('bulk-sync-transactions', data, {
+    transactionSyncQueue.add('bulk-sync-transactions', withJobTelemetry(data), {
       delay: options.delay,
       priority: 1, // Higher priority for bulk syncs
     }),

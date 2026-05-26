@@ -9,6 +9,7 @@ import {
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
 import { redis } from '../../lib/redis.js';
+import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
 
 /**
@@ -237,12 +238,12 @@ export async function enqueueGLBalance(
         const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
           balanceRecalcQueue.add(
             'gl-balance',
-            {
+            withJobTelemetry({
               ...data,
               type: 'gl-balance',
               recalcFrom: merged.from,
               recalcTo: merged.to,
-            },
+            }),
             { jobId: followupId, priority: priorityForGL(v.data.triggeredBy) },
           ),
         );
@@ -257,7 +258,7 @@ export async function enqueueGLBalance(
   const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
     balanceRecalcQueue.add(
       'gl-balance',
-      { ...data, type: 'gl-balance', recalcFrom, recalcTo },
+      withJobTelemetry({ ...data, type: 'gl-balance', recalcFrom, recalcTo }),
       { jobId, priority: priorityForGL(v.data.triggeredBy) },
     ),
   );
@@ -336,12 +337,12 @@ export async function enqueueBankBalance(
         const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
           balanceRecalcQueue.add(
             'bank-balance',
-            {
+            withJobTelemetry({
               ...data,
               type: 'bank-balance',
               recalcFrom: merged.from,
               recalcTo: merged.to,
-            },
+            }),
             {
               jobId: followupId,
               priority: priorityForBank(v.data.triggeredBy),
@@ -359,7 +360,12 @@ export async function enqueueBankBalance(
   const job = await executeQueueOperation(QueueName.BALANCE_RECALC, () =>
     balanceRecalcQueue.add(
       'bank-balance',
-      { ...data, type: 'bank-balance', recalcFrom, recalcTo },
+      withJobTelemetry({
+        ...data,
+        type: 'bank-balance',
+        recalcFrom,
+        recalcTo,
+      }),
       { jobId, priority: priorityForBank(v.data.triggeredBy) },
     ),
   );

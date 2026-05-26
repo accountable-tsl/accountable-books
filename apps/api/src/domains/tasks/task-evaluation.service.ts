@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
-import pino from 'pino';
 import { z } from 'zod';
 
+import { getLogger } from '../../shared/utils/logger.js';
 import { writeAuditEvent } from '../audit/audit.model.js';
 import {
   checkBankConnectionHealth,
@@ -17,7 +17,7 @@ import { getTaskDef, TASK_REGISTRY } from './task-registry.js';
 import type { ConditionCheckResult, PeriodRange } from './condition-checks.js';
 import type { TaskTypeCode } from './task-registry.js';
 
-const logger = pino({ name: 'task-evaluation' });
+const logger = getLogger({ component: 'task-evaluation-service' });
 
 const SENTINEL_UUID = '00000000-0000-0000-0000-000000000000';
 const COMPLETED_STATUSES = ['completed', 'skipped', 'not_applicable'];

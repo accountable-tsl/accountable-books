@@ -1,13 +1,13 @@
 import type { Knex } from 'knex';
-import pino from 'pino';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
 import { generateChecksumSync } from '../../../shared/index.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 
 import type { CompanyContextCache } from './enrichment.types.js';
 
-const logger = pino();
+const logger = getLogger({ component: 'company-context-service' });
 
 const CACHE_TTL_SECONDS = 86400; // 24 hours
 const CACHE_KEY_PREFIX = 'company:banktx-enrichment';

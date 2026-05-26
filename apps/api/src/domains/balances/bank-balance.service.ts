@@ -6,10 +6,10 @@ import {
   min,
 } from 'date-fns';
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
-import pino from 'pino';
 
 import { knexClient as db } from '../../db/knexClient.js';
 import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import { getSystemUser } from '../users/users.model.js';
 import { bankBalanceRecalcParamsSchema } from './balances.types.js';
 import { setBankOpeningBalance } from './opening-balance/opening-balance.service.js';
@@ -71,6 +71,8 @@ interface DailySnapshot {
 
 type RecalcMode = 'forward' | 'backsolve' | 'full_rebuild';
 
+const logger = getLogger({ component: 'bank-balance-service' });
+
 export interface ValidationIssue {
   day?: string;
   code:
@@ -85,8 +87,6 @@ export interface ValidationIssue {
     | 'CHECKPOINT_MISMATCH_END';
   message: string;
 }
-
-const logger = pino();
 
 type Queryable = Knex | Knex.Transaction;
 

@@ -8,6 +8,7 @@ import { pinoHttp } from 'pino-http';
 import { ENV, isDev, NODE_ENV } from './config/env.js';
 import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
 import { conditionalJsonParser } from './core/middlewares/bodyParser.middleware.js';
+import { knexClient } from './db/knexClient.js';
 import { specs, swaggerUi } from './docs/swagger.js';
 import { loadAccountMeta } from './domains/account/account.registry.js';
 import accountRoutes from './domains/account/account.routes.js';
@@ -45,7 +46,8 @@ import {
 import authRoutes from './features/auth/auth.routes.js';
 import onboardingRoutes from './features/onboarding/onboarding.routes.js';
 import signupRoutes from './features/signup/signup.routes.js';
-import { serverAdapter } from './lib/bullboard.js';
+import { createHealthRouter } from './health.js';
+import { redis } from './lib/redis.js';
 import { requestContextMiddleware } from './shared/telemetry/request-context.js';
 import { logger } from './shared/utils/logger.js';
 
@@ -84,8 +86,12 @@ app.use(
 
 app.use(attachAuditContext);
 
-app.get('/health', (_req: express.Request, res: express.Response) =>
-  res.status(200).json({ ok: true }),
+app.use(
+  '/health',
+  createHealthRouter({
+    checkPostgres: () => knexClient.raw('SELECT 1'),
+    checkRedis: () => redis.ping(),
+  }),
 );
 
 // const originalError = console.error;
@@ -154,6 +160,7 @@ export async function setupApp() {
 
   const bullboardUser = ENV.BULLBOARD_USER || 'admin';
   const bullboardPass = ENV.BULLBOARD_PASSWORD || 'secret';
+  const { serverAdapter } = await import('./lib/bullboard.js');
 
   // Mount routes AFTER successful load
   app.use('/api', signupRoutes);

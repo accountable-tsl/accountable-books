@@ -7,6 +7,7 @@ import {
   runWithJobContext,
   runWithRequestContext,
   updateRequestContext,
+  withJobTelemetry,
 } from './request-context.js';
 
 describe('request context', () => {
@@ -124,6 +125,102 @@ describe('request context', () => {
     expect(fallback?.correlationId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+  });
+
+  it('attaches current ALS telemetry to one-off job payloads', () => {
+    const payload = runWithRequestContext(
+      {
+        requestId: 'req-123',
+        correlationId: 'corr-123',
+        userId: 'user-123',
+        companyId: 'company-123',
+        processSource: 'api',
+      },
+      () => withJobTelemetry({ type: 'test-job' as const }),
+    );
+
+    expect(payload).toEqual({
+      type: 'test-job',
+      _telemetry: {
+        requestId: 'req-123',
+        correlationId: 'corr-123',
+        userId: 'user-123',
+        companyId: 'company-123',
+      },
+    });
+  });
+
+  it('returns the original payload unchanged when no ALS context exists', () => {
+    const payload = { type: 'test-job' as const, foo: 'bar' };
+
+    expect(withJobTelemetry(payload)).toBe(payload);
+    expect(withJobTelemetry(payload)).toEqual({
+      type: 'test-job',
+      foo: 'bar',
+    });
+  });
+
+  it('preserves existing telemetry when present on the payload', () => {
+    const payload = runWithRequestContext(
+      {
+        requestId: 'req-from-als',
+        correlationId: 'corr-from-als',
+        userId: 'user-from-als',
+        companyId: 'company-from-als',
+        processSource: 'api',
+      },
+      () =>
+        withJobTelemetry({
+          type: 'test-job' as const,
+          _telemetry: {
+            requestId: 'req-from-payload',
+            correlationId: 'corr-from-payload',
+            userId: 'user-from-payload',
+          },
+        }),
+    );
+
+    expect(payload).toEqual({
+      type: 'test-job',
+      _telemetry: {
+        requestId: 'req-from-payload',
+        correlationId: 'corr-from-payload',
+        userId: 'user-from-payload',
+        companyId: 'company-from-als',
+      },
+    });
+  });
+
+  it('normalizes whitespace-only telemetry fields and falls back to ALS values', () => {
+    const payload = runWithRequestContext(
+      {
+        requestId: 'req-from-als',
+        correlationId: 'corr-from-als',
+        userId: 'user-from-als',
+        companyId: 'company-from-als',
+        processSource: 'api',
+      },
+      () =>
+        withJobTelemetry({
+          type: 'test-job' as const,
+          _telemetry: {
+            requestId: '   ',
+            correlationId: ' corr-from-payload ',
+            userId: '',
+            companyId: ' company-from-payload ',
+          },
+        }),
+    );
+
+    expect(payload).toEqual({
+      type: 'test-job',
+      _telemetry: {
+        requestId: 'req-from-als',
+        correlationId: 'corr-from-payload',
+        userId: 'user-from-als',
+        companyId: 'company-from-payload',
+      },
+    });
   });
 
   it('feeds normalized ids into audit context via ALS', () => {

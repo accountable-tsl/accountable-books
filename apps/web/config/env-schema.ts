@@ -46,13 +46,6 @@ export const WEB_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   // ANALYTICS & MONITORING
   // ============================================================================
-  VITE_MIXPANEL_TOKEN: {
-    description:
-      'Mixpanel analytics token for frontend tracking (retire after PostHog cutover)',
-    type: 'string',
-    required: false,
-  },
-
   VITE_SENTRY_DSN: {
     description: 'Sentry error tracking DSN for frontend',
     type: 'url',

@@ -20,6 +20,7 @@ import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
 import { useCountries } from '@/shared/hooks/useCountries';
 import { useCurrencies } from '@/shared/hooks/useCurrencies';
 import { routes } from '@/shared/routes';
+import { captureProductEvent } from '@/shared/telemetry/capture-product-event';
 import { zEmail } from '@/shared/types/core';
 import { XIcon } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -163,6 +164,16 @@ export function Signup() {
       setSubmitStatus('submitting');
 
       try {
+        const selectedCountry = countries.find(
+          (item) => item.id === companyDetails.countryId,
+        );
+        captureProductEvent('signup.started', {
+          company_type: companyDetails.type,
+          country: selectedCountry?.code,
+          flow: 'signup',
+          method: 'direct',
+        });
+
         const signup = await submitSignup({
           user: basicInfo,
           company: companyDetails,

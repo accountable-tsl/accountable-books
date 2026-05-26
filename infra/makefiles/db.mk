@@ -116,7 +116,7 @@ staging-health: ## Check staging services health
 	@echo "$(BLUE)🏥 Checking staging health...$(RESET)"
 	@docker compose -f docker-compose.staging.yml ps
 	@echo "$(YELLOW)API Health:$(RESET)"
-	@curl -s http://localhost:5001/health || echo "❌ API not responding"
+	@curl -s http://localhost:5001/health/ready || echo "❌ API not responding"
 	@echo "$(YELLOW)Web Health:$(RESET)"
 	@curl -s http://localhost:3000 | head -1 || echo "❌ Web not responding"
 

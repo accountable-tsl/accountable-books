@@ -25,6 +25,10 @@ export interface JobTelemetryContext {
   companyId?: string;
 }
 
+export type JobDataWithTelemetry<T extends object> = T & {
+  _telemetry?: JobTelemetryContext;
+};
+
 type RequestWithTelemetryIds = Request & { id?: unknown };
 
 const requestContextStorage = new AsyncLocalStorage<RequestContext>();
@@ -52,6 +56,24 @@ function normalizeHeaderValue(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeTelemetryValue(value: unknown): string | undefined {
+  return normalizeHeaderValue(value) ?? undefined;
+}
+
+function getRequestContextTelemetry(): JobTelemetryContext | undefined {
+  const context = getRequestContext();
+  if (!context) {
+    return undefined;
+  }
+
+  return {
+    requestId: context.requestId,
+    correlationId: context.correlationId,
+    ...(context.userId ? { userId: context.userId } : {}),
+    ...(context.companyId ? { companyId: context.companyId } : {}),
+  };
 }
 
 function generateRequestContextSeed(
@@ -100,14 +122,61 @@ function getJobTelemetryContext(
   return telemetry as JobTelemetryContext;
 }
 
+export function withJobTelemetry<T extends object>(
+  data: T,
+): JobDataWithTelemetry<T> {
+  const contextTelemetry = getRequestContextTelemetry();
+  const existingTelemetry =
+    '_telemetry' in data &&
+    typeof data._telemetry === 'object' &&
+    data._telemetry !== null
+      ? (data._telemetry as JobTelemetryContext)
+      : undefined;
+
+  const telemetry: JobTelemetryContext = {
+    requestId:
+      normalizeTelemetryValue(existingTelemetry?.requestId) ??
+      contextTelemetry?.requestId,
+    correlationId:
+      normalizeTelemetryValue(existingTelemetry?.correlationId) ??
+      contextTelemetry?.correlationId,
+    userId:
+      normalizeTelemetryValue(existingTelemetry?.userId) ??
+      contextTelemetry?.userId,
+    companyId:
+      normalizeTelemetryValue(existingTelemetry?.companyId) ??
+      contextTelemetry?.companyId,
+  };
+
+  if (
+    !telemetry.requestId &&
+    !telemetry.correlationId &&
+    !telemetry.userId &&
+    !telemetry.companyId
+  ) {
+    return data as JobDataWithTelemetry<T>;
+  }
+
+  return {
+    ...data,
+    _telemetry: telemetry,
+  };
+}
+
 export async function runWithJobContext<T>(
   job: Job<unknown>,
   fn: () => Promise<T>,
 ): Promise<T> {
   const telemetry = getJobTelemetryContext(job);
   const seed: RequestContext = {
-    requestId: telemetry?.requestId?.trim() || randomUUID(),
-    correlationId: telemetry?.correlationId?.trim() || randomUUID(),
+    requestId:
+      (typeof telemetry?.requestId === 'string'
+        ? telemetry.requestId.trim()
+        : '') || randomUUID(),
+    correlationId:
+      (typeof telemetry?.correlationId === 'string'
+        ? telemetry.correlationId.trim()
+        : '') || randomUUID(),
     ...(telemetry?.userId ? { userId: telemetry.userId } : {}),
     ...(telemetry?.companyId ? { companyId: telemetry.companyId } : {}),
     processSource: 'worker',

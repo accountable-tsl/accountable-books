@@ -8,7 +8,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { transactionSyncQueue } from '../jobs/transaction-sync.queue.js';
+import { scheduleTransactionSync } from '../jobs/transaction-sync.queue.js';
 import { providerRegistry } from '../providers/registry.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
@@ -250,8 +250,7 @@ export class ConnectAccountsService {
         try {
           const provider = await providerRegistry.get(params.providerKey);
           if (provider && provider.supportsTransactionSync()) {
-            await transactionSyncQueue.add(
-              'sync-transactions',
+            await scheduleTransactionSync(
               {
                 credentialId: credentialId,
                 syncType: 'initial',

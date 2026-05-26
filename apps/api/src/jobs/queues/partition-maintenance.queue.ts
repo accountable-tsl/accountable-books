@@ -2,6 +2,7 @@ import type { Job } from 'bullmq';
 import { Queue } from 'bullmq';
 
 import { redis } from '../../lib/redis.js';
+import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { executeQueueOperation, QueueName } from './queue-broker.js';
 
 /**
@@ -115,11 +116,11 @@ export async function scheduleManualYearPartition(
   const job = await executeQueueOperation(QueueName.PARTITION_MAINTENANCE, () =>
     partitionMaintenanceQueue.add(
       'manual-year-creation',
-      {
+      withJobTelemetry({
         type: 'manual_year_creation',
         tableName,
         year,
-      },
+      }),
       {
         priority: 10, // High priority for manual requests
       },

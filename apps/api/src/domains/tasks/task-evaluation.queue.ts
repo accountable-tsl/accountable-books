@@ -5,6 +5,7 @@ import {
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
 import { redis } from '../../lib/redis.js';
+import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 
 // ── Job data types ───────────────────────────────────────────────────
 
@@ -38,7 +39,11 @@ export async function enqueueEvaluateClient(
   const job = await executeQueueOperation(QueueName.TASK_EVALUATION, () =>
     taskEvaluationQueue.add(
       'evaluate-client',
-      { type: 'evaluate-client', firmCompanyId, clientCompanyId },
+      withJobTelemetry({
+        type: 'evaluate-client',
+        firmCompanyId,
+        clientCompanyId,
+      }),
       { jobId },
     ),
   );

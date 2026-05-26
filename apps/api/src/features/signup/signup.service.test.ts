@@ -12,16 +12,16 @@ import {
 import { createInitialUserOnboardingState } from '../onboarding/onboarding.utils.js';
 import { registerNewAccount } from './signup.service.js';
 
-vi.mock('@sentry/node', () => ({
-  captureException: vi.fn(),
+vi.mock('../../shared/telemetry/capture-sentry-exception.js', () => ({
+  captureSentryException: vi.fn(),
 }));
 
 vi.mock('../communications/email/email.service.js', () => ({
   sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../../shared/utils/analytics.utils.js', () => ({
-  trackEvent: vi.fn().mockResolvedValue(undefined),
+vi.mock('../../shared/telemetry/capture-product-event.js', () => ({
+  captureProductEvent: vi.fn(),
 }));
 
 /** Lowercase letters only — firm slugs reject digits. */
