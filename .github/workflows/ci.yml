@@ -103,6 +103,10 @@ jobs:
       - name: Build shared packages (utils)
         run: pnpm --filter @accountable-books/utils build
 
+      - name: Build contracts artifacts (required by API migrations)
+        if: matrix.package == 'api'
+        run: pnpm --filter @accountable-books/contracts build
+
       - name: Generate environment files
         run: pnpm --filter @accountable-books/${{ matrix.package }} generate-env
 
@@ -119,7 +123,6 @@ jobs:
       - name: Validate billing catalog v1 seed snapshot
         if: matrix.package == 'api'
         run: |
-          pnpm --filter @accountable-books/contracts build
           pnpm --filter @accountable-books/api billing:validate-catalog-seed
 
       - name: Build ${{ matrix.package }}
@@ -144,6 +147,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          standalone: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: 'pnpm'
+
+      - name: Install deps (workspace)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate contracts artifacts required by ml-engine tests
+        run: pnpm --filter @accountable-books/contracts build
 
       - name: Setup Python
         uses: actions/setup-python@v5

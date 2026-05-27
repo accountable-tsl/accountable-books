@@ -1,8 +1,8 @@
-import type { AppSidebarProps } from '@/components/sidebar';
+import type { AppSidebarProps } from '@/components/app-sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
 import { AppHeader } from '@/components/AppHeader';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { AppSidebar } from '@/components/sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AiRuntimeProvider } from '@/modules/ai';
 import { useCanonicalUrlEnforcer } from '@/shared/routes/hooks';

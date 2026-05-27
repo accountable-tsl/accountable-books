@@ -48,9 +48,6 @@ export const AppSidebar = ({
   companyType: _companyType,
   ...props
 }: AppSidebarProps) => {
-  // Side bar options, depending on page, I'd use collapsible or icon
-  // e.g on categorization engine, we'd use collapsible but on dashboard, we'd use icon
-
   const companyId = _companyId || company?.id;
   const companyType = _companyType || company?.companyType;
 
@@ -73,7 +70,7 @@ export const AppSidebar = ({
     ? getNavUser({
         name: user.firstname,
         email: user.email,
-        avatar: '', // user.avatar or something later
+        avatar: '',
       })
     : { name: '', email: '', avatar: '' };
 
@@ -131,6 +128,7 @@ export const AppSidebar = ({
     </Sidebar>
   );
 };
+
 export function MockSidebar({ items = [] }: Partial<{ items: any[] }>) {
   return (
     <Sidebar className="fixed top-0 left-0 z-0 h-full shadow-md">
