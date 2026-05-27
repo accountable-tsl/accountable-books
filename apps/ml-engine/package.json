@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "poetry install --no-interaction && poetry run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8000",
-    "test": "poetry install --no-interaction && poetry run pytest"
+    "dev": "uv run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8000",
+    "test": "uv run pytest",
+    "test:testmon": "uv run pytest --testmon",
+    "lock": "uv lock",
+    "sync": "uv sync",
+    "lint": "uv run ruff check .",
+    "format": "uv run ruff format ."
   }
 }

@@ -535,10 +535,13 @@ export function ManagePlanDialog({
 
     setBillingInterval(snapshot.current.billingInterval);
     setSelectedPlanKey(snapshot.current.planKey);
-  }, [open, snapshot?.current.billingInterval, snapshot?.current.planKey]);
+  }, [open, snapshot]);
 
   const current = snapshot?.current ?? null;
-  const availablePlans = snapshot?.availablePlans ?? [];
+  const availablePlans = useMemo(
+    () => snapshot?.availablePlans ?? [],
+    [snapshot?.availablePlans],
+  );
   const contactSalesHref = snapshot?.contactSalesHref ?? null;
   const resolvedBillingInterval =
     billingInterval ?? current?.billingInterval ?? null;

@@ -32,9 +32,9 @@ import {
 import { useSession } from '@/app/session';
 import { invalidateReporting } from '@/modules/accounting/reporting';
 import { toYMD } from '@/shared/utils/date-utils';
+import { createId } from '@/shared/utils/id-utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 
 import { groupCategorizationTransactions } from '../lib/transform';
 import { useSendCategorizationIntent } from './hooks';
@@ -179,7 +179,7 @@ function getLedgerEntryIdFromServerEntry(
  * - Backend reconciliation is scoped to a single transaction's entries
  */
 function generateUiEntryId(): string {
-  return `ui-${uuidv4()}`;
+  return createId({ prefix: 'ui-' });
 }
 
 function createEntryUIFromServer(
@@ -424,7 +424,7 @@ function buildLedgerIntentFromEntries(
   }
 
   return {
-    intent_id: uuidv4(),
+    intent_id: createId(),
     bank_transaction_id: transaction.bankTransactionId,
     ledger_transaction_id: transaction.ledgerTransactionId || undefined,
     candidate_id: transaction.candidateId || undefined,

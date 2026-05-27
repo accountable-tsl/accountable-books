@@ -158,7 +158,7 @@ PostgreSQL 17.5 with custom extensions:
 
 ## 🔧 Prerequisites
 
-- **Node.js** >= 20.0.0 < 24.4.0 (see `engines` in package.json)
+- **Node.js** >= 24.16.0 for local development (CI/Docker use 24.16.0)
 - **pnpm** >= 8.0.0
 - **Docker** & **Docker Compose**
 - **Make** (for development commands)

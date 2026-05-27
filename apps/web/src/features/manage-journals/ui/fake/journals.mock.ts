@@ -4,10 +4,9 @@ import type {
   JournalListCursorResponse,
   JournalListRow,
 } from '@accountable-books/contracts/schema';
+import { createId } from '@/shared/utils/id-utils';
 
-const uuid = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  `mock-${Math.random().toString(16).slice(2)}-${Date.now()}`;
+const mockId = () => createId({ prefix: 'mock-' });
 
 const pad4 = (n: number) => String(n).padStart(4, '0');
 
@@ -28,16 +27,16 @@ export function generateMockJournals({
   count?: number;
 }): MockData {
   const now = new Date();
-  const reportingCurrencyId = uuid();
+  const reportingCurrencyId = mockId();
 
   let seq = 42;
   const list: JournalListRow[] = [];
   const detailsById = new Map<string, GetJournalResponse>();
 
   const contacts = [
-    { id: uuid(), name: 'Acme Properties LLC' },
-    { id: uuid(), name: 'Nimbus Payroll Services' },
-    { id: uuid(), name: 'Contoso Consulting' },
+    { id: mockId(), name: 'Acme Properties LLC' },
+    { id: mockId(), name: 'Nimbus Payroll Services' },
+    { id: mockId(), name: 'Contoso Consulting' },
   ];
 
   const coaPairs = [
@@ -60,7 +59,7 @@ export function generateMockJournals({
   ];
 
   for (let i = 0; i < count; i += 1) {
-    const id = uuid();
+    const id = mockId();
     const daysAgo = Math.floor(Math.random() * 120);
     const date = new Date(now);
     date.setDate(now.getDate() - daysAgo);
@@ -73,7 +72,7 @@ export function generateMockJournals({
     const status =
       statusRoll < 0.65 ? 'posted' : statusRoll < 0.9 ? 'draft' : 'voided';
 
-    const generatedFromTemplate = Math.random() < 0.14 ? uuid() : null;
+    const generatedFromTemplate = Math.random() < 0.14 ? mockId() : null;
 
     const total = Math.round((50 + Math.random() * 9500) * 100) / 100;
     const totalStr = total.toFixed(2);
@@ -142,7 +141,7 @@ export function generateMockJournals({
       currencySymbol:
         effectiveCurrencyCode === 'USD' ? '$' : effectiveCurrencyCode,
       exchangeRate,
-      ledgerTransactionId: status === 'posted' ? uuid() : null,
+      ledgerTransactionId: status === 'posted' ? mockId() : null,
       generatedFromTemplateId: generatedFromTemplate,
       generatedAt: generatedFromTemplate ? createdAt.toISOString() : null,
       generatedScheduledForDate: generatedFromTemplate ? toYMD(date) : null,
@@ -155,7 +154,7 @@ export function generateMockJournals({
       voidedAt: status === 'voided' ? createdAt.toISOString() : null,
       metadata: null,
       createdAt: createdAt.toISOString(),
-      createdById: uuid(),
+      createdById: mockId(),
       updatedAt: createdAt.toISOString(),
       updatedById: null,
       isDeleted: false,
@@ -174,16 +173,16 @@ export function generateMockJournals({
 
     const entries: JournalDetailEntry[] = [
       {
-        id: uuid(),
+        id: mockId(),
         description: `${title} (line 1)`,
         side: 'debit',
         amount: partA,
-        coaId: uuid(),
+        coaId: mockId(),
         coaCode: coa.debit.code,
         coaName: coa.debit.name,
         projectId: null,
         projectName: null,
-        ledgerEntryId: status === 'posted' ? uuid() : null,
+        ledgerEntryId: status === 'posted' ? mockId() : null,
         ledgerEntryFsDate: status === 'posted' ? journalRow.date : null,
         createdAt: createdAt.toISOString(),
         updatedAt: createdAt.toISOString(),
@@ -192,16 +191,16 @@ export function generateMockJournals({
 
     if (splitDebit && partB > 0) {
       entries.push({
-        id: uuid(),
+        id: mockId(),
         description: `${title} (line 2)`,
         side: 'debit',
         amount: partB,
-        coaId: uuid(),
+        coaId: mockId(),
         coaCode: coa.debit.code,
         coaName: coa.debit.name,
         projectId: null,
         projectName: null,
-        ledgerEntryId: status === 'posted' ? uuid() : null,
+        ledgerEntryId: status === 'posted' ? mockId() : null,
         ledgerEntryFsDate: status === 'posted' ? journalRow.date : null,
         createdAt: createdAt.toISOString(),
         updatedAt: createdAt.toISOString(),
@@ -209,16 +208,16 @@ export function generateMockJournals({
     }
 
     entries.push({
-      id: uuid(),
+      id: mockId(),
       description: `${title} offset`,
       side: 'credit',
       amount: total,
-      coaId: uuid(),
+      coaId: mockId(),
       coaCode: coa.credit.code,
       coaName: coa.credit.name,
       projectId: null,
       projectName: null,
-      ledgerEntryId: status === 'posted' ? uuid() : null,
+      ledgerEntryId: status === 'posted' ? mockId() : null,
       ledgerEntryFsDate: status === 'posted' ? journalRow.date : null,
       createdAt: createdAt.toISOString(),
       updatedAt: createdAt.toISOString(),

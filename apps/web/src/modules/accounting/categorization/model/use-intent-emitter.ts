@@ -5,9 +5,9 @@ import type {
 import { useCallback, useEffect, useRef } from 'react';
 import { useSession } from '@/app/session';
 import { toYMD } from '@/shared/utils/date-utils';
+import { createId } from '@/shared/utils/id-utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 
 import { groupCategorizationTransactions } from '../lib/transform';
 import { useSendCategorizationIntent } from './hooks';
@@ -26,7 +26,7 @@ const TEMP_ENTRY_ID_PREFIX = 'temp-';
  * Format: temp-entry-{uuid}-{timestamp}-{random}
  */
 export function createTempEntryId(): string {
-  return `${TEMP_ENTRY_ID_PREFIX}${uuidv4()}-${Date.now()}`;
+  return createId({ prefix: TEMP_ENTRY_ID_PREFIX });
 }
 
 /**
@@ -286,7 +286,7 @@ function buildLedgerIntentFromTransaction(
 
   // Build LedgerIntent
   const ledgerIntent: LedgerIntent = {
-    intent_id: uuidv4(),
+    intent_id: createId(),
     bank_transaction_id: transaction.bankTransactionId,
     ledger_transaction_id: transaction.ledgerTransactionId || undefined,
     candidate_id: transaction.candidateId || undefined,

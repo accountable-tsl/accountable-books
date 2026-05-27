@@ -27,7 +27,7 @@
   "keywords": [],
   "author": "Accountable Techserve Inc.",
   "license": "ISC",
-  "packageManager": "pnpm@10.15.1",
+  "packageManager": "pnpm@11.3.0",
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
@@ -53,8 +53,8 @@
     "vitest": "^4.1.4"
   },
   "engines": {
-    "node": ">=24.0.0 <25.0.0",
-    "pnpm": ">=10.0.0"
+    "node": ">=24.16.0",
+    "pnpm": ">=11.0.0"
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": [
@@ -70,13 +70,6 @@
     "apps/{api,web}/config/env-schema.ts": [
       "pnpm run generate-env"
     ]
-  },
-  "pnpm": {
-    "overrides": {
-      "typescript": "5.9.2",
-      "eslint": "9.33.0",
-      "prettier": "3.6.2"
-    }
   },
   "dependencies": {
     "eslint-plugin-react": "^7.37.5",

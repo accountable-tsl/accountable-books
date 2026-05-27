@@ -14,6 +14,8 @@ export default defineConfig([
       '**/build/**',
       '**/node_modules/**',
       '**/.next/**',
+      '**/.venv/**',
+      '**/venv/**',
       '**/.claude/**',
     ],
   },

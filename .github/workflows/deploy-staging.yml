@@ -15,8 +15,8 @@ on:
         type: boolean
 
 env:
-  PNPM_VERSION: 10.15.1
-  NODE_VERSION: 24
+  PNPM_VERSION: 11.3.0
+  NODE_VERSION: 24.16.0
 
 jobs:
   # Step 1: Run database migrations BEFORE deploying API

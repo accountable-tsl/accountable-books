@@ -11,7 +11,7 @@ This gives you the benefits of consistent infrastructure with the speed and flex
 
 ## Prerequisites
 
-- **Node.js** >= 20.0.0 < 24.4.0
+- **Node.js** >= 24.16.0
 - **pnpm** >= 8.0.0
 - **Docker** & **Docker Compose**
 

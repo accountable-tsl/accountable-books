@@ -50,14 +50,14 @@ Automatically suggests which account to use when categorizing bank transactions.
 
 ```bash
 cd apps/ml-engine
-poetry install
-poetry run uvicorn ml_engine.main:app --reload --port 8001
+uv sync --frozen
+uv run uvicorn ml_engine.main:app --reload --port 8001
 ```
 
 **Run tests:**
 
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 **Check API docs:**

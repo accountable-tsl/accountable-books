@@ -1,15 +1,10 @@
+import { createId } from '@/shared/utils/id-utils';
+
 const SESSION_CORRELATION_KEY = 'ab:session-correlation-id';
 let fallbackCorrelationId: string | null = null;
 
 function createCorrelationId(): string {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
-  }
-
-  return `corr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return createId({ prefix: 'corr-' });
 }
 
 function canUseSessionStorage(): boolean {

@@ -134,7 +134,7 @@ export function DashboardClientPage() {
           className="min-h-0 w-full flex-1 gap-4"
         >
           <div className="flex min-w-0 shrink-0 flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-            <div className="bg-muted/95 dark:bg-background/95 supports-backdrop-filter:bg-muted/80 dark:supports-backdrop-filter:bg-background/80 sticky top-0 z-50 w-auto min-w-0 snap-x snap-mandatory overflow-x-auto backdrop-blur [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [scrollbar-width:none] md:static md:w-auto md:min-w-0 md:flex-1 md:backdrop-blur-none [&::-webkit-scrollbar]:hidden">
+            <div className="bg-muted/95 dark:bg-background/95 supports-backdrop-filter:bg-muted/80 dark:supports-backdrop-filter:bg-background/80 sticky top-0 z-50 w-auto min-w-0 snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto backdrop-blur [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] md:static md:w-auto md:min-w-0 md:flex-1 md:backdrop-blur-none [&::-webkit-scrollbar]:hidden">
               <TabsList className="text-muted-foreground md:bg-muted/50 md:dark:border-border/50 flex h-auto w-max min-w-full flex-nowrap items-stretch gap-1 rounded-[10px] bg-black/5 p-1 md:inline-flex md:w-auto md:min-w-0 md:rounded-lg md:border dark:bg-white/5 md:dark:bg-transparent">
                 {DASHBOARD_TABS.map((tab) => (
                   <TabsTrigger

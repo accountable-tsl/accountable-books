@@ -85,15 +85,14 @@ else
     ERRORS=$((ERRORS+1))
 fi
 
-# 4. Check for poetry (Required for ML)
-if check_cmd poetry; then
-    echo -e "${GREEN}✅ poetry found${NC}"
+# 4. Check for uv (Required for ML)
+if check_cmd uv; then
+    echo -e "${GREEN}✅ uv found${NC}"
 else
-    echo -e "${YELLOW}⚠️  poetry is missing.${NC}"
-    echo -e "   Poetry is required for the ML Engine."
-    echo -e "   Install: ${BLUE}https://python-poetry.org/docs/#installation${NC}"
-    echo -e "   (ML engine installation will be skipped)"
-    # We don't increment errors here because the Makefile accounts for missing poetry
+    echo -e "${RED}❌ uv is missing.${NC}"
+    echo -e "   uv is required for the ML Engine."
+    echo -e "   Install: ${BLUE}https://docs.astral.sh/uv/getting-started/installation/${NC}"
+    ERRORS=$((ERRORS+1))
 fi
 
 echo ""

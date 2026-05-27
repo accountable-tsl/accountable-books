@@ -34,9 +34,9 @@ find_prune -type f \( \
   -name 'pnpm-lock.yaml' -o -name 'package-lock.json' -o -name 'yarn.lock' -o \
   -name 'npm-shrinkwrap.json' \) -delete
 
-log '🗑️ Removing Python lockfiles (poetry / pipenv / uv / pdm)...'
+log '🗑️ Removing Python lockfiles (pipenv / uv / pdm)...'
 find_prune -type f \( \
-  -name 'poetry.lock' -o -name 'Pipfile.lock' -o -name 'uv.lock' -o -name 'pdm.lock' \) -delete
+  -name 'Pipfile.lock' -o -name 'uv.lock' -o -name 'pdm.lock' \) -delete
 
 log '🗑️ Removing build outputs, bundler caches, deploy metadata, generated trees...'
 rm -rf \

@@ -284,7 +284,7 @@ function blockedBadgeLabel(task: FirmTaskQueueItem): string {
 
 function FirmQueueStatusChips({ task }: { task: FirmTaskQueueItem }) {
   return (
-    <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] max-lg:gap-1 [&::-webkit-scrollbar]:hidden max-lg:[&>*:nth-child(n+3)]:hidden">
+    <div className="flex shrink-0 [scrollbar-width:none] flex-nowrap items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] max-lg:gap-1 [&::-webkit-scrollbar]:hidden max-lg:[&>*:nth-child(n+3)]:hidden">
       {task.isOverdue && (
         <Badge
           variant="destructive"

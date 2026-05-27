@@ -28,6 +28,8 @@ echo "🧪 Running affected tests..."
 pnpm --filter "{!@accountable-books/ml-engine}" test --affected -- --run
 
 # Run ML engine tests separately (pytest doesn't support --affected)
-pnpm --filter @accountable-books/ml-engine test --testmon
+echo "🧪 Running ML engine tests..."
+pnpm --filter @accountable-books/ml-engine exec uv lock --check
+pnpm --filter @accountable-books/ml-engine test:testmon
 
 echo "✅ Pre-commit checks passed!"

@@ -1,3 +1,5 @@
+import { createId } from '@/shared/utils/id-utils';
+
 import { MOCK_TEAM_MEMBERS_RESPONSE } from '../lib/mock-team-members';
 
 import type {
@@ -40,7 +42,7 @@ export async function inviteTeamMember({
   if (!companyId.trim()) {
     return {
       status: 'sent',
-      inviteId: crypto.randomUUID(),
+      inviteId: createId(),
       email: input.email,
       createdAt: new Date().toISOString(),
     };
@@ -51,7 +53,7 @@ export async function inviteTeamMember({
 
   return {
     status: 'sent',
-    inviteId: crypto.randomUUID(),
+    inviteId: createId(),
     email: input.email,
     createdAt: new Date().toISOString(),
   };

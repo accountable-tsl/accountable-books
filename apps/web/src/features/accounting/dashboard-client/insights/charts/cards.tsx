@@ -432,7 +432,7 @@ export function CategoryBreakdownChartCard({
                 hideIndicator
                 formatter={(value, _name, item) => {
                   const percent =
-                    typeof item.payload.percent === 'number'
+                    typeof item.payload?.percent === 'number'
                       ? item.payload.percent
                       : 0;
                   const formatted = formatCurrencyAdaptive(
