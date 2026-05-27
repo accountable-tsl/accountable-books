@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 
 import { accountTypeKeys as accountTypeKeysData } from '../../../data/source/account/account-types.js';
 import { labelRole } from '../common/enums.js';

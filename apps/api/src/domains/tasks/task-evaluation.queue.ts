@@ -1,10 +1,8 @@
-import { Queue } from 'bullmq';
-
 import {
   executeQueueOperation,
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
-import { redis } from '../../lib/redis.js';
+import { createQueue } from '../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 
 // ── Job data types ───────────────────────────────────────────────────
@@ -15,10 +13,9 @@ export type TaskEvaluationJobData =
 
 // ── Queue ────────────────────────────────────────────────────────────
 
-export const taskEvaluationQueue = new Queue<TaskEvaluationJobData>(
+export const taskEvaluationQueue = createQueue<TaskEvaluationJobData>(
   'task-evaluation',
   {
-    connection: redis,
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },

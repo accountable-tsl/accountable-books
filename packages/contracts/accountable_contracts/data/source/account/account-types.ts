@@ -1,5 +1,6 @@
-import { type AccountTypeWithRequiredReportCode } from '../../../schema/source/index.js';
 import { accountElementIds } from './account-element-id.js';
+
+import type { AccountTypeWithRequiredReportCode } from '../../../schema/source/accounting/account-type.js';
 
 export const defaultNonCurrentAssetTypes: AccountTypeWithRequiredReportCode[] =
   [

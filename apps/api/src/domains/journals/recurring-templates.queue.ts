@@ -1,5 +1,4 @@
 import type { Job } from 'bullmq';
-import { Queue } from 'bullmq';
 import z from 'zod';
 
 import { isProd } from '../../config/env.js';
@@ -7,7 +6,7 @@ import {
   executeQueueOperation,
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
-import { redis } from '../../lib/redis.js';
+import { createQueue } from '../../jobs/queues/queue-factory.js';
 
 export const RECURRING_TEMPLATES_QUEUE_NAME = 'recurring-journal-templates';
 
@@ -21,10 +20,9 @@ export type RecurringTemplatesJobData = z.infer<
   typeof recurringTemplatesJobDataSchema
 >;
 
-export const recurringTemplatesQueue = new Queue<RecurringTemplatesJobData>(
+export const recurringTemplatesQueue = createQueue<RecurringTemplatesJobData>(
   RECURRING_TEMPLATES_QUEUE_NAME,
   {
-    connection: redis,
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10000 },

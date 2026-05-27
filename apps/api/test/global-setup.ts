@@ -12,6 +12,6 @@ export default async function globalSetup() {
   return async () => {
     await closeTestDbConnection();
     await knexClient.destroy();
-    await redis.quit();
+    redis.disconnect();
   };
 }

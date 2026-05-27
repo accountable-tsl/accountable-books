@@ -1,6 +1,5 @@
 import { createHash } from 'crypto';
 import type { Job, JobsOptions } from 'bullmq';
-import { Queue } from 'bullmq';
 import { z } from 'zod';
 
 import {
@@ -8,7 +7,7 @@ import {
   queueBroker,
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
-import { redis } from '../../lib/redis.js';
+import { createQueue } from '../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
 
@@ -86,10 +85,12 @@ const DEFAULTS: JobsOptions = {
   priority: 5,
 };
 
-export const balanceRecalcQueue = new Queue<BalanceJobData>('balance-recalc', {
-  connection: redis,
-  defaultJobOptions: DEFAULTS,
-});
+export const balanceRecalcQueue = createQueue<BalanceJobData>(
+  'balance-recalc',
+  {
+    defaultJobOptions: DEFAULTS,
+  },
+);
 
 function rangeHash(from: string, to?: string): string {
   return createHash('sha1')

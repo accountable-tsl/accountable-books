@@ -1,12 +1,11 @@
 import type { Job } from 'bullmq';
-import { Queue } from 'bullmq';
 
 import { isProd } from '../../../config/env.js';
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { redis } from '../../../lib/redis.js';
+import { createQueue } from '../../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type {
@@ -14,8 +13,7 @@ import type {
   TokenBasedEmailPayload,
 } from './email.types.js';
 
-export const emailQueue = new Queue('email', {
-  connection: redis,
+export const emailQueue = createQueue('email', {
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 10000 },

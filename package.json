@@ -7,7 +7,7 @@
     "dev": "turbo run dev --parallel",
     "dev:core": "turbo run dev --parallel --filter !@accountable-books/web-payroll",
     "build": "turbo run build",
-    "test": "turbo run test --concurrency=1 && pnpm --filter @accountable-books/ml-engine test",
+    "test": "turbo run test --concurrency=1",
     "typecheck": "turbo run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

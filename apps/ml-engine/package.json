@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "uv run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8000",
-    "test": "uv run pytest",
-    "test:testmon": "uv run pytest --testmon",
+    "test": "pnpm --dir ../.. --filter @accountable-books/contracts build && uv run pytest",
+    "test:testmon": "pnpm --dir ../.. --filter @accountable-books/contracts build && uv run pytest --testmon",
     "lock": "uv lock",
     "sync": "uv sync",
     "lint": "uv run ruff check .",

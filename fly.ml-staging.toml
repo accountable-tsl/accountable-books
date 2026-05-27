@@ -17,7 +17,7 @@ primary_region = "iad"  # Washington DC (US East)
   # Python runtime configuration
   PYTHONUNBUFFERED = "1"
   PYTHONDONTWRITEBYTECODE = "1"
-  PYTHONPATH = "/app"
+  PYTHONPATH = "/workspace/apps/ml-engine"
   
   # Custom domain overrides
   BASE_DOMAIN = "getaccountable.com"

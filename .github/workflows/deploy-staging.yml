@@ -18,6 +18,10 @@ env:
   PNPM_VERSION: 11.3.0
   NODE_VERSION: 24.16.0
 
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
 jobs:
   # Step 1: Run database migrations BEFORE deploying API
   run-migrations:
@@ -232,6 +236,9 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
+      - name: Build contracts artifacts
+        run: pnpm --filter @accountable-books/contracts build
+
       - name: Generate environment files
         run: pnpm --filter @accountable-books/web generate-env
 
@@ -278,13 +285,16 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
+      - name: Build contracts artifacts
+        run: pnpm --filter @accountable-books/contracts build
+
       - name: Apply demo data
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
           DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
         run: |
           echo "🌱 Seeding demo data..."
-          pnpm -F @accountable-books/api run demo:apply:staging:remote -- --all
+          pnpm -F @accountable-books/api run demo:apply:staging:remote
           echo "✅ Demo data applied successfully"
 
   # Step 5: Deployment summary and notifications
@@ -299,10 +309,12 @@ jobs:
         apply-demo-data,
       ]
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'staging')
+      )
     steps:
       - name: Deployment summary
         run: |
@@ -327,7 +339,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
+          if [ "${{ needs.run-migrations.result }}" = "success" ] && \
+             [ "${{ needs.deploy-api.result }}" = "success" ] && \
+             [ "${{ needs.deploy-ml-engine.result }}" = "success" ] && \
+             [ "${{ needs.deploy-frontend.result }}" = "success" ] && \
+             [ "${{ needs.apply-demo-data.result }}" = "success" ]; then
             echo "✅ Staging deployment completed successfully!"
           else
             echo "❌ Staging deployment failed. Check the logs for details."

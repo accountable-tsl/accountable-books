@@ -1,5 +1,4 @@
 import type { Job } from 'bullmq';
-import { Queue } from 'bullmq';
 import z from 'zod';
 
 import { isProd } from '../../config/env.js';
@@ -7,7 +6,7 @@ import {
   executeQueueOperation,
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
-import { redis } from '../../lib/redis.js';
+import { createQueue } from '../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 
 export const JOURNAL_AUTO_REVERSAL_QUEUE_NAME = 'journal-auto-reversal';
@@ -28,10 +27,9 @@ export type JournalAutoReversalJobData = z.infer<
   typeof journalAutoReversalJobDataSchema
 >;
 
-export const journalAutoReversalQueue = new Queue<JournalAutoReversalJobData>(
+export const journalAutoReversalQueue = createQueue<JournalAutoReversalJobData>(
   JOURNAL_AUTO_REVERSAL_QUEUE_NAME,
   {
-    connection: redis,
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 10000 },

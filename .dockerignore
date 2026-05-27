@@ -51,9 +51,6 @@ scripts/security
 apps/web/dist
 apps/web/node_modules
 
-# ML engine (not needed for API)
-apps/ml-engine
-
 # Secrets
 secrets/
 

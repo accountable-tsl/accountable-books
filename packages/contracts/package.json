@@ -28,7 +28,8 @@
     "gen:pydantic": "tsx scripts/generate-pydantic.ts",
     "gen:pydantic:no-clean": "tsx scripts/generate-pydantic.ts --no-clean",
     "generate": "pnpm gen:data && pnpm gen:pydantic",
-    "build": "pnpm gen:data && pnpm gen:pydantic"
+    "clean": "find accountable_contracts \\( -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.js' -o -name '*.js.map' \\) -delete 2>/dev/null || true",
+    "build": "pnpm clean && pnpm gen:data && pnpm gen:pydantic && tsc"
   },
   "devDependencies": {
     "tsx": "^4.20.5"

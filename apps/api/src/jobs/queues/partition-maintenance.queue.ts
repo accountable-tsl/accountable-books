@@ -1,9 +1,8 @@
 import type { Job } from 'bullmq';
-import { Queue } from 'bullmq';
 
-import { redis } from '../../lib/redis.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { executeQueueOperation, QueueName } from './queue-broker.js';
+import { createQueue } from './queue-factory.js';
 
 /**
  * Queue for partition maintenance jobs
@@ -26,10 +25,8 @@ export interface PartitionMaintenanceJobData {
   };
 }
 
-export const partitionMaintenanceQueue = new Queue<PartitionMaintenanceJobData>(
-  'partition-maintenance',
-  {
-    connection: redis,
+export const partitionMaintenanceQueue =
+  createQueue<PartitionMaintenanceJobData>('partition-maintenance', {
     defaultJobOptions: {
       attempts: 3,
       backoff: {
@@ -45,8 +42,7 @@ export const partitionMaintenanceQueue = new Queue<PartitionMaintenanceJobData>(
         count: 100, // Keep last 100 failed jobs
       },
     },
-  },
-);
+  });
 
 /**
  * Schedule smart partition maintenance

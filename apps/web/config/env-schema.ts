@@ -11,6 +11,7 @@ import type { EnvSchema } from '@accountable-books/utils/env';
 export const WEB_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
   'local',
   'staging',
+  'production',
 ];
 
 export const WEB_ENV_SCHEMA: EnvSchema = {

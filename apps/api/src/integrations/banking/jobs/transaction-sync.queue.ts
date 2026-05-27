@@ -1,12 +1,11 @@
 import type { Job, JobsOptions } from 'bullmq';
-import { Queue } from 'bullmq';
 
 import { isProd } from '../../../config/env.js';
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { redis } from '../../../lib/redis.js';
+import { createQueue } from '../../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type {
@@ -14,16 +13,23 @@ import type {
   TransactionSyncJobData,
 } from './transaction-sync.worker.js';
 
-export const transactionSyncQueue = new Queue('transaction-sync', {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 5, // More retries for transaction sync
-    backoff: { type: 'exponential', delay: 30000 }, // Start at 30s backoff
-    // Keep transaction sync jobs longer for debugging
-    removeOnComplete: isProd ? { age: 86400, count: 1000 } : { count: 100 }, // Keep for 1 day
-    removeOnFail: { age: 172800, count: 1000 }, // Keep failures for 2 days
+type TransactionSyncQueueData =
+  | TransactionSyncJobData
+  | BulkSyncJobData
+  | { syncType: 'periodic' };
+
+export const transactionSyncQueue = createQueue<TransactionSyncQueueData>(
+  'transaction-sync',
+  {
+    defaultJobOptions: {
+      attempts: 5, // More retries for transaction sync
+      backoff: { type: 'exponential', delay: 30000 }, // Start at 30s backoff
+      // Keep transaction sync jobs longer for debugging
+      removeOnComplete: isProd ? { age: 86400, count: 1000 } : { count: 100 }, // Keep for 1 day
+      removeOnFail: { age: 172800, count: 1000 }, // Keep failures for 2 days
+    },
   },
-});
+);
 
 /**
  * Schedule a one-time transaction sync for a specific connection
@@ -47,7 +53,7 @@ export async function scheduleTransactionSync(
       backoff: options.backoff,
     }),
   );
-  return job;
+  return job as Job<TransactionSyncJobData> | null;
 }
 
 /**
@@ -66,7 +72,7 @@ export async function scheduleBulkTransactionSync(
       priority: 1, // Higher priority for bulk syncs
     }),
   );
-  return job;
+  return job as Job<BulkSyncJobData> | null;
 }
 
 /**

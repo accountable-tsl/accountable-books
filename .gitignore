@@ -67,7 +67,6 @@ AGENTS.md
 AGENT.md
 
 
-packages/contracts/accountable_contracts/data/generated/
 apps/ml-engine/.testmondata
 apps/api/src/domains/categorization/enrichment/__fixtures__/
 

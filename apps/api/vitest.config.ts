@@ -7,8 +7,7 @@ export default defineConfig({
     globals: true,
     // Run DB migrations once before the suite and tear down once after.
     globalSetup: './test/global-setup.js',
-    // Keep worker count small to avoid many node:vitest processes eating RAM.
-
+    setupFiles: ['./test/setup.ts'],
     passWithNoTests: true,
     // The test environment is automatically loaded by src/config/env.ts
     // when NODE_ENV=test, which loads .env.test file

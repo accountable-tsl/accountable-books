@@ -160,7 +160,6 @@ export async function setupApp() {
 
   const bullboardUser = ENV.BULLBOARD_USER || 'admin';
   const bullboardPass = ENV.BULLBOARD_PASSWORD || 'secret';
-  const { serverAdapter } = await import('./lib/bullboard.js');
 
   // Mount routes AFTER successful load
   app.use('/api', signupRoutes);
@@ -201,8 +200,11 @@ export async function setupApp() {
   app.use('/api/:companyId/settings', settingsRoutes);
   app.use('/api/:companyId/support-access', supportAccessRoutes);
 
-  app.use('/admin/queues', basicAuth(bullboardUser, bullboardPass));
-  app.use('/admin/queues', serverAdapter.getRouter());
+  if (NODE_ENV !== 'test') {
+    const { serverAdapter } = await import('./lib/bullboard.js');
+    app.use('/admin/queues', basicAuth(bullboardUser, bullboardPass));
+    app.use('/admin/queues', serverAdapter.getRouter());
+  }
 
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 }

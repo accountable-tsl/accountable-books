@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 
+import { isTest } from '../../config/env.js';
 import { redis } from '../../lib/redis.js';
 
 export const basicLimiter = rateLimit({
@@ -23,8 +24,10 @@ export const authLimiter = rateLimit({
     const normalizedPath = req.route?.path || req.path;
     return `${req.ip}:${req.method}:${normalizedPath}`;
   },
-  store: new RedisStore({
-    sendCommand: ((command: string, ...args: (string | number)[]) =>
-      redis.call(command, ...args)) as (...args: string[]) => Promise<any>,
-  }),
+  store: isTest
+    ? undefined
+    : new RedisStore({
+        sendCommand: ((command: string, ...args: (string | number)[]) =>
+          redis.call(command, ...args)) as (...args: string[]) => Promise<any>,
+      }),
 });

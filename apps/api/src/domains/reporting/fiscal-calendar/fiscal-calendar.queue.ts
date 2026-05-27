@@ -1,12 +1,11 @@
 import { createHash } from 'crypto';
 import type { JobsOptions } from 'bullmq';
-import { Queue } from 'bullmq';
 
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { redis } from '../../../lib/redis.js';
+import { createQueue } from '../../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../../shared/utils/date.utils.js';
 
@@ -45,7 +44,7 @@ function normalizeTypes(types?: FiscalPeriodType[]): FiscalPeriodType[] {
 
 // dedupe check
 async function jobExistsOrActive(
-  q: Queue<any>,
+  q: ReturnType<typeof createQueue<any>>,
   jobId: string,
 ): Promise<boolean> {
   const job = await q.getJob(jobId);
@@ -71,10 +70,9 @@ function shortHash(s: string): string {
  * Ensures every company has complete, non-overlapping period coverage.
  */
 
-export const fiscalCalendarQueue = new Queue<FiscalCalendarJobData>(
+export const fiscalCalendarQueue = createQueue<FiscalCalendarJobData>(
   'fiscal-calendar',
   {
-    connection: redis,
     defaultJobOptions: {
       attempts: 3,
       backoff: {

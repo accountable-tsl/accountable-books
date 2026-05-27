@@ -1,12 +1,11 @@
 import type { JobsOptions } from 'bullmq';
-import { Queue } from 'bullmq';
 
 import { ENV } from '../../../config/env.js';
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { redis } from '../../../lib/redis.js';
+import { createQueue } from '../../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 
 import type { TransactionEnrichedEventData } from '../events/transaction-events.service.js';
@@ -23,10 +22,9 @@ const defaultJobOptions: JobsOptions = {
   removeOnFail: { age: 172800, count: 500 },
 };
 
-export const ruleRunnerQueue = new Queue<TransactionEnrichedEventData>(
+export const ruleRunnerQueue = createQueue<TransactionEnrichedEventData>(
   RULE_RUNNER_QUEUE_NAME,
   {
-    connection: redis,
     defaultJobOptions: defaultJobOptions,
   },
 );

@@ -41,6 +41,9 @@ jobs:
           git diff --exit-code -- \
             packages/contracts/accountable_contracts/schema/py \
             packages/contracts/accountable_contracts/data/generated
+          test -z "$(git status --porcelain -- \
+            packages/contracts/accountable_contracts/schema/py \
+            packages/contracts/accountable_contracts/data/generated)"
 
       - name: Lint workspace
         run: pnpm run lint
@@ -103,8 +106,7 @@ jobs:
       - name: Build shared packages (utils)
         run: pnpm --filter @accountable-books/utils build
 
-      - name: Build contracts artifacts (required by API migrations)
-        if: matrix.package == 'api'
+      - name: Build contracts artifacts
         run: pnpm --filter @accountable-books/contracts build
 
       - name: Generate environment files
@@ -119,6 +121,10 @@ jobs:
       - name: Run database migrations
         if: matrix.package == 'api'
         run: pnpm --filter @accountable-books/api run migrate:test
+
+      - name: Seed demo data for API tests
+        if: matrix.package == 'api'
+        run: pnpm --filter @accountable-books/api run demo:apply:test
 
       - name: Validate billing catalog v1 seed snapshot
         if: matrix.package == 'api'

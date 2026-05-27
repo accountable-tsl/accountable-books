@@ -1,12 +1,11 @@
 import type { JobsOptions } from 'bullmq';
-import { Queue } from 'bullmq';
 import z from 'zod';
 
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { redis } from '../../../lib/redis.js';
+import { createQueue } from '../../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../shared/utils/logger.js';
 
@@ -38,8 +37,7 @@ export const autopostJobDataSchema = z.object({
 
 export type AutopostJobData = z.infer<typeof autopostJobDataSchema>;
 
-export const autopostQueue = new Queue<AutopostJobData>(AUTOPOST_QUEUE_NAME, {
-  connection: redis,
+export const autopostQueue = createQueue<AutopostJobData>(AUTOPOST_QUEUE_NAME, {
   defaultJobOptions: DEFAULTS,
 });
 

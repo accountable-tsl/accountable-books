@@ -1,11 +1,10 @@
 import type { JobsOptions } from 'bullmq';
-import { Queue } from 'bullmq';
 
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { redis } from '../../../lib/redis.js';
+import { createQueue } from '../../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../shared/utils/logger.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
@@ -31,10 +30,9 @@ const DEFAULTS: JobsOptions = {
 
 export const ENRICHMENT_QUEUE_NAME = 'bank-transactions-enrichment';
 
-export const enrichmentQueue = new Queue<EnrichmentJobData>(
+export const enrichmentQueue = createQueue<EnrichmentJobData>(
   ENRICHMENT_QUEUE_NAME,
   {
-    connection: redis,
     defaultJobOptions: DEFAULTS,
   },
 );
