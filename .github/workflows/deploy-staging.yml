@@ -40,6 +40,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           echo "⏳ Waiting for CI to pass on ${{ github.sha }}..."
           for attempt in {1..60}; do
