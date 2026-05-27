@@ -52,6 +52,7 @@ const baseConfig: Knex.Config = {
   client: 'pg',
   pool: { min: 2, max: 10 },
   asyncStackTraces: true,
+  searchPath: ['public'],
 };
 
 // Runtime configuration
