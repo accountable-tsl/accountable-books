@@ -1,30 +1,20 @@
-/**
- * Application Logger
- *
- * Centralized logging configuration using pino for structured logging.
- * Supports different log levels per environment and structured error handling.
- */
-
+import type { Logger, LoggerOptions } from 'pino';
 import pino from 'pino';
 
-/**
- * Log levels configuration per environment
- */
-const LOG_LEVELS = {
+import { getRequestContext } from '../telemetry/request-context.js';
+
+export const LOG_LEVELS = {
   local: 'debug',
   test: 'silent',
   staging: 'info',
-  production: 'warn',
+  production: 'info',
 } as const;
 
-/**
- * Create logger instance with environment-specific configuration
- */
 function createLogger() {
   const env = (process.env.NODE_ENV as keyof typeof LOG_LEVELS) || 'local';
-  const isDevelopment = env === 'local' || env === 'staging';
+  const isDevelopment = env === 'local';
 
-  return pino({
+  const options: LoggerOptions = {
     level: LOG_LEVELS[env] || 'info',
 
     // Pretty print in development environments
@@ -57,6 +47,19 @@ function createLogger() {
       res: pino.stdSerializers.res,
     },
 
+    mixin() {
+      const context = getRequestContext();
+      if (!context) return {};
+
+      return {
+        requestId: context.requestId,
+        correlationId: context.correlationId,
+        ...(context.userId ? { userId: context.userId } : {}),
+        ...(context.companyId ? { companyId: context.companyId } : {}),
+        processSource: context.processSource,
+      };
+    },
+
     // Redact sensitive information
     redact: {
       paths: [
@@ -77,107 +80,31 @@ function createLogger() {
       ],
       censor: '[REDACTED]',
     },
-  });
+  };
+
+  return pino(options);
 }
 
 /**
  * Global logger instance
  */
-export const logger = createLogger();
+const baseLogger = createLogger();
+
+export const logger = baseLogger;
+
+export function getLogger(bindings?: Record<string, unknown>): Logger {
+  if (!bindings || Object.keys(bindings).length === 0) {
+    return baseLogger;
+  }
+
+  return baseLogger.child(bindings);
+}
 
 /**
  * Create child logger with additional context
  */
 export function createChildLogger(context: Record<string, unknown>) {
-  return logger.child(context);
-}
-
-/**
- * Express middleware for request logging
- * Note: Requires pino-http package for full functionality
- */
-export function createRequestLogger() {
-  // Basic request logging middleware
-  return (req: any, res: any, next: any) => {
-    const start = Date.now();
-
-    // Log request
-    logger.info(
-      {
-        method: req.method,
-        url: req.url,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip || req.connection.remoteAddress,
-      },
-      'Incoming request',
-    );
-
-    // Log response when finished
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      logger.info(
-        {
-          method: req.method,
-          url: req.url,
-          statusCode: res.statusCode,
-          duration,
-        },
-        'Request completed',
-      );
-    });
-
-    next();
-  };
-}
-
-/**
- * Structured error logging helper
- */
-export function logError(error: Error, context: Record<string, unknown> = {}) {
-  logger.error(
-    {
-      err: error,
-      ...context,
-    },
-    `Error: ${error.message}`,
-  );
-}
-
-/**
- * Database operation logging helper
- */
-export function logDatabaseOperation(
-  operation: string,
-  table: string,
-  context: Record<string, unknown> = {},
-) {
-  logger.debug(
-    {
-      operation,
-      table,
-      ...context,
-    },
-    `Database ${operation} on ${table}`,
-  );
-}
-
-/**
- * Performance timing helper
- */
-export function logTiming(
-  operation: string,
-  startTime: number,
-  context: Record<string, unknown> = {},
-) {
-  const duration = Date.now() - startTime;
-  logger.info(
-    {
-      operation,
-      duration,
-      ...context,
-    },
-    `${operation} completed in ${duration}ms`,
-  );
+  return getLogger(context);
 }
 
 export default logger;

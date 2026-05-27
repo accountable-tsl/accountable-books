@@ -1,5 +1,8 @@
 import z from 'zod';
-import { debitCredit, type DebitCredit } from '../../core/types/core.js';
+
+import { debitCredit } from '../../core/types/core.js';
+
+import type { DebitCredit } from '../../core/types/core.js';
 
 export const accountTypeDto = z.object({
   id: z.string().optional(),
@@ -8,6 +11,7 @@ export const accountTypeDto = z.object({
   description: z.string().nullable(),
   reportCode: z.string().nullable(),
   elementKey: z.string(),
+  accrualTargets: z.array(z.string()).nullish(),
 });
 export type AccountTypeDTO = z.infer<typeof accountTypeDto>;
 

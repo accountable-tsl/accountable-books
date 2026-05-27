@@ -11,8 +11,8 @@ export function DataTableResizer({ header }: { header: any }) {
       onMouseDown={header.getResizeHandler()}
       onTouchStart={header.getResizeHandler()}
       className={cn(
-        'absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 flex h-full w-4 cursor-col-resize select-none touch-none items-center justify-center',
-        'opacity-0 group-hover/th:opacity-100 z-20',
+        'absolute top-1/2 right-0 flex h-full w-4 translate-x-1/2 -translate-y-1/2 cursor-col-resize touch-none items-center justify-center select-none',
+        'z-20 opacity-0 group-hover/th:opacity-100',
         isResizing && 'opacity-100',
       )}
       aria-hidden="true"
@@ -31,7 +31,7 @@ export function DataTableResizer({ header }: { header: any }) {
         {/* GripVertical icon for better visual indication */}
         <GripVertical
           className={cn(
-            'absolute h-4 w-4 text-muted-foreground/50',
+            'text-muted-foreground/50 absolute h-4 w-4',
             isResizing ? 'text-primary' : 'text-muted-foreground/50',
           )}
           strokeWidth={1.5}

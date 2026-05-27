@@ -2,13 +2,17 @@ import {
   COMPANY_TYPES,
   DEMO_COUNTRIES,
   DEMO_CURRENCIES,
+} from '../../shared/config.js';
+import { resolveFiltersToIds } from '../../shared/utils.js';
+import { NG_USER, US_USER } from '../001_users/users.data.js';
+
+import type {
   DemoCompanyType,
   DemoCountry,
   DemoCurrency,
   DemoFilter,
-} from '../../shared/config';
-import { resolveFiltersToIds } from '../../shared/utils';
-import { DemoUser, NG_USER, US_USER } from '../001_users/users.data';
+} from '../../shared/config.js';
+import type { DemoUser } from '../001_users/users.data.js';
 
 type BaseDemoCompany = {
   name: string;
@@ -88,7 +92,10 @@ const NG_IND: DemoCompany = {
 };
 export const NG_DEMO_COMPANIES = [NG_BIZ, NG_FIRM, NG_IND];
 
-export const DEMO_COMPANIES: DemoCompany[] = [...US_DEMO_COMPANIES, ...NG_DEMO_COMPANIES];
+export const DEMO_COMPANIES: DemoCompany[] = [
+  ...US_DEMO_COMPANIES,
+  ...NG_DEMO_COMPANIES,
+];
 export const DEMO_COMPANIES_IDS = DEMO_COMPANIES.map((c) => c.shortCode);
 
 export type DemoCompaniesMap = {
@@ -99,8 +106,12 @@ export type DemoCompaniesMap = {
   companyType: DemoCompanyType;
 };
 
-export const generateDemoCompaniesMap = (filters?: DemoFilter): DemoCompaniesMap[] => {
-  const companyIds = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES_IDS;
+export const generateDemoCompaniesMap = (
+  filters?: DemoFilter,
+): DemoCompaniesMap[] => {
+  const companyIds = filters
+    ? resolveFiltersToIds(filters)
+    : DEMO_COMPANIES_IDS;
 
   const usMap = US_DEMO_COMPANIES.map((company) => ({
     company,
@@ -118,8 +129,11 @@ export const generateDemoCompaniesMap = (filters?: DemoFilter): DemoCompaniesMap
   }));
   const map = [...usMap, ...ngMap];
 
-  const filteredMap = map.filter((item) => companyIds.includes(item.company.shortCode));
+  const filteredMap = map.filter((item) =>
+    companyIds.includes(item.company.shortCode),
+  );
   return filteredMap;
 };
 
-export const DEMO_COMPANIES_MAP: DemoCompaniesMap[] = generateDemoCompaniesMap();
+export const DEMO_COMPANIES_MAP: DemoCompaniesMap[] =
+  generateDemoCompaniesMap();

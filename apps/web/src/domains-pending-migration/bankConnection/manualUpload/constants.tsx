@@ -1,15 +1,26 @@
 import type { SpreadsheetImporterField } from '@/domains-pending-migration/spreadsheets/types';
-import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
 import { FormattedAmount } from '@/components/FormattedAmount';
+import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
 import Decimal from 'decimal.js';
 
 const fieldMatchers = {
   date: ['*Date', 'Date', 'Date*', 'date'],
   amount: ['*Amount', 'Amount', 'Amount*', 'amount'],
-  payee: ['Contact / Payee', 'Contact/Payee', 'Payee', 'payee', 'contact', 'contact / payee'],
+  payee: [
+    'Contact / Payee',
+    'Contact/Payee',
+    'Payee',
+    'payee',
+    'contact',
+    'contact / payee',
+  ],
   description: ['Description', 'description'],
   reference: ['Reference', 'reference'],
-  additionalComments: ['Additional Comments', 'additional comments', 'comments'],
+  additionalComments: [
+    'Additional Comments',
+    'additional comments',
+    'comments',
+  ],
   coaCode: ['Account Code', 'account code', 'coa code'],
   coaName: ['Account Name', 'account name', 'coa name'],
 };

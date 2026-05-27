@@ -1,7 +1,8 @@
 import { zEmail } from '@/shared/types/core';
+import { companyType } from '@accountable-books/contracts/schema';
 import z from 'zod';
+
 import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
-import { companyType } from '@/modules/company/companies';
 
 export const loginForm = z.object({
   email: zEmail,
@@ -13,8 +14,6 @@ export type LogoutOptions = {
   redirectTo?: string | false; // absolute or relative path
   query?: Record<string, string>; // e.g., { email: "foo@example.com" }
 };
-
-const slugRegex = /^(?=[a-z-]{3,15}$)[a-z]+(-[a-z]+)*$/;
 
 export const passwordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -48,21 +47,27 @@ export const newUser = z.object({
     .max(20, 'Phone number cannot exceed 50 characters')
     .transform(sanitizeOptionalInput)
     .nullish(),
-  avatarUrl: z.url('Avatar must be a valid URL').transform(sanitizeOptionalInput).nullish(),
+  avatarUrl: z
+    .url('Avatar must be a valid URL')
+    .transform(sanitizeOptionalInput)
+    .nullish(),
 });
 export type NewUser = z.infer<typeof newUser>;
 
 export const newCompany = z
   .object({
-    legalName: z.string().max(256, 'Name cannot exceed 256 characters').transform(sanitizeInput),
+    legalName: z
+      .string()
+      .max(256, 'Name cannot exceed 256 characters')
+      .transform(sanitizeInput),
     countryId: z.uuid(),
     type: companyType,
     reportingCurrencyId: z.uuid(),
-    yearEndDay: z.coerce
+    yearEndDay: z
       .number()
       .min(1, 'Day must be between 1-31')
       .max(31, 'Day must be between 1-31'),
-    yearEndMonth: z.coerce
+    yearEndMonth: z
       .number()
       .min(1, 'Month must be between 1-12')
       .max(12, 'Month must be between 1-12'),

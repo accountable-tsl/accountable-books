@@ -1,5 +1,12 @@
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import type { VariantProps } from 'class-variance-authority';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Command,
@@ -9,12 +16,23 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { VariantProps } from 'class-variance-authority';
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle, DrawerTrigger } from './ui/drawer';
+import { Check, ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
 import { BeatLoader } from 'react-spinners';
+
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerTitle,
+  DrawerTrigger,
+} from './ui/drawer';
 
 type Item =
   | string
@@ -39,6 +57,11 @@ export interface GroupedItems {
 interface NormalizedItem {
   value: string;
   label: string;
+}
+
+interface ClassNames {
+  commandList?: string;
+  actionItemsContainer?: string;
 }
 
 interface AutocompleteDropdownProps
@@ -69,6 +92,7 @@ interface AutocompleteDropdownProps
   groupLabel?: string | ((item: any) => string);
   groups?: GroupedItems[];
   ungroupedLabel?: string; // default: "Other"
+  groupOrder?: string[] | ((a: string, b: string) => number); // Custom group ordering
 
   // Async and infinite scroll
   async?: boolean;
@@ -77,6 +101,13 @@ interface AutocompleteDropdownProps
   isLoading?: boolean; // Loading state for async fetches
   hasMore?: boolean;
   debounceTimeout?: number; //in ms
+
+  chevron?: 'down' | 'updown';
+
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+
+  classNames?: ClassNames;
 }
 
 // Helper function to get nested property value using dot notation
@@ -100,7 +131,9 @@ const normalizeItem = (
   // Handle API data with mapItem
   if (mapItem) {
     const mapped = mapItem(item);
-    return mapped.value && typeof mapped.value === 'string' && mapped.value.trim() !== ''
+    return mapped.value &&
+      typeof mapped.value === 'string' &&
+      mapped.value.trim() !== ''
       ? mapped
       : {
           value: `fallback-${Math.random()}`,
@@ -136,332 +169,423 @@ const mergeRefs = <T,>(...refs: React.Ref<T>[]) => {
  * or <AutocompleteDropdown items={apiData} mapItem={(item) => ({ value: item.id, label: item.name })} />
  */
 
-export const AutocompleteDropdown = forwardRef<HTMLInputElement, AutocompleteDropdownProps>(
-  (props, ref) => {
-    const {
-      id,
-      items,
-      value = '',
-      onValueChange,
-      placeholder = 'Select an option...',
-      className,
-      variant = 'outline',
-      searchPlaceholder = 'Search...',
-      mapItem,
-      drawerTitle = ' ',
-      drawerDescription = ' ',
-      width = '', // w-200px for small
-      disabled = false,
+export const AutocompleteDropdown = forwardRef<
+  HTMLInputElement,
+  AutocompleteDropdownProps
+>((props, ref) => {
+  const {
+    id,
+    items,
+    value = '',
+    onValueChange,
+    placeholder = 'Select an option...',
+    className,
+    variant = 'outline',
+    searchPlaceholder = 'Search...',
+    mapItem,
+    drawerTitle = ' ',
+    drawerDescription = ' ',
+    width = '', // w-200px for small
+    disabled = false,
 
-      actionItems = [],
-      onAction,
-      showEmptyStateWithActions = true,
-      emptyStateMessage = 'No options available',
-      noResultsMessage = 'No results found',
+    actionItems = [],
+    onAction,
+    showEmptyStateWithActions = true,
+    emptyStateMessage = 'No options available',
+    noResultsMessage = 'No results found',
 
-      groupBy,
-      groupLabel,
-      groups = [],
-      ungroupedLabel = 'Other',
+    groupBy,
+    groupLabel,
+    groups = [],
+    ungroupedLabel = 'Other',
+    groupOrder,
 
-      async: asyncMode = false,
-      onSearchChange,
-      onLoadMore,
-      isLoading = false,
-      hasMore = false,
-      debounceTimeout = 300,
+    async: asyncMode = false,
+    onSearchChange,
+    onLoadMore,
+    isLoading = false,
+    hasMore = false,
+    debounceTimeout = 300,
 
-      ...rest
-    } = props;
-    const [open, setOpen] = useState(false);
-    const [selectedValue, setSelectedValue] = useState(value);
-    const [searchQuery, setSearchQuery] = useState('');
-    const lastItemObserver = useRef<IntersectionObserver | null>(null);
+    chevron = 'updown',
 
-    const isMobile = useMediaQuery('(max-width: 768px)');
-    const selectedItemRef = useCallback((node: HTMLDivElement | null) => {
-      if (node) {
-        // On mount: scroll into view
-        requestAnimationFrame(() => {
-          node.scrollIntoView({ behavior: 'auto', block: 'center' });
-        });
-      }
-      // On unmount: React will pass null, nothing else needed
-    }, []);
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
 
-    const lastItemRef = useCallback(
-      (node: HTMLDivElement) => {
-        if (lastItemObserver.current) lastItemObserver.current.disconnect();
+    classNames = {},
 
-        if (!node || !hasMore || isLoading) return;
+    ...rest
+  } = props;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const [selectedValue, setSelectedValue] = useState(value);
+  const [searchQuery, setSearchQuery] = useState('');
+  const lastItemObserver = useRef<IntersectionObserver | null>(null);
 
-        lastItemObserver.current = new IntersectionObserver(
-          (entries) => {
-            if (entries[0].isIntersecting) {
-              onLoadMore?.();
-            }
-          },
-          { threshold: 0.1 },
-        );
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
-        lastItemObserver.current.observe(node);
-      },
-      [hasMore, isLoading, onLoadMore],
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const selectedItemRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      // On mount: scroll into view
+      requestAnimationFrame(() => {
+        node.scrollIntoView({ behavior: 'auto', block: 'center' });
+      });
+    }
+    // On unmount: React will pass null, nothing else needed
+  }, []);
+
+  const lastItemRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (lastItemObserver.current) lastItemObserver.current.disconnect();
+
+      if (!node || !hasMore || isLoading) return;
+
+      lastItemObserver.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            onLoadMore?.();
+          }
+        },
+        { threshold: 0.1 },
+      );
+
+      lastItemObserver.current.observe(node);
+    },
+    [hasMore, isLoading, onLoadMore],
+  );
+
+  const handleSelect = (searchValue: string) => {
+    const currentValue = searchValue.split('|_|')[0].trim() || '';
+
+    const selectedItem = normalizedItems.find(
+      (item) => item.value === currentValue,
     );
+    const newValue = selectedItem?.value === selectedValue ? '' : currentValue;
 
-    const handleSelect = (searchValue: string) => {
-      const currentValue = searchValue.split('|_|')[0].trim() || '';
+    setSelectedValue(newValue);
+    onValueChange?.(newValue);
+    setOpen(false);
+  };
 
-      const selectedItem = normalizedItems.find((item) => item.value === currentValue);
-      const newValue = selectedItem?.value === selectedValue ? '' : currentValue;
+  const handleAction = (actionId: string) => {
+    onAction?.(actionId);
+    // Don't close dropdown automatically - let developer decide
+  };
 
-      setSelectedValue(newValue);
-      onValueChange?.(newValue);
-      setOpen(false);
-    };
+  // Sync external value with internal state
+  useEffect(() => {
+    setSelectedValue(value);
+  }, [value]);
 
-    const handleAction = (actionId: string) => {
-      onAction?.(actionId);
-      // Don't close dropdown automatically - let developer decide
-    };
-
-    // Sync external value with internal state
-    useEffect(() => {
-      setSelectedValue(value);
-    }, [value]);
-
-    // Reset state when closing dropdown
-    useEffect(() => {
-      if (!open) {
-        setSearchQuery('');
-        if (asyncMode && onSearchChange) {
-          onSearchChange(''); // Reset async search
-        }
-      } else if (asyncMode && onSearchChange) {
-        // Trigger initial search when opening
-        onSearchChange('');
+  // Reset state when closing dropdown
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery('');
+      if (asyncMode && onSearchChange) {
+        onSearchChange(''); // Reset async search
       }
-    }, [open, asyncMode, onSearchChange]);
+    } else if (asyncMode && onSearchChange) {
+      // Trigger initial search when opening
+      onSearchChange('');
+    }
+  }, [open, asyncMode, onSearchChange]);
 
-    // Debounced search handler
-    useEffect(() => {
-      if (!asyncMode || !onSearchChange) return;
-      // if (searchQuery === "") return;
+  // Debounced search handler
+  useEffect(() => {
+    if (!asyncMode || !onSearchChange) return;
+    // if (searchQuery === "") return;
 
-      const handler = setTimeout(() => {
-        onSearchChange(searchQuery);
-      }, debounceTimeout);
+    const handler = setTimeout(() => {
+      onSearchChange(searchQuery);
+    }, debounceTimeout);
 
-      return () => clearTimeout(handler);
-    }, [searchQuery, debounceTimeout, asyncMode, onSearchChange]);
+    return () => clearTimeout(handler);
+  }, [searchQuery, debounceTimeout, asyncMode, onSearchChange]);
 
-    // Normalize and filter items to ensure valid values
-    const normalizedItems = useMemo(
-      () =>
-        items
+  // Normalize and filter items to ensure valid values
+  const normalizedItems = useMemo(
+    () =>
+      items
+        .map((item) => normalizeItem(item, mapItem))
+        .filter((item) => item.value.trim() !== ''),
+    [items, mapItem],
+  );
+
+  // Grouping
+  const useGrouping = !!(groupBy || groups?.length || groupLabel);
+  // Group items if grouping is enabled
+  const groupedData = useMemo(() => {
+    if (!useGrouping) return null;
+
+    const result: GroupedItems[] = [];
+
+    // Handle pre-grouped data
+    if (groups?.length) {
+      let groupsToProcess = groups;
+
+      // Apply custom ordering if provided
+      if (groupOrder) {
+        if (typeof groupOrder === 'function') {
+          groupsToProcess = [...groups].sort((a, b) => groupOrder(a.id, b.id));
+        } else {
+          // Order by provided array, then append any missing groups
+          const orderedGroups = groupOrder
+            .map((id) => groups.find((g) => g.id === id))
+            .filter((g): g is GroupedItems => g !== undefined);
+          const remainingGroups = groups.filter(
+            (g) => !groupOrder.includes(g.id),
+          );
+          groupsToProcess = [...orderedGroups, ...remainingGroups];
+        }
+      }
+
+      groupsToProcess.forEach((group) => {
+        const normalizedGroupItems = group.items
           .map((item) => normalizeItem(item, mapItem))
-          .filter((item) => item.value.trim() !== ''),
-      [items, mapItem],
-    );
+          .filter((item) => item.value.trim() !== '');
 
-    // Grouping
-    const useGrouping = !!(groupBy || groups?.length || groupLabel);
-    // Group items if grouping is enabled
-    const groupedData = useMemo(() => {
-      if (!useGrouping) return null;
-
-      const result: GroupedItems[] = [];
-
-      // Handle pre-grouped data
-      if (groups?.length) {
-        groups.forEach((group) => {
-          const normalizedGroupItems = group.items
-            .map((item) => normalizeItem(item, mapItem))
-            .filter((item) => item.value.trim() !== '');
-
-          if (normalizedGroupItems.length > 0) {
-            result.push({
-              id: group.id,
-              label: group.label,
-              items: normalizedGroupItems,
-            });
-          }
-        });
-      }
-      // Handle auto-grouping of items
-      if (items.length > 0 && groupBy) {
-        const itemGroups: { [key: string]: any[] } = {};
-        const groupLabels: { [key: string]: string } = {};
-        const ungroupedItems: any[] = [];
-
-        items.forEach((item) => {
-          // Get group key
-          const groupKey =
-            typeof groupBy === 'function' ? groupBy(item) : getNestedValue(item, groupBy);
-
-          if (!groupKey || groupKey === null || groupKey === undefined || groupKey === '') {
-            ungroupedItems.push(item);
-            return;
-          }
-
-          // Get group label
-          let groupLabelText = groupKey;
-          if (groupLabel) {
-            groupLabelText =
-              typeof groupLabel === 'function'
-                ? groupLabel(item)
-                : getNestedValue(item, groupLabel);
-          }
-
-          if (!itemGroups[groupKey]) {
-            itemGroups[groupKey] = [];
-            groupLabels[groupKey] = groupLabelText;
-          }
-          itemGroups[groupKey].push(item);
-        });
-
-        // Convert to GroupedItems format
-        Object.keys(itemGroups)
-          .sort()
-          .forEach((groupKey) => {
-            const normalizedGroupItems = itemGroups[groupKey]
-              .map((item) => normalizeItem(item, mapItem))
-              .filter((item) => item.value.trim() !== '');
-
-            if (normalizedGroupItems.length > 0) {
-              result.push({
-                id: groupKey,
-                label: groupLabels[groupKey],
-                items: normalizedGroupItems,
-              });
-            }
+        if (normalizedGroupItems.length > 0) {
+          result.push({
+            id: group.id,
+            label: group.label,
+            items: normalizedGroupItems,
           });
+        }
+      });
+    }
+    // Handle auto-grouping of items
+    if (items.length > 0 && groupBy) {
+      const itemGroups: { [key: string]: any[] } = {};
+      const groupLabels: { [key: string]: string } = {};
+      const ungroupedItems: any[] = [];
 
-        if (ungroupedItems.length > 0) {
-          const normalizedUngroupedItems = ungroupedItems
-            .map((item) => normalizeItem(item, mapItem))
-            .filter((item) => item.value.trim() !== '');
+      items.forEach((item) => {
+        // Get group key
+        const groupKey =
+          typeof groupBy === 'function'
+            ? groupBy(item)
+            : getNestedValue(item, groupBy);
 
-          if (normalizedUngroupedItems.length > 0) {
-            result.push({
-              id: 'ungrouped',
-              label: ungroupedLabel, // Uses the prop you already have
-              items: normalizedUngroupedItems,
-            });
-          }
+        if (
+          !groupKey ||
+          groupKey === null ||
+          groupKey === undefined ||
+          groupKey === ''
+        ) {
+          ungroupedItems.push(item);
+          return;
+        }
+
+        // Get group label
+        let groupLabelText = groupKey;
+        if (groupLabel) {
+          groupLabelText =
+            typeof groupLabel === 'function'
+              ? groupLabel(item)
+              : getNestedValue(item, groupLabel);
+        }
+
+        if (!itemGroups[groupKey]) {
+          itemGroups[groupKey] = [];
+          groupLabels[groupKey] = groupLabelText;
+        }
+        itemGroups[groupKey].push(item);
+      });
+
+      // Convert to GroupedItems format with custom ordering
+      const groupKeys = Object.keys(itemGroups);
+      const sortedGroupKeys = groupOrder
+        ? typeof groupOrder === 'function'
+          ? groupKeys.sort(groupOrder)
+          : // Order by provided array, then append any missing keys
+            [
+              ...groupOrder.filter((key) => groupKeys.includes(key)),
+              ...groupKeys.filter((key) => !groupOrder.includes(key)),
+            ]
+        : groupKeys.sort(); // Default to alphabetical
+
+      sortedGroupKeys.forEach((groupKey) => {
+        const normalizedGroupItems = itemGroups[groupKey]
+          .map((item) => normalizeItem(item, mapItem))
+          .filter((item) => item.value.trim() !== '');
+
+        if (normalizedGroupItems.length > 0) {
+          result.push({
+            id: groupKey,
+            label: groupLabels[groupKey],
+            items: normalizedGroupItems,
+          });
+        }
+      });
+
+      if (ungroupedItems.length > 0) {
+        const normalizedUngroupedItems = ungroupedItems
+          .map((item) => normalizeItem(item, mapItem))
+          .filter((item) => item.value.trim() !== '');
+
+        if (normalizedUngroupedItems.length > 0) {
+          result.push({
+            id: 'ungrouped',
+            label: ungroupedLabel, // Uses the prop you already have
+            items: normalizedUngroupedItems,
+          });
         }
       }
+    }
 
-      return result;
-    }, [items, groups, groupBy, groupLabel, mapItem, useGrouping]);
+    return result;
+  }, [
+    items,
+    groups,
+    groupBy,
+    groupLabel,
+    mapItem,
+    useGrouping,
+    groupOrder,
+    ungroupedLabel,
+  ]);
 
-    // Filter items based on search query
-    const filteredData = useMemo(() => {
-      // In async mode, use all items (server handles filtering)
-      if (asyncMode) {
-        return useGrouping ? groupedData : normalizedItems;
-      }
+  // Create a flattened lookup map for O(1) access to all items
+  // This serves as the single source of truth for item lookups
+  const allItemsMap = useMemo(() => {
+    const map = new Map<string, string>();
 
-      const query = searchQuery.toLowerCase().trim();
-      if (!query) return useGrouping ? groupedData : normalizedItems;
+    // Add items from normalizedItems (for non-grouped or when groupBy is used)
+    normalizedItems.forEach((item) => {
+      map.set(item.value, item.label);
+    });
 
-      if (!useGrouping) {
-        return normalizedItems.filter(
-          (item) =>
-            item.label.toLowerCase().includes(query) || item.value.toLowerCase().includes(query),
-        );
-      }
+    // Add items from groups (overwrites if duplicate, which is correct - groups take precedence)
+    if (useGrouping && groupedData) {
+      groupedData.forEach((group) => {
+        group.items.forEach((item) => {
+          map.set(item.value, item.label);
+        });
+      });
+    }
 
-      // Grouped filtering
-      return (
-        groupedData
-          ?.map((group) => ({
-            ...group,
-            items: group.items.filter(
-              (item) =>
-                item.label.toLowerCase().includes(query) ||
-                item.value.toLowerCase().includes(query),
-            ),
-          }))
-          .filter((group) => group.items.length > 0) || []
+    return map;
+  }, [normalizedItems, useGrouping, groupedData]);
+
+  // Filter items based on search query
+  const filteredData = useMemo(() => {
+    // In async mode, use all items (server handles filtering)
+    if (asyncMode) {
+      return useGrouping ? groupedData : normalizedItems;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return useGrouping ? groupedData : normalizedItems;
+
+    if (!useGrouping) {
+      return normalizedItems.filter(
+        (item) =>
+          item.label.toLowerCase().includes(query) ||
+          item.value.toLowerCase().includes(query),
       );
-    }, [normalizedItems, groupedData, searchQuery, useGrouping, asyncMode]);
+    }
 
-    // Calculate total items for last item detection
-    const totalItems = useMemo(() => {
-      if (!filteredData) return 0;
-      if (!useGrouping) return (filteredData as NormalizedItem[]).length;
-      return (
-        (filteredData as GroupedItems[])?.reduce((total, group) => total + group.items.length, 0) ||
-        0
-      );
-    }, [filteredData, useGrouping]);
+    // Grouped filtering
+    return (
+      groupedData
+        ?.map((group) => ({
+          ...group,
+          items: group.items.filter(
+            (item) =>
+              item.label.toLowerCase().includes(query) ||
+              item.value.toLowerCase().includes(query),
+          ),
+        }))
+        .filter((group) => group.items.length > 0) || []
+    );
+  }, [normalizedItems, groupedData, searchQuery, useGrouping, asyncMode]);
 
-    // Determine what to show based on grouping mode
-    const hasRegularItems = useGrouping
-      ? groupedData?.some((group) => group.items.length > 0) || false
-      : normalizedItems.length > 0;
+  // Calculate total items for last item detection
+  const totalItems = useMemo(() => {
+    if (!filteredData) return 0;
+    if (!useGrouping) return (filteredData as NormalizedItem[]).length;
+    return (
+      (filteredData as GroupedItems[])?.reduce(
+        (total, group) => total + group.items.length,
+        0,
+      ) || 0
+    );
+  }, [filteredData, useGrouping]);
 
-    const hasSearchResults = useGrouping
-      ? Array.isArray(filteredData) &&
-        (filteredData as GroupedItems[]).some((group) => group.items.length > 0)
-      : Array.isArray(filteredData) && filteredData.length > 0;
+  // Determine what to show based on grouping mode
+  const hasRegularItems = useGrouping
+    ? groupedData?.some((group) => group.items.length > 0) || false
+    : normalizedItems.length > 0;
 
-    const showEmptyState = !hasRegularItems && showEmptyStateWithActions;
-    const showNoResults = hasRegularItems && !hasSearchResults && searchQuery.length > 0;
-    const showActionItems = actionItems.length > 0;
+  const hasSearchResults = useGrouping
+    ? Array.isArray(filteredData) &&
+      (filteredData as GroupedItems[]).some((group) => group.items.length > 0)
+    : Array.isArray(filteredData) && filteredData.length > 0;
 
-    // Shared content for Popover and Drawer
-    const dropdownContent = (
-      <Command shouldFilter={false}>
-        <CommandInput
-          id={id}
-          ref={ref}
-          placeholder={searchPlaceholder}
-          className="h-9"
-          value={searchQuery}
-          onValueChange={setSearchQuery}
-        />
-        <CommandList aria-busy={isLoading}>
-          <CommandGroup>
-            {!useGrouping && (
-              <>
-                {(filteredData as NormalizedItem[]).map((item, index) => {
-                  const isSelected = selectedValue === item.value;
-                  const isLastItem = index === totalItems - 1;
-                  let itemRef: React.Ref<HTMLDivElement> | undefined;
+  const showEmptyState = !hasRegularItems && showEmptyStateWithActions;
+  const showNoResults =
+    hasRegularItems && !hasSearchResults && searchQuery.length > 0;
+  const showActionItems = actionItems.length > 0;
 
-                  if (isSelected) itemRef = selectedItemRef;
-                  if (isLastItem && hasMore) itemRef = mergeRefs(itemRef || null, lastItemRef);
+  // Shared content for Popover and Drawer
+  const dropdownContent = (
+    <Command shouldFilter={false} className="flex flex-col">
+      <CommandInput
+        id={id}
+        ref={ref}
+        placeholder={searchPlaceholder}
+        className="h-9"
+        value={searchQuery}
+        onValueChange={setSearchQuery}
+      />
+      <CommandList aria-busy={isLoading} className={classNames.commandList}>
+        <CommandGroup>
+          {!useGrouping && (
+            <>
+              {(filteredData as NormalizedItem[]).map((item, index) => {
+                const isSelected = selectedValue === item.value;
+                const isLastItem = index === totalItems - 1;
+                let itemRef: React.Ref<HTMLDivElement> | undefined;
 
-                  return (
-                    <CommandItem
-                      key={item.value}
-                      ref={itemRef}
-                      value={`${item.value} |_| ${item.label}`}
-                      onSelect={handleSelect}
-                    >
-                      {item.label}
-                      <Check className={cn('ml-auto', isSelected ? 'opacity-100' : 'opacity-0')} />
-                    </CommandItem>
-                  );
-                })}
-                {hasMore && isLoading && (
-                  <div className="py-3 text-center text-sm text-muted-foreground">
-                    <BeatLoader />
-                  </div>
-                )}
-              </>
-            )}
+                if (isSelected) itemRef = selectedItemRef;
+                if (isLastItem && hasMore)
+                  itemRef = mergeRefs(itemRef || null, lastItemRef);
 
-            {/* Grouped filtered items */}
-            {useGrouping &&
-              (() => {
-                let itemCounter = 0;
+                return (
+                  <CommandItem
+                    key={item.value}
+                    ref={itemRef}
+                    value={`${item.value} |_| ${item.label}`}
+                    onSelect={handleSelect}
+                  >
+                    {item.label}
+                    <Check
+                      className={cn(
+                        'ml-auto',
+                        isSelected ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
+                  </CommandItem>
+                );
+              })}
+              {hasMore && isLoading && (
+                <div className="text-muted-foreground py-3 text-center text-sm">
+                  <BeatLoader />
+                </div>
+              )}
+            </>
+          )}
 
-                return (filteredData as GroupedItems[]).map((group, groupIndex, allGroups) => (
+          {/* Grouped filtered items */}
+          {useGrouping &&
+            (() => {
+              let itemCounter = 0;
+
+              return (filteredData as GroupedItems[]).map(
+                (group, groupIndex, allGroups) => (
                   <div key={group.id}>
-                    <div className="px-2 pt-2 text-sm font-semibold text-muted-foreground">
+                    <div className="text-muted-foreground px-2 pt-2 text-sm font-semibold">
                       {group.label}
                     </div>
                     <CommandSeparator className="my-1" />
@@ -494,97 +618,117 @@ export const AutocompleteDropdown = forwardRef<HTMLInputElement, AutocompleteDro
                       );
                     })}
 
-                    {groupIndex === allGroups.length - 1 && hasMore && isLoading && (
-                      <div className="py-3 text-center text-sm text-muted-foreground">
-                        <BeatLoader />
-                      </div>
-                    )}
+                    {groupIndex === allGroups.length - 1 &&
+                      hasMore &&
+                      isLoading && (
+                        <div className="text-muted-foreground py-3 text-center text-sm">
+                          <BeatLoader />
+                        </div>
+                      )}
                   </div>
-                ));
-              })()}
+                ),
+              );
+            })()}
 
-            {(hasSearchResults || showEmptyState || showNoResults) && showActionItems && (
-              <CommandSeparator className="my-1" />
-            )}
+          {showEmptyState && (
+            <div className="text-muted-foreground py-6 text-center text-sm">
+              {emptyStateMessage}
+            </div>
+          )}
+          {showNoResults && (
+            <div className="text-muted-foreground py-6 text-center text-sm">
+              {noResultsMessage}
+            </div>
+          )}
+        </CommandGroup>
+      </CommandList>
 
-            {/* Action items - always visible regardless of search */}
-            {showActionItems &&
-              actionItems.map((action) => (
-                <CommandItem
-                  key={action.id}
-                  value={`action-${action.id} |_| ${action.label}`}
-                  onSelect={() => handleAction(action.id)}
-                  className={cn('cursor-pointer', action.className)}
-                  role="button"
-                  aria-label={`Action: ${action.label}`}
-                >
-                  {action.icon}
-                  {action.label}
-                </CommandItem>
-              ))}
-
-            {showEmptyState && (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                {emptyStateMessage}
-              </div>
-            )}
-            {showNoResults && (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                {noResultsMessage}
-              </div>
-            )}
+      {/* Action items - fixed at bottom, outside scroll area */}
+      {showActionItems && (
+        <div className={cn('border-t', classNames.actionItemsContainer)}>
+          <CommandGroup>
+            {actionItems.map((action) => (
+              <CommandItem
+                key={action.id}
+                value={`action-${action.id} |_| ${action.label}`}
+                onSelect={() => handleAction(action.id)}
+                className={cn('cursor-pointer', action.className)}
+                role="button"
+                aria-label={`Action: ${action.label}`}
+              >
+                {action.icon}
+                {action.label}
+              </CommandItem>
+            ))}
           </CommandGroup>
-        </CommandList>
-      </Command>
-    );
+        </div>
+      )}
+    </Command>
+  );
 
-    // Common trigger button
-    const triggerButton = (
-      <Button
-        variant={variant}
-        role="combobox"
-        aria-expanded={open}
-        className={cn(
-          'w-full justify-between',
-          width,
-          className,
-          disabled ? 'opacity-50 cursor-not-allowed' : '',
-        )}
-        disabled={disabled}
+  // Get the label for the selected value using O(1) lookup
+  const getSelectedLabel = useMemo(() => {
+    if (!selectedValue) return placeholder;
+    return allItemsMap.get(selectedValue) ?? placeholder;
+  }, [selectedValue, allItemsMap, placeholder]);
+
+  // Common trigger button
+  const triggerButton = (
+    <Button
+      variant={variant}
+      role="combobox"
+      aria-expanded={open}
+      className={cn(
+        'w-full justify-between',
+        width,
+        className,
+        disabled ? 'cursor-not-allowed opacity-50' : '',
+      )}
+      disabled={disabled}
+    >
+      <span
+        className={`truncate text-left ${selectedValue ? '' : 'text-muted-foreground'}`}
       >
-        <span className={`truncate text-left ${selectedValue ? '' : 'text-muted-foreground'}`}>
-          {selectedValue
-            ? normalizedItems.find((item) => item.value === selectedValue)?.label
-            : placeholder}
-        </span>
+        {getSelectedLabel}
+      </span>
 
+      {chevron === 'down' ? (
+        open ? (
+          <ChevronUp className="opacity-50" />
+        ) : (
+          <ChevronDown className="opacity-50" />
+        )
+      ) : (
         <ChevronsUpDown className="opacity-50" />
-      </Button>
-    );
+      )}
+    </Button>
+  );
 
-    return isMobile ? (
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerTrigger asChild className="truncate">
-          {triggerButton}
-        </DrawerTrigger>
-        <DrawerContent className="p-4">
-          <DrawerTitle className={drawerTitle ? 'font-medium' : 'invisible'}>
-            {drawerTitle}
-          </DrawerTitle>
-          <DrawerDescription>{drawerDescription}</DrawerDescription>
-          <div className="max-h-[300px] overflow-y-auto">{dropdownContent}</div>
-        </DrawerContent>
-      </Drawer>
-    ) : (
-      <Popover open={open} onOpenChange={setOpen} {...rest} modal>
-        <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
-        <PopoverContent className={`p-0`} style={{ width: 'var(--radix-popover-trigger-width)' }}>
-          {dropdownContent}
-        </PopoverContent>
-      </Popover>
-    );
-  },
-);
+  return isMobile ? (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild className="truncate">
+        {triggerButton}
+      </DrawerTrigger>
+      <DrawerContent className="p-4">
+        <DrawerTitle className={drawerTitle ? 'font-medium' : 'invisible'}>
+          {drawerTitle}
+        </DrawerTitle>
+        <DrawerDescription>{drawerDescription}</DrawerDescription>
+        <div className="max-h-[300px] overflow-y-auto">{dropdownContent}</div>
+      </DrawerContent>
+    </Drawer>
+  ) : (
+    <Popover open={open} onOpenChange={setOpen} {...rest} modal>
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
+      <PopoverContent
+        className={`p-0`}
+        style={{ width: 'var(--radix-popover-trigger-width)' }}
+      >
+        {dropdownContent}
+      </PopoverContent>
+    </Popover>
+  );
+});
 
 // Set displayName for better debugging
 AutocompleteDropdown.displayName = 'AutocompleteDropdown';

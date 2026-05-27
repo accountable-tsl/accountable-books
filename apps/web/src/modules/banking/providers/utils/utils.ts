@@ -33,13 +33,17 @@ export const BANK_PROVIDERS: BankProvider[] = [
  * Gets providers available for a specific country
  */
 export function getProvidersForCountry(countryCode: string): BankProvider[] {
-  return BANK_PROVIDERS.filter((provider) => provider.countries.includes(countryCode));
+  return BANK_PROVIDERS.filter((provider) =>
+    provider.countries.includes(countryCode),
+  );
 }
 
 /**
  * Determines the selection strategy based on available providers
  */
-export function getProviderSelectionStrategy(countryCode: string): ProviderSelectionResult {
+export function getProviderSelectionStrategy(
+  countryCode: string,
+): ProviderSelectionResult {
   const providers = getProvidersForCountry(countryCode);
 
   if (providers.length === 0) {
@@ -57,5 +61,7 @@ export function getProviderSelectionStrategy(countryCode: string): ProviderSelec
  * Gets all supported countries from all providers
  */
 export function getSupportedCountries(): string[] {
-  return Array.from(new Set(BANK_PROVIDERS.flatMap((provider) => provider.countries)));
+  return Array.from(
+    new Set(BANK_PROVIDERS.flatMap((provider) => provider.countries)),
+  );
 }

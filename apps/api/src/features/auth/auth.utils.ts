@@ -1,20 +1,27 @@
-import jwt from 'jsonwebtoken';
-import { ENV, isProd } from '../../config/env.js';
-import { AppError, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import {
-  type AuthCompanyContext,
-  type AuthUserContext,
-  type DecodedToken,
-  type TokenConfig,
-  TokenExpiration,
-} from './auth.types.js';
 import { type Request, type Response } from 'express';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
-import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
+import { authUserContext } from '@accountable-books/contracts/schema';
 import { doubleCsrf } from 'csrf-csrf';
+import jwt from 'jsonwebtoken';
+
+import { ENV, isProd } from '../../config/env.js';
+import { knexClient } from '../../db/knexClient.js';
+import { getAccessibleCompaniesForUser } from '../../domains/user-roles/user-roles.model.js';
+import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { TokenExpiration } from './auth.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  AuthCompanyContext,
+  AuthUserContext,
+  DecodedToken,
+  TokenConfig,
+} from './auth.types.js';
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError('JWT secrets must be defined in .env');
@@ -33,7 +40,11 @@ export const JWT_CONFIG = {
 };
 
 export const generateAuthTokens = (payload: DecodedToken) => {
-  if (!payload.sub || !JWT_CONFIG.accessToken.secret || !JWT_CONFIG.refreshToken.secret) {
+  if (
+    !payload.sub ||
+    !JWT_CONFIG.accessToken.secret ||
+    !JWT_CONFIG.refreshToken.secret
+  ) {
     throw new Error('Invalid payload or missing JWT secrets');
   }
 
@@ -48,7 +59,8 @@ export const generateAuthTokens = (payload: DecodedToken) => {
   return { accessToken, refreshToken };
 };
 
-if (!ENV.CSRF_SECRET || !ENV.COOKIE_DOMAIN) throw new Error('CSRF secret must be defined');
+if (!ENV.CSRF_SECRET || !ENV.COOKIE_DOMAIN)
+  throw new Error('CSRF secret must be defined');
 
 const cookieDomain = ENV.COOKIE_DOMAIN;
 
@@ -119,10 +131,19 @@ export const clearCsrfCookie = (res: Response) => {
 
 export async function buildAuthContext(
   decoded: DecodedToken,
-): Promise<ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>> {
+): Promise<
+  ApiResponse<{ user: AuthUserContext; activeCompany: AuthCompanyContext }>
+> {
   try {
-    const { sub, email, firstname, lastname, emailVerifiedAt, currentCompanyId, onboardingState } =
-      decoded;
+    const {
+      sub,
+      email,
+      firstname,
+      lastname,
+      emailVerifiedAt,
+      currentCompanyId,
+      onboardingState,
+    } = decoded;
 
     if (!sub) return errorResponse('Invalid token payload, missing user ID');
     // Sub is user ID
@@ -134,7 +155,9 @@ export async function buildAuthContext(
 
     const userAccessProfile = userAccessProfileResponse.data;
     const accessibleCompanies = userAccessProfile.accessibleCompanies;
-    const accessibleCompaniesIds = userAccessProfile.accessibleCompanies.map((c) => c.id);
+    const accessibleCompaniesIds = userAccessProfile.accessibleCompanies.map(
+      (c) => c.id,
+    );
 
     // Determine valid current company
     let activeCompanyId = currentCompanyId;
@@ -147,7 +170,9 @@ export async function buildAuthContext(
         .update('last_active_company_id', activeCompanyUUID);
     }
 
-    const activeCompany = accessibleCompanies.find((c) => c.id === activeCompanyId);
+    const activeCompany = accessibleCompanies.find(
+      (c) => c.id === activeCompanyId,
+    );
     if (!activeCompany) {
       return errorResponse('Active company not found');
     }
@@ -163,7 +188,7 @@ export async function buildAuthContext(
     });
 
     // Build user context
-    const user: AuthUserContext = {
+    const user = authUserContext.parse({
       id: sub,
       email,
       firstname,
@@ -180,7 +205,7 @@ export async function buildAuthContext(
       currentCompany: { ...activeCompany, onboarding: onboardingStatus },
       companies: accessibleCompanies,
       // permissions: to be handled later (to be added to companies)
-    };
+    });
 
     return successResponse('Auth context built successfully', {
       user,

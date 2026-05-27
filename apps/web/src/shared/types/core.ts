@@ -1,14 +1,14 @@
-import type { BankTransactionSource } from '@/modules/bank-transactions/manual-upload/types';
+import type { BankTransactionSource } from '@/modules/banking/csv-upload';
 import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
 import z from 'zod';
 
-export const zEmail = z.email('Please enter a valid email address').trim().toLowerCase();
+export const zEmail = z
+  .email('Please enter a valid email address')
+  .trim()
+  .toLowerCase();
 
 export type Email = z.infer<typeof zEmail>;
-
-export const companyType = z.enum(['business', 'accounting_firm', 'individual']);
-export type CompanyType = z.infer<typeof companyType>;
 
 export const userType = z.enum(['admin', 'client', 'bookkeeper']);
 export type UserType = z.infer<typeof userType>;
@@ -34,7 +34,11 @@ export const debitCredit = z.enum(['debit', 'credit']);
 export type DebitCredit = z.infer<typeof debitCredit>;
 
 export const zDate = z.preprocess((val) => {
-  if (typeof val === 'string' || typeof val === 'number' || val instanceof Date) {
+  if (
+    typeof val === 'string' ||
+    typeof val === 'number' ||
+    val instanceof Date
+  ) {
     const date = new Date(val);
     return isNaN(date.getTime()) ? undefined : date;
   }
@@ -424,7 +428,10 @@ export type MultiSelectProps = {
   clearLabel?: string;
   noOptionsMessage?: string;
   searchPlaceholder?: string;
-  renderOption?: (option: MultiSelectOption, isSelected: boolean) => React.ReactNode;
+  renderOption?: (
+    option: MultiSelectOption,
+    isSelected: boolean,
+  ) => React.ReactNode;
   renderSelectedItem?: (option: MultiSelectOption) => React.ReactNode;
   loading?: boolean;
   error?: string;

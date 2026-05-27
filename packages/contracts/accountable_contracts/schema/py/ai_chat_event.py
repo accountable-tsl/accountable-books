@@ -1,0 +1,110 @@
+from pydantic import BaseModel, Field, confloat, conint, constr
+from typing import Any, Literal, Optional, Union
+from enum import Enum
+
+class Option1MessageRoleEnum(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+class Option5EffectOption2RiskEnum(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class Option6CodeEnum(str, Enum):
+    INVALID_INPUT = "INVALID_INPUT"
+    AI_DISABLED = "AI_DISABLED"
+    CAPABILITY_NOT_ALLOWED = "CAPABILITY_NOT_ALLOWED"
+    PROVIDER_ERROR = "PROVIDER_ERROR"
+    TOOL_ERROR = "TOOL_ERROR"
+    UNKNOWN = "UNKNOWN"
+
+class Option0(BaseModel):
+    type: Literal["assistant.delta"]
+    messageId: constr(min_length=1)
+    delta: str
+    capabilityId: constr(min_length=1)
+    domain: Optional[constr(min_length=1)] = None
+
+class Option1(BaseModel):
+    class Option1Message(BaseModel):
+        class Option1MessageMeta(BaseModel):
+            domain: Optional[constr(min_length=1)] = None
+            capabilityId: Optional[constr(min_length=1)] = None
+            proposalId: Optional[constr(min_length=1)] = None
+        id: Optional[constr(min_length=1)] = None
+        role: Option1MessageRoleEnum
+        text: constr(min_length=1, max_length=20000)
+        timestamp: Optional[conint(ge=0)] = None
+        meta: Optional[Option1MessageMeta] = None
+    type: Literal["assistant.message"]
+    message: Option1Message
+    capabilityId: constr(min_length=1)
+    domain: Optional[constr(min_length=1)] = None
+
+class Option2(BaseModel):
+    type: Literal["tool.call"]
+    toolCallId: constr(min_length=1)
+    tool: constr(min_length=1)
+    args: Any
+
+class Option3(BaseModel):
+    type: Literal["tool.result"]
+    toolCallId: constr(min_length=1)
+    tool: constr(min_length=1)
+    output: Any
+
+class Option4(BaseModel):
+    type: Literal["tool.error"]
+    toolCallId: constr(min_length=1)
+    tool: constr(min_length=1)
+    errorText: constr(min_length=1)
+
+class Option5(BaseModel):
+    class Option5EffectOption0(BaseModel):
+        type: Literal["ui.navigate"]
+        to: constr(min_length=1)
+    class Option5EffectOption1(BaseModel):
+        type: Literal["ui.highlight"]
+        selector: constr(min_length=1)
+        label: Optional[constr(min_length=1)] = None
+    class Option5EffectOption2(BaseModel):
+        type: Literal["proposal.preview"]
+        proposalId: constr(min_length=1)
+        title: constr(min_length=1)
+        summary: constr(min_length=1)
+        risk: Option5EffectOption2RiskEnum = Field(default="medium")
+    class Option5EffectOption3(BaseModel):
+        type: Literal["proposal.form"]
+        proposalId: constr(min_length=1)
+        formType: constr(min_length=1)
+        data: Any
+    class Option5EffectOption4(BaseModel):
+        type: Literal["approval.request"]
+        approvalId: constr(min_length=1)
+        proposalId: Optional[constr(min_length=1)] = None
+        summary: constr(min_length=1)
+        risk: Option5EffectOption2RiskEnum = Field(default="high")
+    class Option5EffectOption5(BaseModel):
+        type: Literal["job.started"]
+        jobId: constr(min_length=1)
+        label: constr(min_length=1)
+    class Option5EffectOption6(BaseModel):
+        type: Literal["job.progress"]
+        jobId: constr(min_length=1)
+        pct: confloat(ge=0, le=100)
+        message: Optional[constr(min_length=1)] = None
+    class Option5EffectOption7(BaseModel):
+        type: Literal["job.completed"]
+        jobId: constr(min_length=1)
+        resultSummary: constr(min_length=1)
+    type: Literal["effect"]
+    effect: Union[Option5EffectOption0, Option5EffectOption1, Option5EffectOption2, Option5EffectOption3, Option5EffectOption4, Option5EffectOption5, Option5EffectOption6, Option5EffectOption7]
+
+class Option6(BaseModel):
+    type: Literal["error"]
+    code: Option6CodeEnum
+    message: constr(min_length=1)
+    details: Optional[Any] = None
+
+type AiChatEvent = Union[Option0, Option1, Option2, Option3, Option4, Option5, Option6]

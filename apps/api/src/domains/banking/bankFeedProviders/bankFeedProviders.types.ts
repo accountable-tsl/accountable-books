@@ -1,11 +1,15 @@
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../../shared/utils/formatting.utils.js';
-import { dbBaseFields } from '../../../core/types/core.js';
 import z from 'zod';
 
-export const bankFeedProviderStatus = z.enum(['active', 'inactive', 'deprecated']);
+import { dbBaseFields } from '../../../core/types/core.js';
+import { createCamelCaseSchema } from '../../../shared/utils/formatting.utils.js';
+
+import type { SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
+
+export const bankFeedProviderStatus = z.enum([
+  'active',
+  'inactive',
+  'deprecated',
+]);
 export type BankFeedProviderStatus = z.infer<typeof bankFeedProviderStatus>;
 
 export const bankProviderKey = z.enum(['plaid', 'mono']); // stripe, teller, enable_banking, yodlee, etc.
@@ -26,7 +30,9 @@ const bankFeedProviderInput = z.object({
   countries: z.array(z.string().length(2)),
 });
 
-export const bankFeedProviderInputCamel = createCamelCaseSchema(bankFeedProviderInput);
+export const bankFeedProviderInputCamel = createCamelCaseSchema(
+  bankFeedProviderInput,
+);
 export type BankFeedProviderInputCamel = SnakeToCamelCaseObject<
   z.infer<typeof bankFeedProviderInput>
 >;
@@ -47,8 +53,12 @@ export const bankFeedProviderCountries = z.object({
   created_by_id: z.uuid(),
   updated_by_id: z.uuid(),
 });
-export type NewBankFeedProviderCountry = z.infer<typeof bankFeedProviderCountries>;
-export type BankFeedProviderCountries = z.infer<typeof bankFeedProviderCountries>;
+export type NewBankFeedProviderCountry = z.infer<
+  typeof bankFeedProviderCountries
+>;
+export type BankFeedProviderCountries = z.infer<
+  typeof bankFeedProviderCountries
+>;
 
 export interface RawBankFeedProviderResponse {
   id: string;

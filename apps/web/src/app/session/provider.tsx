@@ -1,16 +1,25 @@
-import { createContext, useCallback, useContext, useMemo, useEffect } from 'react';
-import { routes } from '@/shared/routes/routes';
-import { useLocation, useNavigate } from 'react-router';
-import { createTenantRoutes, isPublicRoute } from '@/shared/routes/utils';
+import type { LogoutOptions, SessionContextType } from '@/modules/auth';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+} from 'react';
 import {
   authStore,
   clearSessionFn,
   handleLogout,
   useSessionQuery,
-  type LogoutOptions,
-  type SessionContextType,
 } from '@/modules/auth';
-import { useCompanyDetails } from '@/domains-pending-migration/company/hooks';
+import { useCompanyDetails } from '@/modules/company/companies';
+import { createTenantRoutes, isPublicRoute, routes } from '@/shared/routes';
+import { useLocation, useNavigate } from 'react-router';
+
+import {
+  clearLastAccessedCompanyId,
+  setLastAccessedCompanyId,
+} from './last-accessed-company';
 
 const defaultContext = {
   loading: true,
@@ -30,14 +39,23 @@ const defaultContext = {
 };
 const SessionContext = createContext<SessionContextType>(defaultContext);
 
-export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
+export const SessionProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = authStore.getState();
   const setAuth = authStore((s) => s.setAuth);
   const clearAuth = authStore((s) => s.clearAuth);
 
-  const { data, isLoading: isLoadingSession, isError, refetch: refetchSession } = useSessionQuery();
+  const {
+    data,
+    isLoading: isLoadingSession,
+    isError,
+    refetch: refetchSession,
+  } = useSessionQuery();
   const { data: authData, success } = data || {};
 
   const isPublic = isPublicRoute(location.pathname);
@@ -50,7 +68,8 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     }
 
     if ((isError || !success) && !isLoadingSession && !isPublic) {
-      const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
+      const wasAuthenticated =
+        localStorage.getItem('wasAuthenticated') === 'true';
 
       void (async () => {
         try {
@@ -68,13 +87,43 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
         }
       })();
     }
-  }, [data, isError, isPublic, navigate, setAuth]);
+  }, [
+    data,
+    isError,
+    isPublic,
+    navigate,
+    setAuth,
+    authData?.csrfToken,
+    authData?.user,
+    clearAuth,
+    isLoadingSession,
+    success,
+  ]);
 
   useEffect(() => {
     if (authData?.user && authData.csrfToken && user?.id !== authData.user.id) {
       setAuth(authData.user, authData.csrfToken);
     }
-  }, [authData, user]);
+  }, [authData, user, setAuth]);
+
+  useEffect(() => {
+    if (!user?.currentCompanyId) {
+      clearLastAccessedCompanyId();
+      return;
+    }
+
+    const hasAccessToCurrent = user.companies.some(
+      (company) => company.id === user.currentCompanyId,
+    );
+
+    if (!hasAccessToCurrent) {
+      clearLastAccessedCompanyId();
+      return;
+    }
+
+    // UX cache only; server session remains source of truth.
+    setLastAccessedCompanyId(user.currentCompanyId);
+  }, [user?.companies, user?.currentCompanyId]);
 
   const isLoggedIn = !!user;
   const companyId = user?.currentCompanyId;
@@ -91,7 +140,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
 
   const companyType = company?.companyType;
 
-  const isLoading = isPublic ? isLoadingSession : isLoadingSession || isLoadingCompany;
+  const isLoading = isPublic
+    ? isLoadingSession
+    : isLoadingSession || isLoadingCompany;
 
   const tenantRoutes = useMemo(() => {
     if (!companyId) return null;
@@ -153,7 +204,12 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       isLoading,
       user,
       onboarding,
-      companyDataResponse,
+      company,
+      companyId,
+      companyType,
+      hasAppAccess,
+      isLoggedIn,
+      setAuth,
       tenantRoutes,
       refetchSession,
       refetchCompany,
@@ -161,7 +217,11 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     ],
   );
 
-  return <SessionContext.Provider value={contextValue}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={contextValue}>
+      {children}
+    </SessionContext.Provider>
+  );
 };
 
 export const useSession = () => {

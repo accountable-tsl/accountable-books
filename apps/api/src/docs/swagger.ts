@@ -1,13 +1,18 @@
+import 'dotenv/config';
+
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import 'dotenv/config';
-import { bankDocs, bankSchemas } from './bankDocs.js';
+
+import { ENV } from '../config/env.js';
 import { bankAccountSchemas, bankAccountsDocs } from './bankAccountsDocs.js';
+import { bankDocs, bankSchemas } from './bankDocs.js';
+import {
+  bankTransactionDocs,
+  bankTransactionSchemas,
+} from './bankTransactionsDocs.js';
 import { coaDocs, coaSchemas } from './coaDocs.js';
 import { companyDocs, companySchemas } from './companyDocs.js';
 import { currenciesDocs, currenciesSchemas } from './currenciesDocs.js';
-import { bankTransactionDocs, bankTransactionSchemas } from './bankTransactionsDocs.js';
-import { ENV } from '../config/env.js';
 
 const baseUrl = ENV.BACKEND_URL;
 
@@ -48,4 +53,4 @@ const options: swaggerJsdoc.Options = {
 
 const specs = swaggerJsdoc(options);
 
-export { swaggerUi, specs };
+export { specs, swaggerUi };

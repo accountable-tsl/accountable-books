@@ -1,9 +1,16 @@
-import { ENV } from '../src/config/env';
 import pg from 'pg';
 
-const client = new pg.Client(
-  'postgresql://app_user:4aHsvhaZQQiqbLJdJUVm@ep-restless-bird-admdf9pm-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
-);
+import { ENV } from '../config/env-loader.js';
+import { isProd } from '../src/config/env.js';
+import { redis } from '../src/lib/redis.js';
+
+const client = new pg.Client({
+  host: ENV.DB_HOST || 'localhost',
+  port: Number(ENV.DB_PORT) || 5432,
+  user: ENV.POSTGRES_USER,
+  password: ENV.POSTGRES_PASSWORD,
+  database: ENV.POSTGRES_DB,
+});
 
 const run = async () => {
   console.log('⚠️ Resetting database:', ENV.POSTGRES_DB);
@@ -49,9 +56,70 @@ BEGIN
 END $$;
   `);
 
+  // When resetting local database, also drop and recreate test database
+  const isLocal = process.env.NODE_ENV === 'local';
+  if (isLocal) {
+    const testDbName = `${ENV.POSTGRES_DB}_test`;
+    console.log(`⚠️ Also resetting test database: ${testDbName}`);
+
+    try {
+      // Terminate any active connections to the test database
+      // (must be done before dropping, and we're already connected to main DB)
+      await client.query(
+        `
+        SELECT pg_terminate_backend(pg_stat_activity.pid)
+        FROM pg_stat_activity
+        WHERE pg_stat_activity.datname = $1
+          AND pid <> pg_backend_pid();
+      `,
+        [testDbName],
+      );
+
+      // Drop test database if it exists
+      await client.query(`DROP DATABASE IF EXISTS "${testDbName}";`);
+      console.log(`✅ Test database ${testDbName} dropped`);
+    } catch (err) {
+      console.log(
+        `⚠️ Could not drop test database (may not exist): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   await client.end();
 
   console.log('✅ Database reset complete.');
+
+  // Optionally flush Redis as part of full reset
+  const skipRedis = process.argv.includes('--no-redis');
+  const forceRedis = process.argv.includes('--force-redis');
+
+  if (skipRedis) {
+    console.log('⚠️ Skipping Redis flush (flag: --no-redis).');
+    return;
+  }
+
+  if (isProd && !forceRedis) {
+    console.log(
+      '🚫 Refusing to flush Redis in production without --force-redis',
+    );
+    return;
+  }
+
+  try {
+    console.log('🧹 Flushing Redis...');
+    await redis.flushdb();
+    console.log('✅ Redis flush complete.');
+  } catch (err) {
+    console.error('❌ Error flushing Redis:', err);
+    throw err;
+  } finally {
+    try {
+      await redis.quit();
+    } catch {
+      // Ignore redis quit errors
+      console.log('');
+    }
+  }
 };
 
 run().catch((err) => {

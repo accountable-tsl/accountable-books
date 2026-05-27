@@ -1,2 +1,7 @@
 # Generated files - don't show diffs and prefer local version during merges
 packages/api-types/src/generated/* -diff merge=ours linguist-generated=true
+
+# Contracts schema generated files - enforce LF line endings
+packages/contracts/schema/**/*.py text eol=lf linguist-generated=true
+packages/contracts/schema/**/*.json text eol=lf linguist-generated=true
+packages/contracts/data/generated/**/* text eol=lf linguist-generated=true

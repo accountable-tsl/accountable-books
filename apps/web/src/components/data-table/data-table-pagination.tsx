@@ -1,5 +1,6 @@
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
-
+import type { DataTableProps } from '@/components/data-table/types/data-table';
+import { useCallback, useMemo } from 'react';
+import { getPageSizeOptions } from '@/components/data-table/utils/pagination-utils';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -8,15 +9,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DataTableProps } from '@/components/data-table/types/data-table';
-import { getPageSizeOptions } from '@/components/data-table/utils/pagination-utils';
-import { useCallback, useMemo } from 'react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react';
 
 interface DataTablePaginationProps<TData> {
   table: DataTableProps<TData>['table'];
 }
 
-export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({
+  table,
+}: DataTablePaginationProps<TData>) {
   const pagination = table?.customOptions?.pagination;
   const totalFilteredRows = table.getFilteredRowModel().rows.length;
 
@@ -35,13 +41,18 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
   const currentPageSize = table.getState().pagination.pageSize;
 
   // Determine the display value for the current page size
-  const getDisplayValue = useCallback((pageSize: number) => {
-    return pageSize === totalFilteredRows ? 'All' : pageSize.toString();
-  }, []);
+  const getDisplayValue = useCallback(
+    (pageSize: number) => {
+      return pageSize === totalFilteredRows ? 'All' : pageSize.toString();
+    },
+    [totalFilteredRows],
+  );
 
   // Get the current value for the select (either number or "all")
   const getCurrentValue = () => {
-    return currentPageSize === totalFilteredRows ? 'all' : currentPageSize.toString();
+    return currentPageSize === totalFilteredRows
+      ? 'all'
+      : currentPageSize.toString();
   };
 
   const startRow = totalFilteredRows === 0 ? 0 : pageIndex * pageSize + 1;

@@ -1,5 +1,5 @@
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 interface LoadingStateProps {
   message?: string;
@@ -19,9 +19,13 @@ export function LoadingState({
   };
 
   return (
-    <div className={cn('flex items-center justify-center gap-2 p-4', className)}>
-      <Loader2 className={cn(sizeClasses[size], 'animate-spin text-muted-foreground')} />
-      <span className="text-sm text-muted-foreground">{message}</span>
+    <div
+      className={cn('flex items-center justify-center gap-2 p-4', className)}
+    >
+      <Loader2
+        className={cn(sizeClasses[size], 'text-muted-foreground animate-spin')}
+      />
+      <span className="text-muted-foreground text-sm">{message}</span>
     </div>
   );
 }
@@ -31,7 +35,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className }: SkeletonProps) {
-  return <div className={cn('animate-pulse bg-muted rounded', className)} />;
+  return <div className={cn('bg-muted animate-pulse rounded', className)} />;
 }
 
 export function TransactionSkeleton() {
@@ -51,7 +55,7 @@ export function TransactionSkeleton() {
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-6 w-full" />
         </div>
-        <div className="space-y-2 col-span-2">
+        <div className="col-span-2 space-y-2">
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-6 w-full" />
         </div>

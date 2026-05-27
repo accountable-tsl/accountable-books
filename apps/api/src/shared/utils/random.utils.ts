@@ -1,12 +1,13 @@
 import type { Knex } from 'knex';
-import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
 import { z } from 'zod';
+
+import { getCompanyIdentifiers } from '../../domains/companies/companies.utils.js';
 
 export const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const getCompanyUUID = async (
   identifier: string,
-  trx?: Knex.Transaction,
+  trx?: Knex.Transaction | Knex,
 ): Promise<string> => {
   const { id } = await getCompanyIdentifiers(identifier, trx);
   return id;
@@ -14,13 +15,16 @@ export const getCompanyUUID = async (
 
 export const getCompanyShortCode = async (
   identifier: string,
-  trx?: Knex.Transaction,
+  trx?: Knex.Transaction | Knex,
 ): Promise<string> => {
   const { short_code } = await getCompanyIdentifiers(identifier, trx);
   return short_code;
 };
 
-export const retryAxios = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+export const retryAxios = async <T>(
+  fn: () => Promise<T>,
+  retries = 3,
+): Promise<T> => {
   try {
     return await fn();
   } catch (error) {
@@ -68,5 +72,8 @@ export function isUniqueConstraintError(error: unknown): boolean {
   }
 
   const errorMessage = String(error).toLowerCase();
-  return errorMessage.includes('unique constraint') || errorMessage.includes('duplicate key');
+  return (
+    errorMessage.includes('unique constraint') ||
+    errorMessage.includes('duplicate key')
+  );
 }

@@ -1,12 +1,7 @@
-import { useState, useMemo } from 'react';
-import {
-  ChevronDownIcon,
-  SearchIcon,
-  BuildingIcon,
-  UserIcon,
-  Building2Icon,
-  UsersIcon,
-} from 'lucide-react';
+import type { AuthCompanyContext } from '@/modules/auth';
+import { useMemo, useState } from 'react';
+import { useSession } from '@/app/session';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,12 +10,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useSession } from '@/app/session';
 import { useCompanySwitch } from '@/domains-pending-migration/switchCompany/hooks';
 import { cn } from '@/lib/utils';
-import type { AuthCompanyContext } from '@/modules/auth';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
+import {
+  Building2Icon,
+  BuildingIcon,
+  ChevronDownIcon,
+  SearchIcon,
+  UserIcon,
+  UsersIcon,
+} from 'lucide-react';
 
 const MAX_VISIBLE_COMPANIES = 4;
 const COMPANY_ITEM_HEIGHT = 56; // Approximate height in pixels for each company item
@@ -33,14 +33,13 @@ export function CompanySwitcher() {
   const [searchTerm, setSearchTerm] = useState('');
   const [open, setOpen] = useState(false);
 
-  if (!user?.companies || user.companies.length <= 1) {
-    return null; // Don't show switcher if user has access to only one company
-  }
-
-  const companies = user.companies;
+  const companies = useMemo(() => user?.companies || [], [user?.companies]);
   const getCompanyName = (company: AuthCompanyContext) =>
-    company.displayName || company.legalName || toTitleCase(company.id.slice(0, 8) + '...');
-  const isAccountingFirmUser = user.currentCompany.companyType === 'accounting_firm';
+    company.displayName ||
+    company.legalName ||
+    toTitleCase(company.id.slice(0, 8) + '...');
+  const isAccountingFirmUser =
+    user?.currentCompany?.companyType === 'accounting_firm';
 
   // Helper to detect demo users by email
   const isDemoUser = (email: string) => {
@@ -58,23 +57,35 @@ export function CompanySwitcher() {
   const isNigerianCompany = (companyId: string) => companyId.includes('NG');
 
   const getMatchingDemoCompany = useMemo(() => {
+    if (!user?.companies || !user.currentCompanyId || !user.currentCompany) {
+      return null;
+    }
     const demoCompanies = companies.filter((c) => c.isDemoCompany);
     const currentIsNG = isNigerianCompany(user.currentCompanyId);
     const currentType = user.currentCompany.companyType;
 
     // Find demo matching both type and region
     const exactMatch = demoCompanies.find(
-      (demo) => demo.companyType === currentType && isNigerianCompany(demo.id) === currentIsNG,
+      (demo) =>
+        demo.companyType === currentType &&
+        isNigerianCompany(demo.id) === currentIsNG,
     );
 
     if (exactMatch) return exactMatch;
 
     // Fallback: any demo of same type
-    const typeMatch = demoCompanies.find((demo) => demo.companyType === currentType);
+    const typeMatch = demoCompanies.find(
+      (demo) => demo.companyType === currentType,
+    );
     if (typeMatch) return typeMatch;
 
     return null;
-  }, [companies, user.currentCompanyId, user.currentCompany.companyType]);
+  }, [
+    companies,
+    user?.currentCompanyId,
+    user?.companies,
+    user?.currentCompany,
+  ]);
 
   // Check if user is searching for demo companies
   const isDemoSearch = searchTerm.toLowerCase().includes('demo');
@@ -91,8 +102,8 @@ export function CompanySwitcher() {
     // If searching for demo, show all demo companies
     if (isDemoSearch) {
       return demoCompanies.sort((a, b) => {
-        if (a.id === user.currentCompanyId) return -1;
-        if (b.id === user.currentCompanyId) return 1;
+        if (a.id === user?.currentCompanyId) return -1;
+        if (b.id === user?.currentCompanyId) return 1;
         return getCompanyName(a).localeCompare(getCompanyName(b));
       });
     }
@@ -101,19 +112,21 @@ export function CompanySwitcher() {
     if (searchTerm.trim()) {
       return companies
         .filter((company) =>
-          getCompanyName(company).toLowerCase().includes(searchTerm.toLowerCase()),
+          getCompanyName(company)
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()),
         )
         .sort((a, b) => {
-          if (a.id === user.currentCompanyId) return -1;
-          if (b.id === user.currentCompanyId) return 1;
+          if (a.id === user?.currentCompanyId) return -1;
+          if (b.id === user?.currentCompanyId) return 1;
           return getCompanyName(a).localeCompare(getCompanyName(b));
         });
     }
 
     // Default view: current + up to 2 others + matching demo
     const sortedRegular = regularCompanies.sort((a, b) => {
-      if (a.id === user.currentCompanyId) return -1;
-      if (b.id === user.currentCompanyId) return 1;
+      if (a.id === user?.currentCompanyId) return -1;
+      if (b.id === user?.currentCompanyId) return 1;
       return getCompanyName(a).localeCompare(getCompanyName(b));
     });
 
@@ -121,7 +134,10 @@ export function CompanySwitcher() {
     const displayList = sortedRegular.slice(0, 3);
 
     // Add matching demo company if not already in list
-    if (getMatchingDemoCompany && !displayList.find((c) => c.id === getMatchingDemoCompany.id)) {
+    if (
+      getMatchingDemoCompany &&
+      !displayList.find((c) => c.id === getMatchingDemoCompany.id)
+    ) {
       displayList.push(getMatchingDemoCompany);
     }
 
@@ -132,12 +148,21 @@ export function CompanySwitcher() {
     companies,
     demoCompanies,
     regularCompanies,
-    user.currentCompanyId,
+    user?.currentCompanyId,
     getMatchingDemoCompany,
   ]);
 
+  if (!user?.companies || user.companies.length <= 1) {
+    return null; // Don't show switcher if user has access to only one company
+  }
+
   const handleCompanySwitch = async (company: AuthCompanyContext) => {
-    if (company.id === user.currentCompanyId || isSwitching) return;
+    if (
+      !user?.currentCompanyId ||
+      company.id === user.currentCompanyId ||
+      isSwitching
+    )
+      return;
 
     setOpen(false);
     await switchCompany({
@@ -156,16 +181,20 @@ export function CompanySwitcher() {
   } as const;
 
   const getCompanyConfig = (type: string) =>
-    companyConfig[type as keyof typeof companyConfig] || { icon: BuildingIcon, label: 'Company' };
+    companyConfig[type as keyof typeof companyConfig] || {
+      icon: BuildingIcon,
+      label: 'Company',
+    };
 
   // Show search when there are many companies or demo companies exist
-  const showSearch = companies.length > MAX_VISIBLE_COMPANIES || demoCompanies.length > 0;
+  const showSearch =
+    companies.length > MAX_VISIBLE_COMPANIES || demoCompanies.length > 0;
 
   return (
     <>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <div className="flex items-center justify-center gap-1 text-blue-500 hover:text-blue-500/80 cursor-pointer">
+          <div className="flex cursor-pointer items-center justify-center gap-1 text-blue-500 hover:text-blue-500/80">
             <span className="text-xs">switch</span>
             <ChevronDownIcon size={10} />
           </div>
@@ -173,20 +202,22 @@ export function CompanySwitcher() {
 
         <DropdownMenuContent
           align="center"
-          className="w-80 max-h-96 overflow-hidden"
+          className="max-h-96 w-80 overflow-hidden"
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           <div className="px-2 py-2">
-            <div className="text-xs text-muted-foreground mb-2">Switch Company</div>
+            <div className="text-muted-foreground mb-2 text-xs">
+              Switch Company
+            </div>
 
             {showSearch && (
               <div className="relative mb-2">
-                <SearchIcon className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <SearchIcon className="text-muted-foreground absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2" />
                 <Input
                   placeholder="Search companies..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-8 text-xs"
+                  className="h-8 pl-8 text-xs"
                 />
               </div>
             )}
@@ -194,51 +225,65 @@ export function CompanySwitcher() {
 
           <div
             className="overflow-y-auto"
-            style={{ maxHeight: `${MAX_VISIBLE_COMPANIES * COMPANY_ITEM_HEIGHT}px` }}
+            style={{
+              maxHeight: `${MAX_VISIBLE_COMPANIES * COMPANY_ITEM_HEIGHT}px`,
+            }}
           >
             {visibleCompanies.length === 0 && searchTerm ? (
-              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+              <div className="text-muted-foreground px-2 py-4 text-center text-sm">
                 No companies found matching "{searchTerm}"
               </div>
             ) : (
               visibleCompanies.map((company) => {
-                const isCurrentCompany = company.id === user.currentCompanyId;
+                const isCurrentCompany = company.id === user?.currentCompanyId;
                 const companyName = getCompanyName(company);
 
                 return (
                   <DropdownMenuItem
                     key={company.id}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2 cursor-pointer',
+                      'flex cursor-pointer items-center gap-3 px-3 py-2',
                       isCurrentCompany && 'bg-accent',
-                      isSwitching && 'opacity-50 pointer-events-none',
+                      isSwitching && 'pointer-events-none opacity-50',
                     )}
                     onClick={() => handleCompanySwitch(company)}
                     disabled={isCurrentCompany || isSwitching}
                   >
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {(() => {
-                        const { icon: Icon } = getCompanyConfig(company.companyType);
+                        const { icon: Icon } = getCompanyConfig(
+                          company.companyType,
+                        );
                         return <Icon className="h-4 w-4" />;
                       })()}
                     </div>
 
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">{companyName}</span>
+                        <span className="truncate text-sm font-medium">
+                          {companyName}
+                        </span>
                         {isCurrentCompany && (
-                          <Badge variant="secondary" className="text-xs px-1 py-0">
+                          <Badge
+                            variant="secondary"
+                            className="px-1 py-0 text-xs"
+                          >
                             Current
                           </Badge>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{getCompanyConfig(company.companyType).label}</span>
+                      <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                        <span>
+                          {getCompanyConfig(company.companyType).label}
+                        </span>
                         {company.isDemoCompany && (
                           <>
                             <span>•</span>
-                            <Badge variant="outline" className="text-xs px-1 py-0">
+                            <Badge
+                              variant="outline"
+                              className="px-1 py-0 text-xs"
+                            >
                               Demo
                             </Badge>
                           </>
@@ -254,10 +299,10 @@ export function CompanySwitcher() {
           {(companies.length > 3 || isAccountingFirmUser) && (
             <>
               <DropdownMenuSeparator />
-              <div className="px-3 py-2 space-y-2">
+              <div className="space-y-2 px-3 py-2">
                 {isAccountingFirmUser && (
                   <DropdownMenuItem
-                    className="flex items-center gap-2 px-2 py-1 cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    className="flex cursor-pointer items-center gap-2 px-2 py-1 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                     onClick={() => {
                       window.location.href = '/clients';
                       setOpen(false);
@@ -268,7 +313,7 @@ export function CompanySwitcher() {
                   </DropdownMenuItem>
                 )}
                 {companies.length > 3 && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-muted-foreground text-xs">
                     {companies.length} companies available
                   </div>
                 )}
@@ -280,7 +325,7 @@ export function CompanySwitcher() {
       {user?.currentCompany?.isDemoCompany && !isDemoUser(user.email) && (
         <button
           onClick={() => handleExitDemo()}
-          className="text-red-500 hover:text-red-400 text-xs underline ml-2"
+          className="ml-2 text-xs text-red-500 underline hover:text-red-400"
           disabled={isSwitching}
         >
           exit demo

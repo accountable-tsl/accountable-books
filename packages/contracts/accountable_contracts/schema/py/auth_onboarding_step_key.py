@@ -1,0 +1,6 @@
+from enum import Enum
+
+class AuthOnboardingStepKey(str, Enum):
+    EMAIL_VERIFIED = "email_verified"
+    COMPANY_DETAILS_CONFIRMED = "company_details_confirmed"
+    FIRST_BANK_ACCOUNT_ADDED = "first_bank_account_added"

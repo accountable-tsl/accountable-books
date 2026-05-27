@@ -1,50 +1,60 @@
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import type { BankAccountWithMeta } from '@/modules/banking/accounts';
-import { useSession } from '@session';
-import { BankDropdown } from '@/features/upload-bank-transactions/ui/components/bank-selection/dropdown';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { SelectedBankAccount } from './components/bank-selection/selected-account';
-import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
-import { cn } from '@/lib/utils';
 import type { ParsedCsvResult } from '@/domains-pending-migration/spreadsheets/types';
-import {
-  bankTransactionSource,
-  type BankTransactionBatchInsert,
-} from '@/modules/banking/csv-upload/model/types';
-import { transformParsedData } from '@/modules/banking/csv-upload/utils/transaction-parsers';
-import { FailedRowsDisplay } from '@/features/upload-bank-transactions/ui/components/failed-rows';
-import { useDataTable } from '@/components/data-table/use-data-table';
+import type { BankAccountWithMeta } from '@/modules/banking/accounts';
+import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/model/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
-import { getBankTxnFields } from '@/features/upload-bank-transactions/ui/config/table-columns';
-import { generateMeta } from '@/modules/banking/csv-upload';
+import { useDataTable } from '@/components/data-table/use-data-table';
+import ErrorPage from '@/components/ErrorPage';
 import { FormattedAmount } from '@/components/FormattedAmount';
-import { Button } from '@/components/ui/button';
-import { Send, Upload, X } from 'lucide-react';
 import { Success } from '@/components/Success';
-import { useNavigate } from 'react-router';
-import { sleep } from '@/shared/utils/random-utils';
+import { Button } from '@/components/ui/button';
+import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
+import { BankDropdown } from '@/features/upload-bank-transactions/ui/components/bank-selection/dropdown';
+import { FailedRowsDisplay } from '@/features/upload-bank-transactions/ui/components/failed-rows';
 import { fields } from '@/features/upload-bank-transactions/ui/config/import-fields';
-import { useUploadBankTransactions } from '@/modules/banking/csv-upload';
+import { getBankTxnFields } from '@/features/upload-bank-transactions/ui/config/table-columns';
+import { cn } from '@/lib/utils';
 import { useCompanyBankAccounts } from '@/modules/banking/accounts';
+import {
+  generateSourceMetadata,
+  useUploadBankTransactions,
+} from '@/modules/banking/csv-upload';
+import { bankTransactionSource } from '@/modules/banking/csv-upload/model/types';
+import { transformParsedData } from '@/modules/banking/csv-upload/utils/transaction-parsers';
+import { sleep } from '@/shared/utils/random-utils';
+import { useSession } from '@session';
+import { Send, Upload, X } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { SelectedBankAccount } from './components/bank-selection/selected-account';
 
 export function UploadBankTransactions() {
-  const [selectedBankAccount, setSelectedBankAccount] = useState<BankAccountWithMeta | null>(null);
+  const [selectedBankAccount, setSelectedBankAccount] =
+    useState<BankAccountWithMeta | null>(null);
   const [parsed, setParsed] = useState<ParsedCsvResult | null>(null);
-  const [batchInsert, setBatchInsert] = useState<BankTransactionBatchInsert | undefined>(undefined);
+  const [batchInsert, setBatchInsert] = useState<
+    BankTransactionBatchInsert | undefined
+  >(undefined);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadSuccessMessage, setUploadSuccessMessage] = useState<
+    string | undefined
+  >(undefined);
 
   const navigate = useNavigate();
   const { companyId, loading, tenantRoutes } = useSession();
-  const { data: rawBankAccounts, isLoading: loadingBankAccounts } = useCompanyBankAccounts(
-    companyId ?? '',
-  );
+  const { data: rawBankAccounts, isLoading: loadingBankAccounts } =
+    useCompanyBankAccounts(companyId ?? '');
   const uploadBankTxnMutation = useUploadBankTransactions();
 
-  const bankAccounts = useMemo(() => rawBankAccounts?.data || [], [rawBankAccounts]);
+  const bankAccounts = useMemo(
+    () => rawBankAccounts?.data || [],
+    [rawBankAccounts],
+  );
 
   const handleParsedFile = useCallback((results: ParsedCsvResult[]) => {
     setParsed(results[0]);
@@ -52,7 +62,6 @@ export function UploadBankTransactions() {
 
   const {
     transactions: parsedBankTxns,
-    dateRange,
     inserts,
     errors: transactionErrors,
     totalMoneyIn,
@@ -68,25 +77,15 @@ export function UploadBankTransactions() {
     let isMounted = true;
 
     const computeBatchInsert = async () => {
-      if (
-        !parsed?.file ||
-        !selectedBankAccount?.id ||
-        !dateRange?.earliestDate ||
-        !dateRange?.latestDate ||
-        !inserts?.length
-      ) {
+      if (!parsed?.file || !selectedBankAccount?.id || !inserts?.length) {
         return undefined;
       }
 
-      const { fingerprint, sourceMetadata } = await generateMeta(parsed.file);
       return {
-        startDate: dateRange.earliestDate,
-        endDate: dateRange.latestDate,
         source: bankTransactionSource.enum.file_import,
-        bankAccountId: selectedBankAccount.id,
-        bankTransactions: inserts,
-        fingerprint,
-        sourceMetadata,
+        bank_account_id: selectedBankAccount.id,
+        bank_transactions: inserts,
+        metadata: generateSourceMetadata(parsed.file),
       };
     };
 
@@ -97,7 +96,7 @@ export function UploadBankTransactions() {
     return () => {
       isMounted = false;
     };
-  }, [dateRange, inserts, selectedBankAccount?.id, parsed?.file]);
+  }, [inserts, selectedBankAccount?.id, parsed?.file]);
 
   const handleSubmit = useCallback(async () => {
     if (!batchInsert) return;
@@ -108,18 +107,34 @@ export function UploadBankTransactions() {
     await sleep(1000);
 
     try {
-      const response = await uploadBankTxnMutation.mutateAsync({
-        companyId: companyId ?? '',
-        data: batchInsert,
-      });
+      console.log('batchInsert', batchInsert);
+      const response = await uploadBankTxnMutation.mutateAsync(
+        {
+          companyId: companyId ?? '',
+          data: batchInsert,
+        },
+        {
+          onSuccess: (response) => {
+            toast.success(
+              response.message || 'Transactions uploaded successfully',
+            );
+          },
+          onError: (error) => {
+            toast.error(error.message || 'Failed to upload transactions');
+          },
+        },
+      );
 
       if (response.success) {
         setUploadSuccess(true);
+        setUploadSuccessMessage(response.message);
       } else {
         setUploadError(response.message || 'Failed to upload transactions');
       }
     } catch (error: unknown) {
-      setUploadError((error as Error).message || 'Failed to upload transactions');
+      setUploadError(
+        (error as Error).message || 'Failed to upload transactions',
+      );
     } finally {
       setIsUploading(false);
     }
@@ -176,8 +191,8 @@ export function UploadBankTransactions() {
   if (!companyId || !tenantRoutes) return <ErrorPage type="default" />;
 
   return (
-    <div className="p-4 min-h-0 h-full overflow-y-auto">
-      <div className="flex gap-4 min-h-0 h-full items-center justify-center">
+    <div className="h-full min-h-0 overflow-y-auto p-4">
+      <div className="flex h-full min-h-0 items-center justify-center gap-4">
         {/* <div>
           <div>Add Bank Transaction</div>
           <div className="text-muted-foreground text-sm">
@@ -185,10 +200,10 @@ export function UploadBankTransactions() {
           </div>
         </div> */}
 
-        <div className="max-w-2xl mx-auto w-full space-y-6">
-          <div className="text-center space-y-4">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto">
-              <Upload className="w-8 h-8 text-primary-foreground" />
+        <div className="mx-auto w-full max-w-2xl space-y-6">
+          <div className="space-y-4 text-center">
+            <div className="bg-primary mx-auto flex h-12 w-12 items-center justify-center rounded-full">
+              <Upload className="text-primary-foreground h-8 w-8" />
             </div>
             <div>
               <h2 className="text-lg font-medium">Upload bank transactions</h2>
@@ -206,15 +221,18 @@ export function UploadBankTransactions() {
                     href="https://docs.google.com/spreadsheets/d/1odReHXPWoO6epMO11qMvdUL2FbXv4Qks9RVE08-4lDU"
                     target="_blank"
                     className="text-blue-600 hover:underline"
+                    rel="noreferrer"
                   >
                     Open Google Sheets Template
                   </a>{' '}
-                  <span className="text-muted-foreground text-xs">(includes instructions)</span>
+                  <span className="text-muted-foreground text-xs">
+                    (includes instructions)
+                  </span>
                 </span>
               </div>
-              <div className="w-full bg-muted p-4 rounded-md">
+              <div className="bg-muted w-full rounded-md p-4">
                 <div className="font-semibold">For best results:</div>
-                <ul className="list-disc list-inside text-xs md:text-sm ">
+                <ul className="list-inside list-disc text-xs md:text-sm">
                   <li>Format dates as YYYY-MM-DD (e.g., 2025-06-07) </li>
                   <li>Don’t include currency symbols or commas in amounts</li>
                 </ul>
@@ -222,21 +240,23 @@ export function UploadBankTransactions() {
             </div>
           )}
           <div className="container mx-auto max-w-6xl">
-            <div className="flex flex-col gap-8 max-w-4xl mx-auto">
+            <div className="mx-auto flex max-w-4xl flex-col gap-8">
               <div
                 className={cn(
-                  'flex justify-between text-sm w-full border',
+                  'flex w-full justify-between border text-sm',
                   hasRows ? '' : 'hidden', //opacity-0
                   'transition-opacity duration-300',
                 )}
               >
-                <div className="p-4 rounded-md">
+                <div className="rounded-md p-4">
                   <div>#</div>
-                  <div>{parsedBankTxns?.length ?? 0} rows</div>
+                  <div className="text-base">
+                    {parsedBankTxns?.length ?? 0} rows
+                  </div>
                 </div>
-                <div className="p-4 rounded-md">
+                <div className="rounded-md p-4">
                   <div>Money In</div>
-                  <div className="text-green-500 font-medium text-base">
+                  <div className="text-base font-medium text-green-500">
                     <FormattedAmount
                       amount={totalMoneyIn}
                       currency={selectedBankAccount?.currencyCode}
@@ -245,9 +265,9 @@ export function UploadBankTransactions() {
                     />
                   </div>
                 </div>
-                <div className="p-4 rounded-md">
+                <div className="rounded-md p-4">
                   <div>Money Out</div>
-                  <div className="text-destructive font-medium text-base">
+                  <div className="text-destructive text-base font-medium">
                     <FormattedAmount
                       amount={totalMoneyOut}
                       currency={selectedBankAccount?.currencyCode}
@@ -258,16 +278,18 @@ export function UploadBankTransactions() {
                 </div>
               </div>
 
-              <div className="flex flex-col h-full min-h-0 overflow-hidden w-full border">
+              <div className="flex h-full min-h-0 w-full flex-col overflow-hidden border">
                 <BankDropdown
                   bankAccounts={bankAccounts}
                   selectedBankAccount={selectedBankAccount}
                   setSelectedBankAccount={setSelectedBankAccount}
                 />
                 {selectedBankAccount && (
-                  <SelectedBankAccount selectedBankAccount={selectedBankAccount} />
+                  <SelectedBankAccount
+                    selectedBankAccount={selectedBankAccount}
+                  />
                 )}
-                <div className="flex-1 overflow-auto min-h-0 scrollbar-thin-2px">
+                <div className="scrollbar-thin-2px min-h-0 flex-1 overflow-auto">
                   {showInput && (
                     <SpreadsheetImporter
                       fields={fields}
@@ -283,27 +305,33 @@ export function UploadBankTransactions() {
                       fileCardContainerClassName="border-0"
                     />
                   )}
-                  {transactionErrors.length > 0 && <FailedRowsDisplay errors={transactionErrors} />}
+                  {transactionErrors.length > 0 && (
+                    <FailedRowsDisplay errors={transactionErrors} />
+                  )}
                   {parsedBankTxns?.length > 0 && (
-                    <div className="min-h-0 h-[200px] max-h-[200px] flex flex-col transform transition-all duration-500 ease-in-out relative">
+                    <div className="relative flex h-[200px] max-h-[200px] min-h-0 transform flex-col transition-all duration-500 ease-in-out">
                       <DataTable table={table} />
 
                       {(isUploading || uploadError || uploadSuccess) && (
                         <div
                           className={cn(
-                            'absolute inset-0 flex items-center justify-center bg-black/50 dark:bg-black/70 z-10',
+                            'absolute inset-0 z-10 flex items-center justify-center bg-black/50 dark:bg-black/70',
                             uploadError ? 'bg-red-200/50' : '',
                             uploadSuccess ? 'bg-green-100/30' : '',
                           )}
                         >
-                          {isUploading && <CenteredLoader message="Uploading..." />}
+                          {isUploading && (
+                            <CenteredLoader message="Uploading..." />
+                          )}
                           {uploadError && (
                             <div className="text-destructive flex flex-col items-center gap-2">
-                              <X className="w-8 h-8" />
+                              <X className="h-8 w-8" />
                               <span>{uploadError}</span>
                             </div>
                           )}
-                          {uploadSuccess && <Success />}
+                          {uploadSuccess && (
+                            <Success description={uploadSuccessMessage} />
+                          )}
                         </div>
                       )}
                     </div>
@@ -311,7 +339,7 @@ export function UploadBankTransactions() {
                 </div>
               </div>
 
-              <div className="flex gap-2 w-full justify-between items-center">
+              <div className="flex w-full items-center justify-between gap-2">
                 <Button
                   variant="outline"
                   disabled={!hasRows || hasErrors}
@@ -320,20 +348,22 @@ export function UploadBankTransactions() {
                   Upload New File
                 </Button>
                 <div
-                  className="flex-1 text-center text-xs text-muted-foreground hover:underline hover:text-foreground cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground flex-1 cursor-pointer text-center text-xs hover:underline"
                   onClick={() => navigate(tenantRoutes?.banking.connect())}
                 >
                   Connect bank
                 </div>
                 {uploadSuccess ? (
-                  <Button onClick={handleNavigateToTransactions}>Go to transactions</Button>
+                  <Button onClick={handleNavigateToTransactions}>
+                    Go to transactions
+                  </Button>
                 ) : (
                   <Button
                     disabled={!canSubmit}
-                    className="flex items-center gap-1 ml-auto"
+                    className="ml-auto flex items-center gap-1"
                     onClick={handleSubmit}
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="h-4 w-4" />
                     {isUploading
                       ? 'Uploading...'
                       : uploadError

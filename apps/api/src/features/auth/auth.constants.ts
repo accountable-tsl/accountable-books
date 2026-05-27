@@ -8,9 +8,7 @@ export const publicPaths = [
   '/forgot-password',
   '/public',
   '/api/onboarding/advance',
-  '/api/logos/upload',
-  '/api/logos/delete',
-  '/api/logos/signed-url',
   '/api/email/check',
   '/api/accounting-firms/check-slug',
+  '/admin/queues', // BullMQ Board (protected by basic auth)
 ];

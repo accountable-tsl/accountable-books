@@ -1,0 +1,8 @@
+from pydantic import BaseModel, Field, constr
+from typing import Literal, Optional
+
+class FirmClientInviteInviteSchema(BaseModel):
+    email: constr(min_length=1)
+    primaryContactName: Optional[constr(max_length=256)] = None
+    invitedCompanyRole: Literal["client_owner"] = Field(default="client_owner")
+    note: Optional[constr(max_length=500)] = None

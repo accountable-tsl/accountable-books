@@ -17,8 +17,6 @@ primary_region = "iad"  # Washington DC (US East)
   COOKIE_DOMAIN = ".getaccountable.com"
 
   # Worker configuration
-  ENABLE_EMAIL_WORKER = "true"
-  ENABLE_TRANSACTION_SYNC = "true"
   EMAIL_WORKER_CONCURRENCY = "5"
   TRANSACTION_SYNC_CONCURRENCY = "3"
   ENABLE_REDIS_MONITORING = "true"
@@ -26,6 +24,7 @@ primary_region = "iad"  # Washington DC (US East)
 [processes]
   web = "node dist/src/server.js"
   worker = "node dist/src/worker.js"
+  scheduler = "node dist/src/scheduler.js"
 
 [http_service]
   internal_port = 8080
@@ -38,10 +37,21 @@ primary_region = "iad"  # Washington DC (US East)
 
   [[http_service.checks]]
     method = "GET"
-    path = "/health"
-    timeout = "2s"
+    path = "/health/ready"
+    timeout = "5s"
     interval = "10s"
     grace_period = "20s"
+
+[[checks]]
+  name = "web_live"
+  type = "http"
+  port = 8080
+  method = "GET"
+  path = "/health/live"
+  interval = "15s"
+  timeout = "2s"
+  grace_period = "10s"
+  processes = ["web"]
 
 [metrics]
   port = 9091

@@ -13,7 +13,9 @@ function fnv1a(bytes: Uint8Array, file: File): string {
     h = Math.imul(h, 0x01000193) >>> 0; // * 16777619
   }
   // Mix in metadata to reduce obvious collisions
-  const mix = new TextEncoder().encode(`${file.name}|${file.size}|${file.lastModified}`);
+  const mix = new TextEncoder().encode(
+    `${file.name}|${file.size}|${file.lastModified}`,
+  );
   for (let i = 0; i < mix.length; i++) {
     h ^= mix[i];
     h = Math.imul(h, 0x01000193) >>> 0;
@@ -35,7 +37,7 @@ export async function generateFingerprint(file: File): Promise<string> {
   return fnv1a(bytes, file);
 }
 
-function generateSourceMetadata(file: File) {
+export function generateSourceMetadata(file: File) {
   return {
     fileName: file.name ?? '',
     fileSize: file.size ?? 0,

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "16527f50-d94a-4fb5-bdfb-86ad51ebaa7e",
+    "key": "rev_revenue",
+    "label": "Revenue",
+    "account_element_id": "02fa1b21-6df5-4bbc-b0b0-a8223ea235aa",
+    "description": "All income generated from the business’s main operations",
+    "report_code": "IS.INC.REV.REV",
+    "label_role": "semantic",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false,
+    "accrual_targets": ["cl_contract_liabilities", "ca_trade_receivable"]
+  },
+  {
+    "id": "89028f2e-2935-4d6f-add6-bed5354d2f50",
+    "key": "rev_contra",
+    "label": "Contra Revenue",
+    "account_element_id": "87a60baf-c459-4c97-848a-27c59c11f3a3",
+    "description": "Reductions to revenue due to returns, discounts, or credits",
+    "report_code": "IS.INC.REV.REV.CTR",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": true,
+    "is_postable_control": false
+  },
+  {
+    "id": "3901ec6d-91b5-449b-8805-e71526dd8450",
+    "key": "rev_finance_income",
+    "label": "Finance Income",
+    "account_element_id": "5f10e7dc-69fb-47ba-bca7-0a7386a8ccfb",
+    "description": "Interest/dividend/gain income not tied to core business operations",
+    "report_code": "IS.INC.OTH.FIN",
+    "label_role": "mechanical",
+    "trainable": true,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "6760059c-be41-4d66-bb1d-d1cb5994588b",
+    "key": "rev_other_income",
+    "label": "Other Income",
+    "account_element_id": "5f10e7dc-69fb-47ba-bca7-0a7386a8ccfb",
+    "description": "Misc. or one-off income (asset sales, grants, rebates, insurance recoveries)",
+    "report_code": "IS.INC.OTH.OTH",
+    "label_role": "semantic",
+    "trainable": false,
+    "is_contra": false,
+    "is_postable_control": false,
+    "accrual_targets": [
+      "ca_other_receivable",
+      "ca_trade_receivable",
+      "cl_contract_liabilities"
+    ]
+  }
+]

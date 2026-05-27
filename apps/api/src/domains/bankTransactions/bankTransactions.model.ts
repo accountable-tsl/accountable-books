@@ -1,317 +1,484 @@
+import { randomUUID } from 'crypto';
+import type { Knex } from 'knex';
+
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import { getBankAccountBalances } from '../balances/balances.model.js';
-import {
-  type AddBankTransactionsResponse,
-  bankTransactionBatchInputCamel,
-  type BankTransactionBatchInputCamel,
-  type BankTransactionFilters,
-  bankTransactionsFilters,
-  newBankTransaction,
-  type NewBankTransaction,
-} from './bankTransactions.types.js';
-import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import { categorizationStatus, debitCredit } from '../../core/types/core.js';
-import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
-import { buildBankTransactionQuery } from './bankTransactions.utils.js';
+import { generateFingerprintSync } from '../../shared/index.js';
 import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
-import crypto from 'crypto';
-import dayjs from 'dayjs';
+import { logger } from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { enqueueBankBalance } from '../balances/index.js';
+import {
+  emitTxnDeletedEvent,
+  enqueueTransactionEnrichment,
+  handleTransactionsDeleted,
+} from '../categorization/index.js';
+import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
+import {
+  bankTransactionBatchInput,
+  bankTransactionsFilters,
+  deleteBankTransactionsInput,
+} from './bankTransactions.types.js';
+import {
+  buildBankTransactionQuery,
+  generateBatchFingerprint,
+} from './bankTransactions.utils.js';
 
-function generateExternalId(input: {
-  date: Date;
-  amount: number;
-  payee: string;
-  description: string;
-  bankAccountId: string;
-}): string {
-  const { date, amount, payee, description, bankAccountId } = input;
-  const formattedDate = dayjs(date).format('YYYY-MM-DD');
-  const amountHash = Number(amount).toFixed(4);
-  const payeeNorm = (payee || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const descNorm = (description || '').toLowerCase().replace(/\s+/g, ' ').trim();
-
-  return crypto
-    .createHash('sha256')
-    .update(`${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`)
-    .digest('hex');
-}
+import type {
+  BankTransaction,
+  BankTransactionBatchInput,
+  BankTransactionFilters,
+  BankTransactionInput,
+  BankTransactionWithFilteredFields,
+  DeleteBankTransactionsInput,
+  NewBankTransaction,
+} from './bankTransactions.types.js';
 
 export async function addNewBankTransactions({
   userId,
   companyId,
   data,
+  trx,
 }: {
   userId: string;
   companyId: string;
-  data: BankTransactionBatchInputCamel;
-}): Promise<ApiResponse<AddBankTransactionsResponse>> {
+  data: BankTransactionBatchInput;
+  trx?: Knex.Transaction;
+}) {
+  const traceId = randomUUID();
+  const startTime = Date.now();
+
+  const log = (phase: string, data?: Record<string, any>) => {
+    const duration_ms = Date.now() - startTime;
+    logger.info(
+      {
+        traceId,
+        phase,
+        duration_ms,
+        companyId,
+        ...data,
+      },
+      `[${traceId}] BankTxn.${phase} (${duration_ms}ms)`,
+    );
+  };
+
+  // Input validation
+  log('started', {
+    transactionCount: data.bank_transactions?.length || 0,
+    bankAccountId: data.bank_account_id,
+    source: data.source,
+  });
+
+  const validate = bankTransactionBatchInput.safeParse(data);
+  if (!validate.success) {
+    log('validation_failed', { issues: validate.error.issues });
+    return errorResponse('Invalid input provided', {
+      issues: validate.error.issues,
+      traceId,
+    });
+  }
+
+  const {
+    source,
+    provider_key: batch_provider_key,
+    bank_account_id,
+    bank_transactions,
+    metadata,
+  } = validate.data;
+  log('validation_complete');
+
+  // const sameBankAccountIds = bank_transactions.every(
+  //   (tx, _, arr) => tx.bank_account_id === arr[0].bank_account_id,
+  // );
+
+  // Enforce single-account invariant
+  if (!allSameAccount(bank_transactions, bank_account_id)) {
+    return errorResponse(
+      'All transactions must belong to the same bank account',
+      { traceId },
+    );
+  }
+
+  // Ensure partitions exist for all transaction dates BEFORE starting the main transaction
+  // This prevents DDL-within-transaction conflicts
+  const transactionDates: Date[] = [];
+  let sumOfTransactions: number = 0.0;
+  let earliestTxn = bank_transactions[0];
+  let latestTxn = bank_transactions[0];
+
+  for (const txn of bank_transactions) {
+    transactionDates.push(txn.date);
+    sumOfTransactions += Number(txn.amount);
+    if (txn.date < earliestTxn.date) earliestTxn = txn;
+    if (txn.date > latestTxn.date) latestTxn = txn;
+  }
+
+  await ensurePartitionsForDates('bank_transactions', transactionDates);
   try {
-    const validateInput = bankTransactionBatchInputCamel.safeParse(data);
-    if (!validateInput.success) {
-      return errorResponse(`Invalid input provided`, validateInput.error.flatten());
-    }
+    // Main transaction execution
+    const executeTransaction = async (txn: Knex.Transaction) => {
+      // Get company UUID
+      const companyUUID = await getCompanyUUID(companyId, txn);
+      if (!companyUUID) {
+        return errorResponse('Company not found');
+      }
 
-    const companyUUID = await getCompanyUUID(companyId);
-    if (!companyUUID) {
-      return errorResponse('Invalid company ID');
-    }
+      // Verify bank account id exists and retrieve currency as well
+      const bankAccount = await txn('bank_accounts as ba')
+        .select(
+          'ba.currency_id as bankCurrencyId',
+          'ba.display_name as bankAccountName',
+          'b.display_name as bankName',
+          'c.reporting_currency_id as reportingCurrencyId',
+          'c.conversion_date as conversionDate',
+        )
+        .join('companies as c', 'ba.company_id', 'c.id')
+        .join('banks as b', 'ba.bank_id', 'b.id')
+        .where({
+          'ba.id': bank_account_id,
+          'ba.company_id': companyUUID,
+          'ba.is_deleted': false,
+        })
+        .first();
 
-    const batch = validateInput.data;
-    if (!batch.fingerprint) {
-      return errorResponse('Fingerprint is required for deduplication');
-    }
-
-    // Ensure partitions exist for all transaction dates BEFORE starting the main transaction
-    // This prevents DDL-within-transaction conflicts
-    const transactionDates = batch.bank_transactions.map((txn) => new Date(txn.date));
-    await ensurePartitionsForDates('bank_transactions', transactionDates);
-
-    const result: ApiResponse<AddBankTransactionsResponse> = await knexClient.transaction(
-      async (trx) => {
-        // Fetch the relevant bank account, join companies for reportingCurrencyId. Also acts to verify bank account exists
-        const bankAccount = await trx('bank_accounts as ba')
-          .select(
-            'ba.id as bankAccountId',
-            'ba.currency_id as bankCurrencyId',
-            'c.reporting_currency_id as reportingCurrencyId',
-          )
-          .join('companies as c', 'ba.company_id', 'c.id')
-          .where({
-            'ba.id': batch.bank_account_id,
-            'ba.company_id': companyUUID,
-            'ba.is_deleted': false,
-          })
-          .first();
-
-        if (!bankAccount) return errorResponse('Bank account not found');
-        const { bankAccountId, bankCurrencyId, reportingCurrencyId } = bankAccount;
-
-        // Fetch existing transactions to calculate balanceBefore
-        /**
-         * I guess  we can just use getBankAccountBalances, not sure which is best
-         * const existingTransactions = await trx("BankTransaction").where({ bank_account_id: data.bankAccountId }).orderBy("date", "asc");
-         * const balanceBefore = existingTransactions.reduce((total: Decimal, txn: any) => total.plus(new Decimal(txn.amount)),new Decimal(0));
-         */
-        //
-
-        const balanceBeforeResponse = await getBankAccountBalances(trx, companyUUID, {
-          includeStats: true,
-          bankAccountIds: [bankAccountId],
+      if (!bankAccount) {
+        return errorResponse(`Bank account not found: ${bank_account_id}`, {
+          bank_account_id,
+          traceId,
         });
-        if (!balanceBeforeResponse.success || !balanceBeforeResponse.data) {
-          return errorResponse('Failed to calculate balance before new transactions');
-        }
-        const balanceBeforeObj = balanceBeforeResponse.data[bankAccountId];
+      }
+      const { bankCurrencyId, reportingCurrencyId, bankAccountName, bankName } =
+        bankAccount;
 
-        //   ----
-        // Sort and Calculate or verify batch total
-        const sortedTransactions = [...batch.bank_transactions].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-        );
+      // Build batch insert object
+      // Determine start and end dates
+      // const { startDate, endDate } = getMinMaxDates(bank_transactions);
+      const startDate = earliestTxn.date;
+      const endDate = latestTxn.date;
+      const fingerprint = generateBatchFingerprint(bank_transactions);
+      const [batch] = await txn('bank_transaction_batches')
+        .insert({
+          bank_account_id,
+          start_date: startDate,
+          end_date: endDate,
+          source,
+          fingerprint,
+          import_row_count: bank_transactions.length,
+          metadata,
+          created_by_id: userId,
+          updated_by_id: userId,
+        })
+        .onConflict(['bank_account_id', 'fingerprint'])
+        .ignore()
+        .returning(['id', 'start_date', 'end_date', 'fingerprint']);
 
-        let currentRunningBalance = balanceBeforeObj.nativeBalance;
-        let batchTotal = 0;
+      if (!batch) {
+        log('duplicate_batch', { fingerprint });
+        return errorResponse('This batch was previously imported', {
+          bank_account_id,
+          fingerprint,
+          traceId,
+        });
+      }
 
-        // Prepare each transaction, resolve system exchange rate
-        const preparedTransactions: NewBankTransaction[] = await Promise.all(
-          sortedTransactions.map(async (txn) => {
-            const txnAmount = Number(txn.amount);
-            batchTotal = batchTotal += txnAmount;
-            currentRunningBalance = currentRunningBalance += txnAmount;
+      log('batch_created', {
+        batchId: batch.id,
+        dateRange: `${startDate} to ${endDate}`,
+        fingerprint,
+      });
 
-            // Resolve exchange rate perhaos we could skip this if reportingCurrencyId === bankCurrencyId
-            let exr: number;
+      // Extract contacts, perhaps create a set of unique contacts and insert them
+      const uniquePayees = [
+        ...new Set(
+          bank_transactions
+            .map((tx) => tx.payee?.trim())
+            .filter((payee): payee is string => !!payee),
+        ),
+      ];
 
-            if (reportingCurrencyId === bankCurrencyId) {
-              exr = 1;
-            } else {
-              const exchangeRate = await determineExchangeRate(
-                txn.date,
-                reportingCurrencyId,
-                bankCurrencyId,
-              );
-              if (exchangeRate === null) {
-                throw new Error(
-                  `Exchange rate not available for ${txn.date}: ${reportingCurrencyId} to ${bankCurrencyId}`,
-                );
-              }
-              exr = Number(exchangeRate);
-            }
-            const external_id = generateExternalId({
-              date: txn.date,
-              amount: txn.amount,
-              payee: txn.payee || '',
-              description: txn.description || '',
-              bankAccountId: bankAccountId,
-            });
-
-            const txForDb = {
-              ...txn,
-              external_id,
-              amount: txnAmount,
-              system_exchange_rate: exr,
-              categorization_status: categorizationStatus.enum.uncategorized,
-              bank_transaction_batch_id: undefined, // to be set after batch inser
+      if (uniquePayees.length > 0) {
+        await txn('contacts')
+          .insert(
+            uniquePayees.map((payee) => ({
+              company_id: companyUUID,
+              display_name: payee,
+              normalized_name: payee.toLowerCase(),
               created_by_id: userId,
               updated_by_id: userId,
-            };
+            })),
+          )
+          .onConflict(['company_id', 'normalized_name'])
+          .ignore();
 
-            const validateTx = newBankTransaction.safeParse(txForDb);
-            if (!validateTx.success) {
-              throw new Error(validateTx.error.message);
-            }
+        log('contacts_created', { count: uniquePayees.length });
+      }
 
-            // Compose prepared transaction
-            return validateTx.data;
-          }),
-        );
+      const createdContacts = uniquePayees.length
+        ? await txn('contacts')
+            .select(['id', 'normalized_name'])
+            .where({ company_id: companyUUID })
+            .whereIn(
+              'normalized_name',
+              uniquePayees.map((p) => p.toLowerCase()),
+            )
+        : [];
 
-        // Confirm balance after
-        const balanceAfter = balanceBeforeObj.nativeBalance + batchTotal;
+      const contactIdByName = new Map(
+        createdContacts.map((r) => [r.normalized_name, r.id as string]),
+      );
 
-        let balanceWarning: {
-          message: string;
-          calculatedBalance: string;
-          runningBalance: string;
-        } | null = null;
-        if (Math.abs(balanceAfter - currentRunningBalance) > 0.0001) {
-          balanceWarning = {
-            message: 'Balance calculation mismatch detected',
-            calculatedBalance: balanceAfter.toString(),
-            runningBalance: currentRunningBalance.toString(),
-          };
-          console.warn('Balance mismatch in batch import:', balanceWarning);
+      const inputContactIds = Array.from(
+        new Set(
+          bank_transactions
+            .map((tx) => tx.contact_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      const contactNameById = inputContactIds.length
+        ? new Map(
+            (
+              await txn('contacts')
+                .select(['id', 'display_name'])
+                .where({ company_id: companyUUID, is_deleted: false })
+                .whereIn('id', inputContactIds)
+            ).map((contact) => [
+              contact.id as string,
+              contact.display_name as string,
+            ]),
+          )
+        : new Map<string, string>();
+
+      const sameCurrency = reportingCurrencyId === bankCurrencyId;
+
+      // Pre-fetch all unique exchange rates in one optimized query
+      const uniqueDates = !sameCurrency
+        ? [...new Set(bank_transactions.map((tx) => tx.date))]
+        : [];
+
+      const fxRates = new Map<string, number>();
+
+      if (uniqueDates.length > 0) {
+        const fxStartTime = Date.now();
+
+        // Fetch all required exchange rates in parallel
+        const ratePromises = uniqueDates.map(async (date) => {
+          const rate = await determineExchangeRate({
+            date,
+            fromCurrencyId: bankCurrencyId,
+            toCurrencyId: reportingCurrencyId,
+          });
+          return { date, rate };
+        });
+
+        const rates = await Promise.all(ratePromises);
+
+        // Build rate map and check for missing rates
+        const missingDates: string[] = [];
+        rates.forEach(({ date, rate }) => {
+          if (rate === null) {
+            missingDates.push(date.toISOString());
+          } else {
+            fxRates.set(date.toISOString(), Number(rate));
+          }
+        });
+
+        if (missingDates.length > 0) {
+          throw new Error(
+            `Missing exchange rates for dates: ${missingDates.join(', ')}`,
+          );
         }
 
-        // Insert bank transaction batch
-        const batchInsertResult = await trx('bank_transaction_batches')
-          .insert({
-            bank_account_id: bankAccountId,
-            import_date: new Date(),
-            start_date: batch.start_date,
-            end_date: batch.end_date,
-            source: batch.source,
-            balance_before: balanceBeforeObj.nativeBalance,
-            balance_after: balanceAfter,
-            import_row_count: preparedTransactions.length,
-            fingerprint: batch.fingerprint,
-            source_metadata: batch.source_metadata || null,
-            created_by_id: userId,
-            updated_by_id: userId,
-          })
-          .onConflict(['bank_account_id', 'fingerprint'])
-          .ignore()
-          .returning(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source']);
+        log('fx_rates_fetched', {
+          uniqueDates: uniqueDates.length,
+          fetchTime_ms: Date.now() - fxStartTime,
+        });
+      }
 
-        if (!batchInsertResult.length) {
-          // Check if batch already exists
-          const existingBatch = await trx('bank_transaction_batches')
-            .select(['id', 'start_date', 'end_date', 'balance_before', 'balance_after', 'source'])
-            .where('bank_account_id', bankAccountId)
-            .andWhere('fingerprint', batch.fingerprint)
-            .first();
+      // Prepare transactions (now synchronous since rates are pre-fetched)
+      const preparedTransactions: NewBankTransaction[] = bank_transactions.map(
+        (tx) => {
+          const rate = sameCurrency ? 1 : fxRates.get(tx.date.toISOString());
 
-          if (!existingBatch) {
-            return errorResponse('An unknown error occurred');
+          if (!rate) {
+            throw new Error(`Missing exchange rate for ${tx.date}`);
           }
 
-          const countResult = await trx('bank_transactions')
-            .where({ bank_transaction_batch_id: existingBatch.id })
-            .count<{ count: string }>('* as count')
-            .first();
+          const generatedExternalId = generateExternalId({
+            date: tx.date,
+            amount: tx.amount,
+            payee: tx.payee || '',
+            description: tx.description || '',
+            bankAccountId: bank_account_id,
+          });
 
-          const count = countResult ? countResult.count : '0';
+          const normalizedPayee = tx.payee?.trim();
+          const contactId = normalizedPayee
+            ? contactIdByName.get(normalizedPayee.toLowerCase())
+            : (tx.contact_id ?? undefined);
+          const contactName = normalizedPayee
+            ? normalizedPayee
+            : contactId
+              ? (contactNameById.get(contactId) ?? null)
+              : null;
 
-          return errorResponse('This batch was previously imported', {
-            batch: snakeToCamel(existingBatch),
-            transactionsCount: Number(count),
-            inserted: 0,
-            skippedDuplicates: Number(count),
-            balanceAfter: existingBatch?.balance_after,
-            note: 'This batch was previously imported',
+          const txSource =
+            (batch_provider_key && source === 'bank_feed'
+              ? batch_provider_key
+              : source) || null;
+
+          return {
+            ...tx,
+            txn_at: tx.txn_at || tx.date,
+            bank_account_id,
+            contact_id: contactId,
+            contact_type_snapshot: tx.contact_type_snapshot ?? null,
+            contact_name: contactName,
+            bank_account_name: bankAccountName ?? null,
+            bank_name: bankName ?? null,
+            external_id: tx.external_id || generatedExternalId,
+            amount: Number(tx.amount),
+            system_exchange_rate: Number(rate),
+            bank_transaction_batch_id: batch.id,
+            created_by_id: userId,
+            updated_by_id: userId,
+            source: txSource,
+          };
+        },
+      );
+
+      log('transactions_prepared', {
+        count: preparedTransactions.length,
+      });
+
+      const insertedTxns = await txn('bank_transactions')
+        .insert(preparedTransactions)
+        .onConflict(['bank_account_id', 'external_id', 'date'])
+        .ignore()
+        .returning('id');
+
+      const inserted = insertedTxns.length;
+      const skipped = preparedTransactions.length - inserted;
+
+      log('transactions_inserted', {
+        inserted,
+        skipped,
+        totalProcessed: preparedTransactions.length,
+      });
+
+      // Trigger balance recalculation if transactions were inserted
+      if (inserted > 0) {
+        try {
+          const earliestTxnAt = preparedTransactions.reduce<Date | null>(
+            (earliest, txn) => {
+              const txnAt = txn.txn_at as Date | undefined;
+              if (!txnAt) {
+                return earliest;
+              }
+              return !earliest || txnAt < earliest ? txnAt : earliest;
+            },
+            null,
+          );
+
+          if (earliestTxnAt) {
+            const recalcFrom = earliestTxnAt.toISOString().split('T')[0];
+            await enqueueBankBalance({
+              companyId: companyUUID,
+              bankAccountId: bank_account_id,
+              recalcFrom,
+              triggeredBy:
+                source === 'file_import' ? 'csv_upload' : 'transaction',
+            });
+
+            log('balance_recalc_queued', {
+              bankAccountId: bank_account_id,
+              recalcFrom,
+            });
+          }
+        } catch (error) {
+          // Don't fail the transaction if balance recalc enqueue fails, Log and notify
+          // TODO: Add to notification system later
+          log('balance_recalc_enqueue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            bankAccountId: bank_account_id,
           });
         }
 
-        const thisBatch = batchInsertResult[0];
+        // Trigger transaction enrichment for categorization
+        try {
+          const insertedTransactionIds = insertedTxns.map((txn) => txn.id);
+          await enqueueTransactionEnrichment({
+            companyId: companyUUID,
+            bankAccountId: bank_account_id,
+            bankTransactionIds: insertedTransactionIds,
+            source: 'ingestion',
+          });
 
-        // Insert prepared transactions with batch id
-        const insertedTxns = await trx('bank_transactions')
-          .insert(
-            preparedTransactions.map((txn) => ({
-              ...txn,
-              bank_transaction_batch_id: thisBatch.id,
-            })),
-          )
-          .onConflict(['bank_account_id', 'external_id', 'date'])
-          .ignore()
-          .returning('id');
+          log('enrichment_queued', {
+            bankAccountId: bank_account_id,
+            transactionCount: insertedTransactionIds.length,
+          });
+        } catch (error) {
+          // Don't fail the transaction if enrichment enqueue fails, just log
+          log('enrichment_enqueue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            bankAccountId: bank_account_id,
+          });
+        }
+      }
 
-        const inserted = insertedTxns.length;
-        const skippedDuplicates = preparedTransactions.length - inserted;
+      log('completed', {
+        inserted,
+        skipped,
+        totalDuration_ms: Date.now() - startTime,
+        metrics: {
+          transactionCount: bank_transactions.length,
+          uniqueDates: uniqueDates.length,
+          uniquePayees: uniquePayees.length,
+          avgTimePerTransaction:
+            (Date.now() - startTime) / bank_transactions.length,
+        },
+      });
 
-        // Return balance sorted by date and created_at if not already sorted
-        //   ----
-        // Return result
-        return successResponse<AddBankTransactionsResponse>('Transactions imported successfully', {
-          batch: snakeToCamel(thisBatch) as AddBankTransactionsResponse['batch'],
-          transactionsCount: preparedTransactions.length,
+      return successResponse(
+        `${inserted} transactions processed successfully. ${skipped ? `${skipped} duplicates skipped` : ''}`,
+        {
           inserted,
-          skippedDuplicates,
-          batchTotal,
-          balanceAfter,
-          balanceWarning: balanceWarning
-            ? {
-                message: balanceWarning.message,
-                calculatedBalance: balanceWarning.calculatedBalance,
-                runningBalance: balanceWarning.runningBalance,
-              }
-            : undefined,
-        });
-      },
-    );
+          skipped,
+          batchId: batch.id,
+          traceId,
+        },
+      );
+    };
 
-    return result;
+    // Execute within transaction
+    return trx
+      ? await executeTransaction(trx)
+      : await knexClient.transaction(executeTransaction);
   } catch (error) {
-    return errorResponse('Failed to import transactions', error);
+    const errorData = {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      phase: 'transaction_processing',
+      transactionCount: bank_transactions.length,
+      duration_ms: Date.now() - startTime,
+    };
+
+    log('error', errorData);
+
+    return errorResponse('Failed to process transactions', {
+      ...errorData,
+      traceId,
+    });
   }
 }
 
-// async function recalcBalancesAfterBatchDelete(knex, bankAccountId, deletedBatchStartDate) {
-//   // Fetch all batches for the account, ordered by start_date
-//   const batches = await knex('bank_transaction_batches')
-//     .where('bank_account_id', bankAccountId)
-//     .andWhere('start_date', '>', deletedBatchStartDate)
-//     .orderBy('start_date');
-
-//   let runningBalance = /* fetch latest balance_before before deleted batch */;
-
-//   for (const batch of batches) {
-//     // sum up all transaction amounts in batch
-//     const sum = await knex('bank_transactions')
-//       .where('bank_transaction_batch_id', batch.id)
-//       .andWhere('is_deleted', false)
-//       .sum('amount as total')
-//       .first();
-
-//     const balanceBefore = runningBalance;
-//     const balanceAfter = balanceBefore + Number(sum.total || 0);
-
-//     // update batch balances
-//     await knex('bank_transaction_batches')
-//       .where('id', batch.id)
-//       .update({
-//         balance_before: balanceBefore,
-//         balance_after: balanceAfter,
-//       });
-
-//     runningBalance = balanceAfter;
-//   }
-// }
-
-export async function getBankTransactions(companyId: string, filters: BankTransactionFilters) {
+export async function getBankTransactions(
+  companyId: string,
+  filters: BankTransactionFilters,
+) {
   try {
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
@@ -338,7 +505,10 @@ export async function getBankTransactions(companyId: string, filters: BankTransa
       .countDistinct('BankTransaction.id as total')
       .first();
 
-    const [transactions, countResult] = await Promise.all([transactionsQuery, countQuery]);
+    const [transactions, countResult] = await Promise.all([
+      transactionsQuery,
+      countQuery,
+    ]);
 
     const total = countResult ? parseInt(String(countResult.total), 10) : 0;
 
@@ -351,4 +521,201 @@ export async function getBankTransactions(companyId: string, filters: BankTransa
   } catch (error) {
     return errorResponse('Failed to get retrieve bank transactions', error);
   }
+}
+
+/**
+ * Get bank transactions by IDs
+ *
+ * This function retrieves bank transactions by their IDs. It supports
+ * filtering out auto-generated fields (database + computed fields).
+ *
+ * @param bankTransactionIds - Array of bank transaction IDs
+ * @param excludeAutoGeneratedFields - If true, excludes auto-generated fields from results
+ * @param trx - Optional database transaction
+ * @returns Array of bank transactions
+ * @throws AppError if bankTransactionIds is empty
+ */
+export async function getBankTransactionsByIds({
+  bankTransactionIds,
+  excludeAutoGeneratedFields = false,
+  trx,
+}: {
+  bankTransactionIds: string[];
+  excludeAutoGeneratedFields?: boolean;
+  trx?: Knex.Transaction;
+}): Promise<Array<BankTransaction | BankTransactionWithFilteredFields>> {
+  const client = trx || knexClient;
+
+  if (!Array.isArray(bankTransactionIds) || bankTransactionIds.length === 0) {
+    throw new AppError('bankTransactionIds must be a non-empty array');
+  }
+
+  const query = client('bank_transactions as bt')
+    .whereIn('bt.id', bankTransactionIds)
+    .where('bt.is_deleted', false)
+    .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
+    .select(
+      'bt.*',
+      'ba.coa_id as bank_account_coa_id',
+      'ba.currency_id as bank_account_currency_id',
+    );
+
+  const transactions = await query.orderBy('bt.created_at', 'asc');
+
+  if (!transactions.length) return [];
+
+  if (excludeAutoGeneratedFields) {
+    return transactions.map((transaction) => {
+      const txn = transaction as BankTransaction & {
+        absolute_amount?: number;
+        search_text?: string;
+        bank_account_coa_id?: string;
+        bank_account_currency_id?: string;
+      };
+      const {
+        created_at,
+        updated_at,
+        is_deleted,
+        deleted_at,
+        absolute_amount,
+        search_text,
+        ...t
+      } = txn;
+      return t;
+    });
+  }
+
+  return transactions;
+}
+
+export async function deleteBankTransactions({
+  companyId,
+  userId,
+  input,
+  trx,
+}: {
+  companyId: string;
+  userId: string;
+  input: DeleteBankTransactionsInput;
+  trx?: Knex.Transaction;
+}) {
+  const validate = deleteBankTransactionsInput.safeParse(input);
+  if (!validate.success) {
+    return errorResponse('Invalid request body', validate.error.flatten());
+  }
+
+  const { bankTransactionIds, reason } = validate.data;
+
+  try {
+    const execute = async (txn: Knex.Transaction) => {
+      const companyUUID = await getCompanyUUID(companyId, txn);
+      if (!companyUUID) {
+        return {
+          response: errorResponse('Company not found'),
+        };
+      }
+
+      const deletedRows = await txn('bank_transactions')
+        .where('company_id', companyUUID)
+        .whereIn('id', bankTransactionIds)
+        .andWhere('is_deleted', false)
+        .update({
+          is_deleted: true,
+          deleted_at: txn.fn.now(),
+          updated_at: txn.fn.now(),
+          updated_by_id: userId,
+        })
+        .returning('id');
+
+      const deletedIds = deletedRows.map((row) => row.id);
+
+      if (deletedIds.length > 0) {
+        await handleTransactionsDeleted({
+          bankTransactionIds: deletedIds,
+          reason,
+          trx: txn,
+        });
+      }
+
+      return {
+        response: successResponse('Transactions deleted', {
+          deleted: deletedIds.length,
+        }),
+        companyUUID,
+        deletedIds,
+      };
+    };
+
+    const result = trx
+      ? await execute(trx)
+      : await knexClient.transaction(execute);
+
+    if ('companyUUID' in result && (result.deletedIds?.length ?? 0) > 0) {
+      await emitTxnDeletedEvent({
+        company_uuid: result.companyUUID!,
+        bank_transaction_ids: result.deletedIds || [],
+        reason: reason ?? null,
+      });
+    }
+
+    return result.response;
+  } catch (error) {
+    logger.error(
+      {
+        companyId,
+        userId,
+        bankTransactionIds,
+        error,
+      },
+      'Failed to delete bank transactions',
+    );
+    return errorResponse('Failed to delete bank transactions');
+  }
+}
+
+function allSameAccount(txns: BankTransactionInput[], bankAccountId: string) {
+  return (
+    txns.length > 0 && txns.every((t) => t.bank_account_id === bankAccountId)
+  );
+}
+
+function getMinMaxDates(transactions: BankTransactionInput[]) {
+  if (transactions.length === 0) {
+    throw new Error('Cannot compute date range from empty list');
+  }
+
+  let minDate = new Date(transactions[0].date);
+  let maxDate = minDate;
+
+  for (let i = 1; i < transactions.length; i++) {
+    const date = new Date(transactions[i].date);
+    if (date < minDate) minDate = date;
+    if (date > maxDate) maxDate = date;
+  }
+
+  return {
+    startDate: minDate.toISOString().split('T')[0],
+    endDate: maxDate.toISOString().split('T')[0],
+  };
+}
+
+function generateExternalId(input: {
+  date: Date;
+  amount: number;
+  payee: string;
+  description: string;
+  bankAccountId: string;
+}): string {
+  const { date, amount, payee, description, bankAccountId } = input;
+  const formattedDate = date.toISOString().split('T')[0]; // dayjs(date).format('YYYY-MM-DD');
+  const amountHash = Number(amount).toFixed(4);
+  const payeeNorm = (payee || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const descNorm = (description || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return generateFingerprintSync(
+    `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`,
+  );
 }

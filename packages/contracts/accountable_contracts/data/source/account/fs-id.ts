@@ -1,0 +1,5 @@
+export const financialStatementIds = {
+  is: 'dfcfc3c0-8886-49a6-bc37-a0c32decc8be',
+  bs: 'ba4104cc-039d-4959-b87d-3e67abf483c9',
+  cf: '82be58ac-345d-4cf0-aa81-0edc19eb1c33',
+};

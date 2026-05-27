@@ -1,7 +1,8 @@
-import { useForm } from 'react-hook-form';
 import { useCallback, useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+
+import { ERROR_MESSAGES, FORM_CONFIG, VALIDATION } from '../constants';
 import { type TransactionData, type TransactionFormData } from '../types';
-import { VALIDATION, ERROR_MESSAGES, FORM_CONFIG } from '../constants';
 
 interface UseTransactionFormProps {
   transaction: TransactionData;
@@ -9,7 +10,11 @@ interface UseTransactionFormProps {
   onCancel: () => void;
 }
 
-export function useTransactionForm({ transaction, onSubmit, onCancel }: UseTransactionFormProps) {
+export function useTransactionForm({
+  transaction,
+  onSubmit,
+  onCancel,
+}: UseTransactionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -81,11 +86,15 @@ export function useTransactionForm({ transaction, onSubmit, onCancel }: UseTrans
         return true;
       } catch (err) {
         setIsSubmitting(false);
-        const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.SAVE_ERROR;
+        const errorMessage =
+          err instanceof Error ? err.message : ERROR_MESSAGES.SAVE_ERROR;
         setError(errorMessage);
 
         // Retry logic for network errors
-        if (retryCount < FORM_CONFIG.MAX_RETRIES && errorMessage.includes('Network')) {
+        if (
+          retryCount < FORM_CONFIG.MAX_RETRIES &&
+          errorMessage.includes('Network')
+        ) {
           setRetryCount((prev) => prev + 1);
           setTimeout(() => {
             handleFormSubmit(data);

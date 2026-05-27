@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 
 export const newCompanyBankCredentialInput = z.object({
@@ -11,4 +12,6 @@ export const newCompanyBankCredentialInput = z.object({
   userId: z.uuid(),
 });
 
-export type NewCompanyBankCredentialInput = z.infer<typeof newCompanyBankCredentialInput>;
+export type NewCompanyBankCredentialInput = z.infer<
+  typeof newCompanyBankCredentialInput
+>;

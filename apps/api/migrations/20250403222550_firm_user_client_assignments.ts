@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'firm_user_client_assignments';
 export async function up(knex: Knex): Promise<void> {
@@ -22,9 +23,19 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
-    table.uuid('created_by_id').nullable().references('id').inTable('users').onDelete('RESTRICT');
+    table
+      .uuid('created_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('RESTRICT');
 
     addStandardColumns(knex, table);
 

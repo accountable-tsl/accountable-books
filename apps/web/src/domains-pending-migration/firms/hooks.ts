@@ -1,16 +1,20 @@
+import { useCallback } from 'react';
+import { checkSlug, updateSlugFn } from '@/domains-pending-migration/firms/api';
+import {
+  invalidateFirmCaches,
+  validateSlug,
+} from '@/domains-pending-migration/firms/utils';
+import { queryClient } from '@/lib/queryClient';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { checkSlug, updateSlugFn } from '@/domains-pending-migration/firms/api';
-import { queryClient } from '@/lib/queryClient';
-import { invalidateFirmCaches, validateSlug } from '@/domains-pending-migration/firms/utils';
-import { useCallback } from 'react';
 
 export const useSlugCheck = (slug: string, currentSlug?: string) => {
   const debouncedSlug = useDebouncedValue(slug.trim().toLowerCase(), 400);
   const isSameAsCurrent = currentSlug?.trim().toLowerCase() === debouncedSlug;
 
   const validation = validateSlug(debouncedSlug);
-  const shouldCheck = validation.isValid && debouncedSlug.length > 0 && !isSameAsCurrent;
+  const shouldCheck =
+    validation.isValid && debouncedSlug.length > 0 && !isSameAsCurrent;
 
   const query = useQuery({
     queryKey: ['firm-slug-check', debouncedSlug],

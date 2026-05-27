@@ -1,5 +1,28 @@
+import dayjs from 'dayjs';
 import jwt from 'jsonwebtoken';
-import { buildAuthContext, generateAuthTokens, JWT_CONFIG } from './auth.utils.js';
+
+import { knexClient } from '../../db/knexClient.js';
+import {
+  addNewToken,
+  getUserToken,
+} from '../../domains/tokens/tokens.model.js';
+import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
+import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
+import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
+import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
+import { redis } from '../../lib/redis.js';
+import {
+  comparePassword,
+  compareToken,
+  generateRandomToken,
+  hashToken,
+} from '../../shared/utils/crypto.utils.js';
+import { getCompanyShortCode } from '../../shared/utils/random.utils.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import {
   type AuthCompanyContext,
   type AuthUserContext,
@@ -7,23 +30,13 @@ import {
   type ResendVerificationEmailInput,
   type VerifyEmailInput,
 } from './auth.types.js';
-import { knexClient } from '../../db/knexClient.js';
-import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import {
-  comparePassword,
-  compareToken,
-  generateRandomToken,
-  hashToken,
-} from '../../shared/utils/crypto.utils.js';
+  buildAuthContext,
+  generateAuthTokens,
+  JWT_CONFIG,
+} from './auth.utils.js';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { redis } from '../../lib/redis.js';
-import dayjs from 'dayjs';
-import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
-import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
-import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
-import { addNewToken, getUserToken } from '../../domains/tokens/tokens.model.js';
-import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
-import { getCompanyShortCode } from '../../shared/utils/random.utils.js';
 
 export async function loginService(
   email: string,
@@ -75,7 +88,9 @@ export async function loginService(
     const contextRes = await buildAuthContext(userData);
 
     if (!contextRes.success || !contextRes.data) {
-      return errorResponse(contextRes.message || 'Failed to build auth context');
+      return errorResponse(
+        contextRes.message || 'Failed to build auth context',
+      );
     }
     const { user: userContext, activeCompany } = contextRes.data;
 
@@ -111,14 +126,20 @@ export async function refreshTokenService(
   if (!locked) throw new Error('Refresh already in progress');
 
   try {
-    const decoded = jwt.verify(refreshToken, JWT_CONFIG.refreshToken.secret) as DecodedToken;
+    const decoded = jwt.verify(
+      refreshToken,
+      JWT_CONFIG.refreshToken.secret,
+    ) as DecodedToken;
 
     if (decoded.sub !== userId) {
       return errorResponse('Invalid refresh token');
     }
 
     // Check if refreshToken exists in Redis set
-    const isValidToken = await redis.sismember(`refreshTokens:${userId}`, refreshToken);
+    const isValidToken = await redis.sismember(
+      `refreshTokens:${userId}`,
+      refreshToken,
+    );
 
     if (!isValidToken) {
       return errorResponse('Refresh token revoked or invalid');
@@ -204,8 +225,13 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
         );
       }
 
-      if (initialEmailVerifiedAt && !initialOnboardingState?.steps.email_verified) {
-        await trx('users').where({ id: userId }).update({ onboarding_state: newOnboardingState });
+      if (
+        initialEmailVerifiedAt &&
+        !initialOnboardingState?.steps.email_verified
+      ) {
+        await trx('users')
+          .where({ id: userId })
+          .update({ onboarding_state: newOnboardingState });
       }
 
       if (initialEmailVerifiedAt) {
@@ -253,7 +279,9 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
         .where({ id: userId })
         .update({
           email_verified_at: new Date(),
-          ...(newOnboardingState ? { onboarding_state: newOnboardingState } : {}),
+          ...(newOnboardingState
+            ? { onboarding_state: newOnboardingState }
+            : {}),
         });
 
       await trx('tokens').where({ id: tokenId }).delete();
@@ -309,7 +337,13 @@ export async function resendVerificationEmailService(
   try {
     // Get user details
     const user = await knexClient('users')
-      .select('id', 'email', 'firstname', 'email_verified_at', 'onboarding_state')
+      .select(
+        'id',
+        'email',
+        'firstname',
+        'email_verified_at',
+        'onboarding_state',
+      )
       .where({ id: input.userId })
       .first();
 
@@ -363,7 +397,10 @@ export async function meService(userId: string): Promise<
   }>
 > {
   try {
-    const user = await knexClient('users').select('*').where({ id: userId }).first();
+    const user = await knexClient('users')
+      .select('*')
+      .where({ id: userId })
+      .first();
     if (!user) {
       // If no user found, fail with invalid credentials error
       return errorResponse('Invalid credentials', undefined, {
@@ -386,7 +423,9 @@ export async function meService(userId: string): Promise<
     const contextResponse = await buildAuthContext(userData);
 
     if (!contextResponse.success || !contextResponse.data) {
-      return errorResponse(contextResponse.message || 'Failed to build auth context');
+      return errorResponse(
+        contextResponse.message || 'Failed to build auth context',
+      );
     }
 
     const { user: userContext, activeCompany } = contextResponse.data;

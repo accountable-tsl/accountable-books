@@ -1,15 +1,30 @@
 import { type Request, type Response } from 'express';
+
+import { type AuthRequest } from '../../features/auth/auth.types.js';
+import {
+  generateCsrfToken,
+  setAuthCookies,
+} from '../../features/auth/auth.utils.js';
 import {
   AppError,
   ErrorCode,
   errorResponse,
+  getHttpStatusFromErrorCode,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { type AuthRequest } from '../../features/auth/auth.types.js';
-import { getCompanies, getSingleCompany, switchCompany, updateCompany } from './companies.model.js';
-import { generateCsrfToken, setAuthCookies } from '../../features/auth/auth.utils.js';
+import { getAuditContext } from '../audit/audit.middleware.js';
+import {
+  getCompanies,
+  getSingleCompany,
+  switchCompany,
+  updateCompany,
+} from './companies.model.js';
+import { getWorkspaceCompanyPatchDeniedReason } from './companies.workspace-mutation.policy.js';
 
-export const switchCompanyController = async (req: AuthRequest, res: Response) => {
+export const switchCompanyController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   try {
     const companyId = req.body.companyId;
     if (!req.user || !companyId) throw new AppError('Unauthorized');
@@ -20,15 +35,9 @@ export const switchCompanyController = async (req: AuthRequest, res: Response) =
     });
 
     if (!switchResult.success || !switchResult.data) {
-      const status =
-        switchResult?.code === ErrorCode.INVALID_CREDENTIALS
-          ? 401
-          : switchResult?.code === ErrorCode.GENERIC
-            ? 500
-            : 403;
       return res
-        .status(status)
-        .json(errorResponse(switchResult.message, switchResult.data || undefined));
+        .status(getHttpStatusFromErrorCode(switchResult.code))
+        .json(switchResult);
     }
 
     const { accessToken, refreshToken, user, company } = switchResult.data;
@@ -54,24 +63,26 @@ export const getCompaniesController = async (req: Request, res: Response) => {
     const result = await getCompanies();
 
     if (!result.success) {
-      return res.status(404).json(result);
+      return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
     }
 
     return res.status(200).json(result);
   } catch (error: any) {
-    return res.status(500).json(errorResponse(error.message || 'An unexpected error occurred'));
+    return res
+      .status(500)
+      .json(errorResponse(error.message || 'An unexpected error occurred'));
   }
 };
 export const getCompanyController = async (req: AuthRequest, res: Response) => {
   try {
-    const companyId = req.params.companyId;
+    const companyId = String(req.params.companyId);
     if (!companyId) {
       return res.status(400).json(errorResponse('Company ID is required'));
     }
     const company = await getSingleCompany(companyId);
 
     if (!company || !company.success) {
-      return res.status(400).json(errorResponse('Company not found'));
+      return res.status(getHttpStatusFromErrorCode(company.code)).json(company);
     }
 
     return res.status(200).json(company);
@@ -80,21 +91,61 @@ export const getCompanyController = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const updateCompanyController = async (req: AuthRequest, res: Response) => {
-  const companyId = req.params.companyId;
+export const updateCompanyController = async (
+  req: AuthRequest,
+  res: Response,
+) => {
+  const companyId = String(req.params.companyId);
   const userId = req.user?.id;
   const data = req.body;
-  const { companyId: companyIdFromData, userId: userIdFromData, ...updateData } = data;
+  const {
+    companyId: companyIdFromData,
+    userId: userIdFromData,
+    ...updateData
+  } = data;
 
   if (!companyId || !userId) {
     return res.status(400).json(errorResponse('Bad Request'));
   }
 
+  if (!req.company) {
+    return res.status(500).json(
+      errorResponse('Company context missing', undefined, {
+        code: ErrorCode.GENERIC,
+      }),
+    );
+  }
+
+  const patchDenied = getWorkspaceCompanyPatchDeniedReason(
+    req.user,
+    req.company,
+  );
+  if (patchDenied) {
+    return res
+      .status(403)
+      .json(
+        errorResponse(patchDenied, undefined, { code: ErrorCode.FORBIDDEN }),
+      );
+  }
+
   try {
-    const result = await updateCompany(companyId, updateData, userId);
+    const result = await updateCompany(
+      companyId,
+      updateData,
+      userId,
+      undefined,
+      {
+        audit: {
+          actor: {
+            type: 'user',
+            userId,
+          },
+          context: getAuditContext(req),
+        },
+      },
+    );
     if (!result.success) {
-      const { error, ...rest } = result;
-      return res.status(404).json(rest);
+      return res.status(getHttpStatusFromErrorCode(result.code)).json(result);
     }
 
     return res.status(200).json(result);

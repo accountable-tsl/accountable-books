@@ -1,0 +1,6 @@
+from enum import Enum
+
+class SupportGrantStatus(str, Enum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+    EXPIRED = "expired"

@@ -1,12 +1,3 @@
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { type AddBankAccountDialogProps } from '../model/types';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +5,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+
+import { type AddBankAccountDialogProps } from '../model/types';
 import AddBankAccount from './ba-add';
 
 export function AddBankAccountDialog({
@@ -30,7 +31,10 @@ export function AddBankAccountDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent overlayClassName={overlayClassName} className="sm:max-w-md max-w-md">
+        <DrawerContent
+          overlayClassName={overlayClassName}
+          className="max-w-md sm:max-w-md"
+        >
           <DrawerHeader className={showHeader ? '' : 'sr-only'}>
             <DrawerTitle>Add Bank Account</DrawerTitle>
             <DrawerDescription className="text-muted-foreground text-sm">

@@ -7,7 +7,7 @@ export interface DemoUser {
 }
 const DEMO_USER_PASSWORD = 'StrongDemoPass!';
 
-const BASE_USER = { password: DEMO_USER_PASSWORD, is_demo_user: true };
+const BASE_USER = { password: DEMO_USER_PASSWORD, user_type: 'demo' };
 
 export const US_USER: DemoUser = {
   ...BASE_USER,

@@ -1,14 +1,29 @@
-import { dateOrStringNullish } from '@/shared/types/core';
+import type { CompanyType } from '@accountable-books/contracts/schema';
+import {
+  accountingBasis,
+  companyResponse as companyData,
+  companyOnboardingState as companyOnboardingStateSchema,
+  companyType,
+  firmType,
+  reportingFramework,
+  updateCompanyPayload as updateCompanySchema,
+} from '@accountable-books/contracts/schema';
+import { isKnownTimezone } from '@accountable-books/utils/timezone';
 import { z } from 'zod';
 
-export const companyType = z.enum(['business', 'accounting_firm', 'individual']);
-export type CompanyType = z.infer<typeof companyType>;
+export {
+  accountingBasis,
+  companyData,
+  companyType,
+  firmType,
+  updateCompanySchema,
+};
 
-export const accountingBasis = z.enum(['modified_cash_basis', 'modified_accrual_basis']);
 export type AccountingBasis = z.infer<typeof accountingBasis>;
+export type { CompanyType };
+
 export const userOnboardingStepKeys = {
   emailVerified: 'email_verified',
-  // profileCompleted: "profile_completed",
 } as const;
 
 export const companyOnboardingStepKeys = {
@@ -26,7 +41,8 @@ export type UserOnboardingStepKey =
   (typeof userOnboardingStepKeys)[keyof typeof userOnboardingStepKeys];
 export type CompanyOnboardingStepKey =
   (typeof companyOnboardingStepKeys)[keyof typeof companyOnboardingStepKeys];
-export type OnboardingStepKey = (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
+export type OnboardingStepKey =
+  (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
 
 export const onboardingStatus = z.enum([
   'not_started',
@@ -37,21 +53,7 @@ export const onboardingStatus = z.enum([
 ]);
 export type OnboardingStatus = z.infer<typeof onboardingStatus>;
 
-export const companyOnboardingState = z
-  .object({
-    steps: z.object({
-      company_details_confirmed: z.boolean().nullish(),
-      first_bank_account_added: z.boolean().nullish(),
-    }),
-    completed_at: z
-      .object({
-        company_details_confirmed: dateOrStringNullish,
-        first_bank_account_added: dateOrStringNullish,
-      })
-      .optional(),
-    metadata: z.null().nullish(),
-  })
-  .nullish();
+export const companyOnboardingState = companyOnboardingStateSchema;
 export type CompanyOnboardingState = z.infer<typeof companyOnboardingState>;
 
 export type OnboardingStep = {
@@ -63,6 +65,7 @@ export type OnboardingStep = {
   scope: 'user' | 'company';
   orderIndex?: number;
 };
+
 export type OnboardingState = {
   isCompanyOwner: boolean;
   canAccessApp: boolean;
@@ -71,8 +74,8 @@ export type OnboardingState = {
   steps: OnboardingStep[];
 };
 
-export const firmType = z.enum(['freelancer', 'ca_cpa', 'tax_preparer', 'international']);
 export type FirmType = z.infer<typeof firmType>;
+
 export type CompanyStore = {
   companyId: string | null;
   companyType: CompanyType | undefined;
@@ -82,116 +85,53 @@ export type CompanyStore = {
   error: string | null;
   onboardingStatus: OnboardingStatus | null;
   fetchCompany: (companyId: string) => void;
-  setCompany: (company: CompanyData | ((prev: CompanyData | null) => CompanyData | null)) => void;
+  setCompany: (
+    company: CompanyData | ((prev: CompanyData | null) => CompanyData | null),
+  ) => void;
   setOnboardingStatus: (status: OnboardingStatus) => void;
   clearCompany: () => void;
 };
 
-export const baseCompanyData = z.object({
-  id: z.string(),
-  legalName: z.string(),
-  companyType: companyType,
-  yearEndDay: z.number().min(1).max(31),
-  yearEndMonth: z.number().min(1).max(12),
-  countryId: z.string(),
-  reportingCurrencyId: z.string(),
-  createdById: z.string(),
-
-  reportingCurrencyCode: z.string(),
-  reportingCurrencyName: z.string(),
-  assignedFirmId: z.string(),
-  isPlatform: z.boolean().optional(),
+export const baseCompanyData = companyData.pick({
+  id: true,
+  legalName: true,
+  companyType: true,
+  yearEndDay: true,
+  yearEndMonth: true,
+  countryId: true,
+  reportingCurrencyId: true,
+  createdById: true,
+  reportingCurrencyCode: true,
+  reportingCurrencyName: true,
+  assignedFirmId: true,
+  isPlatform: true,
 });
 export type BaseCompanyData = z.infer<typeof baseCompanyData>;
 
-export const companyData = baseCompanyData.extend({
-  displayName: z.string().nullish(),
-  address: z.string().nullish(),
-  companyLogo: z.string().nullish(),
-  companyLogoKey: z.string().nullish(),
-  description: z.string().nullish(),
-  website: z.string().nullish(),
-  industry: z.string().nullish(),
-  companySize: z.string().nullish(),
-  revenue: z.string().nullish(),
-  companyRegistrationNumber: z.string().nullish(),
-  companyTaxId: z.string().nullish(),
-  reportingFramework: z.string().nullish(),
-  accountingBasis: accountingBasis.nullish(),
-  onboardingState: companyOnboardingState,
-
-  countryCode: z.string().nullish(),
-  countryName: z.string().nullish(),
-  countryPhoneCode: z.string().nullish(),
-  countryFlag: z.string().nullish(),
-  countryContinent: z.string().nullish(),
-  reportingCurrencySymbol: z.string().nullish(),
-  isDemoCompany: z.boolean().optional(),
-  assignedFirmName: z.string().nullish(),
-  assignedFirmSlug: z.string().nullish(),
-  assignedFirmIsPlatform: z.boolean().nullish(),
-  assignedFirmLogo: z.string().nullish(),
-});
 export type CompanyData = z.infer<typeof companyData>;
-
-// export type CompanyData = {
-//   id: string;
-//   legalName: string;
-//   companyType: CompanyType;
-//   yearEndDay: number;
-//   yearEndMonth: number;
-//   countryId: string;
-//   reportingCurrencyId: string;
-//   createdById: string;
-
-//   displayName: string | null;
-//   address: string | null;
-//   companyLogo: string | null;
-//   description: string | null;
-//   website: string | null;
-//   industry: string | null;
-//   companySize: string | null;
-//   revenue: string | null;
-//   companyRegistrationNumber: string | null;
-//   companyTaxId: string | null;
-//   reportingFramework: string | null;
-//   isPlatform: boolean;
-
-//   countryCode: string | null;
-//   countryName: string | null;
-//   countryPhoneCode: string | null;
-//   countryFlag: string | null;
-//   countryContinent: string | null;
-
-//   reportingCurrencyCode: string;
-//   reportingCurrencyName: string;
-//   reportingCurrencySymbol: string | null;
-
-//   assignedFirmId: string;
-//   assignedFirmName: string | null;
-//   assignedFirmSlug: string | null;
-//   assignedFirmIsPlatform: boolean | null;
-//   assignedFirmLogo: string | null;
-// };
-
-export const updateCompanySchema = companyData
-  .omit({
-    id: true,
-    createdById: true,
-    isPlatform: true,
-    isDemoCompany: true,
-    assignedFirmIsPlatform: true,
-    assignedFirmLogo: true,
-    assignedFirmName: true,
-    assignedFirmSlug: true,
-  })
-  .extend({
-    slug: z.string().max(20).optional(),
-    firmType: firmType.optional(),
-  })
-  .partial();
-
 export type UpdateCompanyData = z.infer<typeof updateCompanySchema>;
+
+const trimmedNullishFormString = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullish()
+    .transform((value) => {
+      if (value == null) return null;
+      return value.length === 0 ? null : value;
+    });
+
+const trimmedNullishTimezone = z
+  .string()
+  .trim()
+  .refine(isKnownTimezone, 'Use a valid IANA timezone (e.g. America/New_York)')
+  .nullish()
+  .or(z.literal(''))
+  .transform((value) => {
+    if (value == null || value === '') return null;
+    return value;
+  });
 
 export const slugSchema = z
   .string()
@@ -214,20 +154,41 @@ export const slugSchema = z
     error: 'Slug must contain only lowercase letters and hyphens',
   });
 
-export const updateCompanyVitalsSchema = companyData
-  .omit({
-    id: true,
-    createdById: true,
-    isPlatform: true,
-    isDemoCompany: true,
-    assignedFirmIsPlatform: true,
-    assignedFirmLogo: true,
-    assignedFirmName: true,
-    onboardingState: true,
-  })
-  .extend({
-    assignedFirmSlug: slugSchema.nullish(),
-    displayName: z.string().min(2, 'Display name must be at least 2 characters').max(256).nullish(),
-  });
+export const updateCompanyVitalsSchema = z.object({
+  legalName: z
+    .string()
+    .trim()
+    .min(2, 'Legal name must be at least 2 characters')
+    .max(256),
+  companyType,
+  yearEndDay: z.number().min(1).max(31),
+  yearEndMonth: z.number().min(1).max(12),
+  countryId: z.string().min(1, 'Select a country'),
+  reportingCurrencyId: z.string().min(1, 'Select a reporting currency'),
+  assignedFirmSlug: slugSchema.nullish(),
+  displayName: z
+    .string()
+    .trim()
+    .min(2, 'Display name must be at least 2 characters')
+    .max(256)
+    .nullish(),
+  address: trimmedNullishFormString(512),
+  companyLogo: trimmedNullishFormString(2048),
+  description: trimmedNullishFormString(2000),
+  website: trimmedNullishFormString(256),
+  industry: trimmedNullishFormString(256),
+  companySize: trimmedNullishFormString(256),
+  revenue: trimmedNullishFormString(256),
+  companyRegistrationNumber: trimmedNullishFormString(256),
+  companyTaxId: trimmedNullishFormString(256),
+  reportingFramework: reportingFramework.nullish(),
+  accountingBasis: accountingBasis.nullish(),
+  defaultTimezone: trimmedNullishTimezone,
+});
 
-export type UpdateCompanyVitalsData = z.infer<typeof updateCompanyVitalsSchema>;
+export type UpdateCompanyVitalsFormValues = z.input<
+  typeof updateCompanyVitalsSchema
+>;
+export type UpdateCompanyVitalsData = z.output<
+  typeof updateCompanyVitalsSchema
+>;

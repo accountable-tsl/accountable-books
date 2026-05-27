@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   Select,
   SelectContent,
@@ -6,7 +7,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ReactNode } from 'react';
 
 type Option = {
   label: string;

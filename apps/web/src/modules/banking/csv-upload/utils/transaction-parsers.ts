@@ -1,11 +1,14 @@
-import {
-  type BankTransactionInsert,
-  type ParsedBankTxn,
-  rawRowSchema,
-  type TransformResult,
+import type {
+  BankTransactionInsert,
+  ParsedBankTxn,
+  TransformResult,
 } from '@/modules/banking/csv-upload/model/types';
+import { rawRowSchema } from '@/modules/banking/csv-upload/model/types';
 import { debitCredit } from '@/shared/types/core';
-import { findDateRange, parseDateString, safeFormatDate } from '@/shared/utils/formatting-utils';
+import {
+  parseDateString,
+  safeFormatDate,
+} from '@/shared/utils/formatting-utils';
 import z from 'zod';
 
 export function transformParsedData({
@@ -20,7 +23,7 @@ export function transformParsedData({
       transactions: [],
       inserts: [],
       errors: [],
-      dateRange: null,
+      // dateRange: null,
       totalMoneyIn: 0,
       totalMoneyOut: 0,
     };
@@ -32,7 +35,7 @@ export function transformParsedData({
     originalRow: any;
     errorMessages: string[];
   }[] = [];
-  const dateRange = findDateRange(data, 'date');
+  // const dateRange = findDateRange(data, 'date');
 
   let totalMoneyIn = 0;
   let totalMoneyOut = 0;
@@ -47,32 +50,41 @@ export function transformParsedData({
         //   const field = err.path.join('.');
         //   return `${field ? `${field}: ` : ''}${err.message}`;
         // }),
-        errorMessages: z.treeifyError(res.error).errors?.map((err) => err) || [],
+        errorMessages:
+          z.treeifyError(res.error).errors?.map((err) => err) || [],
       });
       return;
     }
 
-    const { amount, description, payee, reference, additionalComments } = res.data;
+    const { amount, description, payee, reference, additionalComments } =
+      res.data;
 
     const fDate = parseDateString(row.date) || new Date(row.date.toString());
-    const transactionSide = amount > 0 ? debitCredit.enum.credit : debitCredit.enum.debit;
+    const transactionSide =
+      amount > 0 ? debitCredit.enum.credit : debitCredit.enum.debit;
 
     const y = {
       date: fDate,
       amount,
-      bankAccountId,
-      transactionSide,
+      bank_account_id: bankAccountId,
+      // transactionSide,
       description,
       payee,
       reference,
-      additionalComments,
-      rawData: row,
+      additional_comments: additionalComments,
+      raw_data: row,
     };
 
-    const { rawData, ...rest } = y;
+    // const { raw_data, ...rest } = y;
 
     const x = {
-      ...rest,
+      date: fDate,
+      amount,
+      payee,
+      description,
+      reference,
+      additionalComments,
+      transactionSide,
       formattedDate: safeFormatDate({
         date: fDate,
         formatString: 'dd MMM yyyy',
@@ -91,7 +103,7 @@ export function transformParsedData({
   return {
     transactions,
     inserts,
-    dateRange,
+    // dateRange,
     errors,
     totalMoneyIn,
     totalMoneyOut,

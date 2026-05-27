@@ -4,17 +4,20 @@ export const features = [
   {
     icon: Calculator,
     title: 'Chart of Accounts',
-    description: 'Set up your account structure with customizable account types and codes',
+    description:
+      'Set up your account structure with customizable account types and codes',
   },
   {
     icon: Settings,
     title: 'Financial Settings',
-    description: 'Configure currency, financial year, and accounting basis preferences',
+    description:
+      'Configure currency, financial year, and accounting basis preferences',
   },
   {
     icon: Users,
     title: 'Contact Management',
-    description: 'Manage customers, vendors, employees and other business contacts',
+    description:
+      'Manage customers, vendors, employees and other business contacts',
   },
   {
     icon: FolderOpen,

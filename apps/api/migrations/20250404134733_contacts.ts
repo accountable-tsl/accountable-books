@@ -1,10 +1,11 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes';
+} from './utils/db.js';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 
 const tableName = 'contacts';
 export async function up(knex: Knex): Promise<void> {
@@ -14,7 +15,10 @@ export async function up(knex: Knex): Promise<void> {
     table.string('normalized_name', 256).notNullable();
     table.string('email', 256).nullable();
     table.string('address', 512).nullable();
-    table.specificType('status', 'contact_status').nullable().defaultTo('active');
+    table
+      .specificType('status', 'contact_status')
+      .nullable()
+      .defaultTo('active');
     table.string('notes').nullable();
 
     table
@@ -31,7 +35,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
 
@@ -42,7 +51,12 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await createTrgmIndexes(knex, tableName, ['display_name', 'email', 'address', 'notes']);
+  await createTrgmIndexes(knex, tableName, [
+    'display_name',
+    'email',
+    'address',
+    'notes',
+  ]);
 }
 
 export async function down(knex: Knex): Promise<void> {

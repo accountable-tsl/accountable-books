@@ -1,0 +1,8 @@
+from enum import Enum
+
+class BillingActorTypeSchema(str, Enum):
+    FIRM_USER = "firm_user"
+    CLIENT_USER = "client_user"
+    SYSTEM = "system"
+    ADMIN = "admin"
+    WEBHOOK = "webhook"

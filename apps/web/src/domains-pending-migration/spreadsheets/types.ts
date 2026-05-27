@@ -6,7 +6,12 @@ export interface SpreadsheetImporterField {
 
   className?: string;
 
-  render?: (value: any, row: any, index?: number, options?: any) => React.ReactNode;
+  render?: (
+    value: any,
+    row: any,
+    index?: number,
+    options?: any,
+  ) => React.ReactNode;
 
   align?: 'left' | 'center' | 'right';
   width?: string;

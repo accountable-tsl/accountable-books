@@ -36,13 +36,13 @@ export const Failed: React.FC<FailedProps> = ({
     <div className={cn('flex flex-col items-center gap-3', className)}>
       <div
         className={cn(
-          'rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center animate-scale-in border border-red-200 dark:border-red-800',
+          'animate-scale-in flex items-center justify-center rounded-full border border-red-200 bg-red-100 dark:border-red-800 dark:bg-red-900/30',
           sizeClasses[size],
         )}
       >
         <X
           size={iconSizes[size]}
-          className="text-red-600 dark:text-red-400 animate-fade-in"
+          className="animate-fade-in text-red-600 dark:text-red-400"
           strokeWidth={3}
         />
       </div>
@@ -50,7 +50,7 @@ export const Failed: React.FC<FailedProps> = ({
       {showText && text && (
         <p
           className={cn(
-            'text-red-700 dark:text-red-300 font-medium animate-fade-in',
+            'animate-fade-in font-medium text-red-700 dark:text-red-300',
             textSizes[size],
           )}
         >

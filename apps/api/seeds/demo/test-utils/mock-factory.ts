@@ -138,7 +138,9 @@ export class KnexMockFactory {
 
     // Mock where with data filtering
     mockTable.where.mockImplementation((column: string, value: any) => {
-      const filteredData = tableData.filter((item: any) => item[column] === value);
+      const filteredData = tableData.filter(
+        (item: any) => item[column] === value,
+      );
       return mockTable.mockSelectResult(filteredData);
     });
 
@@ -167,14 +169,14 @@ export class KnexMockFactory {
         email: 'demo.us@example.com',
         firstname: 'Demo',
         lastname: 'User',
-        is_demo_user: true,
+        user_type: 'demo',
       },
       {
         id: 'user-2',
         email: 'demo.ng@example.com',
         firstname: 'Demo',
         lastname: 'User',
-        is_demo_user: true,
+        user_type: 'demo',
       },
     ];
 
@@ -192,7 +194,7 @@ export class KnexMockFactory {
         legal_name: 'Demo Business US',
         display_name: 'Demo Business US',
         type: 'business',
-        is_demo_company: true,
+        workspace_class: 'demo',
         created_by_id: 'user-1',
       },
       {
@@ -201,7 +203,7 @@ export class KnexMockFactory {
         legal_name: 'Demo Business NG',
         display_name: 'Demo Business NG',
         type: 'business',
-        is_demo_company: true,
+        workspace_class: 'demo',
         created_by_id: 'user-2',
       },
     ];
@@ -280,15 +282,17 @@ export class KnexMockFactory {
     });
 
     // Mock transaction
-    mockKnex.transaction = vi.fn().mockImplementation(async (callback?: any) => {
-      const transaction = this.createTransactionMock();
+    mockKnex.transaction = vi
+      .fn()
+      .mockImplementation(async (callback?: any) => {
+        const transaction = this.createTransactionMock();
 
-      if (callback) {
-        return await callback(transaction);
-      }
+        if (callback) {
+          return await callback(transaction);
+        }
 
-      return transaction;
-    });
+        return transaction;
+      });
 
     // Mock raw queries
     mockKnex.raw = vi.fn().mockResolvedValue({ rows: [] });

@@ -1,12 +1,12 @@
 @use '../../styles/partials/colors' as *;
 
 .popup {
-  @apply fixed top-0 left-0 w-full h-full flex justify-center items-center;
+  @apply fixed top-0 left-0 flex h-full w-full items-center justify-center;
   background-color: rgba($color: black, $alpha: 0.7);
   z-index: 100000;
 
   &-content {
-    @apply relative p-5 rounded-lg;
+    @apply relative rounded-lg p-5;
     background: $white;
     box-shadow: 0 0 10px rgba($color: $text, $alpha: 0.2);
   }

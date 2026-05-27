@@ -70,15 +70,20 @@ export type UserOnboardingStepKey =
   (typeof userOnboardingStepKeys)[keyof typeof userOnboardingStepKeys];
 export type CompanyOnboardingStepKey =
   (typeof companyOnboardingStepKeys)[keyof typeof companyOnboardingStepKeys];
-export type OnboardingStepKey = (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
+export type OnboardingStepKey =
+  (typeof onboardingStepKeys)[keyof typeof onboardingStepKeys];
 
 // ONBOARDING STEPS
 export type UserOnboardingSteps = Record<UserOnboardingStepKey, boolean>;
 export type CompanyOnboardingSteps = Record<CompanyOnboardingStepKey, boolean>;
 
 // ONBOARDING STEPS COMPLETED AT
-export type UserOnboardingStepsCompletedAt = Partial<Record<UserOnboardingStepKey, Date>>;
-export type CompanyOnboardingStepsCompletedAt = Partial<Record<CompanyOnboardingStepKey, Date>>;
+export type UserOnboardingStepsCompletedAt = Partial<
+  Record<UserOnboardingStepKey, Date>
+>;
+export type CompanyOnboardingStepsCompletedAt = Partial<
+  Record<CompanyOnboardingStepKey, Date>
+>;
 
 export const userOnboardingState = z
   .object({
@@ -116,7 +121,9 @@ export const companyOnboardingState = z
   })
   .nullish();
 export type CompanyOnboardingState = z.infer<typeof companyOnboardingState>;
-export type OnboardingStateObject = z.infer<typeof companyOnboardingState> | null;
+export type OnboardingStateObject = z.infer<
+  typeof companyOnboardingState
+> | null;
 
 export type OnboardingUserObj = {
   id: string;
@@ -139,7 +146,10 @@ export type OnboardingStepConfig = {
   optional?: boolean;
   dependsOn?: OnboardingStepKey[];
   orderIndex?: number;
-  isComplete: (args: { user: OnboardingUserObj; company: OnboardingCompanyObj | null }) => boolean;
+  isComplete: (args: {
+    user: OnboardingUserObj;
+    company: OnboardingCompanyObj | null;
+  }) => boolean;
   isAvailable?: (args: {
     user: OnboardingUserObj;
     company: OnboardingCompanyObj;
@@ -186,4 +196,5 @@ export type OnboardingSidebarItem = {
   description: string;
 };
 
-export type EnrichedOnboardingStep = OnboardingStep & OnboardingSidebarItem & { current: boolean };
+export type EnrichedOnboardingStep = OnboardingStep &
+  OnboardingSidebarItem & { current: boolean };

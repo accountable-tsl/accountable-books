@@ -6,12 +6,12 @@
     "generate-env": {
       "dependsOn": ["^build"],
       "inputs": ["packages/utils/src/env/*"],
-      "outputs": ["apps/api/.env.**", "apps/web/.env.**"]
+      "cache": false
     },
 
     "build": {
       "dependsOn": ["^build", "generate-env"],
-      "outputs": ["dist/**", "build/**", ".vite/**"]
+      "outputs": ["dist/**", "build/**", ".vite/**", "generated/**"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]

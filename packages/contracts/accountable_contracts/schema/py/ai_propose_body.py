@@ -1,0 +1,23 @@
+from pydantic import BaseModel, conint, constr
+from typing import List, Optional
+from enum import Enum
+
+class MessagesItemRoleEnum(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+class AiProposeBody(BaseModel):
+    class MessagesItem(BaseModel):
+        class MessagesItemMeta(BaseModel):
+            domain: Optional[constr(min_length=1)] = None
+            capabilityId: Optional[constr(min_length=1)] = None
+            proposalId: Optional[constr(min_length=1)] = None
+        id: Optional[constr(min_length=1)] = None
+        role: MessagesItemRoleEnum
+        text: constr(min_length=1, max_length=20000)
+        timestamp: Optional[conint(ge=0)] = None
+        meta: Optional[MessagesItemMeta] = None
+    capabilityId: constr(min_length=1)
+    input: constr(min_length=1, max_length=20000)
+    messages: Optional[List[MessagesItem]] = None
+    domain: Optional[constr(min_length=1)] = None

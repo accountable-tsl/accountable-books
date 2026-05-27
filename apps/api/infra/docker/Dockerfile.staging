@@ -1,6 +1,6 @@
 # Multi-stage build for API staging
-FROM node:24.3.0-alpine AS base
-RUN npm install -g pnpm@10.15.1
+FROM node:24-alpine AS base
+RUN npm install -g pnpm@11.3.0
 WORKDIR /app
 
 # Prune stage - only get what @accountable-books/api needs
@@ -37,8 +37,8 @@ COPY turbo.json ./
 RUN turbo build --filter=@accountable-books/api
 
 # Runtime stage
-FROM node:24.3.0-alpine AS runtime
-RUN npm install -g pnpm@10.15.1 && apk add --no-cache jq
+FROM node:24-alpine AS runtime
+RUN npm install -g pnpm@11.3.0
 WORKDIR /app
 
 # Copy the entire built workspace structure
@@ -58,14 +58,6 @@ COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 # Copy package files for proper resolution
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
-
-# Fix package.json exports to point to dist instead of src
-RUN for pkg in packages/*/package.json; do \
-    if [ -f "$pkg" ]; then \
-        jq '.exports={".":{"types":"./dist/index.d.ts","import":"./dist/index.js"}} | .main="./dist/index.js" | .types="./dist/index.d.ts"' "$pkg" > "$pkg.tmp" && \
-        mv "$pkg.tmp" "$pkg"; \
-    fi \
-done
 
 WORKDIR /app/apps/api
 

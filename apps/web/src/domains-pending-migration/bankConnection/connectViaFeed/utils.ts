@@ -1,6 +1,8 @@
-import type { CompanyData } from '@/domains-pending-migration/company/types';
 import type { AuthUserContext } from '@/modules/auth';
+import type { CompanyData } from '@/modules/company/companies';
+
 import { MonoWidget } from '../widgets/MonoWidget';
+
 import type { MonoConnectCustomer } from '../widgets/types';
 
 export const ProviderWidgets: Record<string, React.FC<any>> = {
@@ -9,20 +11,22 @@ export const ProviderWidgets: Record<string, React.FC<any>> = {
   // etc.
 };
 
-export const getProviderData: Record<string, (user: AuthUserContext, company: CompanyData) => any> =
-  {
-    mono: (user, company): MonoConnectCustomer => {
-      const name = company?.legalName;
-      const email = user?.email;
+export const getProviderData: Record<
+  string,
+  (user: AuthUserContext, company: CompanyData) => any
+> = {
+  mono: (user, company): MonoConnectCustomer => {
+    const name = company?.legalName;
+    const email = user?.email;
 
-      if (!name || !email) {
-        throw new Error('Name and email are required for new Mono customer');
-      }
+    if (!name || !email) {
+      throw new Error('Name and email are required for new Mono customer');
+    }
 
-      return {
-        name,
-        email,
-      };
-    },
-    //   plaid: () => ({}),
-  };
+    return {
+      name,
+      email,
+    };
+  },
+  //   plaid: () => ({}),
+};

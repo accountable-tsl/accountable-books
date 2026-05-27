@@ -1,10 +1,13 @@
 import { QueryClient, useQuery } from '@tanstack/react-query';
+
+import { setLogoutReason } from '../../credentials';
 import { fetchSession } from '../api';
 import { authStore } from './store';
-import { setLogoutReason } from '../../credentials';
 
 const queryClient = new QueryClient();
-export const clearSessionFn = (logoutReason?: 'expired' | 'manual' | 'forced') => {
+export const clearSessionFn = (
+  logoutReason?: 'expired' | 'manual' | 'forced',
+) => {
   authStore.getState().clearAuth();
 
   const theme = localStorage.getItem('theme');

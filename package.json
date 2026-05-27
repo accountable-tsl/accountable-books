@@ -5,45 +5,56 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --parallel",
+    "dev:core": "turbo run dev --parallel --filter !@accountable-books/web-payroll",
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=1",
     "typecheck": "turbo run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate-env": "pnpm -r -F \"@accountable-books/api\" -F \"@accountable-books/web\" run generate-env",
+    "gen:pydantic": "pnpm -F @accountable-books/contracts run gen:pydantic && pnpm build",
+    "gen:data": "pnpm -F @accountable-books/contracts run gen:data && pnpm build",
+    "gen:contracts": "pnpm -F @accountable-books/contracts run gen:pydantic && pnpm -F @accountable-books/contracts run gen:data && pnpm build",
+    "contracts": "pnpm gen:contracts",
+    "demo:apply:basic": "pnpm -F @accountable-books/api run demo:apply:basic",
     "clean": "turbo run clean",
-    "prepare": "is-ci || husky"
+    "prepare": "is-ci || husky",
+    "worker": "pnpm -F @accountable-books/api run worker",
+    "scheduler": "pnpm -F @accountable-books/api run scheduler"
   },
   "keywords": [],
   "author": "Accountable Techserve Inc.",
   "license": "ISC",
-  "packageManager": "pnpm@10.15.1",
+  "packageManager": "pnpm@11.3.0",
   "devDependencies": {
-    "@eslint/js": "^9.33.0",
-    "@types/node": "^24.3.0",
+    "@eslint/js": "^9.39.4",
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
+    "@types/node": "^25.6.0",
     "@types/supertest": "^6.0.3",
-    "@typescript-eslint/eslint-plugin": "^8.39.1",
-    "@typescript-eslint/parser": "^8.39.1",
-    "chokidar": "^4.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "chokidar": "^5.0.0",
     "chokidar-cli": "^3.0.0",
-    "dotenv-cli": "^10.0.0",
-    "eslint": "^9.33.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "9.33.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
-    "is-ci": "^3.0.1",
-    "lint-staged": "^16.1.5",
-    "pino-pretty": "^13.1.1",
-    "prettier": "^3.6.2",
-    "supertest": "^7.1.4",
-    "turbo": "^2.5.5",
+    "is-ci": "^4.1.0",
+    "lint-staged": "^16.4.0",
+    "pino-pretty": "^13.1.3",
+    "prettier": "3.6.2",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "supertest": "^7.2.2",
+    "turbo": "^2.9.6",
     "typescript": "5.9.2",
-    "typescript-eslint": "^8.39.1",
-    "vitest": "^3.2.4"
+    "typescript-eslint": "^8.58.2",
+    "vitest": "^4.1.4"
   },
   "engines": {
-    "node": ">=20.0.0 <24.4.0",
-    "pnpm": ">=8.0.0"
+    "node": ">=24.16.0",
+    "pnpm": ">=11.0.0"
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": [
@@ -60,11 +71,9 @@
       "pnpm run generate-env"
     ]
   },
-  "pnpm": {
-    "overrides": {
-      "typescript": "5.9.2",
-      "eslint": "9.33.0",
-      "prettier": "3.6.2"
-    }
+  "dependencies": {
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.5.0",
+    "lru-cache": "^11.3.5"
   }
 }

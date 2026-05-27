@@ -1,7 +1,8 @@
-import { BankingProvider } from '../types/base.js';
-import { PlaidProvider } from './plaid.provider.js';
-import { MonoProvider } from './mono.provider.js';
 import { getBankFeedProviders } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.model.js';
+import { BankingProvider } from '../types/base.js';
+import { MonoProvider } from './mono.provider.js';
+import { PlaidProvider } from './plaid.provider.js';
+
 import type {
   BankFeedProviderWithCountries,
   BankProviderKey,
@@ -9,9 +10,15 @@ import type {
 
 export class ProviderRegistry {
   private providers = new Map<BankProviderKey, BankingProvider>();
-  private providerCountries = new Map<BankProviderKey, { id: string; code: string }[]>();
+  private providerCountries = new Map<
+    BankProviderKey,
+    { id: string; code: string }[]
+  >();
   private providerIds = new Map<BankProviderKey, string>();
-  private enabledProviders = new Map<BankProviderKey, BankFeedProviderWithCountries>();
+  private enabledProviders = new Map<
+    BankProviderKey,
+    BankFeedProviderWithCountries
+  >();
   private initialized = false;
 
   private async initializeProviders() {
@@ -100,6 +107,14 @@ export class ProviderRegistry {
     return this.providers.get(key);
   }
 
+  async getById(providerId: string): Promise<BankingProvider | undefined> {
+    await this.initializeProviders();
+    const provider = Array.from(this.enabledProviders.values()).find(
+      (provider) => provider.id === providerId,
+    );
+    return provider ? this.providers.get(provider.key) : undefined;
+  }
+
   async getAll(): Promise<BankingProvider[]> {
     await this.initializeProviders();
     return Array.from(this.providers.values());
@@ -140,7 +155,9 @@ export class ProviderRegistry {
     return this.providerCountries.get(providerKey) || [];
   }
 
-  async getProviderId(providerKey: BankProviderKey): Promise<string | undefined> {
+  async getProviderId(
+    providerKey: BankProviderKey,
+  ): Promise<string | undefined> {
     await this.initializeProviders();
     return this.providerIds.get(providerKey);
   }
@@ -151,6 +168,7 @@ export class ProviderRegistry {
     await this.initializeProviders();
     return this.enabledProviders.get(providerKey);
   }
+
   /**
    * Force re-initialization of providers (useful when database is updated)
    */

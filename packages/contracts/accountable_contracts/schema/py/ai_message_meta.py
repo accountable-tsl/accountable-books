@@ -1,0 +1,9 @@
+from pydantic import BaseModel, constr
+from typing import Optional
+
+class AiMessageMeta2(BaseModel):
+    domain: Optional[constr(min_length=1)] = None
+    capabilityId: Optional[constr(min_length=1)] = None
+    proposalId: Optional[constr(min_length=1)] = None
+
+type AiMessageMeta = Optional[AiMessageMeta]

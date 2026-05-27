@@ -13,6 +13,9 @@ if [ ! -f "apps/api/.env.example" ] || [ ! -f "apps/web/.env.example" ]; then
 fi
 
 make db-up
+pnpm -F @accountable-books/contracts build
+
+
 # Run lint-staged for changed files (includes linting, formatting, contract validation)
 pnpm lint-staged
 
@@ -22,6 +25,11 @@ pnpm typecheck
 
 # Run tests only for affected packages
 echo "🧪 Running affected tests..."
-pnpm test --affected -- --run
+pnpm --filter "{!@accountable-books/ml-engine}" test --affected -- --run
+
+# Run ML engine tests separately (pytest doesn't support --affected)
+echo "🧪 Running ML engine tests..."
+pnpm --filter @accountable-books/ml-engine exec uv lock --check
+pnpm --filter @accountable-books/ml-engine test:testmon
 
 echo "✅ Pre-commit checks passed!"

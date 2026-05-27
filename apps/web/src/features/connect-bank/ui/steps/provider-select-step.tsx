@@ -1,12 +1,12 @@
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building } from 'lucide-react';
-import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
-import { ProviderCard } from '@/features/connect-bank/ui/components/provider-card';
-import type { Country } from '@/shared/types/core';
 import type {
   BankProvider,
   ProviderSelectionResult,
 } from '@/modules/banking/providers/model/types';
+import type { Country } from '@/shared/types/core';
+import { Button } from '@/components/ui/button';
+import { ProviderCard } from '@/features/connect-bank/ui/components/provider-card';
+import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
+import { ArrowLeft, Building } from 'lucide-react';
 
 interface ProviderSelectStepProps {
   selectionStrategy: ProviderSelectionResult;
@@ -22,7 +22,10 @@ function getCountryDisplayName(country: Country | null): string {
   return country ? `${country.flag} ${country.name}` : '';
 }
 
-function getBankConnectionMessage(country: Country | null, isSupported: boolean): string {
+function getBankConnectionMessage(
+  country: Country | null,
+  isSupported: boolean,
+): string {
   const countryDisplay = getCountryDisplayName(country);
 
   if (isSupported) {
@@ -42,7 +45,10 @@ export function ProviderSelectStep({
   selectedCountryIsSupported = false,
 }: ProviderSelectStepProps) {
   // Handle the simple case: show selection with available providers
-  if (selectionStrategy.type === 'show-selection' && selectionStrategy.providers) {
+  if (
+    selectionStrategy.type === 'show-selection' &&
+    selectionStrategy.providers
+  ) {
     return (
       <div className={stepWrapperClass}>
         <StepHeader
@@ -51,16 +57,24 @@ export function ProviderSelectStep({
           description={`Select how to connect your bank account in ${getCountryDisplayName(selectedCountry)}`}
         />
 
-        <div className="space-y-3 max-h-[300px] overflow-y-auto scrollbar-thin-2px">
+        <div className="scrollbar-thin-2px max-h-[300px] space-y-3 overflow-y-auto">
           {selectionStrategy.providers.map((provider) => (
-            <ProviderCard key={provider.key} provider={provider} onSelect={onProviderSelect} />
+            <ProviderCard
+              key={provider.key}
+              provider={provider}
+              onSelect={onProviderSelect}
+            />
           ))}
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between pt-4 border-t">
-          <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-            <ArrowLeft className="w-4 h-4" />
+        <div className="flex items-center justify-between border-t pt-4">
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
 
@@ -68,7 +82,7 @@ export function ProviderSelectStep({
             variant="link"
             size="sm"
             onClick={onSkipToCSV}
-            className="text-muted-foreground hover:text-foreground p-0 h-auto"
+            className="text-muted-foreground hover:text-foreground h-auto p-0"
           >
             Upload CSV instead
           </Button>
@@ -90,9 +104,12 @@ export function ProviderSelectStep({
         }
       />
 
-      <div className="text-center space-y-4">
+      <div className="space-y-4 text-center">
         <p className="text-muted-foreground text-sm">
-          {getBankConnectionMessage(selectedCountry, selectedCountryIsSupported)}
+          {getBankConnectionMessage(
+            selectedCountry,
+            selectedCountryIsSupported,
+          )}
         </p>
 
         <Button onClick={onSkipToCSV} className="w-full">
@@ -100,9 +117,13 @@ export function ProviderSelectStep({
         </Button>
       </div>
 
-      <div className="flex justify-center pt-4 border-t">
-        <Button variant="ghost" onClick={onBack} className="flex items-center gap-2">
-          <ArrowLeft className="w-4 h-4" />
+      <div className="flex justify-center border-t pt-4">
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
           Back to country selection
         </Button>
       </div>

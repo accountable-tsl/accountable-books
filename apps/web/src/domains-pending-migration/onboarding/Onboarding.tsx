@@ -1,30 +1,30 @@
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { OnboardingHeader } from '@/domains-pending-migration/onboarding/shared/Header';
-import { Menu } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import {
-  getPathByStepKey,
-  type OnboardingPathKey,
-  onboardingSteps,
-  onboardingStepsConfig,
-} from '@/domains-pending-migration/onboarding/utils';
-import { Navigate, useLocation, useParams } from 'react-router';
 import type {
   EnrichedOnboardingStep,
   OnboardingState,
 } from '@/domains-pending-migration/onboarding/types';
-import { CenteredLoader } from '@/components/CenteredLoader';
+import type { OnboardingPathKey } from '@/domains-pending-migration/onboarding/utils';
 import type { CompanyData } from '@/modules/company/companies';
+import { useEffect, useMemo, useState } from 'react';
+import { MockSidebar } from '@/components/app-sidebar';
+import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { MockSidebar } from '@/components/SideBar';
-import { useEffect, useMemo, useState } from 'react';
+import { OnboardingHeader } from '@/domains-pending-migration/onboarding/shared/Header';
 import {
   MobileOnboardingSidebar,
   OnboardingSidebar,
 } from '@/domains-pending-migration/onboarding/shared/Sidebar';
+import {
+  getPathByStepKey,
+  onboardingSteps,
+  onboardingStepsConfig,
+} from '@/domains-pending-migration/onboarding/utils';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
-import { routes } from '@/shared/routes/routes';
+import { Menu } from 'lucide-react';
+import { Navigate, useLocation, useParams } from 'react-router';
 
 export function OnboardingStepPage() {
   const {
@@ -53,7 +53,13 @@ export function OnboardingStepPage() {
   }
 
   if (sessionLoading) {
-    return <CenteredLoader fullscreen message="Loading..." showAuthHeader={isLoggedIn} />;
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={isLoggedIn}
+      />
+    );
   }
 
   console.log({ stepInfo, stepKey });
@@ -166,22 +172,27 @@ export function OnboardingStepWrapper({
           )}
         >
           {/* Onboarding Box */}
-          <div className="w-full max-w-5xl h-[100vh] md:h-fit md:min-h-[50vh] md:max-h-[85vh] bg-background rounded-md border overflow-hidden flex flex-col">
+          <div className="bg-background flex h-[100vh] w-full max-w-5xl flex-col overflow-hidden rounded-md border md:h-fit md:max-h-[85vh] md:min-h-[50vh]">
             {/* Sidebar (progress tracker) — only on desktop */}
 
             <OnboardingHeader
               firmName={company?.assignedFirmName ?? ''}
               logoUrl={company?.assignedFirmLogo ?? ''}
-              className="sticky top-0 z-10 bg-background border-b"
+              className="bg-background sticky top-0 z-10 border-b"
               sidebarWidth={sidebarWidth}
               showSidebar={showSidebar}
             />
-            <div className={cn('flex overflow-hidden flex-1', isMobile ? 'flex-col' : '')}>
+            <div
+              className={cn(
+                'flex flex-1 overflow-hidden',
+                isMobile ? 'flex-col' : '',
+              )}
+            >
               {showSidebar && !isMobile && (
                 <div
                   className={cn(
                     sidebarWidth ? `w-[${sidebarWidth}]` : 'w-[250px]',
-                    'border-r flex',
+                    'flex border-r',
                   )}
                 >
                   <OnboardingSidebar steps={steps} />
@@ -190,19 +201,23 @@ export function OnboardingStepWrapper({
 
               {/* Mobile header with current step and menu button */}
               {isMobile && (
-                <div className="flex items-center justify-between p-3 rounded-md mb-4 bg-card shadow-sm m-4">
+                <div className="bg-card m-4 mb-4 flex items-center justify-between rounded-md p-3 shadow-sm">
                   <div
-                    className="p-2 rounded-md outline bg-background"
+                    className="bg-background rounded-md p-2 outline"
                     onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
                     aria-expanded={mobileSidebarOpen}
                     aria-controls="mobile-onboarding-sidebar"
                   >
-                    <Menu className="w-5 h-5" />
-                    <span className="sr-only">Toggle onboarding navigation menu</span>
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">
+                      Toggle onboarding navigation menu
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-sm">
-                      {currentStepObj && <currentStepObj.icon className="h-4 w-4" />}
+                    <div className="bg-muted flex h-7 w-7 items-center justify-center rounded-full text-sm">
+                      {currentStepObj && (
+                        <currentStepObj.icon className="h-4 w-4" />
+                      )}
                     </div>
                     <span className="text-sm">{currentStepObj?.title}</span>
                     <span className="text-xs text-gray-500">
@@ -213,14 +228,17 @@ export function OnboardingStepWrapper({
               )}
 
               {/* Main content */}
-              <div className="flex-1 flex py-2 overflow-y-auto scrollbar-thin-2px relative">
+              <div className="scrollbar-thin-2px relative flex flex-1 overflow-y-auto py-2">
                 {children}
               </div>
             </div>
           </div>
 
           {mobileSidebarOpen && (
-            <MobileOnboardingSidebar steps={steps} onClose={() => setMobileSidebarOpen(false)} />
+            <MobileOnboardingSidebar
+              steps={steps}
+              onClose={() => setMobileSidebarOpen(false)}
+            />
           )}
         </div>
       </>

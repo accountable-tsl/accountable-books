@@ -1,7 +1,6 @@
 {
-  "extends": "../../tsconfig.base.json",
+  // "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@session": ["./src/app/session/index.ts"],
@@ -11,6 +10,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "types": ["vite/client"],
+    "target": "ES2022",
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -25,8 +25,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "useUnknownInCatchVariables": true
-    // "verbatimModuleSyntax": false
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src", "vitest.config.ts", "vitest.setup.ts"],
   "exclude": ["node_modules", "dist"],

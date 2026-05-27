@@ -1,7 +1,13 @@
-import { normalizedReservedSlugs } from '@/modules/company/firms';
+import {
+  isReservedFirmSlug,
+  isValidFirmSlug,
+} from '@accountable-books/utils/firm-slugs';
 
 export const setLogoutReason = (reason: 'expired' | 'manual' | 'forced') => {
-  localStorage.setItem('logoutReason', JSON.stringify({ reason, timestamp: Date.now() }));
+  localStorage.setItem(
+    'logoutReason',
+    JSON.stringify({ reason, timestamp: Date.now() }),
+  );
 };
 
 export const getLogoutReason = (): string | null => {
@@ -31,27 +37,16 @@ export function sanitizeInput(value: string): string {
     .trim();
 }
 
-export function sanitizeOptionalInput(value: string | null | undefined): string | undefined {
+export function sanitizeOptionalInput(
+  value: string | null | undefined,
+): string | undefined {
   if (value == null) return undefined;
   const cleaned = sanitizeInput(String(value));
   return cleaned.length ? cleaned : undefined;
 }
 
-export const isValidSlug = (slug: string): boolean => {
-  const slugRegex = /^(?=[a-z-]{3,20}$)[a-z]+-?[a-z]+$/;
-  return slugRegex.test(slug);
-};
-
-const isReservedSlug = (slug: string): boolean => {
-  const normalized = slug
-    .toLowerCase()
-    .replace(/[_\s]+/g, '-')
-    .trim();
-
-  if (normalizedReservedSlugs.has(normalized)) return true;
-
-  return false;
-};
+export const isValidSlug = isValidFirmSlug;
+const isReservedSlug = isReservedFirmSlug;
 
 export const validateSlug = (
   value: string | null | undefined,

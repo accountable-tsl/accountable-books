@@ -261,7 +261,7 @@ make setup      # Re-setup environment
 1. Verify API is running on correct port:
 
    ```bash
-   curl http://localhost:5000/health
+   curl http://localhost:5000/health/ready
    ```
 
 2. Check environment variables match:
@@ -281,11 +281,11 @@ make setup      # Re-setup environment
    ```bash
    # Using nvm (recommended)
    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-   nvm install 20
-   nvm use 20
+   nvm install 24.16.0
+   nvm use 24.16.0
 
    # Or using Homebrew (macOS)
-   brew install node@20
+   brew install node@24
    ```
 
 ### ❌ `pnpm: command not found`
@@ -319,7 +319,7 @@ pnpm --version
 
 2. Use correct Node version:
    ```bash
-   nvm use 20  # or whatever version is required
+   nvm use 24.16.0  # pinned project version
    ```
 
 ## Docker Issues

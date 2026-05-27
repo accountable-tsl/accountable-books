@@ -1,17 +1,22 @@
 import type { Knex } from 'knex';
+
 import { deleteDemoData, getDemoUserMap } from '../../shared/utils.js';
 import {
-  getRawContactsForInsertion,
   generateDemoContactsMap,
-  type CompanyContactsMap,
+  getRawContactsForInsertion,
 } from './contacts.data.js';
 import { demoContactsByCompanyMap } from './contacts.state.js';
+
 import type { DemoFilter } from '../../shared/config.js';
+import type { CompanyContactsMap } from './contacts.data.js';
 
 /**
  * Create demo contacts in the database
  */
-export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const createDemoContacts = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   const contactsMap = await getRawContactsForInsertion(trx, filters);
 
   if (contactsMap.length === 0) {
@@ -36,10 +41,14 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
     const companyId = company.id;
 
     // Check if contacts already exist for this company (simple idempotency like COA)
-    const existingContacts = await trx('contacts').where({ company_id: companyId }).first();
+    const existingContacts = await trx('contacts')
+      .where({ company_id: companyId })
+      .first();
 
     if (existingContacts) {
-      console.log(`Contacts already exist for company ${company.shortCode}, skipping`);
+      console.log(
+        `Contacts already exist for company ${company.shortCode}, skipping`,
+      );
       continue;
     }
 
@@ -61,7 +70,14 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
       .insert(toInsert)
       .onConflict()
       .ignore()
-      .returning(['id', 'email', 'display_name', 'status', 'company_id', 'created_by_id']);
+      .returning([
+        'id',
+        'email',
+        'display_name',
+        'status',
+        'company_id',
+        'created_by_id',
+      ]);
 
     // Store in state map for potential later use
     if (insertedContacts.length > 0) {
@@ -78,7 +94,9 @@ export const createDemoContacts = async (trx: Knex.Transaction, filters?: DemoFi
       );
     }
 
-    console.log(`Created ${insertedContacts.length} contacts for company ${company.shortCode}`);
+    console.log(
+      `Created ${insertedContacts.length} contacts for company ${company.shortCode}`,
+    );
   }
 };
 
@@ -96,7 +114,10 @@ export const getDemoContactsMap = async (
 /**
  * Delete demo contacts from the database
  */
-export const deleteDemoContacts = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const deleteDemoContacts = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   // Clear the state map
   demoContactsByCompanyMap.clear();
 

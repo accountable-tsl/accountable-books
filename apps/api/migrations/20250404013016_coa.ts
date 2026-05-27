@@ -1,50 +1,12 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { createPlatformCompany } from './20250403194332_companies';
+} from './utils/db.js';
 
 const tableName = 'coa';
-
-const addCoaToPlatformCompany = async (knex: Knex) => {
-  const platformCompany = await createPlatformCompany(knex);
-
-  const existingCoa = await knex('coa').where({ company_id: platformCompany.id }).first();
-
-  if (existingCoa) {
-    console.log('Platform COA already exists. Skipping.');
-    return;
-  }
-
-  const template_name = 'acc:prof:basic:code:v1';
-  const coaTemplate = await knex('coa_templates')
-    .where('is_active', true)
-    .where('template_name', template_name)
-    .select(['code', 'name', 'description', 'account_type_id', 'locked']);
-
-  if (!coaTemplate.length) {
-    throw new Error('COA template not found');
-  }
-
-  const toInsert = coaTemplate.map((t) => {
-    return {
-      code: t.code,
-      name: t.name,
-      account_type_id: t.account_type_id,
-      description: t.description,
-      is_active: true,
-      currency_id: platformCompany.reporting_currency_id,
-      company_id: platformCompany.id,
-      created_by_id: platformCompany.created_by_id,
-      locked: t.locked,
-      source: 'template',
-    };
-  });
-  const res = await knex('coa').insert(toInsert).returning('id');
-  console.log('Platform COA template loaded:', res.length);
-};
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
@@ -83,7 +45,11 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
   });
@@ -117,12 +83,15 @@ export async function up(knex: Knex): Promise<void> {
   `);
 
   await createUpdateTimestampTrigger(knex, tableName);
-  await addCoaToPlatformCompany(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {
   await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.raw(`DROP TRIGGER IF EXISTS coa_currency_matches_company_reporting_currency ON coa`);
-  await knex.raw(`DROP FUNCTION IF EXISTS coa_currency_matches_company_reporting_currency()`);
+  await knex.raw(
+    `DROP TRIGGER IF EXISTS coa_currency_matches_company_reporting_currency ON coa`,
+  );
+  await knex.raw(
+    `DROP FUNCTION IF EXISTS coa_currency_matches_company_reporting_currency()`,
+  );
   await knex.schema.dropTableIfExists(tableName);
 }

@@ -1,10 +1,10 @@
-import { roleKey } from '../../domains/roles/roles.types.js';
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../shared/utils/formatting.utils.js';
-import { dbBaseFields, debitCredit } from './core.js';
 import { z } from 'zod';
+
+import { roleKey } from '../../domains/roles/roles.types.js';
+import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
+import { dbBaseFields, debitCredit } from './core.js';
+
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 // permission
 export const newPermissionInput = z.object({
@@ -131,7 +131,9 @@ export const accountTypeWithRequiredReportCode = accountType.required({
 
 export type NewAccountTypeInput = z.infer<typeof newAccountType>;
 export type AccountType = z.infer<typeof accountType>;
-export type AccountTypeWithRequiredReportCode = z.infer<typeof accountTypeWithRequiredReportCode>;
+export type AccountTypeWithRequiredReportCode = z.infer<
+  typeof accountTypeWithRequiredReportCode
+>;
 
 export const newClientFirmAssignment = z.object({
   client_company_id: z.uuid(),
@@ -143,14 +145,17 @@ type CFI = z.infer<typeof newClientFirmAssignment>;
 type CFISnake = SnakeToCamelCaseObject<CFI>;
 
 export type NewClientFirmAssignmentsInput = CFI | CFISnake;
-export const newClientFirmAssignmentsInput = createCamelCaseSchema(newClientFirmAssignment);
+export const newClientFirmAssignmentsInput = createCamelCaseSchema(
+  newClientFirmAssignment,
+);
 
 export const newClientFirmAssignments = newClientFirmAssignment.extend({
   created_by_id: z.uuid(),
 });
 export type NewClientFirmAssignments = z.infer<typeof newClientFirmAssignments>;
 
-export const clientFirmAssignments = newClientFirmAssignments.merge(dbBaseFields);
+export const clientFirmAssignments =
+  newClientFirmAssignments.merge(dbBaseFields);
 export type ClientFirmAssignments = z.infer<typeof clientFirmAssignments>;
 
 // firm_user_client_assignments (fuca)

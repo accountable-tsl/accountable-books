@@ -1,9 +1,14 @@
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { redis } from '../../lib/redis.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import { isValidUUID } from '../../shared/utils/formatting.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
 import { type CurrencyRes } from './currencies.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 const currenciesCacheKey = generateCacheKey('currencies', 'all');
 const CACHE_TTL = 60 * 60 * 24; // 24 hours
@@ -14,7 +19,10 @@ export async function getAllCurrencies({
     if (!skipCache) {
       const cachedCurrencies = await redis.get(currenciesCacheKey);
       if (cachedCurrencies) {
-        return successResponse('Currencies fetched from cache', JSON.parse(cachedCurrencies));
+        return successResponse(
+          'Currencies fetched from cache',
+          JSON.parse(cachedCurrencies),
+        );
       }
     }
 
@@ -24,15 +32,25 @@ export async function getAllCurrencies({
 
     if (currencies.length === 0) successResponse('No currencies found', []);
 
-    await redis.set(currenciesCacheKey, JSON.stringify(currencies), 'EX', CACHE_TTL);
+    await redis.set(
+      currenciesCacheKey,
+      JSON.stringify(currencies),
+      'EX',
+      CACHE_TTL,
+    );
 
-    return successResponse(`Successfully retrieved ${currencies.length} currencies`, currencies);
+    return successResponse(
+      `Successfully retrieved ${currencies.length} currencies`,
+      currencies,
+    );
   } catch (error) {
     return errorResponse('Failed to fetch currencies', error);
   }
 }
 
-export async function getCurrencyByCode(code: string): Promise<ApiResponse<CurrencyRes | null>> {
+export async function getCurrencyByCodeModel(
+  code: string,
+): Promise<ApiResponse<CurrencyRes | null>> {
   try {
     // Input validation
     if (!code || typeof code !== 'string' || code.trim().length === 0) {
@@ -64,6 +82,43 @@ export async function getCurrencyByCode(code: string): Promise<ApiResponse<Curre
     return successResponse('Currency fetched successfully', currency);
   } catch (error) {
     console.error('Error fetching currency by code:', error);
+    return errorResponse('Failed to fetch currency');
+  }
+}
+
+export async function getCurrencyByIdModel(
+  id: string,
+): Promise<ApiResponse<CurrencyRes | null>> {
+  try {
+    // Input validation
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return errorResponse('Valid currency ID is required');
+    }
+
+    const normalizedId = id.trim();
+
+    if (!isValidUUID(normalizedId)) {
+      return errorResponse('Invalid currency ID format');
+    }
+
+    // Get all currencies (leverages cache from getAllCurrencies)
+    const allCurrenciesRes = await getAllCurrencies();
+
+    if (!allCurrenciesRes.success || !allCurrenciesRes.data) {
+      return errorResponse('Failed to fetch currencies');
+    }
+
+    const currency = allCurrenciesRes.data.find(
+      (c: CurrencyRes) => c.id === normalizedId,
+    );
+
+    if (!currency) {
+      return successResponse('Currency not found', null);
+    }
+
+    return successResponse('Currency fetched successfully', currency);
+  } catch (error) {
+    console.error('Error fetching currency by ID:', error);
     return errorResponse('Failed to fetch currency');
   }
 }

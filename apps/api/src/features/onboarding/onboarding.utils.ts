@@ -1,4 +1,5 @@
 import { type CompanyType } from '../../domains/companies/companies.types.js';
+
 import type {
   CompanyOnboardingState,
   CompanyOnboardingStepKey,
@@ -50,7 +51,9 @@ export const createInitialCompanyOnboardingState = (
   companyType: CompanyType,
 ): CompanyOnboardingState => ({
   steps: {
-    ...(companyType !== 'individual' ? { company_details_confirmed: false } : {}),
+    ...(companyType !== 'individual'
+      ? { company_details_confirmed: false }
+      : {}),
     first_bank_account_added: false,
   },
   completed_at: {},
@@ -67,7 +70,8 @@ export const markUserOnboardingStepComplete = (
   currentState: UserOnboardingState,
   step: UserOnboardingStepKey,
 ): UserOnboardingState => {
-  if (!currentState) throw new Error('Please provide current user onboarding state');
+  if (!currentState)
+    throw new Error('Please provide current user onboarding state');
 
   const now = new Date();
 
@@ -146,7 +150,9 @@ export const createCompleteUserOnboardingState = () => {
   return initial && markAllOnboardingStepsComplete(initial);
 };
 
-export const createCompleteCompanyOnboardingState = (companyType: CompanyType) => {
+export const createCompleteCompanyOnboardingState = (
+  companyType: CompanyType,
+) => {
   const initial = createInitialCompanyOnboardingState(companyType);
   return initial && markAllOnboardingStepsComplete(initial);
 };

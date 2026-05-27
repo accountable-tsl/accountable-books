@@ -1,18 +1,24 @@
-import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
-import { redis } from '../../../lib/redis.js';
-import { camelToSnake, isValidUUID } from '../../../shared/utils/formatting.utils.js';
-import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
-import { generateCacheKey } from '../../../shared/utils/string.utils.js';
-import {
-  fetchBanksOptions,
-  type FetchBanksOptions,
-  type FetchBanksResponse,
-  newBank,
-  newBankInput,
-  type NewInput,
-} from './banks.types.js';
 import type { Knex } from 'knex';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { redis } from '../../../lib/redis.js';
+import {
+  camelToSnake,
+  isValidUUID,
+} from '../../../shared/utils/formatting.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
+import { generateCacheKey } from '../../../shared/utils/string.utils.js';
+import { fetchBanksOptions, newBank, newBankInput } from './banks.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  FetchBanksOptions,
+  FetchBanksResponse,
+  NewInput,
+} from './banks.types.js';
 
 export async function addNewBank(params: {
   data: NewInput[];
@@ -36,7 +42,9 @@ export async function addNewBank(params: {
   }
 
   // Extract unique countries for batch lookup
-  const uniqueCountries = [...new Set(validatedData.data.map((bank) => bank.country))];
+  const uniqueCountries = [
+    ...new Set(validatedData.data.map((bank) => bank.country)),
+  ];
 
   // Batch fetch countries by code and ID
   const [countriesByCode, countriesById] = await Promise.all([
@@ -68,7 +76,9 @@ export async function addNewBank(params: {
           : countryIdMap.get(bank.country);
 
       if (!countryId) {
-        bankCountryErrors.push(`Bank #${index + 1}: Country ${bank.country} not found`);
+        bankCountryErrors.push(
+          `Bank #${index + 1}: Country ${bank.country} not found`,
+        );
         return null;
       }
 
@@ -108,7 +118,10 @@ export async function addNewBank(params: {
     if (!inserted || inserted.length === 0) {
       return errorResponse('No banks were inserted');
     }
-    return successResponse(`${inserted.length} bank(s) added successfully`, inserted);
+    return successResponse(
+      `${inserted.length} bank(s) added successfully`,
+      inserted,
+    );
   } catch (error) {
     return errorResponse('Failed to add new bank', error);
   }
@@ -134,8 +147,10 @@ const bankResponse = [
 function getCacheKeyFromOptions(opts: FetchBanksOptions): string | null {
   if (opts.id) return generateCacheKey('banks', 'id', opts.id);
   if (opts.key) return generateCacheKey('banks', 'key', opts.key);
-  if (opts.countryId) return generateCacheKey('banks', 'country', opts.countryId);
-  if (opts.countryCode) return generateCacheKey('banks', 'country', opts.countryCode);
+  if (opts.countryId)
+    return generateCacheKey('banks', 'country', opts.countryId);
+  if (opts.countryCode)
+    return generateCacheKey('banks', 'country', opts.countryCode);
   return null;
 }
 
@@ -236,7 +251,9 @@ export async function getAllBanks() {
   return await fetchBanks();
 }
 
-export async function getSingleBank(keyOrId: string): Promise<ApiResponse<FetchBanksResponse>> {
+export async function getSingleBank(
+  keyOrId: string,
+): Promise<ApiResponse<FetchBanksResponse>> {
   if (!keyOrId || keyOrId.length > 40) {
     return errorResponse('Bank key or id is required');
   }
@@ -258,7 +275,9 @@ export async function getBankByCountry(
   }
 
   const isUUID = isValidUUID(country);
-  const options = isUUID ? { countryId: country } : { countryCode: country.toUpperCase() };
+  const options = isUUID
+    ? { countryId: country }
+    : { countryCode: country.toUpperCase() };
 
   const countryCode = country.length === 2 ? country : null;
   const countryId = isValidUUID(country) ? country : null;

@@ -13,7 +13,10 @@ export async function createTrgmIndexes(
 
   // Validate column names to prevent SQL injection
   const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-  if (!validColumnNameRegex.test(tableName) || !validColumnNameRegex.test(searchFieldName)) {
+  if (
+    !validColumnNameRegex.test(tableName) ||
+    !validColumnNameRegex.test(searchFieldName)
+  ) {
     throw new Error('Invalid table or column name');
   }
 
@@ -26,10 +29,15 @@ export async function createTrgmIndexes(
   await knex.raw(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
 
   // Create search_text column if it doesn't exist
-  const searchTextColumnExists = await knex.schema.hasColumn(tableName, searchFieldName);
+  const searchTextColumnExists = await knex.schema.hasColumn(
+    tableName,
+    searchFieldName,
+  );
   if (!searchTextColumnExists) {
     // Build the generated column expression
-    const coalesceExpressions = columns.map((col) => `coalesce(${col},'')`).join("||' '||");
+    const coalesceExpressions = columns
+      .map((col) => `coalesce(${col},'')`)
+      .join("||' '||");
     const generatedExpression = `trim(both ' ' from lower(${coalesceExpressions}))`;
 
     // Use raw SQL to create the generated column
@@ -43,7 +51,8 @@ export async function createTrgmIndexes(
   // Create trigram index on search_text column
   // Ensure index name doesn't exceed PostgreSQL's 63-character limit
   const baseIndexName = `idx_${tableName}_${searchFieldName}_trgm`;
-  const indexName = baseIndexName.length > 63 ? baseIndexName.slice(0, 63) : baseIndexName;
+  const indexName =
+    baseIndexName.length > 63 ? baseIndexName.slice(0, 63) : baseIndexName;
 
   const sql = `
     CREATE INDEX IF NOT EXISTS ${indexName}
@@ -65,12 +74,16 @@ export async function dropTrgmIndexes(
 
   // Validate names to prevent SQL injection
   const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-  if (!validColumnNameRegex.test(tableName) || !validColumnNameRegex.test(searchFieldName)) {
+  if (
+    !validColumnNameRegex.test(tableName) ||
+    !validColumnNameRegex.test(searchFieldName)
+  ) {
     throw new Error('Invalid table or column name');
   }
 
   // Drop the trigram index on search_text
   const baseIndexName = `idx_${tableName}_${searchFieldName}_trgm`;
-  const indexName = baseIndexName.length > 63 ? baseIndexName.slice(0, 63) : baseIndexName;
+  const indexName =
+    baseIndexName.length > 63 ? baseIndexName.slice(0, 63) : baseIndexName;
   await knex.raw(`DROP INDEX IF EXISTS ${indexName}`);
 }

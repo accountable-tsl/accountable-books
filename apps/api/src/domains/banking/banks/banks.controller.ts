@@ -1,7 +1,9 @@
 import { type Response } from 'express';
-import type { AuthRequest } from '../../../features/auth/auth.types.js';
+
 import { errorResponse } from '../../../shared/utils/response.utils.js';
 import { getAllBanks, getBankByCountry, getSingleBank } from './banks.model.js';
+
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
 export async function getAllBanksController(req: AuthRequest, res: Response) {
   try {
@@ -10,7 +12,9 @@ export async function getAllBanksController(req: AuthRequest, res: Response) {
     }
 
     const response = await getAllBanks();
-    return response.success ? res.status(200).json(response) : res.status(400).json(response);
+    return response.success
+      ? res.status(200).json(response)
+      : res.status(400).json(response);
   } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }
@@ -18,22 +22,27 @@ export async function getAllBanksController(req: AuthRequest, res: Response) {
 
 export async function getBankByIdController(req: AuthRequest, res: Response) {
   if (!req.user) return res.status(401).json(errorResponse('Unauthorized'));
-  const { id } = req.params;
+  const id = String(req.params.id);
   return handleBankLookup(res, id);
 }
 
 export async function getBankByKeyController(req: AuthRequest, res: Response) {
   if (!req.user) return res.status(401).json(errorResponse('Unauthorized'));
-  const { key } = req.params;
+  const key = String(req.params.key);
   return handleBankLookup(res, key);
 }
 
 async function handleBankLookup(res: Response, keyOrId: string) {
   const response = await getSingleBank(keyOrId);
-  return response.success ? res.status(200).json(response) : res.status(404).json(response);
+  return response.success
+    ? res.status(200).json(response)
+    : res.status(404).json(response);
 }
 
-export async function getBankByCountryController(req: AuthRequest, res: Response) {
+export async function getBankByCountryController(
+  req: AuthRequest,
+  res: Response,
+) {
   try {
     if (!req.user) {
       return res.status(401).json(errorResponse('Unauthorized'));
@@ -45,11 +54,15 @@ export async function getBankByCountryController(req: AuthRequest, res: Response
     const identifier = countryId || countryCode;
 
     if (!identifier) {
-      return res.status(400).json(errorResponse('Country code or id is required'));
+      return res
+        .status(400)
+        .json(errorResponse('Country code or id is required'));
     }
 
     const response = await getBankByCountry(identifier);
-    return response.success ? res.status(200).json(response) : res.status(400).json(response);
+    return response.success
+      ? res.status(200).json(response)
+      : res.status(400).json(response);
   } catch (error: unknown) {
     return res.status(500).json(errorResponse('Internal server error'));
   }

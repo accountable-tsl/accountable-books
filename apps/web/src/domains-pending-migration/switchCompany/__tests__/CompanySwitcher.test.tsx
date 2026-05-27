@@ -1,7 +1,12 @@
+import type {
+  AuthCompanyContext,
+  AuthUserContext,
+  CurrentCompanyContext,
+} from '@/modules/auth';
 import { render, screen } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { CompanySwitcher } from '../CompanySwitcher';
-import type { AuthUserContext, AuthCompanyContext, CurrentCompanyContext } from '@/modules/auth';
 
 // Mock hooks
 const mockUseSession = vi.fn();
@@ -16,7 +21,9 @@ vi.mock('@/domains-pending-migration/switchCompany/hooks', () => ({
 }));
 
 // Mock data
-const createMockCompany = (overrides: Partial<AuthCompanyContext> = {}): AuthCompanyContext =>
+const createMockCompany = (
+  overrides: Partial<AuthCompanyContext> = {},
+): AuthCompanyContext =>
   ({
     id: 'comp-1',
     legalName: 'Test Company',
@@ -52,7 +59,9 @@ const createMockCurrentCompany = (
   ...overrides,
 });
 
-const createMockUser = (overrides: Partial<AuthUserContext> = {}): AuthUserContext => ({
+const createMockUser = (
+  overrides: Partial<AuthUserContext> = {},
+): AuthUserContext => ({
   id: 'user-1',
   email: 'test@example.com',
   firstname: 'Test',
@@ -61,7 +70,11 @@ const createMockUser = (overrides: Partial<AuthUserContext> = {}): AuthUserConte
   currentCompany: createMockCurrentCompany({ id: 'comp-1' }),
   companies: [
     createMockCompany({ id: 'comp-1', legalName: 'Current Company' }),
-    createMockCompany({ id: 'comp-2', legalName: 'Other Company', companyType: 'individual' }),
+    createMockCompany({
+      id: 'comp-2',
+      legalName: 'Other Company',
+      companyType: 'individual',
+    }),
   ],
   ...overrides,
 });

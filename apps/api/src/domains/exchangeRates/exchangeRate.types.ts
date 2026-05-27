@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { dbBaseFields } from '../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
@@ -19,7 +20,7 @@ export type NewExchangeRateInput = z.infer<typeof newExchangeRate>;
 export type ExchangeRate = z.infer<typeof exchangeRate>;
 
 export interface ExchangeRateItem {
-  date: Date;
+  date: string;
   fromCurrencyId: string;
   toCurrencyId: string;
   rate: number;

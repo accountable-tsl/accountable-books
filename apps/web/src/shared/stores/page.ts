@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { useLocation } from 'react-router';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { useEffect } from 'react';
-import { findMatchingRouteSmart, routeIndex } from '@/shared/routes/utils';
+
+import { routeIndex } from '../routes/registry';
+import { findMatchingRouteSmart } from '../routes/utils';
 
 export type BreadcrumbItem = {
   label: string;
@@ -50,10 +52,12 @@ export const pageStore = create<PageStore>()(
   })),
 );
 
-function getDefaultPageName(): string {
-  const path = window.location.pathname.split('/').filter(Boolean).pop();
-  return path ? path.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) : 'Home';
-}
+// function getDefaultPageName(): string {
+//   const path = window.location.pathname.split('/').filter(Boolean).pop();
+//   return path
+//     ? path.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+//     : 'Home';
+// }
 
 /**
  * Hook that watches the URL and updates the page store

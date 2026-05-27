@@ -1,5 +1,6 @@
-import { ENV, isProd } from '../../config/env.js';
 import crypto from 'crypto';
+
+import { ENV, isProd } from '../../config/env.js';
 
 export const splitIntoWords = (input: string | string[]): string[] => {
   const text = Array.isArray(input) ? input.join(' ') : input;
@@ -13,7 +14,8 @@ export const splitIntoWords = (input: string | string[]): string[] => {
 };
 
 export function getAppUrl(firmSlug?: string): string {
-  const baseDomain = ENV.BASE_DOMAIN || (isProd ? 'getaccountable.com' : 'lvh.me');
+  const baseDomain =
+    ENV.BASE_DOMAIN || (isProd ? 'getaccountable.com' : 'lvh.me');
   const frontendPort = ENV.FRONTEND_PORT || '5173';
   const protocol = isProd ? 'https' : 'http';
   const portSegment = !isProd && frontendPort ? `:${frontendPort}` : '';
@@ -67,7 +69,10 @@ export function normalizeInput(input: CacheKeyInput): string {
  * @example
  * generateCacheKey('user', 123, { role: 'admin' }) // 'user:123:{"role":"admin"}'
  */
-export function generateCacheKey(prefix: string, ...args: CacheKeyInput[]): string {
+export function generateCacheKey(
+  prefix: string,
+  ...args: CacheKeyInput[]
+): string {
   // Validate prefix
   if (!prefix) {
     throw new Error('Prefix is required for cache key');

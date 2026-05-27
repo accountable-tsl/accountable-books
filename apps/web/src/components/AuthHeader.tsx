@@ -1,16 +1,20 @@
-import { Link } from 'react-router';
-import { useThemeToggle } from '@/theme/useThemeToggle';
-import { ThemeToggle } from './ThemeToggle';
 import { Button } from '@/components/ui/button';
-import { routes } from '@/shared/routes/routes';
 import { cn } from '@/lib/utils';
+import { routes } from '@/shared/routes';
+import { useThemeToggle } from '@/theme/useThemeToggle';
+import { Link } from 'react-router';
+
+import { ThemeToggle } from './ThemeToggle';
 
 export function AuthHeader({ className }: { className?: string }) {
   const { theme } = useThemeToggle();
   return (
     <header
       data-component="auth-header"
-      className={cn('flex justify-between items-center px-6 py-2 z-20', className)}
+      className={cn(
+        'z-20 flex items-center justify-between px-6 py-2',
+        className,
+      )}
     >
       <Link to="/">
         <img

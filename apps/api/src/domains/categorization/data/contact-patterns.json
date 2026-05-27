@@ -1,0 +1,215 @@
+{
+  "default": {
+    "transfer_markers": ["TRANSFER", "TRF", "WIRE", "ACH"],
+    "bank_fee_rules": [
+      {
+        "id": "service_charge",
+        "pattern": "\\bSERVICE\\s+CHARGE\\b",
+        "display": "SERVICE CHARGE",
+        "reason": "bank_fee"
+      }
+    ],
+    "structured_patterns": [
+      {
+        "id": "ach_generic_from",
+        "pattern": "ACH\\s+(?:CREDIT|FROM)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      }
+    ],
+    "vat_rules": {
+      "default_behavior": "tax_payment",
+      "fee_keywords": ["CHARGE", "FEE", "MAINTENANCE", "SMS", "NOTIFICATION"]
+    }
+  },
+  "NG": {
+    "transfer_markers": ["NIP", "NIBSS", "STERLINGPRO", "EMT"],
+    "bank_fee_rules": [
+      {
+        "id": "sms_notification",
+        "pattern": "SMS\\s+NOTIFICATION\\s+CHARGE",
+        "display": "SMS NOTIFICATION CHARGE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "nip_vat",
+        "pattern": "NIPVAT",
+        "display": "NIP VAT SURCHARGE",
+        "reason": "tax"
+      }
+    ],
+    "structured_patterns": [
+      {
+        "id": "nip_sender_block",
+        "pattern": "NIP\\s+FROM.*?SENDER[: ]+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      }
+    ],
+    "vat_rules": {
+      "default_behavior": "fee_surcharge",
+      "max_fee_vat_amount": 5000,
+      "fee_keywords": [
+        "SMS",
+        "NOTIFICATION",
+        "MAINTENANCE",
+        "NIPFEE",
+        "TRANSFER CHARGE",
+        "TRANSACTION CHARGE",
+        "CHRG"
+      ]
+    }
+  },
+  "US": {
+    "transfer_markers": [
+      "ACH",
+      "ZELLE",
+      "PPD",
+      "CCD",
+      "WIRE",
+      "OUTGOING",
+      "INCOMING",
+      "PAYPAL",
+      "VENMO",
+      "CHIME"
+    ],
+    "bank_fee_rules": [
+      {
+        "id": "ach_fee",
+        "pattern": "ACH\\s+(?:DEBIT\\s+)?FEE",
+        "display": "ACH PROCESSING FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "wire_fee",
+        "pattern": "WIRE\\s+(?:TRANSFER|OUTGOING|INCOMING)\\s+FEE",
+        "display": "WIRE TRANSFER FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "monthly_service_fee",
+        "pattern": "MONTHLY\\s+(?:ACCOUNT|SERVICE)\\s+FEE",
+        "display": "MONTHLY SERVICE FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "overdraft_fee",
+        "pattern": "OVERDRAFT\\s+FEE",
+        "display": "OVERDRAFT FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "cash_deposit_fee",
+        "pattern": "CASH\\s+DEPOSIT\\s+FEE",
+        "display": "CASH DEPOSIT FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "returned_item_fee",
+        "pattern": "(?:RETURN|NSF)\\s+ITEM\\s+FEE",
+        "display": "RETURNED ITEM FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "merchant_service_fee",
+        "pattern": "MERCHANT\\s+SERVICE\\s+FEE",
+        "display": "MERCHANT SERVICE FEE",
+        "reason": "bank_fee"
+      },
+      {
+        "id": "analysis_service_charge",
+        "pattern": "ANALYSIS\\s+SERVICE\\s+CHARGE",
+        "display": "ANALYSIS SERVICE CHARGE",
+        "reason": "bank_fee"
+      }
+    ],
+    "structured_patterns": [
+      {
+        "id": "zelle_from",
+        "pattern": "ZELLE\\s+(?:PAYMENT|FROM|FRM)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      },
+      {
+        "id": "ach_to",
+        "pattern": "ACH\\s+(?:DEBIT|TO)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "outbound"
+      },
+      {
+        "id": "wire_from",
+        "pattern": "WIRE\\s+(?:INCOMING|FROM|FRM)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      },
+      {
+        "id": "wire_to",
+        "pattern": "WIRE\\s+(?:OUTGOING|TO)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "outbound"
+      },
+      {
+        "id": "ach_from_ppd",
+        "pattern": "PPD\\s+ID[: ]*([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      },
+      {
+        "id": "paypal_from",
+        "pattern": "PAYPAL\\s+TRANSFER\\s+FROM\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      }
+    ],
+    "vat_rules": {
+      "default_behavior": "tax_payment",
+      "fee_keywords": ["FEE", "CHARGE", "SERVICE", "ANALYSIS"]
+    }
+  },
+  "UK": {
+    "transfer_markers": ["FPS", "FASTER", "BACS", "CHAPS"],
+    "bank_fee_rules": [
+      {
+        "id": "chaps_fee",
+        "pattern": "CHAPS\\s+FEE",
+        "display": "CHAPS FEE",
+        "reason": "bank_fee"
+      }
+    ],
+    "structured_patterns": [
+      {
+        "id": "faster_payment_to",
+        "pattern": "FASTER\\s+PAYMENT.*?TO\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "outbound"
+      },
+      {
+        "id": "bacs_from",
+        "pattern": "BACS\\s+(?:CREDIT|FROM)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      }
+    ],
+    "vat_rules": {
+      "default_behavior": "tax_payment",
+      "fee_keywords": ["FEE", "CHARGE"]
+    }
+  },
+  "IN": {
+    "transfer_markers": ["UPI", "IMPS", "NEFT", "RTGS"],
+    "bank_fee_rules": [
+      {
+        "id": "gst_fee",
+        "pattern": "\\bGST\\s+ON\\s+(?:CHARGE|FEE)",
+        "display": "GST ON BANK CHARGE",
+        "reason": "tax"
+      }
+    ],
+    "structured_patterns": [
+      {
+        "id": "upi_handle",
+        "pattern": "UPI-[^-]*-([A-Z0-9._-]+@[A-Z0-9._-]+)",
+        "direction": "outbound"
+      },
+      {
+        "id": "imps_from",
+        "pattern": "IMPS\\s+(?:FROM|FRM)\\s+([A-Z0-9 .,'()&/-]{3,160})",
+        "direction": "inbound"
+      }
+    ],
+    "vat_rules": {
+      "default_behavior": "tax_payment",
+      "fee_keywords": ["CHARGE", "FEE", "GST"]
+    }
+  }
+}

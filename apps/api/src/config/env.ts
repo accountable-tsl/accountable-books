@@ -1,3 +1,7 @@
+import { nodeEnv } from '../core/types/core.js';
+
+import type { NodeEnv } from '../core/types/core.js';
+
 /**
  * Environment Configuration
  *
@@ -7,8 +11,6 @@
  * Usage:
  * - ENV.VARIABLE_NAME - Access any environment variable
  */
-
-import { nodeEnv, type NodeEnv } from '../core/types/core.js';
 
 // Get current environment
 export const NODE_ENV: NodeEnv = nodeEnv.parse(process.env.NODE_ENV || 'local');
@@ -21,4 +23,5 @@ export const isProd = NODE_ENV === 'production' || NODE_ENV === 'staging';
 export const isTest = NODE_ENV === 'test';
 export const isDev = NODE_ENV === 'local';
 export const isLocalStaging =
-  process.argv.includes('--local:staging') || process.env.LOCAL_STAGING === 'true';
+  process.argv.includes('--local:staging') ||
+  process.env.LOCAL_STAGING === 'true';

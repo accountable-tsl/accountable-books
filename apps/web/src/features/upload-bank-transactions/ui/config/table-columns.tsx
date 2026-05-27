@@ -1,9 +1,11 @@
+import type { ParsedBankTxn } from '@/modules/banking/csv-upload/model/types';
+import type { ColumnDef } from '@tanstack/react-table';
 import { FormattedAmount } from '@/components/FormattedAmount';
 import { cn } from '@/lib/utils';
-import type { ColumnDef } from '@tanstack/react-table';
-import type { ParsedBankTxn } from '@/modules/banking/csv-upload/model/types';
 
-export function getBankTxnFields(currencyCode: string): ColumnDef<ParsedBankTxn>[] {
+export function getBankTxnFields(
+  currencyCode: string,
+): ColumnDef<ParsedBankTxn>[] {
   return [
     { id: 'date', header: 'Date', accessorKey: 'formattedDate', size: 120 },
     { id: 'payee', header: 'Payee', accessorKey: 'payee', size: 120 },
@@ -27,7 +29,15 @@ export function getBankTxnFields(currencyCode: string): ColumnDef<ParsedBankTxn>
               amt === 0 ? 'text-muted-foreground' : '',
             )}
           >
-            {amt === 0 ? '-' : <FormattedAmount amount={amt} currency={currencyCode} showSymbol />}
+            {amt === 0 ? (
+              '-'
+            ) : (
+              <FormattedAmount
+                amount={amt}
+                currency={currencyCode}
+                showSymbol
+              />
+            )}
           </div>
         );
       },
@@ -47,7 +57,15 @@ export function getBankTxnFields(currencyCode: string): ColumnDef<ParsedBankTxn>
               amt === 0 ? 'text-muted-foreground' : '',
             )}
           >
-            {amt === 0 ? '-' : <FormattedAmount amount={amt} currency={currencyCode} showSymbol />}
+            {amt === 0 ? (
+              '-'
+            ) : (
+              <FormattedAmount
+                amount={amt}
+                currency={currencyCode}
+                showSymbol
+              />
+            )}
           </div>
         );
       },

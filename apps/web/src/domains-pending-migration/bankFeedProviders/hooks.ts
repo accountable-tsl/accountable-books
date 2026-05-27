@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { fetchBankFeedProviders } from './api';
 
 export const useBankFeedProviders = ({

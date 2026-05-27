@@ -1,0 +1,6 @@
+from enum import Enum
+
+class BillingAccountStatusSchema(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    CLOSED = "closed"

@@ -1,0 +1,42 @@
+{
+  "name": "@accountable-books/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": {
+      "import": "./accountable_contracts/schema/source/index.js",
+      "types": "./accountable_contracts/schema/source/index.d.ts"
+    },
+    "./data": {
+      "import": "./accountable_contracts/data/index.js",
+      "types": "./accountable_contracts/data/index.d.ts"
+    },
+    "./pydantic": {
+      "import": "./accountable_contracts/schema/py/index.js",
+      "types": "./accountable_contracts/schema/py/index.d.ts"
+    }
+  },
+  "files": [
+    "schema",
+    "data",
+    "pyproject.toml"
+  ],
+  "scripts": {
+    "gen:data": "tsx scripts/generate-data.ts",
+    "gen:data:no-clean": "tsx scripts/generate-data.ts --no-clean",
+    "gen:pydantic": "tsx scripts/generate-pydantic.ts",
+    "gen:pydantic:no-clean": "tsx scripts/generate-pydantic.ts --no-clean",
+    "generate": "pnpm gen:data && pnpm gen:pydantic",
+    "clean": "find accountable_contracts \\( -name '*.d.ts' -o -name '*.d.ts.map' -o -name '*.js' -o -name '*.js.map' \\) -delete 2>/dev/null || true",
+    "build": "pnpm clean && pnpm gen:data && pnpm gen:pydantic && tsc"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  },
+  "dependencies": {
+    "papaparse": "^5.5.3",
+    "schemabridge": "^0.3.2",
+    "zod": "^4.1.5"
+  }
+}

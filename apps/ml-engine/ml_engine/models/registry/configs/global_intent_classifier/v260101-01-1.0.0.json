@@ -1,0 +1,10 @@
+{
+  "feature_mapping_version": "fmap_a_1.0",
+  "artifact_path": null,
+  "status": "active",
+  "metadata": {
+    "description": "Initial TF-IDF based heuristic classifier",
+    "model_type": "heuristic",
+    "created_at": "2024-11-27"
+  }
+}

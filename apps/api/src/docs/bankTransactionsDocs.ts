@@ -36,7 +36,8 @@ export const bankTransactionDocs = {
                 },
                 bankAccountId: {
                   type: 'string',
-                  description: 'The ID of the bank account the transactions are associated with.',
+                  description:
+                    'The ID of the bank account the transactions are associated with.',
                 },
                 bankTransactions: {
                   type: 'array',
@@ -67,19 +68,22 @@ export const bankTransactionDocs = {
                       reference: {
                         type: 'string',
                         nullable: true,
-                        description: 'A reference identifier for the transaction.',
+                        description:
+                          'A reference identifier for the transaction.',
                       },
                       type: {
                         type: 'string',
                         nullable: true,
-                        description: "The transaction type (e.g., 'credit', 'debit').",
+                        description:
+                          "The transaction type (e.g., 'credit', 'debit').",
                       },
                     },
                   },
                 },
                 createdById: {
                   type: 'string',
-                  description: 'The ID of the user creating the transaction batch.',
+                  description:
+                    'The ID of the user creating the transaction batch.',
                 },
               },
             },
@@ -101,7 +105,8 @@ export const bankTransactionDocs = {
                     properties: {
                       bankTransactionBatch: {
                         type: 'object',
-                        description: 'Details of the created transaction batch.',
+                        description:
+                          'Details of the created transaction batch.',
                         $ref: '#/components/schemas/BankTransactionBatch',
                       },
                     },

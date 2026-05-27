@@ -8,7 +8,12 @@ export async function up(knex: Knex): Promise<void> {
     // TODO: Also make sure invite expiry from here is what is inserted into tokens table so we don't have lags
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('email', 254).unique().notNullable();
-    table.uuid('invited_by').notNullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('invited_by')
+      .notNullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table
       .uuid('company_id')
@@ -17,9 +22,17 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
 
-    table.uuid('role_id').notNullable().references('id').inTable('roles').onDelete('RESTRICT');
+    table
+      .uuid('role_id')
+      .notNullable()
+      .references('id')
+      .inTable('roles')
+      .onDelete('RESTRICT');
 
-    table.specificType('status', 'user_invitation_status').notNullable().defaultTo('pending');
+    table
+      .specificType('status', 'user_invitation_status')
+      .notNullable()
+      .defaultTo('pending');
     table.timestamp('expires_at', { useTz: true }).notNullable();
     table.timestamp('accepted_at', { useTz: true }).nullable();
     table.timestamp('created_at', { useTz: true }).notNullable();

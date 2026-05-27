@@ -1,0 +1,6 @@
+from pydantic import BaseModel
+from uuid import UUID
+
+class FinalPosting(BaseModel):
+    account_id: UUID
+    account_label: str

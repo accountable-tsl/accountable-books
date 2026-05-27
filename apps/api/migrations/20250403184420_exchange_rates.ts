@@ -1,15 +1,16 @@
-import type { Knex } from 'knex';
-import path from 'path';
 import fs from 'fs';
-import csv from 'csv-parser';
+import path from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
+import csv from 'csv-parser';
+
+import { isDev } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +33,12 @@ const seedExchangeRates = async function seed(knex: Knex): Promise<void> {
       .pipe(csv())
       .on('data', (data: Record<string, string>) => {
         try {
-          if (data.date && data.from_currency_id && data.to_currency_id && data.rate) {
+          if (
+            data.date &&
+            data.from_currency_id &&
+            data.to_currency_id &&
+            data.rate
+          ) {
             exchangeRates.push({
               date: new Date(data.date),
               from_currency_id: data.from_currency_id.trim(),
@@ -75,7 +81,7 @@ const tableName = 'exchange_rates';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
-    table.timestamp('date', { useTz: true }).notNullable();
+    table.date('date').notNullable();
     table
       .uuid('from_currency_id')
       .notNullable()
@@ -93,7 +99,10 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(knex, table);
 
-    table.index(['from_currency_id', 'to_currency_id'], 'exchange_rates_currency_idx');
+    table.index(
+      ['from_currency_id', 'to_currency_id'],
+      'exchange_rates_currency_idx',
+    );
     table.index(['date'], 'exchange_rates_date_idx');
     table.unique(['date', 'from_currency_id', 'to_currency_id'], {
       indexName: 'exchange_rates_date_currency_unique',

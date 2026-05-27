@@ -1,12 +1,21 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+
 import { r2Client } from '../../lib/r2Client.js';
-import { type ObjectType } from './objects.types.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { type ObjectBucket } from './objects.types.js';
 import { objectTypeHandlers } from './objects.utils.js';
 
+import type { ApiResponse } from '../../core/types/api.types.js';
+
 export async function uploadObject(
-  objectType: ObjectType,
+  objectType: string = 'logos',
   params: any,
   client?: S3Client,
 ): Promise<ApiResponse> {
@@ -18,7 +27,8 @@ export async function uploadObject(
 
   // Validate params with Zod
   const parsed = handler.schema.safeParse(params);
-  if (!parsed.success) return errorResponse('Invalid parameters', parsed.error.flatten());
+  if (!parsed.success)
+    return errorResponse('Invalid parameters', parsed.error.flatten());
 
   const { file, mimeType } = parsed.data;
   const key = handler.keyBuilder(parsed.data);
@@ -42,7 +52,7 @@ export async function uploadObject(
 }
 
 export async function deleteObject(
-  objectType: ObjectType,
+  objectType: ObjectBucket,
   key: string,
   client?: S3Client,
 ): Promise<ApiResponse> {
@@ -64,5 +74,13 @@ export async function deleteObject(
     return successResponse('Object deleted', null);
   } catch (error) {
     return errorResponse('Failed to delete object', error);
+  }
+}
+
+// Generate presigned URL
+export async function getPresignedUrl(objectType: ObjectBucket, key: string) {
+  const handler = objectTypeHandlers[objectType];
+  if (!handler) {
+    return errorResponse('Unsupported object type');
   }
 }

@@ -1,18 +1,25 @@
+import type { Transporter } from 'nodemailer';
 import nodemailer from 'nodemailer';
-import { type Transporter } from 'nodemailer';
-import postmark from 'postmark';
+import { ServerClient as PostmarkServerClient } from 'postmark';
+
+import { ENV } from '../../../config/env.js';
+import { type ApiResponse } from '../../../core/types/api.types.js';
+import {
+  AppError,
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
+import {
+  enqueueUserInviteEmail,
+  enqueueVerificationEmail,
+} from './email.queue.js';
 import {
   type EmailPayload,
   type InviteEmailPayload,
   type TokenBasedEmailPayload,
 } from './email.types.js';
-import { AppError, errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
-import { emailQueue } from '../../../jobs/queues/email.queue.js';
-import { type ApiResponse } from '../../../core/types/api.types.js';
-import { ENV } from '../../../config/env.js';
 
-// Union type for email sender - can be either nodemailer Transporter or Postmark ServerClient
-type EmailSender = Transporter | postmark.ServerClient;
+type EmailSender = Transporter | PostmarkServerClient;
 
 let emailSender: EmailSender | null = null;
 
@@ -44,7 +51,7 @@ async function createEmailSender(): Promise<EmailSender> {
       }
       console.log('📮 Using Postmark API client');
 
-      return new postmark.ServerClient(ENV.POSTMARK_API_KEY);
+      return new PostmarkServerClient(ENV.POSTMARK_API_KEY);
     }
 
     case 'ses':
@@ -74,8 +81,8 @@ async function getEmailSender() {
 }
 
 // Helper function to check if sender is Postmark client
-function isPostmarkClient(sender: EmailSender): sender is postmark.ServerClient {
-  return sender instanceof postmark.ServerClient;
+function isPostmarkClient(sender: EmailSender): sender is PostmarkServerClient {
+  return sender instanceof PostmarkServerClient;
 }
 
 export async function sendEmail(payload: EmailPayload) {
@@ -133,14 +140,16 @@ export async function sendEmail(payload: EmailPayload) {
   }
 }
 
-export async function sendVerificationEmail(payload: TokenBasedEmailPayload): Promise<ApiResponse> {
+export async function sendVerificationEmail(
+  payload: TokenBasedEmailPayload,
+): Promise<ApiResponse> {
   const url = payload.url;
 
   if (!url) {
     throw new AppError('Missing token and url...', payload, true);
   }
 
-  await emailQueue.add('send_verification_email', { ...payload, url });
+  await enqueueVerificationEmail({ ...payload, url });
   return successResponse('Verification email sent', payload.to);
 }
 
@@ -151,5 +160,5 @@ export async function sendUserInviteEmail(payload: InviteEmailPayload) {
     throw new Error('Missing token and url... ');
   }
 
-  emailQueue.add('send_user_invite_email', { ...payload, url });
+  await enqueueUserInviteEmail({ ...payload, url });
 }

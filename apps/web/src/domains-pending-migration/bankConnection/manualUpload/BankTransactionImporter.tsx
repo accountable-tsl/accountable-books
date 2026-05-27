@@ -1,6 +1,31 @@
+import type {
+  BankTransactionBatchInput,
+  BankTransactionImporterProps,
+  FileTransaction,
+} from '@/domains-pending-migration/bankConnection/manualUpload/types';
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
 import React, { useEffect, useRef, useState } from 'react';
-import { FormField } from '@/components/FormField';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { Failed } from '@/components/Failed';
+import { FormattedAmount } from '@/components/FormattedAmount';
+import { FormField } from '@/components/FormField';
+import { Success } from '@/components/Success';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  bankTransactionInput,
+  bankTransactionSource,
+} from '@/domains-pending-migration/bankConnection/manualUpload/types';
+import { addNewBankTransactions } from '@/domains-pending-migration/bankConnection/shared/api';
+import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
+import { cn } from '@/lib/utils';
+import { type BankAccountWithMeta } from '@/modules/banking/accounts';
+import { getBankAccountsForCompany } from '@/modules/banking/accounts/api';
+import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { maskDigits, parseDateString } from '@/shared/utils/formatting-utils';
+import { useSession } from '@session';
 import {
   Activity,
   Building,
@@ -10,35 +35,13 @@ import {
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
+import { PuffLoader } from 'react-spinners';
 import { toast } from 'sonner';
-import { addNewBankTransactions } from '@/domains-pending-migration/bankConnection/shared/api';
-import { maskDigits, parseDateString } from '@/shared/utils/formatting-utils';
-import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { FormattedAmount } from '@/components/FormattedAmount';
-import { SpreadsheetImporter } from '@/domains-pending-migration/spreadsheets/SpreadsheetImporter';
-import {
-  type BankTransactionBatchInput,
-  type BankTransactionImporterProps,
-  bankTransactionInput,
-  bankTransactionSource,
-  type FileTransaction,
-} from '@/domains-pending-migration/bankConnection/manualUpload/types';
-import { type ParsedCsvResult } from '../../spreadsheets/types';
-import { Button } from '@/components/ui/button';
 
-import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
-import { computeStats } from './utils';
+import { type ParsedCsvResult } from '../../spreadsheets/types';
 import { getDisplayFields } from '../../spreadsheets/utils';
 import { bankTransactionImporterfields } from './constants';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import { PuffLoader } from 'react-spinners';
-import { Success } from '@/components/Success';
-import { Failed } from '@/components/Failed';
-import { type BankAccountWithMeta } from '@/modules/banking/accounts';
-import { getBankAccountsForCompany } from '@/modules/banking/accounts/api';
-import { useSession } from '@session';
+import { computeStats } from './utils';
 
 export const BankTransactionImporter = ({
   onImportSuccess,
@@ -46,17 +49,26 @@ export const BankTransactionImporter = ({
   options,
 }: BankTransactionImporterProps) => {
   // States
-  const [companyBankAccounts, setCompanyBankAccounts] = useState<BankAccountWithMeta[] | null>();
-  const [selectedBankAccount, setSelectedBankAccount] = useState<BankAccountWithMeta | null>(null);
+  const [companyBankAccounts, setCompanyBankAccounts] = useState<
+    BankAccountWithMeta[] | null
+  >();
+  const [selectedBankAccount, setSelectedBankAccount] =
+    useState<BankAccountWithMeta | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [parsedResults, setParsedResults] = useState<ParsedCsvResult[]>();
-  const [fileTransactions, setFileTransactions] = useState<FileTransaction[] | null>(null);
+  const [fileTransactions, setFileTransactions] = useState<
+    FileTransaction[] | null
+  >(null);
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [_isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<'success' | 'failed' | null>(null);
-  const [selectedStep, setSelectedStep] = useState<'upload' | 'review'>('upload');
+  const [uploadStatus, setUploadStatus] = useState<'success' | 'failed' | null>(
+    null,
+  );
+  const [selectedStep, setSelectedStep] = useState<'upload' | 'review'>(
+    'upload',
+  );
 
   // Hooks
   const { companyId } = useSession();
@@ -89,7 +101,9 @@ export const BankTransactionImporter = ({
 
     // Compute current key for each file
     const currKeys = (results || [])
-      .map((r) => r.file?.name + '-' + r.file?.size + '-' + r.file?.lastModified)
+      .map(
+        (r) => r.file?.name + '-' + r.file?.size + '-' + r.file?.lastModified,
+      )
       .sort();
     const prevKeys = prevParsedKeys.current;
 
@@ -115,8 +129,10 @@ export const BankTransactionImporter = ({
             };
           })
           .sort((a, b) => {
-            const dateA = a.date instanceof Date ? a.date : new Date(a.date as string);
-            const dateB = b.date instanceof Date ? b.date : new Date(b.date as string);
+            const dateA =
+              a.date instanceof Date ? a.date : new Date(a.date as string);
+            const dateB =
+              b.date instanceof Date ? b.date : new Date(b.date as string);
             return dateA.getTime() - dateB.getTime();
           });
 
@@ -140,9 +156,12 @@ export const BankTransactionImporter = ({
     const filesWithData = results.filter((r) => !r.error && r.data.length > 0);
 
     if (filesWithErrors.length) {
-      toast.error(`Some files had errors: ${filesWithErrors.map((r) => r.file.name).join(', ')}`, {
-        position: toastPosition || 'top-right',
-      });
+      toast.error(
+        `Some files had errors: ${filesWithErrors.map((r) => r.file.name).join(', ')}`,
+        {
+          position: toastPosition || 'top-right',
+        },
+      );
     }
     if (filesWithData.length) {
       toast.success(
@@ -173,7 +192,9 @@ export const BankTransactionImporter = ({
   };
   const handleBack = () => {
     if (fileTransactions?.length) {
-      if (window.confirm('Are you sure? You may lose unsaved transaction data.')) {
+      if (
+        window.confirm('Are you sure? You may lose unsaved transaction data.')
+      ) {
         setFileTransactions(null);
         setSelectedBankAccount(null);
         setParsedResults([]);
@@ -199,7 +220,12 @@ export const BankTransactionImporter = ({
     const { stats, transactions, bankAccount } = fileTransactions[0];
 
     // Guard: Incomplete data
-    if (!stats.earliestDate || !stats.latestDate || !transactions || !bankAccount.id) {
+    if (
+      !stats.earliestDate ||
+      !stats.latestDate ||
+      !transactions ||
+      !bankAccount.id
+    ) {
       toast.error('Error reading transaction data', {
         position: toastPosition || 'top-right',
       });
@@ -262,7 +288,9 @@ export const BankTransactionImporter = ({
           position: toastPosition || 'top-right',
         });
         setUploadStatus('failed');
-        onImportError?.(apiResult.status === 'rejected' ? apiResult.reason : response);
+        onImportError?.(
+          apiResult.status === 'rejected' ? apiResult.reason : response,
+        );
         return;
       }
 
@@ -276,7 +304,10 @@ export const BankTransactionImporter = ({
       setIsSubmitting(false);
     }
   };
-  const fetchBankAccounts = async (companyId: string) => {
+  const fetchBankAccounts = async (
+    companyId: string,
+    options?: { selectAccountId?: string },
+  ) => {
     if (isFetching.current) return;
     isFetching.current = true;
 
@@ -288,6 +319,10 @@ export const BankTransactionImporter = ({
         return;
       }
       setCompanyBankAccounts(res.data);
+      if (options?.selectAccountId && res.data) {
+        const match = res.data.find((a) => a.id === options.selectAccountId);
+        setSelectedBankAccount(match ?? null);
+      }
     } catch (error) {
       toast.error('Failed to fetch bank accounts');
     } finally {
@@ -295,15 +330,12 @@ export const BankTransactionImporter = ({
     }
   };
 
-  const onNewBankAccount = (newAccount?: BankAccountWithMeta) => {
-    if (newAccount) {
-      setCompanyBankAccounts((prev) => (prev ? [...prev, newAccount] : [newAccount]));
-    }
-
-    setSelectedBankAccount(newAccount ?? null);
+  const onNewBankAccount = (data?: CreateBankAccountRes) => {
     setDialogOpen(false);
     if (companyId) {
-      fetchBankAccounts(companyId); // re-fetch for consistency
+      void fetchBankAccounts(companyId, {
+        selectAccountId: data?.bankAccountId,
+      });
     }
   };
 
@@ -318,7 +350,7 @@ export const BankTransactionImporter = ({
     return (
       <div
         className={cn(
-          'h-full text-sm w-full max-w-5xl mx-auto p-6 flex flex-col gap-6',
+          'mx-auto flex h-full w-full max-w-5xl flex-col gap-6 p-6 text-sm',
           importedClassName,
         )}
       >
@@ -334,11 +366,11 @@ export const BankTransactionImporter = ({
               template’s headers before uploading. */}
             </p>
 
-            <p className="text-blue-500 hover:underline underline-offset-4 text-[13px]">
+            <p className="text-[13px] text-blue-500 underline-offset-4 hover:underline">
               <a
                 href="/templates/bank-transactions-upload-template.csv"
                 download
-                className="flex gap-1 items-center"
+                className="flex items-center gap-1"
               >
                 Download CSV Template <ExternalLink size={12} />
               </a>
@@ -349,12 +381,13 @@ export const BankTransactionImporter = ({
         {/* Nice to know */}
         {isMobile ||
           (!parsedResults?.length && (
-            <div className="text-xs text-muted-foreground bg-muted p-4 rounded-md">
+            <div className="text-muted-foreground bg-muted rounded-md p-4 text-xs">
               <strong>For best results:</strong>
               <ul className="list-disc pl-4">
                 <li>Save/export your file as CSV</li>
                 <li>
-                  Make sure all dates are in <b>YYYY-MM-DD</b> format (e.g., 2025-06-07)
+                  Make sure all dates are in <b>YYYY-MM-DD</b> format (e.g.,
+                  2025-06-07)
                 </li>
                 <li>Don’t include currency symbols or commas in amounts</li>
               </ul>
@@ -363,9 +396,9 @@ export const BankTransactionImporter = ({
 
         <>
           {/* Transaction Importer */}
-          <div className="flex flex-col h-full min-h-0 overflow-hidden border">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden border">
             {/* Select or add a bank account */}
-            <FormField className="w-full space-y-0 flex-shrink-0">
+            <FormField className="w-full shrink-0 space-y-0">
               <AutocompleteDropdown
                 id="bank-account"
                 drawerTitle="Select Bank Account"
@@ -378,7 +411,8 @@ export const BankTransactionImporter = ({
                 })}
                 value={selectedBankAccount?.id || ''}
                 onValueChange={(id) => {
-                  const found = companyBankAccounts?.find((acc) => acc.id === id) ?? null;
+                  const found =
+                    companyBankAccounts?.find((acc) => acc.id === id) ?? null;
                   setSelectedBankAccount(found);
                 }}
                 groupBy={isMobile ? '' : 'bankName'}
@@ -403,23 +437,25 @@ export const BankTransactionImporter = ({
             <hr />
             {/* Selected Bank Account */}
             {selectedBankAccount && (
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="bg-muted px-4 py-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
+                      <div className="rounded-lg bg-blue-100 p-2">
                         <Building className="h-4 w-4 text-blue-600" />
                       </div>
 
                       <div>
-                        <p className="font-medium">{selectedBankAccount.bankName}</p>
+                        <p className="font-medium">
+                          {selectedBankAccount.bankName}
+                        </p>
                         <p className="text-sm">
                           {selectedBankAccount.displayName}{' '}
-                          {maskDigits(selectedBankAccount.accountNumber)}
+                          {/* {maskDigits(selectedBankAccount.accountNumber)} */}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right hidden">
+                    <div className="hidden text-right">
                       <p className="text-sm">Balance</p>
                       <p className="font-semibold">
                         <FormattedAmount
@@ -436,7 +472,7 @@ export const BankTransactionImporter = ({
                 <hr />
               </div>
             )}
-            <div className="flex-1 overflow-auto min-h-0 scrollbar-thin-2px">
+            <div className="scrollbar-thin-2px min-h-0 flex-1 overflow-auto">
               {/* Spreadsheet Importer */}
               <SpreadsheetImporter
                 fields={bankTransactionImporterfields}
@@ -464,7 +500,11 @@ export const BankTransactionImporter = ({
         {/* Submit */}
         <div className="flex justify-end">
           <hr />
-          <Button type="button" disabled={!selectedBankAccount} onClick={handleReview}>
+          <Button
+            type="button"
+            disabled={!selectedBankAccount}
+            onClick={handleReview}
+          >
             Review Transactions
           </Button>
         </div>
@@ -476,12 +516,12 @@ export const BankTransactionImporter = ({
     return (
       <div
         className={cn(
-          'h-full text-sm w-full min-w-0 max-w-5xl mx-auto p-6 flex flex-col',
+          'mx-auto flex h-full w-full max-w-5xl min-w-0 flex-col p-6 text-sm',
           importedClassName,
         )}
       >
         <>
-          <div className="flex flex-col text-sm gap-6 h-full min-h-0">
+          <div className="flex h-full min-h-0 flex-col gap-6 text-sm">
             {fileTransactions?.map((tx, idx) => {
               const { transactions, stats, bankAccount } = tx;
               const displayFields = getDisplayFields({
@@ -492,19 +532,24 @@ export const BankTransactionImporter = ({
               return (
                 <React.Fragment key={`${tx.fileName}-${idx}`}>
                   <div>
-                    <div className="border-b font-semibold text-lg">Bank Account</div>
+                    <div className="border-b text-lg font-semibold">
+                      Bank Account
+                    </div>
 
-                    <div className="bg-muted inset-shadow-sm p-4">
+                    <div className="bg-muted p-4 inset-shadow-sm">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
+                          <div className="rounded-lg bg-blue-100 p-2">
                             <Building className="h-4 w-4 text-blue-600" />
                           </div>
 
                           <div>
-                            <p className="font-medium">{bankAccount.bankName}</p>
+                            <p className="font-medium">
+                              {bankAccount.bankName}
+                            </p>
                             <p className="text-sm">
-                              {bankAccount.displayName} {maskDigits(bankAccount.accountNumber)}
+                              {bankAccount.displayName}{' '}
+                              {/* {maskDigits(bankAccount.accountNumber)} */}
                             </p>
                           </div>
                         </div>
@@ -512,20 +557,24 @@ export const BankTransactionImporter = ({
                     </div>
                   </div>
                   <div key={`${idx}-${tx.fileName}`}>
-                    <div className="border-b font-semibold text-lg">Import Summary</div>
+                    <div className="border-b text-lg font-semibold">
+                      Import Summary
+                    </div>
                     <div
                       // className="grid grid-cols-1 sm:grid-cols-2 lg:[grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-3 inset-shadow-sm pt-4"
-                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_1fr] gap-3 inset-shadow-sm pt-4"
+                      className="grid grid-cols-1 gap-3 pt-4 inset-shadow-sm sm:grid-cols-2 lg:grid-cols-[auto_1fr_1fr_1fr]"
                     >
-                      <Card className="p-0 rounded-lg shadow-none">
-                        <CardContent className="p-4 overflow-hidden">
+                      <Card className="rounded-lg p-0 shadow-none">
+                        <CardContent className="overflow-hidden p-4">
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-blue-100 rounded-lg">
+                            <div className="rounded-lg bg-blue-100 p-2">
                               <Activity className="h-4 w-4 text-blue-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Transactions</p>
-                              <p className="text-xl font-semibold truncate">
+                              <p className="truncate text-sm text-gray-600">
+                                Transactions
+                              </p>
+                              <p className="truncate text-xl font-semibold">
                                 {stats.transactionCount || transactions.length}
                               </p>
                             </div>
@@ -533,15 +582,17 @@ export const BankTransactionImporter = ({
                         </CardContent>
                       </Card>
 
-                      <Card className="p-0 rounded-lg shadow-none">
-                        <CardContent className="p-4 overflow-hidden">
+                      <Card className="rounded-lg p-0 shadow-none">
+                        <CardContent className="overflow-hidden p-4">
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-green-100 rounded-lg">
+                            <div className="rounded-lg bg-green-100 p-2">
                               <TrendingUp className="h-4 w-4 text-green-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Money In</p>
-                              <p className="text-lg font-semibold text-green-600 truncate">
+                              <p className="truncate text-sm text-gray-600">
+                                Money In
+                              </p>
+                              <p className="truncate text-lg font-semibold text-green-600">
                                 <FormattedAmount
                                   amount={stats.totalPositive}
                                   currency={bankAccount.currencyCode}
@@ -553,15 +604,17 @@ export const BankTransactionImporter = ({
                         </CardContent>
                       </Card>
 
-                      <Card className="p-0 rounded-lg shadow-none">
-                        <CardContent className="p-4 overflow-hidden">
+                      <Card className="rounded-lg p-0 shadow-none">
+                        <CardContent className="overflow-hidden p-4">
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-red-100 rounded-lg">
+                            <div className="rounded-lg bg-red-100 p-2">
                               <TrendingDown className="h-4 w-4 text-red-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Money Out</p>
-                              <p className="text-lg font-semibold text-red-600 truncate">
+                              <p className="truncate text-sm text-gray-600">
+                                Money Out
+                              </p>
+                              <p className="truncate text-lg font-semibold text-red-600">
                                 <FormattedAmount
                                   amount={stats.totalNegative}
                                   currency={selectedBankAccount?.currencyCode}
@@ -573,15 +626,17 @@ export const BankTransactionImporter = ({
                         </CardContent>
                       </Card>
 
-                      <Card className="p-0 rounded-lg shadow-none">
-                        <CardContent className="p-4 overflow-hidden">
+                      <Card className="rounded-lg p-0 shadow-none">
+                        <CardContent className="overflow-hidden p-4">
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-gray-100 rounded-lg">
+                            <div className="rounded-lg bg-gray-100 p-2">
                               <DollarSign className="h-4 w-4 text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600 truncate">Net Change</p>
-                              <p className="text-lg font-semibold truncate">
+                              <p className="truncate text-sm text-gray-600">
+                                Net Change
+                              </p>
+                              <p className="truncate text-lg font-semibold">
                                 <FormattedAmount
                                   amount={stats.netChange}
                                   currency={selectedBankAccount?.currencyCode}
@@ -596,15 +651,17 @@ export const BankTransactionImporter = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-col flex-1 min-h-0 h-full">
-                    <div className="font-semibold text-lg">Transactions to import</div>
-                    <div className="flex-1 min-h-0 flex flex-col overflow-clip mb-2 inset-shadow-sm relative">
+                  <div className="flex h-full min-h-0 flex-1 flex-col">
+                    <div className="text-lg font-semibold">
+                      Transactions to import
+                    </div>
+                    <div className="relative mb-2 flex min-h-0 flex-1 flex-col overflow-clip inset-shadow-sm">
                       {(isSubmitting || uploadStatus) && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/40 backdrop-blur-sm">
+                        <div className="bg-background/40 absolute inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
                           {isSubmitting && (
                             <CenteredLoader
                               loader={
-                                <div className="flex flex-col gap-2 items-center">
+                                <div className="flex flex-col items-center gap-2">
                                   <PuffLoader />
                                   <div>Uploading ...</div>
                                 </div>
@@ -618,7 +675,7 @@ export const BankTransactionImporter = ({
                       {/* Fixed Header */}
                       <div role="table" className="bg-muted/50">
                         <div role="rowgroup" className="last:border-b">
-                          <div role="row" className="flex border-b min-w-0">
+                          <div role="row" className="flex min-w-0 border-b">
                             {displayFields.map((f) => {
                               const columnPercentWidth = `${100 / displayFields.length}%`;
                               return (
@@ -626,12 +683,14 @@ export const BankTransactionImporter = ({
                                   key={f.value}
                                   role="columnheader"
                                   className={cn(
-                                    'flex-1 p-2.5 first:pl-4 last:pr-4 text-sm font-medium truncate text-left',
+                                    'flex-1 truncate p-2.5 text-left text-sm font-medium first:pl-4 last:pr-4',
                                     f.className ?? '',
                                   )}
                                   style={{
                                     flex: f.width ? `0 0 ${f.width}` : '1 1 0%',
-                                    width: f.width ? f.width : columnPercentWidth,
+                                    width: f.width
+                                      ? f.width
+                                      : columnPercentWidth,
                                     minWidth: f.width ? f.width : '5rem',
                                   }}
                                 >
@@ -644,17 +703,25 @@ export const BankTransactionImporter = ({
                       </div>
 
                       {/* Scrollable Body */}
-                      <div role="table" className="flex-1 overflow-auto scrollbar-thin-2px">
+                      <div
+                        role="table"
+                        className="scrollbar-thin-2px flex-1 overflow-auto"
+                      >
                         <div role="rowgroup">
                           {transactions.map((row: any, rowIdx: number) => (
                             <div
                               key={rowIdx}
                               role="row"
-                              className="flex border-b last:border-b-0 hover:bg-muted/50"
+                              className="hover:bg-muted/50 flex border-b last:border-b-0"
                             >
                               {displayFields.map((f, fIdx) => {
                                 const cell =
-                                  f.render?.(row[f.value], row, rowIdx, bankAccount.currencyCode) ??
+                                  f.render?.(
+                                    row[f.value],
+                                    row,
+                                    rowIdx,
+                                    bankAccount.currencyCode,
+                                  ) ??
                                   row[f.value] ??
                                   '';
 
@@ -663,7 +730,7 @@ export const BankTransactionImporter = ({
                                 return (
                                   <div
                                     key={`${f.value}-${fIdx}`}
-                                    className={`flex-1 first:pl-4 last:pr-4 p-2 text-sm truncate ${
+                                    className={`flex-1 truncate p-2 text-sm first:pl-4 last:pr-4 ${
                                       f.align === 'right'
                                         ? 'text-right'
                                         : f.align === 'center'
@@ -671,12 +738,17 @@ export const BankTransactionImporter = ({
                                           : 'text-left'
                                     } ${f.className ?? ''}`}
                                     style={{
-                                      flex: f.width ? `0 0 ${f.width}` : '1 1 0%',
-                                      width: f.width ? f.width : columnPercentWidth,
+                                      flex: f.width
+                                        ? `0 0 ${f.width}`
+                                        : '1 1 0%',
+                                      width: f.width
+                                        ? f.width
+                                        : columnPercentWidth,
                                       minWidth: f.width ? f.width : '5rem',
                                     }}
                                   >
-                                    {typeof cell === 'object' && !React.isValidElement(cell)
+                                    {typeof cell === 'object' &&
+                                    !React.isValidElement(cell)
                                       ? JSON.stringify(cell)
                                       : cell}
                                   </div>
@@ -688,13 +760,15 @@ export const BankTransactionImporter = ({
                       </div>
                     </div>
 
-                    <div className="flex gap-2 justify-end pt-4 bg-background mt-auto border-t">
+                    <div className="bg-background mt-auto flex justify-end gap-2 border-t pt-4">
                       <Button
                         type="button"
                         variant={'outline'}
                         onClick={handleBack}
                         disabled={
-                          isSubmitting || selectedStep !== 'review' || uploadStatus === 'success'
+                          isSubmitting ||
+                          selectedStep !== 'review' ||
+                          uploadStatus === 'success'
                         }
                       >
                         Back

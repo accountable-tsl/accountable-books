@@ -1,0 +1,42 @@
+import express from 'express';
+
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
+import { getPeriodStatusController } from '../reporting/fiscal-calendar/period-status.controller.js';
+import {
+  copyJournalController,
+  getJournalController,
+  getJournalsByCursorController,
+  getJournalsByPageController,
+  importJournalsController,
+  importJournalsPreflightController,
+  postDraftJournalController,
+  postDraftJournalsBatchController,
+  postJournalController,
+  reverseJournalController,
+  updateDraftJournalController,
+  voidDraftJournalController,
+  voidDraftJournalsBatchController,
+} from './journals.controller.js';
+import recurringTemplatesRoutes from './recurring-templates.routes.js';
+
+const router = express.Router({ mergeParams: true });
+
+router.use(checkCompanyId);
+
+router.use('/templates', recurringTemplatesRoutes);
+router.post('/query', getJournalsByPageController);
+router.post('/query/cursor', getJournalsByCursorController);
+router.post('/import/preflight', importJournalsPreflightController);
+router.post('/import', importJournalsController);
+router.post('/', postJournalController);
+router.patch('/batch/post', postDraftJournalsBatchController);
+router.patch('/batch/void', voidDraftJournalsBatchController);
+router.put('/:journalId', updateDraftJournalController);
+router.patch('/:journalId/post', postDraftJournalController);
+router.patch('/:journalId/void', voidDraftJournalController);
+router.patch('/:journalId/reverse', reverseJournalController);
+router.post('/:journalId/copy', copyJournalController);
+router.get('/period-status', getPeriodStatusController);
+router.get('/:journalId', getJournalController);
+
+export default router;

@@ -11,29 +11,42 @@
       "import": "./dist/index.js"
     },
     "./env": {
-      "types": "./dist/env/index.d.ts",
-      "import": "./dist/env/index.js"
+      "types": "./src/env/index.ts",
+      "import": "./dist/env/index.js",
+      "default": "./dist/env/index.js"
     },
-    "./env/types": {
-      "types": "./dist/env/types.d.ts",
-      "import": "./dist/env/types.js"
+    "./timezone": {
+      "types": "./src/timezone/index.ts",
+      "import": "./dist/timezone/index.js",
+      "default": "./dist/timezone/index.js"
     },
-    "./env/generator": {
-      "types": "./dist/env/generator.d.ts",
-      "import": "./dist/env/generator.js"
+    "./firm-slugs": {
+      "types": "./src/firm-slugs/index.ts",
+      "import": "./dist/firm-slugs/index.js",
+      "default": "./dist/firm-slugs/index.js"
     },
-    "./env/cli": {
-      "types": "./dist/env/cli.d.ts",
-      "import": "./dist/env/cli.js"
+    "./telemetry/event-catalog": {
+      "types": "./src/telemetry/event-catalog.ts",
+      "import": "./dist/telemetry/event-catalog.js",
+      "default": "./dist/telemetry/event-catalog.js"
+    },
+    "./telemetry/scrub": {
+      "types": "./src/telemetry/scrub.ts",
+      "import": "./dist/telemetry/scrub.js",
+      "default": "./dist/telemetry/scrub.js"
     }
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "clean": "rm -rf dist",
+    "generate:timezones": "node ./scripts/generate-timezones.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "typescript": "workspace:*"
+    "@vvo/tzdb": "^6.198.0",
+    "typescript": "5.9.2",
+    "@types/node": "^25.0.6"
   },
   "dependencies": {}
 }

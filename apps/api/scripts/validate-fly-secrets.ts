@@ -15,10 +15,14 @@
  *   tsx scripts/validate-fly-secrets.ts staging
  *   tsx scripts/validate-fly-secrets.ts production
  */
-
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import type { Environment, EnvSchema, EnvVariableConfig } from '@accountable-books/utils/env/types';
+import type {
+  Environment,
+  EnvSchema,
+  EnvVariableConfig,
+} from '@accountable-books/utils/env';
+
 import { API_ENV_SCHEMA } from '../config/env-schema.js';
 
 const execAsync = promisify(exec);
@@ -115,10 +119,14 @@ function getExpectedValue(
 /**
  * Validate Fly.io secrets against the API schema
  */
-async function validateFlySecrets(environment: Environment): Promise<ValidationResult> {
+async function validateFlySecrets(
+  environment: Environment,
+): Promise<ValidationResult> {
   const appName = `accountable-books-api-${environment}`;
 
-  console.log(`🔍 Validating Fly.io secrets for ${environment} (${appName})...`);
+  console.log(
+    `🔍 Validating Fly.io secrets for ${environment} (${appName})...`,
+  );
   console.log('');
 
   // Fetch current secrets from Fly.io
@@ -176,7 +184,9 @@ async function main(): Promise<void> {
 
   if (!['staging', 'production'].includes(environment)) {
     console.error('❌ Environment must be "staging" or "production"');
-    console.error('Usage: tsx scripts/validate-fly-secrets.ts [staging|production]');
+    console.error(
+      'Usage: tsx scripts/validate-fly-secrets.ts [staging|production]',
+    );
     process.exit(1);
   }
 
@@ -197,22 +207,32 @@ async function main(): Promise<void> {
 
     // Report missing optional secrets
     if (result.missingOptional.length > 0) {
-      console.log(`⚠️  Missing ${result.missingOptional.length} optional secrets:`);
-      result.missingOptional.forEach((name) => console.log(`   ○ ${name} (required: false)`));
+      console.log(
+        `⚠️  Missing ${result.missingOptional.length} optional secrets:`,
+      );
+      result.missingOptional.forEach((name) =>
+        console.log(`   ○ ${name} (required: false)`),
+      );
       console.log('');
     }
 
     // Report missing required secrets
     if (result.missingRequired.length > 0) {
-      console.log(`❌ Missing ${result.missingRequired.length} required secrets:`);
+      console.log(
+        `❌ Missing ${result.missingRequired.length} required secrets:`,
+      );
       result.missingRequired.forEach((name) => console.log(`   ✗ ${name}`));
       console.log('');
 
       console.log('💡 To set missing required secrets, run:');
-      console.log(generateSecretsCommand(result.missingRequired, environment, appName));
+      console.log(
+        generateSecretsCommand(result.missingRequired, environment, appName),
+      );
       console.log('');
 
-      console.log('🔧 Replace placeholder values with actual secrets before running the command.');
+      console.log(
+        '🔧 Replace placeholder values with actual secrets before running the command.',
+      );
 
       process.exit(1);
     } else {
@@ -231,7 +251,10 @@ async function main(): Promise<void> {
       `❌ Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
     );
 
-    if (error instanceof Error && error.message.includes('fly command not found')) {
+    if (
+      error instanceof Error &&
+      error.message.includes('fly command not found')
+    ) {
       console.error(
         '💡 Make sure the Fly CLI is installed: https://fly.io/docs/getting-started/installing-flyctl/',
       );

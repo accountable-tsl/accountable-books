@@ -5,10 +5,13 @@
  * Generates only essential files: .env.local, .env.example
  */
 
-import type { EnvSchema } from '@accountable-books/utils/env/types';
+import type { EnvSchema } from '@accountable-books/utils/env';
 
 // Target environments to generate files for
-export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = ['local', 'staging'];
+export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
+  'local',
+  'staging',
+];
 
 export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
@@ -105,7 +108,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
   DATABASE_URL: {
     description: 'Complete PostgreSQL connection string',
     type: 'secret',
-    local: `postgresql://user:password@localhost:5433/accountable_books'`,
+    local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
   DATABASE_URL_NOPOOL: {
@@ -133,6 +136,17 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Local Redis connection URL',
     type: 'secret',
     local: '',
+  },
+
+  // ============================================================================
+  // ML ENGINE CONFIGURATION
+  // ============================================================================
+  ML_ENGINE_URL: {
+    description: 'ML Engine API URL for transaction categorization',
+    type: 'url',
+    local: 'http://localhost:8000',
+    staging: 'http://localhost:8000',
+    production: 'https://ml-engine.getaccountable.com',
   },
 
   // ============================================================================
@@ -216,12 +230,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   // ANALYTICS & MONITORING
   // ============================================================================
-  MIXPANEL_TOKEN: {
-    description: 'Mixpanel analytics token',
-    type: 'secret',
-    required: false,
-  },
-
   SENTRY_DSN: {
     description: 'Sentry error tracking DSN',
     type: 'secret',
@@ -233,6 +241,42 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Sentry release version',
     type: 'string',
     default: '0.0.0',
+  },
+
+  POSTHOG_API_KEY: {
+    description: 'PostHog server-side project API key',
+    type: 'secret',
+    required: false,
+  },
+
+  POSTHOG_HOST: {
+    description: 'PostHog ingestion host (EU cloud)',
+    type: 'url',
+    required: false,
+    local: 'https://eu.i.posthog.com',
+    staging: 'https://eu.i.posthog.com',
+    production: 'https://eu.i.posthog.com',
+  },
+
+  POSTHOG_ENABLED: {
+    description: 'Enable PostHog product analytics (server-side)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
+  },
+
+  TELEMETRY_ENABLED: {
+    description:
+      'Master switch for non-Sentry telemetry (PostHog, OTel traces)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
   },
 
   // ============================================================================
@@ -279,6 +323,13 @@ export const API_ENV_SCHEMA: EnvSchema = {
     production: 'https://logos.getaccountable.com',
   },
 
+  R2_TRANSACTION_FILES_BUCKET_NAME: {
+    description: 'Cloudflare R2 bucket name for transaction files',
+    type: 'string',
+    required: false,
+    default: 'transaction-files',
+  },
+
   // ============================================================================
   // PLATFORM COMPANY CONFIGURATION
   // ============================================================================
@@ -319,7 +370,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     required: false,
     type: 'url',
     local: '',
-    staging: 'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
+    staging:
+      'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
     production:
       'https://logos.getaccountable.com/42619yzn-25431a6c-59c7-4bf4-9348-be6e651d47dc.png',
   },
@@ -339,7 +391,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Test admin user ID (UUID)',
     type: 'string',
     required: false,
-    local: '018f7e5e-0000-0000-0000-000000000001',
+    local: '00000000-0000-4000-8000-000000000000',
   },
 
   TEST_ADMIN_EMAIL: {
@@ -412,6 +464,35 @@ export const API_ENV_SCHEMA: EnvSchema = {
     local: 'false',
     staging: 'true',
     production: 'false',
+  },
+
+  // ============================================================================
+  // AI (APP-LEVEL)
+  // ============================================================================
+  AI_ENABLED: {
+    description: 'Enable AI endpoints (app-level)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'false',
+    production: 'false',
+  },
+
+  OPENAI_API_KEY: {
+    description: 'OpenAI API key used by the AI orchestrator',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  OPENAI_MODEL: {
+    description:
+      'Default OpenAI model name for chat (capabilities may override)',
+    type: 'string',
+    required: false,
+    local: 'gpt-4o-mini',
+    staging: 'gpt-4o-mini',
+    production: 'gpt-4o-mini',
   },
 
   BULLBOARD_USER: {
@@ -489,29 +570,26 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
   },
 
-  // ============================================================================
-  // WORKER CONFIGURATION
-  // ============================================================================
-  ENABLE_EMAIL_WORKER: {
-    description: 'Enable email worker for background job processing',
-    type: 'boolean',
+  PLAID_WEBHOOK_SECRET: {
+    description:
+      'Plaid webhook verification secret (optional - enables webhook signature verification)',
+    type: 'secret',
     required: false,
-    local: 'true',
-    staging: 'true',
-    production: 'true',
-    default: 'true',
   },
 
-  ENABLE_TRANSACTION_SYNC: {
-    description: 'Enable transaction sync worker for banking integrations',
+  ENABLE_WEBHOOK_VERIFICATION: {
+    description: 'Force webhook verification even in development mode',
     type: 'boolean',
     required: false,
     local: 'false',
-    staging: 'false',
-    production: 'false',
+    staging: 'true',
+    production: 'true',
     default: 'false',
   },
 
+  // ============================================================================
+  // WORKER CONFIGURATION
+  // ============================================================================
   EMAIL_WORKER_CONCURRENCY: {
     description: 'Number of concurrent email jobs to process',
     type: 'number',
@@ -532,6 +610,17 @@ export const API_ENV_SCHEMA: EnvSchema = {
     default: '3',
   },
 
+  TRANSACTION_SYNC_CRON: {
+    description:
+      'Cron pattern for transaction sync scheduler (e.g., "0 2 * * *" for daily at 2 AM UTC, "0 */6 * * *" for every 6 hours)',
+    type: 'string',
+    required: false,
+    local: '0 2 * * *', // Daily at 2 AM UTC
+    staging: '0 */6 * * *', // Every 6 hours for more frequent testing
+    production: '0 2 * * *', // Daily at 2 AM UTC
+    default: '0 2 * * *',
+  },
+
   ENABLE_REDIS_MONITORING: {
     description: 'Enable Redis command usage monitoring and logging',
     type: 'boolean',
@@ -549,7 +638,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Active AES-256 key id (0..255)',
     type: 'secret',
     default: '1',
-    validation: (v: unknown) => typeof v === 'string' && Number(v) >= 0 && Number(v) <= 255,
+    validation: (v: unknown) =>
+      typeof v === 'string' && Number(v) >= 0 && Number(v) <= 255,
   },
 
   APP_ENC_KEYS: {
@@ -579,7 +669,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
  * Can be executed directly: tsx apps/api/config/env-schema.ts
  */
 export async function generateFiles() {
-  const { createEnvGenerator } = await import('@accountable-books/utils/env/cli');
+  const { createEnvGenerator } = await import('@accountable-books/utils/env');
   await createEnvGenerator('API', API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS);
 }
 

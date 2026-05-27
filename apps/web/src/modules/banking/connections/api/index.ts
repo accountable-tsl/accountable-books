@@ -1,10 +1,11 @@
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
+
 import type {
   ConnectAccountRequest,
+  ConnectAccountsResponse,
   CreateLinkTokenRequest,
   CreateLinkTokenResponse,
-  ConnectAccountsResponse,
 } from '../model/types';
 
 export const createLinkToken = async (
@@ -18,6 +19,5 @@ export const connectAccounts = async (
   data: ConnectAccountRequest,
 ): Promise<ApiResponse<ConnectAccountsResponse>> => {
   const response = await api.post('/api/banking/connect-accounts', data);
-  console.log(response.data);
   return response.data;
 };

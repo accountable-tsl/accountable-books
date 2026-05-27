@@ -1,16 +1,17 @@
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { FormField } from '@/components/FormField';
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
 import { useMemo, useState } from 'react';
-import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
-import { useCompany } from '@/domains-pending-migration/company/store';
-import { type BankAccountWithMeta } from '@/modules/banking/accounts';
-import { maskDigits } from '@/shared/utils/formatting-utils';
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { Plus } from 'lucide-react';
-import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
+import { FormField } from '@/components/FormField';
 import { cn } from '@/lib/utils';
+import { type BankAccountWithMeta } from '@/modules/banking/accounts';
+import { useCompanyBankAccounts } from '@/modules/banking/accounts/model/hooks';
+import { AddBankAccountDialog } from '@/modules/banking/accounts/ui/ba-add-dialog';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { maskDigits } from '@/shared/utils/formatting-utils';
+import { useSession } from '@session';
+import { Plus } from 'lucide-react';
 
 export default function BankAccountSelector({
   value,
@@ -31,7 +32,7 @@ export default function BankAccountSelector({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Hooks
-  const { companyId } = useCompany();
+  const { companyId } = useSession();
   const {
     data: companyBankAccounts,
     refetch,
@@ -42,7 +43,10 @@ export default function BankAccountSelector({
   const isMobile = useIsMobile();
 
   // Computed
-  const bankAccounts: BankAccountWithMeta[] = companyBankAccounts?.data || [];
+  const bankAccounts: BankAccountWithMeta[] = useMemo(
+    () => companyBankAccounts?.data || [],
+    [companyBankAccounts],
+  );
   //   const bankAccounts = useMemo(() => {
   //     return prependItems.length > 0
   //       ? [...prependItems, ...apiBankAccounts]
@@ -55,11 +59,13 @@ export default function BankAccountSelector({
   );
 
   // Functions
-  const onNewBankAccount = async (newAccount?: BankAccountWithMeta) => {
+  const onNewBankAccount = async (data?: CreateBankAccountRes) => {
     try {
-      await refetch();
-      if (newAccount) {
-        onSelect?.(newAccount);
+      const { data: querySnapshot } = await refetch();
+      const accounts = querySnapshot?.data;
+      if (data?.bankAccountId && accounts?.length) {
+        const created = accounts.find((a) => a.id === data.bankAccountId);
+        if (created) onSelect?.(created);
       }
     } catch (error) {
       console.error('Failed to refresh bank accounts:', error);
@@ -73,11 +79,11 @@ export default function BankAccountSelector({
     onSelect?.(selectedAccount);
   };
 
-  const handleAction = (actionId: string) => {
-    if (actionId === 'add-new') {
-      setDialogOpen(true);
-    }
-  };
+  // const handleAction = (actionId: string) => {
+  //   if (actionId === 'add-new') {
+  //     setDialogOpen(true);
+  //   }
+  // };
 
   if (isLoading) {
     return <CenteredLoader />;
@@ -85,13 +91,15 @@ export default function BankAccountSelector({
 
   if (isError) {
     return (
-      <ErrorPage message={`Error loading bank accounts: ${error?.message || 'Unknown error'}`} />
+      <ErrorPage
+        message={`Error loading bank accounts: ${error?.message || 'Unknown error'}`}
+      />
     );
   }
 
   return (
     <>
-      <FormField className="w-full space-y-0 flex-shrink-0">
+      <FormField className="w-full shrink-0 space-y-0">
         <AutocompleteDropdown
           id="bank-account"
           drawerTitle="Select Bank Account"

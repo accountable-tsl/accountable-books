@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mlPredictionOutput",
+  "type": "object",
+  "properties": {
+    "final_posting": {
+      "type": "object",
+      "properties": {
+        "account_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "account_label": {
+          "type": "string"
+        }
+      },
+      "required": ["account_id", "account_label"],
+      "additionalProperties": false
+    },
+    "global_intent_classifier": {
+      "type": "object",
+      "properties": {
+        "model_name": {
+          "type": "string",
+          "const": "global_intent_classifier"
+        },
+        "model_version": {},
+        "latency_ms": {
+          "type": "number"
+        },
+        "semantic_top1": {
+          "type": "string"
+        },
+        "semantic_top1_prob": {
+          "type": "number"
+        },
+        "semantic_top_k": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "enum": [
+                  "nca_land",
+                  "nca_ppe",
+                  "nca_ppe_contra",
+                  "nca_investment_property",
+                  "nca_investment_property_contra",
+                  "nca_rou_asset",
+                  "nca_rou_asset_contra",
+                  "nca_intangible_asset",
+                  "nca_intangible_asset_contra",
+                  "nca_other",
+                  "ca_bank",
+                  "ca_cash_equivalent",
+                  "ca_inventory",
+                  "ca_inventory_contra",
+                  "ca_trade_receivable",
+                  "ca_trade_receivable_contra",
+                  "ca_contract_asset",
+                  "ca_prepayment",
+                  "ca_due_from_related_party",
+                  "ca_other_receivable",
+                  "ca_other",
+                  "ncl_long_term_debt",
+                  "ncl_long_term_debt_contra",
+                  "ncl_long_term_lease",
+                  "ncl_other",
+                  "cl_trade_payable",
+                  "cl_payroll_payables",
+                  "cl_accrued_professional_fees",
+                  "cl_accrued_finance_cost",
+                  "cl_accrued_opex",
+                  "cl_accrued_misc",
+                  "cl_other_payables",
+                  "cl_contract_liabilities",
+                  "cl_due_to_related_parties",
+                  "cl_short_term_debt",
+                  "cl_short_term_debt_contra",
+                  "cl_tax",
+                  "cl_current_debt_portion",
+                  "cl_other",
+                  "eq_contributed_capital",
+                  "eq_retained_earnings",
+                  "eq_oci",
+                  "eq_other",
+                  "rev_revenue",
+                  "rev_contra",
+                  "rev_finance_income",
+                  "rev_other_income",
+                  "exp_cos",
+                  "exp_opex_employee_benefits",
+                  "exp_opex_marketing_selling",
+                  "exp_opex_rent",
+                  "exp_opex_insurance",
+                  "exp_opex_utilities",
+                  "exp_opex_repairs",
+                  "exp_opex_professional_fees",
+                  "exp_opex_tel_internet",
+                  "exp_opex_software_subscriptions",
+                  "exp_opex_travel",
+                  "exp_opex_bank_fees",
+                  "exp_opex_rnd",
+                  "exp_opex_depreciation_amortization",
+                  "exp_opex_memberships",
+                  "exp_opex_office_supplies",
+                  "exp_nopex_donations",
+                  "exp_opex_other",
+                  "exp_nopex_finance_costs",
+                  "exp_nopex_other",
+                  "exp_nopex_tax"
+                ]
+              },
+              "prob": {
+                "type": "number"
+              },
+              "label_role": {
+                "type": "string",
+                "enum": ["semantic", "mechanical", "control", "fallback"]
+              }
+            },
+            "required": ["key", "prob", "label_role"],
+            "additionalProperties": false
+          }
+        },
+        "shap_values": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "feature_mapping_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_name",
+        "model_version",
+        "latency_ms",
+        "semantic_top1",
+        "semantic_top1_prob",
+        "semantic_top_k",
+        "shap_values",
+        "feature_mapping_version"
+      ],
+      "additionalProperties": false
+    },
+    "tenant_account_ranker": {
+      "type": "object",
+      "properties": {
+        "model_name": {
+          "type": "string",
+          "const": "tenant_account_ranker"
+        },
+        "model_version": {},
+        "latency_ms": {
+          "type": "number"
+        },
+        "selected_account_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "selected_account_label": {
+          "type": "string"
+        },
+        "selected_account_score": {
+          "type": "number"
+        },
+        "ranking_top_k": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "account_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "account_label": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "reason": {
+                "type": "string",
+                "enum": ["history", "embedding_match", "semantic_intent"]
+              }
+            },
+            "required": ["account_id", "account_label", "score", "reason"],
+            "additionalProperties": false
+          }
+        },
+        "explanation": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "enum": ["history", "embedding_match", "semantic_intent"]
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": ["reason", "message"],
+          "additionalProperties": false
+        },
+        "shap_values": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "feature_mapping_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_name",
+        "model_version",
+        "latency_ms",
+        "selected_account_id",
+        "selected_account_label",
+        "selected_account_score",
+        "ranking_top_k",
+        "explanation",
+        "shap_values",
+        "feature_mapping_version"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "final_posting",
+    "global_intent_classifier",
+    "tenant_account_ranker"
+  ],
+  "additionalProperties": false
+}

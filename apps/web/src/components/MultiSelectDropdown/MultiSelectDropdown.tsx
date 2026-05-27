@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { GroupableOption, MultiSelectOption, MultiSelectProps } from '../../shared/types/core';
 import './MultiSelectDropdown.scss';
+
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
+
+import type {
+  GroupableOption,
+  MultiSelectOption,
+  MultiSelectProps,
+} from '../../shared/types/core';
 
 export default function MultiSelectDropdown({
   options,
@@ -33,18 +39,23 @@ export default function MultiSelectDropdown({
     return options.flatMap((item) => ('options' in item ? item.options : item));
   };
 
-  const enabledOptions = flattenOptions(options).filter((option) => !option.disabled);
+  const enabledOptions = flattenOptions(options).filter(
+    (option) => !option.disabled,
+  );
 
   const filterOptions = (options: GroupableOption[]): GroupableOption[] => {
     return options
       .map((item) => {
         if ('options' in item) {
           const filtered = item.options.filter(
-            (opt) => !opt.disabled && opt.label.toLowerCase().includes(searchValue.toLowerCase()),
+            (opt) =>
+              !opt.disabled &&
+              opt.label.toLowerCase().includes(searchValue.toLowerCase()),
           );
           return filtered.length > 0 ? { ...item, options: filtered } : null;
         } else {
-          return !item.disabled && item.label.toLowerCase().includes(searchValue.toLowerCase())
+          return !item.disabled &&
+            item.label.toLowerCase().includes(searchValue.toLowerCase())
             ? item
             : null;
         }
@@ -61,7 +72,9 @@ export default function MultiSelectDropdown({
   //       )
   //     : options.filter((option) => !option.disabled);
 
-  const filteredOptions: GroupableOption[] = searchValue ? filterOptions(options) : options;
+  const filteredOptions: GroupableOption[] = searchValue
+    ? filterOptions(options)
+    : options;
 
   // Enable options are options that are not disabled
 
@@ -111,7 +124,10 @@ export default function MultiSelectDropdown({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -144,7 +160,11 @@ export default function MultiSelectDropdown({
 
     if (selectedValues.length <= maxDisplayItems) {
       return selectedValues
-        .map((value) => flattenOptions(options).find((option) => option.value === value)?.label)
+        .map(
+          (value) =>
+            flattenOptions(options).find((option) => option.value === value)
+              ?.label,
+        )
         .join(', ');
     }
 
@@ -159,7 +179,9 @@ export default function MultiSelectDropdown({
       return (
         <div className="msd-rsi">
           {selectedValues.map((value) => {
-            const option = flattenOptions(options).find((option) => option.value === value);
+            const option = flattenOptions(options).find(
+              (option) => option.value === value,
+            );
             if (!option) return null;
             return <div key={option.value}>{renderSelectedItem(option)}</div>;
           })}
@@ -249,7 +271,9 @@ export default function MultiSelectDropdown({
               className="msd-menu-sall__btn"
               disabled={loading}
             >
-              {selectedValues.length === enabledOptions.length ? deselectAllLabel : selectAllLabel}
+              {selectedValues.length === enabledOptions.length
+                ? deselectAllLabel
+                : selectAllLabel}
             </button>
             {selectedValues.length > 0 && (
               <button
@@ -287,14 +311,14 @@ export default function MultiSelectDropdown({
                     <div key={item.label} className="msd-menu-group">
                       <div className="msd-menu-group__label">{item.label}</div>
                       {item.options.map((option) => {
-                        const isSelected = selectedValues.includes(option.value);
+                        const isSelected = selectedValues.includes(
+                          option.value,
+                        );
 
                         return (
                           <div
                             key={option.value}
-                            className={`msd-menu-list__item
-                        ${isSelected ? 'msd-menu-list__item--selected' : ''}
-                        ${option.disabled ? 'msd-menu-list__item--disabled' : ''}`}
+                            className={`msd-menu-list__item ${isSelected ? 'msd-menu-list__item--selected' : ''} ${option.disabled ? 'msd-menu-list__item--disabled' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleItemClick(option.value, option.disabled);
@@ -309,11 +333,14 @@ export default function MultiSelectDropdown({
                             ) : (
                               <>
                                 <div
-                                  className={`msd-menu-option
-                              ${isSelected ? 'msd-option-selected' : ''}
-                            `}
+                                  className={`msd-menu-option ${isSelected ? 'msd-option-selected' : ''} `}
                                 >
-                                  {isSelected && <Check size={14} className="msd-option-icon" />}
+                                  {isSelected && (
+                                    <Check
+                                      size={14}
+                                      className="msd-option-icon"
+                                    />
+                                  )}
                                 </div>
                                 <span>{option.label}</span>
                               </>
@@ -328,9 +355,7 @@ export default function MultiSelectDropdown({
                   return (
                     <div
                       key={item.value}
-                      className={`msd-menu-list__item
-                      ${isSelected ? 'msd-menu-list__item--selected' : ''}
-                      ${item.disabled ? 'msd-menu-list__item--disabled' : ''}`}
+                      className={`msd-menu-list__item ${isSelected ? 'msd-menu-list__item--selected' : ''} ${item.disabled ? 'msd-menu-list__item--disabled' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleItemClick(item.value, item.disabled);
@@ -345,11 +370,11 @@ export default function MultiSelectDropdown({
                       ) : (
                         <>
                           <div
-                            className={`msd-menu-option
-                            ${isSelected ? 'msd-option-selected' : ''}
-                          `}
+                            className={`msd-menu-option ${isSelected ? 'msd-option-selected' : ''} `}
                           >
-                            {isSelected && <Check size={14} className="msd-option-icon" />}
+                            {isSelected && (
+                              <Check size={14} className="msd-option-icon" />
+                            )}
                           </div>
                           <span>{item.label}</span>
                         </>
@@ -359,7 +384,7 @@ export default function MultiSelectDropdown({
                 }
               })
             ) : (
-              <div className="px-3 py-2 text-sm text-muted-foreground text-center">
+              <div className="text-muted-foreground px-3 py-2 text-center text-sm">
                 {noOptionsMessage}
               </div>
             )}

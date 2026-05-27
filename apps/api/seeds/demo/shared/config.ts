@@ -1,11 +1,12 @@
-import { COUNTRY_MAP } from '../../../migrations/20250403184419_countries';
-import { CURRENCY_MAP } from '../../../migrations/20250403184410_currencies';
+import { CURRENCY_MAP } from '../../../migrations/20250403184410_currencies.js';
+import { COUNTRY_MAP } from '../../../migrations/20250403184419_countries.js';
 
 export const COUNTRY_CODES = {
   US: 'US',
   NG: 'NG',
 } as const;
-export type DemoCountryCode = (typeof COUNTRY_CODES)[keyof typeof COUNTRY_CODES];
+export type DemoCountryCode =
+  (typeof COUNTRY_CODES)[keyof typeof COUNTRY_CODES];
 
 export interface DemoCountry {
   code: DemoCountryCode;
@@ -25,13 +26,15 @@ export const COMPANY_TYPES = {
   BUSINESS: 'business',
   ACCOUNTING_FIRM: 'accounting_firm',
 } as const;
-export type DemoCompanyType = (typeof COMPANY_TYPES)[keyof typeof COMPANY_TYPES];
+export type DemoCompanyType =
+  (typeof COMPANY_TYPES)[keyof typeof COMPANY_TYPES];
 
 export const CURRENCY_CODES = {
   USD: 'USD',
   NGN: 'NGN',
 } as const;
-export type DemoCurrencyCode = (typeof CURRENCY_CODES)[keyof typeof CURRENCY_CODES];
+export type DemoCurrencyCode =
+  (typeof CURRENCY_CODES)[keyof typeof CURRENCY_CODES];
 
 export interface DemoCurrency {
   id: string;

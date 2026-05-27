@@ -1,7 +1,8 @@
 import type { Knex } from 'knex';
 import bcrypt from 'bcrypt';
-import { ENV, isProd } from '../../config/env-loader';
-import { createUser } from '../20250403184441_users';
+
+import { ENV, isProd } from '../../config/env-loader.js';
+import { createUser } from '../20250403184441_users.js';
 
 export async function up(knex: Knex.Transaction): Promise<void> {
   if (isProd && (!ENV.ADMIN_PASSWORD || !ENV.ADMIN_EMAIL)) {
@@ -21,7 +22,11 @@ export async function up(knex: Knex.Transaction): Promise<void> {
     });
   }
 
-  if ((!isProd && !ENV.TEST_ADMIN_PASSWORD) || !ENV.TEST_ADMIN_EMAIL || !ENV.TEST_ADMIN_FIRSTNAME) {
+  if (
+    (!isProd && !ENV.TEST_ADMIN_PASSWORD) ||
+    !ENV.TEST_ADMIN_EMAIL ||
+    !ENV.TEST_ADMIN_FIRSTNAME
+  ) {
     throw new Error('Set TEST_ADMIN_PASSWORD and TEST_ADMIN_EMAIL in dev');
   } else if (ENV.TEST_ADMIN_PASSWORD && ENV.TEST_ADMIN_EMAIL) {
     const hashedPassword = await bcrypt.hash(ENV.TEST_ADMIN_PASSWORD, 12);
@@ -39,4 +44,4 @@ export async function up(knex: Knex.Transaction): Promise<void> {
   }
 }
 
-export async function down(_knex: Knex): Promise<void> {}
+export async function down(): Promise<void> {}

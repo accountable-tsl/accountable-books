@@ -1,9 +1,10 @@
 import { type NextFunction, type Response } from 'express';
-import { type AuthRequest } from '../auth/auth.types.js';
-import { ErrorCode, errorResponse } from '../../shared/utils/response.utils.js';
+
 import { getSingleCompany } from '../../domains/companies/companies.model.js';
-import { redis } from '../../lib/redis.js';
 import { getUserDetails } from '../../domains/users/users.model.js';
+import { redis } from '../../lib/redis.js';
+import { ErrorCode, errorResponse } from '../../shared/utils/response.utils.js';
+import { type AuthRequest } from '../auth/auth.types.js';
 
 export const checkOnboardingStatus = async (
   req: AuthRequest,
@@ -14,9 +15,11 @@ export const checkOnboardingStatus = async (
   const companyId = req.user?.currentCompanyId;
 
   if (!userId || !companyId) {
-    return res
-      .status(403)
-      .json(errorResponse('Unauthorized', undefined, { code: ErrorCode.UNAUTHORIZED }));
+    return res.status(403).json(
+      errorResponse('Unauthorized', undefined, {
+        code: ErrorCode.UNAUTHORIZED,
+      }),
+    );
   }
 
   const company = await getSingleCompany(companyId);
@@ -24,7 +27,9 @@ export const checkOnboardingStatus = async (
     return res.status(404).json(errorResponse('Company not found'));
   }
 
-  const companyData = Array.isArray(company.data) ? company.data[0] : company.data;
+  const companyData = Array.isArray(company.data)
+    ? company.data[0]
+    : company.data;
 
   // If company is demo company, allow access
   if (companyData.isDemoCompany) {
@@ -47,9 +52,11 @@ export const checkOnboardingStatus = async (
   if (!userComplete) {
     const user = await getUserDetails(userId);
     if (!user || !user.success) {
-      return res
-        .status(404)
-        .json(errorResponse('User not found', undefined, { code: ErrorCode.NOT_FOUND }));
+      return res.status(404).json(
+        errorResponse('User not found', undefined, {
+          code: ErrorCode.NOT_FOUND,
+        }),
+      );
     }
 
     if (companyData.onboardingStatus === onboardingComplete) {

@@ -1,5 +1,7 @@
-import { knexClient } from '../../db/knexClient.js';
 import type { Knex } from 'knex';
+
+import { knexClient } from '../../db/knexClient.js';
+import { getJobSchedule } from '../../jobs/schedules.js';
 
 /**
  * Partition Management Service
@@ -49,7 +51,10 @@ export async function ensureYearPartition(
       await knex.raw('SELECT ensure_ledger_year_partition(?)', [year]);
     }
   } catch (error) {
-    console.error(`Failed to ensure partition for ${tableName} year ${year}:`, error);
+    console.error(
+      `Failed to ensure partition for ${tableName} year ${year}:`,
+      error,
+    );
     // Don't throw - let inserts go to default partition if creation fails
   }
 }
@@ -69,7 +74,10 @@ export async function ensureMonthPartition(
       await knex.raw('SELECT ensure_ledger_month_partition(?)', [date]);
     }
   } catch (error) {
-    console.error(`Failed to ensure monthly partition for ${tableName} ${date}:`, error);
+    console.error(
+      `Failed to ensure monthly partition for ${tableName} ${date}:`,
+      error,
+    );
     // Don't throw - let inserts go to default partition if creation fails
   }
 }
@@ -121,7 +129,11 @@ export async function smartPartitionMaintenance(
 
   try {
     // Check current year volume to decide future partition strategy
-    const currentYearVolume = await getYearlyDataVolume(tableName, currentYear, knex);
+    const currentYearVolume = await getYearlyDataVolume(
+      tableName,
+      currentYear,
+      knex,
+    );
     const useMonthlyForFuture = currentYearVolume > monthlyThreshold;
 
     console.log(
@@ -144,7 +156,10 @@ export async function smartPartitionMaintenance(
       }
     }
   } catch (error) {
-    console.error(`Smart partition maintenance failed for ${tableName}:`, error);
+    console.error(
+      `Smart partition maintenance failed for ${tableName}:`,
+      error,
+    );
   }
 }
 
@@ -177,13 +192,25 @@ export async function runPartitionMaintenance(
     drainDefaults?: boolean;
   } = {},
 ): Promise<void> {
-  const { yearsAhead = 3, monthlyThreshold = 100000, drainDefaults = true } = options;
+  const {
+    yearsAhead = 3,
+    monthlyThreshold = 100000,
+    drainDefaults = true,
+  } = options;
 
   console.log('Starting partition maintenance...');
 
   // Maintain partitions for both tables
-  await smartPartitionMaintenance('bank_transactions', yearsAhead, monthlyThreshold);
-  await smartPartitionMaintenance('ledger_entries', yearsAhead, monthlyThreshold);
+  await smartPartitionMaintenance(
+    'bank_transactions',
+    yearsAhead,
+    monthlyThreshold,
+  );
+  await smartPartitionMaintenance(
+    'ledger_entries',
+    yearsAhead,
+    monthlyThreshold,
+  );
 
   // Drain default partitions if requested
   if (drainDefaults) {
@@ -201,23 +228,33 @@ export async function runPartitionMaintenance(
 export async function initializePartitionMaintenanceSchedule(): Promise<void> {
   try {
     // Import here to avoid circular dependencies
-    const { scheduleSmartPartitionMaintenance, scheduleDefaultPartitionDraining } = await import(
-      '../../jobs/queues/partition-maintenance.queue.js'
-    );
+    const {
+      scheduleSmartPartitionMaintenance,
+      scheduleDefaultPartitionDraining,
+    } = await import('../../jobs/queues/partition-maintenance.queue.js');
+
+    const maintenanceSchedule = getJobSchedule('partitionMaintenance');
+    const drainSchedule = getJobSchedule('partitionDrain');
 
     // Schedule smart maintenance (daily at 2 AM)
-    await scheduleSmartPartitionMaintenance({
-      yearsAhead: 3,
-      monthlyThreshold: 100000,
-      drainDefaults: false, // Handled separately
-    });
+    await scheduleSmartPartitionMaintenance(
+      {
+        yearsAhead: 3,
+        monthlyThreshold: 100000,
+        drainDefaults: false, // Handled separately
+      },
+      maintenanceSchedule.cron,
+    );
 
     // Schedule default partition draining (every 4 hours)
-    await scheduleDefaultPartitionDraining();
+    await scheduleDefaultPartitionDraining(drainSchedule.cron);
 
     console.log('✅ Partition maintenance schedule initialized');
   } catch (error) {
-    console.error('❌ Failed to initialize partition maintenance schedule:', error);
+    console.error(
+      '❌ Failed to initialize partition maintenance schedule:',
+      error,
+    );
     // Don't throw - let the application continue without scheduled maintenance
   }
 }

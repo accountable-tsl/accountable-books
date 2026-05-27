@@ -1,13 +1,14 @@
 import type { Knex } from 'knex';
+import axios from 'axios';
+
+import { ENV } from '../config/env-loader.js';
+import { adminUser } from './20250403184441_users.js';
+import { countryMap } from './20250404021752_banks.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { adminUser } from './20250403184441_users';
-import { ENV } from '../config/env-loader';
-import axios from 'axios';
-import { countryMap } from './20250404021752_banks';
+} from './utils/db.js';
 
 interface MonoInstitution {
   id: string;
@@ -30,15 +31,21 @@ type MonoBankCoverage = {
   timestamp: string;
   data: MonoInstitution[];
 };
-async function syncMonoInstitutionsToMappingsNG(systemUserId: string, knex: Knex) {
+async function syncMonoInstitutionsToMappingsNG(
+  systemUserId: string,
+  knex: Knex,
+) {
   const monoSecretKey = ENV.MONO_SECRET_KEY;
   if (!monoSecretKey) throw new Error('Mono secret key is required');
   console.log('Starting Mono institutions sync...');
 
-  const { data } = await axios.get<MonoBankCoverage>('https://api.withmono.com/v3/institutions', {
-    headers: { Authorization: `Bearer ${ENV.MONO_SECRET_KEY}` },
-    timeout: 10_000,
-  });
+  const { data } = await axios.get<MonoBankCoverage>(
+    'https://api.withmono.com/v3/institutions',
+    {
+      headers: { Authorization: `Bearer ${ENV.MONO_SECRET_KEY}` },
+      timeout: 10_000,
+    },
+  );
   if (!data || data.status !== 'successful' || !data.data) {
     return { msg: 'Invalid (or no) response from Mono API', data };
   }
@@ -48,7 +55,12 @@ async function syncMonoInstitutionsToMappingsNG(systemUserId: string, knex: Knex
     (i) => i.country?.toLowerCase() === 'ng' && i.id && i.institution,
   );
   if (monoNG.length === 0) {
-    return { msg: 'No institutions to sync', created: 0, updated: 0, skipped: 0 };
+    return {
+      msg: 'No institutions to sync',
+      created: 0,
+      updated: 0,
+      skipped: 0,
+    };
   }
 
   // Pre-fetch required reference data
@@ -68,32 +80,50 @@ async function syncMonoInstitutionsToMappingsNG(systemUserId: string, knex: Knex
 
     knex('bank_provider_mappings')
       .where({ provider_id: provider.id })
-      .select('bank_id', 'provider_bank_id', 'id', 'provider_bank_name', 'raw_provider_data'),
+      .select(
+        'bank_id',
+        'provider_bank_id',
+        'id',
+        'provider_bank_name',
+        'raw_provider_data',
+      ),
   ]);
 
   // Create lookup maps
-  const banksByLocalCode = new Map<string, any>();
-  const banksBySecondaryRef = new Map<string, any>();
-  let otherFI: any = null;
+  interface BankRow {
+    id: string;
+    local_code: string | null;
+    secondary_reference: string | null;
+    key: string;
+  }
+  const banksByLocalCode = new Map<string, BankRow>();
+  const banksBySecondaryRef = new Map<string, BankRow>();
+  let otherFI: BankRow | null = null;
 
   for (const b of allBanks) {
     if (b.local_code) banksByLocalCode.set(b.local_code, b);
-    if (b.secondary_reference) banksBySecondaryRef.set(b.secondary_reference, b);
+    if (b.secondary_reference)
+      banksBySecondaryRef.set(b.secondary_reference, b);
     if (b.key === 'ng_other_financial_institution') otherFI = b;
   }
   if (!otherFI) throw new Error('Other financial institution bank not found');
 
   let created = 0,
     updated = 0;
-  const skipped = 0;
   // Process institutions in batches
   const BATCH_SIZE = parseInt(ENV.MONO_SYNC_BATCH_SIZE ?? '50', 10) || 50;
   for (let i = 0; i < monoNG.length; i += BATCH_SIZE) {
     const batch = monoNG.slice(i, i + BATCH_SIZE);
 
+    interface MappingRow {
+      bank_id: string;
+      provider_bank_id: string;
+      provider_bank_name: string;
+      raw_provider_data: Record<string, unknown>;
+    }
     const processInTransaction = async (trx: Knex | Knex.Transaction) => {
-      const toInsert: any[] = [];
-      const toUpdate: any[] = [];
+      const toInsert: MappingRow[] = [];
+      const toUpdate: MappingRow[] = [];
 
       for (const inst of batch) {
         // Simplified bank lookup
@@ -104,7 +134,9 @@ async function syncMonoInstitutionsToMappingsNG(systemUserId: string, knex: Knex
           banksBySecondaryRef.get(inst.bank_code) ||
           otherFI;
 
-        const existingMapping = existing.find((m) => m.provider_bank_id === inst.id);
+        const existingMapping = existing.find(
+          (m) => m.provider_bank_id === inst.id,
+        );
 
         const mappingData = {
           bank_id: bank.id,
@@ -178,9 +210,17 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('bank_feed_providers')
       .onDelete('CASCADE');
 
-    table.uuid('bank_id').notNullable().references('id').inTable('banks').onDelete('CASCADE');
+    table
+      .uuid('bank_id')
+      .notNullable()
+      .references('id')
+      .inTable('banks')
+      .onDelete('CASCADE');
 
-    table.string('provider_bank_id').notNullable().comment("Provider's primary bank identifier");
+    table
+      .string('provider_bank_id')
+      .notNullable()
+      .comment("Provider's primary bank identifier");
 
     table.string('provider_alternate_id').nullable(); // Another ID or Bank Code from provider
 
@@ -199,7 +239,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
     addStandardColumns(knex, table);
 
     table.unique(['provider_id', 'provider_bank_id']);

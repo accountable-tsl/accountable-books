@@ -1,4 +1,6 @@
 import type { Knex } from 'knex';
+
+import { generateFingerprintSync } from '../../shared/index.js';
 import { type BankTransactionFilters } from './bankTransactions.types.js';
 
 const bankTransactionQuerySelect = ['bt.*', 'ba.*', 'banks.*', 'currencies.'];
@@ -54,4 +56,47 @@ export function buildBankTransactionQuery({
   }
 
   return query;
+}
+
+function isoDate(d: string | Date): string {
+  const x = typeof d === 'string' ? new Date(d) : d;
+  if (Number.isNaN(x.getTime())) throw new Error('Invalid date');
+  return x.toISOString(); // UTC
+}
+
+function normalizeAmount(a: number | string): string {
+  const n = typeof a === 'string' ? Number(a) : a;
+  if (!Number.isFinite(n)) throw new Error('Invalid amount');
+  return n.toFixed(10); // matches NUMERIC(32,10) scale
+}
+
+type Txn = {
+  date: string | Date;
+  amount: number | string;
+  description?: string | null;
+  reference?: string | null;
+  contact?: string | null;
+  payee?: string | null;
+};
+
+function canonicalTxn(t: Txn): string {
+  // Fixed key order for deterministic JSON
+  return JSON.stringify({
+    date: isoDate(t.date),
+    amount: normalizeAmount(t.amount),
+    description: t.description ?? '',
+    reference: t.reference ?? '',
+    contact: t.contact || t.payee || '',
+  });
+}
+
+export function generateBatchFingerprint(txns: Txn[]): string {
+  if (txns.length === 0) return generateFingerprintSync('empty');
+
+  // 1) per-transaction canonical strings -> hashes
+  const perTxn = txns.map((t) => generateFingerprintSync(canonicalTxn(t)));
+
+  // 2) order-independent combine: sort then hash the concatenation
+  perTxn.sort(); // lexical sort of hex strings
+  return generateFingerprintSync(perTxn.join(''));
 }

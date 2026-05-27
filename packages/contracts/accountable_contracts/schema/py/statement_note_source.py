@@ -1,0 +1,6 @@
+from enum import Enum
+
+class StatementNoteSource(str, Enum):
+    AI = "ai"
+    HUMAN = "human"
+    AI_EDITED = "ai_edited"

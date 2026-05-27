@@ -1,4 +1,5 @@
-import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
+import type { ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
 
 type PopupContent = {
   id: string;
@@ -22,16 +23,21 @@ export const PopupProvider: React.FC<PopupProviderProps> = ({ children }) => {
   const [popups, setPopups] = useState<string[]>([]);
   const [componentPopups, setComponentPopups] = useState<PopupContent[]>([]);
 
-  const openPopup = useCallback((popupId: string, component?: React.ReactNode) => {
-    if (component) {
-      setComponentPopups((prev) => [
-        ...prev.filter((p) => p.id !== popupId),
-        { id: popupId, component },
-      ]);
-    } else {
-      setPopups((prev) => (prev.includes(popupId) ? prev : [...prev, popupId]));
-    }
-  }, []);
+  const openPopup = useCallback(
+    (popupId: string, component?: React.ReactNode) => {
+      if (component) {
+        setComponentPopups((prev) => [
+          ...prev.filter((p) => p.id !== popupId),
+          { id: popupId, component },
+        ]);
+      } else {
+        setPopups((prev) =>
+          prev.includes(popupId) ? prev : [...prev, popupId],
+        );
+      }
+    },
+    [],
+  );
 
   const closePopup = useCallback((popupId: string) => {
     setPopups((prevPopups) => prevPopups.filter((id) => id !== popupId));
@@ -39,7 +45,9 @@ export const PopupProvider: React.FC<PopupProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <PopupContext.Provider value={{ popups, componentPopups, openPopup, closePopup }}>
+    <PopupContext.Provider
+      value={{ popups, componentPopups, openPopup, closePopup }}
+    >
       {children}
     </PopupContext.Provider>
   );

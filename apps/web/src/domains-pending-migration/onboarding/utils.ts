@@ -1,10 +1,17 @@
-import { Building2Icon, CreditCardIcon, MailCheckIcon, Settings } from 'lucide-react';
-import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
-import { routes } from '@/shared/routes/routes';
-import { VerifyEmail } from './steps/VerifyEmail';
-import { CompanyInfo } from './steps/CompanyInfo';
+import { routes } from '@/shared/routes';
+import {
+  Building2Icon,
+  CreditCardIcon,
+  MailCheckIcon,
+  Settings,
+} from 'lucide-react';
+
 import { BankAccount } from './steps/BankAccount';
+import { CompanyInfo } from './steps/CompanyInfo';
 import { Miscellaneous } from './steps/Miscellaneous';
+import { VerifyEmail } from './steps/VerifyEmail';
+
+import type { OnboardingSidebarItem, OnboardingStepKey } from './types';
 
 export type OnboardingPathKey =
   | 'verify-email'
@@ -26,7 +33,10 @@ export const onboardingStepToSlug = {
 } as const;
 export type OnboardingSlug = (typeof onboardingStepToSlug)[OnboardingStepKey];
 
-export const onboardingStepsConfig: Record<OnboardingStepKey, OnboardingSidebarItem> = {
+export const onboardingStepsConfig: Record<
+  OnboardingStepKey,
+  OnboardingSidebarItem
+> = {
   email_verified: {
     icon: MailCheckIcon,
     title: 'Verify Email',
@@ -49,10 +59,12 @@ export const onboardingStepsConfig: Record<OnboardingStepKey, OnboardingSidebarI
   },
 };
 
-export function getPathByStepKey(stepKey: OnboardingStepKey): OnboardingPathKey | undefined {
-  return Object.entries(onboardingSteps).find(([, value]) => value.key === stepKey)?.[0] as
-    | OnboardingPathKey
-    | undefined;
+export function getPathByStepKey(
+  stepKey: OnboardingStepKey,
+): OnboardingPathKey | undefined {
+  return Object.entries(onboardingSteps).find(
+    ([, value]) => value.key === stepKey,
+  )?.[0] as OnboardingPathKey | undefined;
 }
 
 export const onboardingSteps: Record<

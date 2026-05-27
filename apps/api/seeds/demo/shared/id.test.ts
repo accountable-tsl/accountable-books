@@ -1,10 +1,11 @@
-import { describe, expect, test } from 'vitest';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
+import { describe, expect, test } from 'vitest';
+
 import {
+  dedupeByNormalizedKey,
   normalizeName,
   uuidV5ForCompanyName,
   uuidV5ForCompanyProject,
-  dedupeByNormalizedKey,
 } from './id.js';
 
 describe('normalizeName', () => {
@@ -176,7 +177,11 @@ describe('dedupeByNormalizedKey', () => {
     const result = dedupeByNormalizedKey(items, (item) => item.name);
 
     // Order should be based on first occurrence
-    expect(result.map((item) => item.name)).toEqual(['John Doe', 'jane smith', 'Bob Wilson']);
+    expect(result.map((item) => item.name)).toEqual([
+      'John Doe',
+      'jane smith',
+      'Bob Wilson',
+    ]);
   });
 
   test('should handle empty array', () => {
@@ -293,9 +298,17 @@ describe('Integration Tests', () => {
     const companyId = '123e4567-e89b-12d3-a456-426614174000';
 
     // Test various forms of the same name
-    const nameVariants = ['John Doe', '  John Doe  ', 'JOHN DOE', 'john doe', '  JOHN DOE  '];
+    const nameVariants = [
+      'John Doe',
+      '  John Doe  ',
+      'JOHN DOE',
+      'john doe',
+      '  JOHN DOE  ',
+    ];
 
-    const uuids = nameVariants.map((name) => uuidV5ForCompanyName(companyId, name));
+    const uuids = nameVariants.map((name) =>
+      uuidV5ForCompanyName(companyId, name),
+    );
 
     // All should generate the same UUID
     uuids.forEach((uuid) => {

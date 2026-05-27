@@ -1,22 +1,34 @@
 import type { Knex } from 'knex';
-import {
-  getProjectsParams,
-  type GetProjectsParams,
-  newProjectInput,
-  type NewProjectInput,
-  type ProjectResponse,
-} from './projects.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { createHybridSearch, defineSearchableColumns } from '../../shared/utils/search.utils.js';
 import z from 'zod';
 
-export async function getProjects(input: GetProjectsParams): Promise<ApiResponse<ProjectResponse>> {
+import { knexClient } from '../../db/knexClient.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import {
+  createHybridSearch,
+  defineSearchableColumns,
+} from '../../shared/utils/search.utils.js';
+import { getProjectsParams, newProjectInput } from './projects.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  GetProjectsParams,
+  NewProjectInput,
+  ProjectResponse,
+} from './projects.types.js';
+
+export async function getProjects(
+  input: GetProjectsParams,
+): Promise<ApiResponse<ProjectResponse>> {
   const parseInput = getProjectsParams.safeParse(input);
   if (!parseInput.success) {
-    return errorResponse('Invalid request parameters', z.treeifyError(parseInput.error));
+    return errorResponse(
+      'Invalid request parameters',
+      z.treeifyError(parseInput.error),
+    );
   }
 
   const {
@@ -79,7 +91,9 @@ export async function getProjects(input: GetProjectsParams): Promise<ApiResponse
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     if (page > totalPages) {
-      return errorResponse(`Page ${page} exceeds maximum pages (${totalPages})`);
+      return errorResponse(
+        `Page ${page} exceeds maximum pages (${totalPages})`,
+      );
     }
 
     const selectFields: (string | Knex.Raw)[] = [
@@ -151,7 +165,9 @@ export async function addNewProjects({
   userId: string;
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<{ id: string; name: string }[]>> {
-  const validate = newProjectInput.array().safeParse(Array.isArray(input) ? input : [input]);
+  const validate = newProjectInput
+    .array()
+    .safeParse(Array.isArray(input) ? input : [input]);
 
   if (!validate.success) {
     return errorResponse('Invalid input', z.treeifyError(validate.error));
@@ -199,9 +215,14 @@ export async function addNewProjects({
       updated_by_id: userId,
     }));
 
-    const inserted = await tx('projects').insert(projects).returning(['id', 'name']);
+    const inserted = await tx('projects')
+      .insert(projects)
+      .returning(['id', 'name']);
 
-    return successResponse(`Project${data.length > 1 ? 's' : ''} successfully created`, inserted);
+    return successResponse(
+      `Project${data.length > 1 ? 's' : ''} successfully created`,
+      inserted,
+    );
   };
 
   try {

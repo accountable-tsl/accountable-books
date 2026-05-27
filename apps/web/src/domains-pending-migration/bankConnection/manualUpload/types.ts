@@ -1,7 +1,7 @@
+import type { BankAccountWithMeta } from '@/modules/banking/accounts/model/types';
+import { debitCredit } from '@/shared/types/core';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
-import { debitCredit } from '@/shared/types/core';
-import type { BankAccountWithMeta } from '@/modules/bank-accounts/ba-types';
 
 export type TransactionsStat = {
   totalPositive: number;
@@ -19,7 +19,11 @@ export type FileTransaction = {
 };
 
 export const bankTransactionBatch = z.object({});
-export const bankTransactionSource = z.enum(['file_import', 'bank_feed', 'manual_entry']);
+export const bankTransactionSource = z.enum([
+  'file_import',
+  'bank_feed',
+  'manual_entry',
+]);
 export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
 
 export const bankTransactionInput = z.object({
@@ -41,7 +45,9 @@ export const bankTransactionBatchInput = z.object({
   bankAccountId: z.uuid(),
   bankTransactions: z.array(bankTransactionInput),
 });
-export type BankTransactionBatchInput = z.infer<typeof bankTransactionBatchInput>;
+export type BankTransactionBatchInput = z.infer<
+  typeof bankTransactionBatchInput
+>;
 
 export const bankTransaction = bankTransactionInput.extend({
   source: bankTransactionSource.optional(),

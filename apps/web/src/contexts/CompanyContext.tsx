@@ -1,6 +1,7 @@
-import { createContext, type ReactNode, useEffect, useState } from 'react';
-import { getCompanyDetails as fetchCompany } from '@/domains-pending-migration/company/api';
-import type { CompanyData } from '@/domains-pending-migration/company/types';
+import type { CompanyData } from '@/modules/company/companies';
+import type { ReactNode } from 'react';
+import { createContext, useEffect, useState } from 'react';
+import { getCompanyDetails as fetchCompany } from '@/modules/company/companies';
 
 type CompanyProviderProps = {
   children: ReactNode;
@@ -53,7 +54,9 @@ export const CompanyProvider = ({
   }, [companyId]);
 
   return (
-    <CompanyContext.Provider value={{ companyId, company, setCompanyId, isLoading, error }}>
+    <CompanyContext.Provider
+      value={{ companyId, company, setCompanyId, isLoading, error }}
+    >
       {children}
     </CompanyContext.Provider>
   );

@@ -1,0 +1,10 @@
+{
+  "feature_mapping_version": "fmap_b_1.0",
+  "artifact_path": null,
+  "status": "active",
+  "metadata": {
+    "description": "Initial embedding-based heuristic ranker",
+    "model_type": "heuristic",
+    "created_at": "2024-11-27"
+  }
+}

@@ -1,0 +1,13 @@
+from enum import Enum
+
+class ContactType(str, Enum):
+    CUSTOMER = "customer"
+    VENDOR = "vendor"
+    EMPLOYEE = "employee"
+    CONTRACTOR = "contractor"
+    DIRECTOR = "director"
+    OWNER = "owner"
+    GOVERNMENT = "government"
+    INTERNAL = "internal"
+    BANKER = "banker"
+    OTHER = "other"

@@ -1,29 +1,39 @@
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import type { NewCompany, NewUser } from '@/modules/auth';
+import type { Country } from '@/shared/types/core';
+import type { CompanyType } from '@accountable-books/contracts/schema';
+import type { AxiosError } from 'axios';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AuthHeader } from '@/components/AuthHeader';
 import { StepProgress } from '@/components/StepProgress/StepProgress';
-import { useEffect, useRef, useState } from 'react';
-import { type CompanyType, type Country, zEmail } from '@/shared/types/core';
 import { Button } from '@/components/ui/button';
 import {
-  type NewCompany,
-  type NewUser,
-} from '../../../domains-pending-migration/signup/signupTypes';
-import { useNavigate, useSearchParams } from 'react-router';
-import { useCountries } from '@/shared/hooks/useCountries';
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { getDefaultCurrencyCodeForCountry } from '@/constants/countryCurrencyMap';
-import { useCurrencies } from '@/shared/hooks/useCurrencies';
-import { SignupSelector } from './steps/selector';
-import { SignupBasicInfo, type SignupBasicInfoHandle } from './steps/basic-info';
-import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
-import { SignupCompanyInfo, type SignupCompanyInfoHandle } from './steps/company-info';
-import { toast } from 'sonner';
-import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
-import { PuffLoader } from 'react-spinners';
-import { XIcon } from 'lucide-react';
-import { AuthHeader } from '@/components/AuthHeader';
-import { routes } from '@/shared/routes/routes';
 import { performLoginFlow } from '@/features/auth-login/model/use-login-flow';
 import { authStore } from '@/modules/auth';
-import type { AxiosError } from 'axios';
+import { useCheckEmail } from '@/shared/hooks/useCheckEmail';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { useCurrencies } from '@/shared/hooks/useCurrencies';
+import { routes } from '@/shared/routes';
+import { captureProductEvent } from '@/shared/telemetry/capture-product-event';
+import { zEmail } from '@/shared/types/core';
+import { XIcon } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { PuffLoader } from 'react-spinners';
+import { toast } from 'sonner';
+
+import { submitSignup } from '../../../domains-pending-migration/signup/signupService';
+import { SignupBasicInfo } from './steps/basic-info';
+import { SignupCompanyInfo } from './steps/company-info';
+import { SignupSelector } from './steps/selector';
+
+import type { SignupBasicInfoHandle } from './steps/basic-info';
+import type { SignupCompanyInfoHandle } from './steps/company-info';
 
 //TODO: Refactor whole signup flow later
 export function Signup() {
@@ -52,9 +62,9 @@ export function Signup() {
 
   const [error, setError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>(
-    'idle',
-  );
+  const [submitStatus, setSubmitStatus] = useState<
+    'idle' | 'submitting' | 'success' | 'error'
+  >('idle');
 
   // This tracks whether the user has explicitly selected a reporting currency.
   // If true, we won't auto-set the currency based on country anymore.
@@ -63,8 +73,13 @@ export function Signup() {
   const steps = ['Get started', 'Basic Info', 'Company Details'];
 
   const { data: country } = useCountries();
+  const countries = useMemo(() => country?.data || [], [country?.data]);
 
   const { data: currencies } = useCurrencies();
+  const currenciesData = useMemo(
+    () => currencies?.data || [],
+    [currencies?.data],
+  );
 
   const basicInfoRef = useRef<SignupBasicInfoHandle>(null);
   const companyInfoRef = useRef<SignupCompanyInfoHandle>(null);
@@ -75,12 +90,15 @@ export function Signup() {
   const checkEmailWrapper = async (email: string): Promise<boolean> => {
     // try {
     const validEmail = zEmail.safeParse(email);
-    if (!validEmail.success) throw new Error('Please enter a valid email address');
+    if (!validEmail.success)
+      throw new Error('Please enter a valid email address');
 
     try {
       const response = await checkEmail({ email, purpose: 'signup' });
       if (!response?.success) {
-        throw new Error(response.message || 'This email has already been registered');
+        throw new Error(
+          response.message || 'This email has already been registered',
+        );
       }
       return true;
     } catch (err: unknown) {
@@ -132,7 +150,9 @@ export function Signup() {
     // Handle Submission
     if (currentStep === steps.length) {
       if (!companyDetails.legalName) {
-        toast.error('Please fill company name or confirm default name set (if any)');
+        toast.error(
+          'Please fill company name or confirm default name set (if any)',
+        );
         return;
       }
       const isValid = await companyInfoRef.current?.validate();
@@ -144,6 +164,16 @@ export function Signup() {
       setSubmitStatus('submitting');
 
       try {
+        const selectedCountry = countries.find(
+          (item) => item.id === companyDetails.countryId,
+        );
+        captureProductEvent('signup.started', {
+          company_type: companyDetails.type,
+          country: selectedCountry?.code,
+          flow: 'signup',
+          method: 'direct',
+        });
+
         const signup = await submitSignup({
           user: basicInfo,
           company: companyDetails,
@@ -164,7 +194,11 @@ export function Signup() {
           setSubmitStatus('success');
           setError('');
 
-          const { success: loginSuccess, canAccessApp, data: loginResultData } = loginResult;
+          const {
+            success: loginSuccess,
+            canAccessApp,
+            data: loginResultData,
+          } = loginResult;
 
           if (!loginSuccess || !loginResultData) {
             toast.info('Signup succeeded! Please login to continue.', {
@@ -229,24 +263,29 @@ export function Signup() {
     setBasicInfo((prev) => ({ ...prev, [key]: value }));
   };
 
-  const getCountryFromLocale = (): Country | undefined => {
+  const getCountryFromLocale = useCallback((): Country | undefined => {
     const locale = navigator.language;
     const countryCode = locale.split('-')[1];
-    const userCountry = country && country?.data?.find((item) => item.code === countryCode);
+    const userCountry = countries.find((item) => item.code === countryCode);
     return userCountry;
-  };
+  }, [countries]);
 
-  const getDefaultCurrency = () => {
+  const getDefaultCurrency = useCallback(() => {
     const ctry = companyDetails.countryId
-      ? country?.data?.find((item) => item.id === companyDetails.countryId)
+      ? countries.find((item) => item.id === companyDetails.countryId)
       : '';
     const userCountry = ctry || getCountryFromLocale();
-    const curr = userCountry ? getDefaultCurrencyCodeForCountry(userCountry?.code) : '';
+    const curr = userCountry
+      ? getDefaultCurrencyCodeForCountry(userCountry?.code)
+      : '';
 
     return curr;
-  };
+  }, [companyDetails.countryId, countries, getCountryFromLocale]);
 
-  const handleCompanyInfoChange = (field: keyof NewCompany, value: string) => {
+  const handleCompanyInfoChange = <K extends keyof NewCompany>(
+    field: K,
+    value: NewCompany[K],
+  ) => {
     // If user manually selects a currency, mark the override flag
     if (field === 'reportingCurrencyId') {
       userHasSelectedCurrency.current = true;
@@ -258,7 +297,11 @@ export function Signup() {
   let stepContent;
   if (currentStep === 1) {
     stepContent = (
-      <SignupSelector selectCompanyType={handleSelect} selectedType={selectedType} error={error} />
+      <SignupSelector
+        selectCompanyType={handleSelect}
+        selectedType={selectedType}
+        error={error}
+      />
     );
   }
 
@@ -286,7 +329,11 @@ export function Signup() {
     stepContent = (
       <div className="flex flex-col items-center gap-2">
         Please revert to step 1 to select valid category
-        <Button variant={'destructive'} onClick={() => setCurrentStep(1)} className="max-w-[5rem]">
+        <Button
+          variant={'destructive'}
+          onClick={() => setCurrentStep(1)}
+          className="max-w-[5rem]"
+        >
           Back
         </Button>
       </div>
@@ -294,7 +341,7 @@ export function Signup() {
   }
 
   useEffect(() => {
-    if (!country?.data) return;
+    if (!countries.length) return;
     const userCountry = getCountryFromLocale();
     if (userCountry?.id && !companyDetails.countryId) {
       setCompanyDetails((prev) => ({
@@ -302,12 +349,12 @@ export function Signup() {
         countryId: userCountry.id,
       }));
     }
-  }, [country?.data, companyDetails.countryId]);
+  }, [countries, companyDetails.countryId, getCountryFromLocale]);
 
   useEffect(() => {
     // Only run when currency list is ready and a country is selected
     if (
-      !currencies?.data ||
+      !currenciesData.length ||
       !companyDetails.countryId ||
       userHasSelectedCurrency.current // ❌ Stop if user already picked one manually
     ) {
@@ -316,26 +363,36 @@ export function Signup() {
 
     // Get the default currency code for the selected country
     const defaultCurrencyCode = getDefaultCurrency();
-    const defaultCurrency = currencies?.data?.find((c) => c.code === defaultCurrencyCode);
+    const defaultCurrency = currenciesData.find(
+      (c) => c.code === defaultCurrencyCode,
+    );
 
     // Only set if the default is different from what's already set
-    if (defaultCurrency && companyDetails.reportingCurrencyId !== defaultCurrency.id) {
+    if (
+      defaultCurrency &&
+      companyDetails.reportingCurrencyId !== defaultCurrency.id
+    ) {
       setCompanyDetails((prev) => ({
         ...prev,
         reportingCurrencyId: defaultCurrency?.id,
       }));
     }
-  }, [currencies?.data, companyDetails.countryId]);
+  }, [
+    currenciesData,
+    companyDetails.countryId,
+    companyDetails.reportingCurrencyId,
+    getDefaultCurrency,
+  ]);
 
   return (
-    <div className="flex flex-col min-h-svh">
+    <div className="flex min-h-svh flex-col">
       <AuthHeader />
-      <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
-        <div className="flex w-full max-w-md flex-col gap-6 relative">
+      <div className="flex w-full flex-1 items-center justify-center p-6 md:p-10">
+        <div className="relative flex w-full max-w-md flex-col gap-6">
           <img
             src="./icon.svg"
             alt=""
-            className="absolute right-1/2 bottom-3/5 -z-5 opacity-10 h-100 w-100"
+            className="absolute right-1/2 bottom-3/5 -z-5 h-100 w-100 opacity-10"
           />
           <Card className="relative">
             {!isSubmitting && submitStatus === 'idle' && (
@@ -346,7 +403,11 @@ export function Signup() {
                       ? "Your Practice's Details"
                       : steps[currentStep - 1]}
                   </CardTitle>
-                  <StepProgress currentStep={currentStep} totalSteps={steps.length} steps={steps} />
+                  <StepProgress
+                    currentStep={currentStep}
+                    totalSteps={steps.length}
+                    steps={steps}
+                  />
                 </CardHeader>
                 <CardContent className="min-h-50">
                   <form ref={formRef} onKeyDown={handleKeyDown}>
@@ -355,13 +416,20 @@ export function Signup() {
                 </CardContent>
                 {
                   <CardFooter className="py-2">
-                    <div className="flex justify-between w-full">
-                      <Button variant="outline" disabled={currentStep === 1} onClick={handleBack}>
+                    <div className="flex w-full justify-between">
+                      <Button
+                        variant="outline"
+                        disabled={currentStep === 1}
+                        onClick={handleBack}
+                      >
                         Back
                       </Button>
 
                       {selectedType && (
-                        <Button onClick={handleContinue} disabled={isSubmitting}>
+                        <Button
+                          onClick={handleContinue}
+                          disabled={isSubmitting}
+                        >
                           {currentStep === steps.length ? 'Submit' : 'Continue'}
                         </Button>
                       )}
@@ -373,7 +441,7 @@ export function Signup() {
 
             {submitStatus === 'submitting' && (
               <>
-                <div className="flex flex-col gap-2 justify-center items-center text-center p-16 py-22">
+                <div className="flex flex-col items-center justify-center gap-2 p-16 py-22 text-center">
                   {/* <div className="flex justify-center"> */}
                   <PuffLoader color="var(--muted-foreground)" />
                   {/* </div> */}
@@ -390,9 +458,9 @@ export function Signup() {
               </div>
             )}
           </Card>
-          <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary  ">
-            By clicking continue, you agree to our <a href="#">Terms of Service</a> and{' '}
-            <a href="#">Privacy Policy</a>.
+          <div className="text-muted-foreground [&_a]:hover:text-primary text-center text-xs text-balance [&_a]:underline [&_a]:underline-offset-4">
+            By clicking continue, you agree to our{' '}
+            <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
           </div>
         </div>
       </div>

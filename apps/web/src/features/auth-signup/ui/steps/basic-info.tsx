@@ -1,14 +1,15 @@
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
-import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
-import { newUser, type NewUser } from '@/modules/auth';
-import { useForm } from 'react-hook-form';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { FormField } from '@/components/FormField';
+import type { NewUser } from '@/modules/auth';
 import type { AxiosError } from 'axios';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { FormField } from '@/components/FormField';
+import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { newUser } from '@/modules/auth';
+import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { Eye, EyeOff } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 
 export interface SignupBasicInfoHandle {
   validate: () => Promise<boolean>;
@@ -54,13 +55,15 @@ export const SignupBasicInfo = forwardRef<
       try {
         const isValid = await checkEmail(email);
         if (isValid) clearErrors('email');
-        if (!isValid) return { isValid, error: 'This email has already been registered' };
+        if (!isValid)
+          return { isValid, error: 'This email has already been registered' };
         return { isValid, error: null };
       } catch (error: unknown) {
         return {
           isValid: true,
           error:
-            (error as AxiosError<{ message: string }>)?.response?.data?.message ||
+            (error as AxiosError<{ message: string }>)?.response?.data
+              ?.message ||
             (error as Error).message ||
             "We're having trouble checking this email",
         };
@@ -73,7 +76,9 @@ export const SignupBasicInfo = forwardRef<
   useImperativeHandle(ref, () => ({
     validate: async () => {
       const isValid = await trigger();
-      const { isValid: isEmailValid, error: emailError } = await validateEmail(userData.email);
+      const { isValid: isEmailValid, error: emailError } = await validateEmail(
+        userData.email,
+      );
       if (emailError) {
         setError('email', { message: emailError });
       }
@@ -89,7 +94,12 @@ export const SignupBasicInfo = forwardRef<
   return (
     <div className="flex flex-col gap-4">
       {/* Firstname */}
-      <FormField id="firstname" label="First name" error={errors.firstname?.message} required>
+      <FormField
+        id="firstname"
+        label="First name"
+        error={errors.firstname?.message}
+        required
+      >
         <Input
           id="firstname"
           {...register('firstname', {
@@ -100,9 +110,13 @@ export const SignupBasicInfo = forwardRef<
         />
       </FormField>
 
-      <div className="grid md:grid-cols-2 gap-2">
+      <div className="grid gap-2 md:grid-cols-2">
         {/* Lastname */}
-        <FormField id="lastname" label="Last name" error={errors.lastname?.message}>
+        <FormField
+          id="lastname"
+          label="Last name"
+          error={errors.lastname?.message}
+        >
           <Input
             id="lastname"
             {...register('lastname', {
@@ -126,14 +140,21 @@ export const SignupBasicInfo = forwardRef<
             {...register('phoneNumber', {
               onChange: (e) => updateUserField('phoneNumber', e.target.value),
             })}
-            aria-describedby={errors.phoneNumber ? 'phoneNumber-error' : undefined}
+            aria-describedby={
+              errors.phoneNumber ? 'phoneNumber-error' : undefined
+            }
             placeholder="+65 9123 4567"
           />
         </FormField>
       </div>
 
       {/* Email */}
-      <FormField id="email" label="Email" required error={errors.email?.message}>
+      <FormField
+        id="email"
+        label="Email"
+        required
+        error={errors.email?.message}
+      >
         <Input
           id="email"
           type="email"
@@ -154,7 +175,12 @@ export const SignupBasicInfo = forwardRef<
       </FormField>
 
       {/* Password */}
-      <FormField id="password" label="Password" required error={errors.password?.message}>
+      <FormField
+        id="password"
+        label="Password"
+        required
+        error={errors.password?.message}
+      >
         <Input
           id="password"
           type={showPassword ? 'text' : 'password'}
@@ -165,13 +191,16 @@ export const SignupBasicInfo = forwardRef<
           placeholder="••••••••••••"
         />
         {password && (
-          <PasswordStrengthMeter score={score} className={{ root: 'absolute opacity-60' }} />
+          <PasswordStrengthMeter
+            score={score}
+            className={{ root: 'absolute opacity-60' }}
+          />
         )}
         <Button
           type="button"
           onClick={togglePasswordVisibility}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
-          className="absolute right-2 top-1/3 bg-transparent text-foreground hover:bg-transparent"
+          className="text-foreground absolute top-1/3 right-2 bg-transparent hover:bg-transparent"
         >
           {showPassword ? <EyeOff /> : <Eye />}
         </Button>

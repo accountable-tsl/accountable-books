@@ -1,12 +1,16 @@
-import { CenteredLoader } from '@/components/CenteredLoader';
-import { useSession } from '@session';
-import { routes } from '@/shared/routes/routes';
-import { isPublicRoute } from '@/shared/routes/utils';
 import type { ReactNode } from 'react';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import { isPublicRoute, routes } from '@/shared/routes';
+import { useSession } from '@session';
 import { Navigate } from 'react-router';
 
+import {
+  clearLastAccessedCompanyId,
+  getLastAccessedCompanyId,
+} from '../session/last-accessed-company';
+
 export function RootRedirector() {
-  const { loading, companyId, hasAppAccess } = useSession();
+  const { loading, companyId, hasAppAccess, user } = useSession();
   // Public page, do nothing
   if (isPublicRoute(window.location.pathname)) {
     return null;
@@ -21,9 +25,35 @@ export function RootRedirector() {
     return <Navigate to={routes.onboarding.index.staticPath} replace />;
   }
 
+  const companyIds = user?.companies?.map((company) => company.id) ?? [];
+  const hasServerCompany = !!companyId && companyIds.includes(companyId);
+
+  const cachedCompanyId = getLastAccessedCompanyId();
+  const hasCachedCompany =
+    !!cachedCompanyId && companyIds.includes(cachedCompanyId);
+
+  if (cachedCompanyId && !hasCachedCompany) {
+    clearLastAccessedCompanyId();
+  }
+
+  const targetCompanyId = hasServerCompany
+    ? companyId
+    : hasCachedCompany
+      ? cachedCompanyId
+      : companyIds[0];
+
+  if (!targetCompanyId) {
+    return <Navigate to={routes.onboarding.index.staticPath} replace />;
+  }
+
   // Otherwise, redirect to tenant dashboard
   if (location.pathname === '/') {
-    return <Navigate to={routes.general.dashboard.build({ companyId })} replace />;
+    return (
+      <Navigate
+        to={routes.general.dashboard.build({ companyId: targetCompanyId })}
+        replace
+      />
+    );
   }
 
   return null;
@@ -41,7 +71,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function RequireOnboardingComplete({ children }: { children: React.ReactNode }) {
+export function RequireOnboardingComplete({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { onboarding } = useSession();
 
   if (!onboarding?.canAccessApp) {
@@ -51,13 +85,19 @@ export function RequireOnboardingComplete({ children }: { children: React.ReactN
   return <>{children}</>;
 }
 
-export function RequireCurrentCompanyIsFirm({ children }: { children: React.ReactNode }) {
+export function RequireCurrentCompanyIsFirm({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { companyType, companyId } = useSession();
 
   const isAccountingFirm = companyType === 'accounting_firm';
 
   if (!isAccountingFirm) {
-    return <Navigate to={routes.general.dashboard.build({ companyId })} replace />;
+    return (
+      <Navigate to={routes.general.dashboard.build({ companyId })} replace />
+    );
   }
 
   return <>{children}</>;

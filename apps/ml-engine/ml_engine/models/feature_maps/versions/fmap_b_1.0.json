@@ -1,0 +1,26 @@
+{
+  "version": "fmap_b_1.0",
+  "model_name": "tenant_account_ranker",
+  "description": "Initial feature mapping for Model B (embedding-based ranker)",
+  "created_at": "2024-11-27",
+  "features": {
+    "text_embedding": {
+      "type": "embedding",
+      "dimension": 384,
+      "source_fields": [
+        "normalized.description",
+        "normalized.contact_name",
+        "raw.reference",
+        "normalized.global_contact_name",
+        "normalized.global_contact_category_hints",
+        "signals.notes",
+        "context.industry"
+      ]
+    },
+    "semantic_intent": [
+      "global_intent.semantic_top1",
+      "global_intent.semantic_top1_prob"
+    ],
+    "history_signals": ["vendor_history_match", "account_history_match"]
+  }
+}

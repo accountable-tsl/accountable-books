@@ -1,12 +1,18 @@
+import type { ToasterProps } from 'sonner';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useTheme } from 'next-themes';
-import { Toaster as Sonner, type ToasterProps } from 'sonner';
+import { Toaster as Sonner } from 'sonner';
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ position, ...props }: ToasterProps) => {
   const { theme = 'system' } = useTheme();
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const resolvedPosition =
+    position ?? (isMobile ? 'top-center' : 'bottom-right');
 
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
+      position={resolvedPosition}
       className="toaster group"
       style={
         {

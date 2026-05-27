@@ -8,7 +8,8 @@
 import { z } from 'zod';
 
 export function camelToSnake<T>(input: T): T {
-  if (!input || typeof input !== 'object' || input instanceof Date) return input;
+  if (!input || typeof input !== 'object' || input instanceof Date)
+    return input;
 
   if (Array.isArray(input)) {
     return input.map(camelToSnake) as T;
@@ -33,7 +34,8 @@ export function camelToSnake<T>(input: T): T {
  */
 
 export function snakeToCamel<T>(input: T): SnakeToCamelCaseObject<T> {
-  if (!input || typeof input !== 'object' || input instanceof Date) return input as any;
+  if (!input || typeof input !== 'object' || input instanceof Date)
+    return input as any;
 
   if (Array.isArray(input)) {
     return input.map(snakeToCamel) as any;
@@ -84,7 +86,9 @@ export function toCamelCase(str: string): string {
 }
 
 export function isValidUUID(uuid: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    uuid,
+  );
 }
 export function getIdentifierType(id: string): 'uuid' | 'shortCode' {
   if (!id || typeof id !== 'string' || id.length > 40) {
@@ -92,19 +96,21 @@ export function getIdentifierType(id: string): 'uuid' | 'shortCode' {
   }
 
   // Regex to check if it's a valid UUID (v1, v2, v3, v4, v5)
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
   return isUUID ? 'uuid' : 'shortCode';
 }
 
-export type SnakeToCamelCase<S extends string> = S extends `${infer T}_${infer U}`
-  ? `${Lowercase<T>}${Capitalize<SnakeToCamelCase<U>>}`
-  : S;
+export type SnakeToCamelCase<S extends string> =
+  S extends `${infer T}_${infer U}`
+    ? `${Lowercase<T>}${Capitalize<SnakeToCamelCase<U>>}`
+    : S;
 
 export type SnakeToCamelCaseObject<T> = {
-  [K in keyof T as K extends string ? SnakeToCamelCase<K> : K]: T[K] extends object
-    ? SnakeToCamelCaseObject<T[K]>
-    : T[K];
+  [K in keyof T as K extends string
+    ? SnakeToCamelCase<K>
+    : K]: T[K] extends object ? SnakeToCamelCaseObject<T[K]> : T[K];
 };
 
 /**
@@ -121,6 +127,43 @@ export type SnakeToCamelCaseObject<T> = {
 
 export function createCamelCaseSchema<T extends z.ZodTypeAny>(snakeSchema: T) {
   return z.preprocess(camelToSnake, snakeSchema);
+}
+
+/**
+ * Creates a Zod schema that preprocesses input by converting camelCase keys to
+ * snake_case before validation, while allowing some top-level keys to be left
+ * untouched (e.g. `payload` where the shape is domain-specific and should not
+ * be transformed).
+ */
+export function createCamelCaseSchemaWithExclusions<T extends z.ZodTypeAny>(
+  snakeSchema: T,
+  options: { excludeKeys: readonly string[] },
+) {
+  const exclude = new Set(options.excludeKeys);
+
+  return z.preprocess((input) => {
+    if (!input || typeof input !== 'object' || input instanceof Date) {
+      return input;
+    }
+    if (Array.isArray(input)) return input;
+
+    const obj = input as Record<string, unknown>;
+
+    const excluded: Record<string, unknown> = {};
+    const rest: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (exclude.has(key)) {
+        excluded[key] = value;
+      } else {
+        rest[key] = value;
+      }
+    }
+
+    return {
+      ...(camelToSnake(rest) as Record<string, unknown>),
+      ...excluded,
+    };
+  }, snakeSchema);
 }
 
 function isPlainObject(value: unknown): value is Record<string, any> {
@@ -143,7 +186,11 @@ interface FilterOptions {
  * @returns New object with filtered values removed
  */
 function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
-  const { deep = true, filterUndefined = false, filterEmptyStrings = false } = options;
+  const {
+    deep = true,
+    filterUndefined = false,
+    filterEmptyStrings = false,
+  } = options;
 
   if (obj === null || obj === undefined) {
     return obj;
@@ -158,7 +205,9 @@ function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
         if (filterEmptyStrings && item === '') return false;
         return true;
       })
-      .map((item) => (deep && isPlainObject(item) ? filterNulls(item, options) : item)) as T;
+      .map((item) =>
+        deep && isPlainObject(item) ? filterNulls(item, options) : item,
+      ) as T;
   }
 
   // Handle objects
@@ -190,7 +239,8 @@ function filterNulls<T>(obj: T, options: FilterOptions = {}): T {
 // Convenience functions for common use cases
 export const removeNulls = <T>(obj: T): T => filterNulls(obj);
 
-export const removeNullsShallow = <T>(obj: T): T => filterNulls(obj, { deep: false });
+export const removeNullsShallow = <T>(obj: T): T =>
+  filterNulls(obj, { deep: false });
 
 export const removeNullsAndUndefined = <T>(obj: T): T =>
   filterNulls(obj, { filterUndefined: true });

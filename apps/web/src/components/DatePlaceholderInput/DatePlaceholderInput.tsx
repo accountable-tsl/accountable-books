@@ -1,4 +1,5 @@
 import './DatePlaceholderInput.scss';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Placeholder {
@@ -11,7 +12,10 @@ interface DatePlaceholderInputProps {
   className?: string;
 }
 
-export default function DatePlaceholderInput({ onInsert, className }: DatePlaceholderInputProps) {
+export default function DatePlaceholderInput({
+  onInsert,
+  className,
+}: DatePlaceholderInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +84,11 @@ interface UsePlaceholderInput {
   inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>;
 }
 
-export const usePlaceholderInput = ({ value, setValue, inputRef }: UsePlaceholderInput) => {
+export const usePlaceholderInput = ({
+  value,
+  setValue,
+  inputRef,
+}: UsePlaceholderInput) => {
   const insertPlaceholderAtCursor = useCallback(
     (placeholder: string) => {
       const input = inputRef.current;
@@ -111,7 +119,8 @@ export const usePlaceholderInput = ({ value, setValue, inputRef }: UsePlaceholde
 export function validatePlaceholder(input: string): boolean {
   const placeholderCandidates = input.match(/\[.*?\]/g) || [];
 
-  const validPlaceholderRegex = /^\[(Day|Week|Month|Year|Week Year|Month Year)([+-]\d+)?\]$/;
+  const validPlaceholderRegex =
+    /^\[(Day|Week|Month|Year|Week Year|Month Year)([+-]\d+)?\]$/;
 
   for (const candidate of placeholderCandidates) {
     if (!validPlaceholderRegex.test(candidate)) {

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+
 import './Dropdown.scss';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCaretDown } from '@fortawesome/free-solid-svg-icons';
+
+import { useEffect, useRef, useState } from 'react';
 
 type Option = {
   value: string;
@@ -14,7 +15,11 @@ type DropdownProps = {
   onOptionSelected?: (option: Option) => void;
 };
 
-export default function Dropdown({ options, defaultLabel, onOptionSelected }: DropdownProps) {
+export default function Dropdown({
+  options,
+  defaultLabel,
+  onOptionSelected,
+}: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const [selectedOption, setSelectedOption] = useState({
@@ -33,7 +38,10 @@ export default function Dropdown({ options, defaultLabel, onOptionSelected }: Dr
   const dropdownRef = useRef(null);
 
   const handleOutsideClick = (event: MouseEvent) => {
-    if (dropdownRef.current && !event.composedPath().includes(dropdownRef.current)) {
+    if (
+      dropdownRef.current &&
+      !event.composedPath().includes(dropdownRef.current)
+    ) {
       setIsOpen(false);
     }
   };
@@ -55,11 +63,13 @@ export default function Dropdown({ options, defaultLabel, onOptionSelected }: Dr
         onClick={() => setIsOpen(!isOpen)}
       >
         {selectedOption.label}
-        <FontAwesomeIcon icon={faCaretDown} className="dropdown-select__icon" />
+        <ChevronDown className="dropdown-select__icon" />
       </div>
 
       {isOpen && (
-        <div className={`dropdown-options ${isOpen ? 'dropdown-options--open' : ''}`}>
+        <div
+          className={`dropdown-options ${isOpen ? 'dropdown-options--open' : ''}`}
+        >
           {options.map((option) => (
             <div
               className="dropdown-option"

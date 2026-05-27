@@ -1,5 +1,6 @@
-import { routes } from '@/shared/routes/routes';
-import { createTenantRoutes, flatRoutes } from '@/shared/routes/utils';
+import type { flatRoutes } from './registry';
+import type { routes } from './routes';
+import type { createTenantRoutes } from './utils';
 
 export type RouteMeta = {
   label?: string;
@@ -20,11 +21,12 @@ export type ExtractPathParams<Path extends string> =
       ? { [k in Param]: string }
       : {};
 
-export type HasCompanyId<Path extends string> = Path extends `${string}:companyId${string}`
-  ? true
-  : false; // Identify if a route expects companyId
+export type HasCompanyId<Path extends string> =
+  Path extends `${string}:companyId${string}` ? true : false; // Identify if a route expects companyId
 
-export type OmitCompanyId<T> = T extends { companyId: any } ? Omit<T, 'companyId'> : T; // Extract route params except companyId
+export type OmitCompanyId<T> = T extends { companyId: any }
+  ? Omit<T, 'companyId'>
+  : T; // Extract route params except companyId
 
 export type RouteLike = {
   staticPath: string;

@@ -1,9 +1,20 @@
-import { getCountryByCode } from './countries.model.js';
+import { getCountryByCode, getCountryById } from './countries.model.js';
 
-export async function getCountry(countryCode: string) {
+export async function getCountryFromCode(countryCode: string) {
   const result = await getCountryByCode(countryCode);
   if (!result.success || !result.data) {
-    throw new Error(`Failed to get currency by code ${countryCode}: ${result.message}`);
+    throw new Error(
+      `Failed to get currency by code ${countryCode}: ${result.message}`,
+    );
+  }
+
+  return result.data;
+}
+
+export async function getCountryFromId(id: string) {
+  const result = await getCountryById(id);
+  if (!result.success || !result.data) {
+    throw new Error(`Failed to get country by id ${id}: ${result.message}`);
   }
 
   return result.data;

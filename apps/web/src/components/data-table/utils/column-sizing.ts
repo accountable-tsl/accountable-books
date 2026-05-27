@@ -9,7 +9,12 @@ export function extractDefaultColumnSizes<TData>(
   const defaultSizing: Record<string, number> = {};
 
   columns.forEach((column) => {
-    if ('id' in column && column.id && 'size' in column && typeof column.size === 'number') {
+    if (
+      'id' in column &&
+      column.id &&
+      'size' in column &&
+      typeof column.size === 'number'
+    ) {
       defaultSizing[column.id] = column.size;
     } else if (
       'accessorKey' in column &&
@@ -64,7 +69,10 @@ export function initializeColumnSizes<TData>(
 /**
  * Track column resizing state in document body for styling purposes
  */
-export function trackColumnResizing(isResizing: boolean, attribute = 'data-resizing'): void {
+export function trackColumnResizing(
+  isResizing: boolean,
+  attribute = 'data-resizing',
+): void {
   if (isResizing) {
     document.body.setAttribute(attribute, 'true');
   } else {
@@ -87,8 +95,12 @@ export const getColumnStyle = ({
   explicitSize?: boolean;
 }) => {
   return {
-    flex: explicitSize ? 0 : 1,
-    ...(column ? { width: `calc(var(--col-${column.column.id}-size) * 1px)` } : {}),
-    ...(column ? { flexBasis: `calc(var(--col-${column.column.id}-size))` } : {}),
+    flex: explicitSize ? '0 0 auto' : '1 0 auto',
+    ...(column
+      ? { width: `calc(var(--col-${column.column.id}-size) * 1px)` }
+      : {}),
+    ...(column
+      ? { minWidth: `calc(var(--col-${column.column.id}-size) * 1px)` }
+      : {}),
   };
 };

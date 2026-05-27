@@ -1,24 +1,27 @@
-import type { Knex } from 'knex';
 import crypto from 'crypto';
+import type { Knex } from 'knex';
 import bcrypt from 'bcrypt';
+
+import { ENV, isProd } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { ENV, isProd } from '../config/env-loader';
+} from './utils/db.js';
 
 export async function createUser({
   user: input,
   trx,
 }: {
   user: {
+    id?: string;
     email: string;
     password: string;
     firstname: string;
     lastname?: string | null;
-    is_demo_user?: boolean;
-    onboarding_state?: any;
+    // is_demo_user?: boolean;
+    user_type?: 'regular' | 'demo' | 'system';
+    onboarding_state?: Record<string, unknown> | null;
     avatar_url?: string;
     email_verified_at: Date;
   };
@@ -32,7 +35,13 @@ export async function createUser({
 
   const existingUser = await trx(tableName)
     .where({ email: sanitizedEmail })
-    .select(['id', 'firstname', 'lastname', 'email', 'onboarding_state as onboardingState'])
+    .select([
+      'id',
+      'firstname',
+      'lastname',
+      'email',
+      'onboarding_state as onboardingState',
+    ])
     .first();
 
   if (existingUser) {
@@ -126,12 +135,41 @@ export const seedAdminUser = async (knex: Knex) => {
       user: adminUser,
       trx,
     });
+
     if (!result) {
       console.error(`Failed to create admin user`);
       throw new Error('Failed to create admin user');
     }
 
     console.log(`Successfully created admin user: ${email}`);
+    return result;
+  });
+};
+
+export const seedSystemUser = async (knex: Knex) => {
+  const systemUserEmail = 'system@getaccountable.com';
+
+  return knex.transaction(async (trx) => {
+    const result = await createUser({
+      user: {
+        id: '4324386b-1481-46f4-a63a-1d3ed515c2df',
+        firstname: 'System',
+        lastname: 'User',
+        email: systemUserEmail,
+        user_type: 'system',
+        password: await bcrypt.hash('system', 12),
+        email_verified_at: new Date(),
+        onboarding_state: completeOnbState,
+      },
+      trx,
+    });
+
+    if (!result) {
+      console.error(`Failed to create system user`);
+      throw new Error('Failed to create system user');
+    }
+
+    console.log(`Successfully created system user: ${systemUserEmail}`);
     return result;
   });
 };
@@ -156,7 +194,12 @@ export async function up(knex: Knex): Promise<void> {
     // .references("id")
     // .inTable("companies"); // Added foreign key after migrating companies talbe
 
-    table.boolean('is_demo_user').defaultTo(false);
+    // table.boolean('is_demo_user').defaultTo(false);
+    table
+      .string('user_type')
+      .checkIn(['demo', 'system', 'regular'])
+      .notNullable()
+      .defaultTo('regular');
 
     addStandardColumns(knex, table);
   });

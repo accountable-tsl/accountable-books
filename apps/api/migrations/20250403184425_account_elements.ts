@@ -1,12 +1,13 @@
 import type { Knex } from 'knex';
+
+import { isDev } from '../config/env-loader.js';
+import { accountElementIds, financialStatementIds } from './data/ids.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { accountElementIds, financialStatementIds } from './data/ids';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
 
 const parentAccountElements = [
   {
@@ -69,7 +70,8 @@ const childrenAccountElements = [
     default_side: 'debit',
     parent_id: accountElementIds.assets,
     financial_statement_id: financialStatementIds.bs,
-    description: 'Long-term assets such as property, equipment, investments, and intangibles',
+    description:
+      'Long-term assets such as property, equipment, investments, and intangibles',
     report_code: 'BS.ASS.NCA',
   },
   {
@@ -79,7 +81,8 @@ const childrenAccountElements = [
     default_side: 'credit',
     parent_id: accountElementIds.assets,
     financial_statement_id: financialStatementIds.bs,
-    description: 'Accounts that offset asset balances, such as accumulated depreciation',
+    description:
+      'Accounts that offset asset balances, such as accumulated depreciation',
     report_code: 'BS.ASS.CTR',
   },
   {
@@ -100,7 +103,8 @@ const childrenAccountElements = [
     default_side: 'credit',
     parent_id: accountElementIds.liabilities,
     financial_statement_id: financialStatementIds.bs,
-    description: 'Short-term liabilities like accounts payable, short-term debt',
+    description:
+      'Short-term liabilities like accounts payable, short-term debt',
     report_code: 'BS.LIA.CUR',
   },
   {
@@ -120,7 +124,8 @@ const childrenAccountElements = [
     default_side: 'debit',
     parent_id: accountElementIds.liabilities,
     financial_statement_id: financialStatementIds.bs,
-    description: 'Accounts that reduce the balance of a standard liability account',
+    description:
+      'Accounts that reduce the balance of a standard liability account',
     report_code: 'BS.LIA.CTR',
   },
   {
@@ -130,7 +135,8 @@ const childrenAccountElements = [
     default_side: 'credit',
     parent_id: accountElementIds.equity,
     financial_statement_id: financialStatementIds.bs,
-    description: 'Share capital, premium, APIC, other direct contributions from owners',
+    description:
+      'Share capital, premium, APIC, other direct contributions from owners',
     report_code: 'BS.EQU.CAP',
   },
   {
@@ -150,7 +156,8 @@ const childrenAccountElements = [
     default_side: 'credit',
     parent_id: accountElementIds.equity,
     financial_statement_id: financialStatementIds.bs,
-    description: 'Accumulated Other Comprehensive Income and other components of equity',
+    description:
+      'Accumulated Other Comprehensive Income and other components of equity',
     report_code: 'BS.EQU.OTH',
   },
   {
@@ -160,7 +167,8 @@ const childrenAccountElements = [
     default_side: 'credit',
     parent_id: accountElementIds.income,
     financial_statement_id: financialStatementIds.is,
-    description: 'Income from primary business activities, including sales and services',
+    description:
+      'Income from primary business activities, including sales and services',
     report_code: 'IS.INC.REV',
   },
   {
@@ -180,7 +188,8 @@ const childrenAccountElements = [
     default_side: 'debit',
     parent_id: accountElementIds.income,
     financial_statement_id: financialStatementIds.is,
-    description: 'Reductions to gross revenue like discounts, returns, and allowances',
+    description:
+      'Reductions to gross revenue like discounts, returns, and allowances',
     report_code: 'IS.INC.CTR',
   },
   {
@@ -215,7 +224,10 @@ const childrenAccountElements = [
   },
 ];
 
-const defaultAccountElements = [...parentAccountElements, ...childrenAccountElements];
+const defaultAccountElements = [
+  ...parentAccountElements,
+  ...childrenAccountElements,
+];
 
 const seedAccountElements = async function seed(knex: Knex): Promise<void> {
   await knex.transaction(async (trx) => {

@@ -1,16 +1,18 @@
-import { useCallback } from 'react';
 import type { Column } from '@tanstack/react-table';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { DataTableSliderFilter } from '@/components/data-table/filter-components/slider';
+import { useCallback } from 'react';
 import { DataTableDateFilter } from '@/components/data-table/filter-components/date';
 import { DataTableFacetedFilter } from '@/components/data-table/filter-components/faceted';
+import { DataTableSliderFilter } from '@/components/data-table/filter-components/slider';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 export interface DataTableToolbarFilterProps<TData> {
   column: Column<TData>;
 }
 
-export function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilterProps<TData>) {
+export function DataTableToolbarFilter<TData>({
+  column,
+}: DataTableToolbarFilterProps<TData>) {
   const columnMeta = column.columnDef.meta;
 
   const onFilterRender = useCallback(() => {
@@ -39,7 +41,7 @@ export function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilter
               className={cn('h-8 w-[120px]', columnMeta.unit && 'pr-8')}
             />
             {columnMeta.unit && (
-              <span className="absolute top-0 right-0 bottom-0 flex items-center rounded-r-md bg-accent px-2 text-muted-foreground text-sm">
+              <span className="bg-accent text-muted-foreground absolute top-0 right-0 bottom-0 flex items-center rounded-r-md px-2 text-sm">
                 {columnMeta.unit}
               </span>
             )}
@@ -47,7 +49,12 @@ export function DataTableToolbarFilter<TData>({ column }: DataTableToolbarFilter
         );
 
       case 'range':
-        return <DataTableSliderFilter column={column} title={columnMeta.label ?? column.id} />;
+        return (
+          <DataTableSliderFilter
+            column={column}
+            title={columnMeta.label ?? column.id}
+          />
+        );
 
       case 'date':
       case 'dateRange':

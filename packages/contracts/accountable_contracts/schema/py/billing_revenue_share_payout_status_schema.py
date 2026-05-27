@@ -1,0 +1,6 @@
+from enum import Enum
+
+class BillingRevenueSharePayoutStatusSchema(str, Enum):
+    MANUAL_PENDING = "manual_pending"
+    PAID = "paid"
+    NOT_APPLICABLE = "not_applicable"

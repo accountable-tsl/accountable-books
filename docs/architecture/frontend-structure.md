@@ -164,7 +164,8 @@ Tip (ESLint idea): Add rules to forbid deep imports and cross-layer violations w
 
 ```ts
 // modules/banking/accounts/model/hooks.ts (pure domain hook)
-export const useCreateBankAccount = () => useMutation({ mutationFn: createAccount });
+export const useCreateBankAccount = () =>
+  useMutation({ mutationFn: createAccount });
 
 // features/manage-accounts/model/use-account-management.ts (feature wrapper)
 export const useCreateAccountWithToast = () => {
@@ -235,8 +236,8 @@ pnpm -w add -D eslint-plugin-import eslint-plugin-boundaries
 Update `eslint.config.mjs` (Flat config) with layered boundaries and import hygiene. Enable after migration; until then, scope it to `apps/web/src` and optionally exclude `domains-pending-migration`.
 
 ```js
-import importPlugin from 'eslint-plugin-import';
 import boundaries from 'eslint-plugin-boundaries';
+import importPlugin from 'eslint-plugin-import';
 
 export default [
   // ...existing configs
@@ -281,8 +282,14 @@ export default [
         {
           patterns: [
             // Block deep imports into modules and features internals
-            { group: ['@/modules/*/*/*'], message: 'Use module barrels; avoid deep imports.' },
-            { group: ['@/features/*/*/*'], message: 'Use feature barrels; avoid deep imports.' },
+            {
+              group: ['@/modules/*/*/*'],
+              message: 'Use module barrels; avoid deep imports.',
+            },
+            {
+              group: ['@/features/*/*/*'],
+              message: 'Use feature barrels; avoid deep imports.',
+            },
           ],
         },
       ],
@@ -291,7 +298,13 @@ export default [
       'import/order': [
         'error',
         {
-          groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index'], 'type'],
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            ['parent', 'sibling', 'index'],
+            'type',
+          ],
           pathGroups: [
             { pattern: '@app/**', group: 'internal', position: 'before' },
             { pattern: '@pages/**', group: 'internal', position: 'before' },
@@ -351,11 +364,10 @@ Examples:
 
 ```ts
 // Feature importing domain hook via barrel
-import { useUploadBankTransactions } from '@modules/banking/transactions';
 
 // Page importing a feature entry
 import { ConnectBank } from '@features/connect-bank';
-
+import { useUploadBankTransactions } from '@modules/banking/transactions';
 // Module importing shared utility
 import { queryClient } from '@shared/lib/queryClient';
 

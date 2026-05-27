@@ -1,4 +1,5 @@
 import { faker } from '@faker-js/faker';
+
 import type { DemoContactData } from './contacts.data.js';
 
 /**
@@ -10,6 +11,8 @@ export function generateRandomContacts(count: number = 15): DemoContactData[] {
     email: faker.internet.email(),
     notes: faker.company.catchPhrase(),
     address: faker.location.streetAddress({ useFullAddress: true }),
-    status: faker.helpers.arrayElement(['active', 'inactive']) as 'active' | 'inactive',
+    status: faker.helpers.arrayElement(['active', 'inactive']) as
+      | 'active'
+      | 'inactive',
   }));
 }

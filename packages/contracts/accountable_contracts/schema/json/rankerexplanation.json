@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rankerExplanation",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "enum": ["history", "embedding_match", "semantic_intent"]
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "required": ["reason", "message"],
+  "additionalProperties": false
+}

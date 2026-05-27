@@ -74,10 +74,10 @@ Leave empty for development (emails will be logged to console):
 
 ### 📊 Optional: Analytics & Monitoring
 
-| Variable         | Description                 |
-| ---------------- | --------------------------- |
-| `MIXPANEL_TOKEN` | Mixpanel analytics token    |
-| `SENTRY_DSN`     | Sentry error monitoring DSN |
+| Variable          | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| `POSTHOG_API_KEY` | PostHog server-side analytics (see `POSTHOG_ENABLED`, `TELEMETRY_ENABLED`) |
+| `SENTRY_DSN`      | Sentry error monitoring DSN                                                |
 
 ### 🛠️ Development Features
 

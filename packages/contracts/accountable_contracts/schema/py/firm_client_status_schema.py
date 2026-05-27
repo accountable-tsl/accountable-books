@@ -1,0 +1,7 @@
+from enum import Enum
+
+class FirmClientStatusSchema(str, Enum):
+    HEALTHY = "healthy"
+    OVERDUE = "overdue"
+    NEED_ATTENTION = "need_attention"
+    NEW = "new"

@@ -1,10 +1,3 @@
-import {
-  BellIcon,
-  CreditCardIcon,
-  LogOutIcon,
-  MoreVerticalIcon,
-  UserCircleIcon,
-} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -21,7 +14,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { canViewWorkspaceBilling } from '@/features/settings/lib/billing-visibility';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
+import {
+  BellIcon,
+  CreditCardIcon,
+  LogOutIcon,
+  MoreVerticalIcon,
+  UserCircleIcon,
+} from 'lucide-react';
+import { Link } from 'react-router';
 
 export function NavUser({
   user,
@@ -32,10 +35,25 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const { logout } = useSession();
+  const {
+    logout,
+    companyId,
+    company,
+    companyType,
+    user: sessionUser,
+  } = useSession();
   const { isMobile } = useSidebar();
   const nameParts = user.name.split(' ');
-  const initials = nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
+  const initials =
+    nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0);
+  const showWorkspaceBilling =
+    !!companyId &&
+    canViewWorkspaceBilling({
+      companyType,
+      currentCompany: sessionUser?.currentCompany,
+      company,
+      isPlatformUser: sessionUser?.isPlatformUser,
+    });
 
   return (
     <SidebarMenu>
@@ -48,11 +66,15 @@ export function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{initials.toUpperCase()}</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {initials.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                <span className="text-muted-foreground truncate text-xs">
+                  {user.email}
+                </span>
               </div>
               <MoreVerticalIcon className="ml-auto size-4" />
             </SidebarMenuButton>
@@ -67,11 +89,15 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">{initials.toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {initials.toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                  <span className="text-muted-foreground truncate text-xs">
+                    {user.email}
+                  </span>
                 </div>
               </div>
             </DropdownMenuLabel>
@@ -81,10 +107,18 @@ export function NavUser({
                 <UserCircleIcon />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
+              {showWorkspaceBilling ? (
+                <DropdownMenuItem asChild>
+                  <Link
+                    to={routes.general.settings.billing.build({
+                      companyId: companyId!,
+                    })}
+                  >
+                    <CreditCardIcon />
+                    Billing
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem>
                 <BellIcon />
                 Notifications

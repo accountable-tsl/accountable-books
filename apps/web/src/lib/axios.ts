@@ -1,19 +1,24 @@
-import { isPublicRoute } from '@/shared/routes/utils';
-import axios, { type AxiosError, type AxiosRequestConfig } from 'axios';
+import type { AxiosError, AxiosRequestConfig } from 'axios';
 import { authStore, refreshToken } from '@/modules/auth';
+import { isPublicRoute } from '@/shared/routes';
+import axios from 'axios';
+
+import { getSessionCorrelationId } from './session-correlation';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
   withCredentials: true,
 });
 
-// Auto-attach CSRF token to requests
+// Auto-attach CSRF token and session correlation ID to requests
 api.interceptors.request.use((config) => {
   const csrfToken = authStore.getState().csrfToken;
 
   if (csrfToken) {
     config.headers['X-CSRF-Token'] = csrfToken;
   }
+
+  config.headers['X-Correlation-Id'] = getSessionCorrelationId();
 
   return config;
 });

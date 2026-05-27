@@ -6,6 +6,7 @@
  */
 
 import * as crypto from 'crypto';
+
 import type { Environment, EnvSchema, EnvVariableConfig } from './types.js';
 
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -13,14 +14,22 @@ const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 /**
  * Convert real values to example placeholders for .env.example files
  */
-function convertToExampleValue(key: string, value: string, config: EnvVariableConfig): string {
+function convertToExampleValue(
+  key: string,
+  value: string,
+  config: EnvVariableConfig,
+): string {
   // For secrets, always use placeholder
   if (config.type === 'secret') {
     return `your_${key.toLowerCase()}_here`;
   }
 
   // For UUIDs (like platform company IDs), use example UUID
-  if (value.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+  if (
+    value.match(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+  ) {
     return '00000000-0000-0000-0000-000000000000';
   }
 
@@ -46,7 +55,11 @@ function convertToExampleValue(key: string, value: string, config: EnvVariableCo
 /**
  * Generate a secure random secret for the given environment
  */
-function generateSecret(key: string, environment: Environment, minLength = 32): string {
+function generateSecret(
+  key: string,
+  environment: Environment,
+  minLength = 32,
+): string {
   const prefix = `${environment}-${key.toLowerCase().replace(/_/g, '-')}`;
   const randomSuffix = crypto.randomBytes(16).toString('hex');
   const secret = `${prefix}-${randomSuffix}`;
@@ -106,10 +119,20 @@ export function resolveValue(
 /**
  * Validate a resolved value against its configuration
  */
-export function validateValue(key: string, value: string, config: EnvVariableConfig): boolean {
+export function validateValue(
+  key: string,
+  value: string,
+  config: EnvVariableConfig,
+): boolean {
   // Check minimum length for secrets
-  if (config.type === 'secret' && config.minLength && value.length < config.minLength) {
-    throw new Error(`${key} must be at least ${config.minLength} characters long`);
+  if (
+    config.type === 'secret' &&
+    config.minLength &&
+    value.length < config.minLength
+  ) {
+    throw new Error(
+      `${key} must be at least ${config.minLength} characters long`,
+    );
   }
 
   // Check custom validation
@@ -223,15 +246,26 @@ export function generateEnvFile(
 
   // Add header comment if we have content
   if (includeComments) {
-    const title = fileType === 'secrets' ? 'Secrets Configuration' : 'Environment Configuration';
-    lines.push(`# =============================================================================`);
+    const title =
+      fileType === 'secrets'
+        ? 'Secrets Configuration'
+        : 'Environment Configuration';
+    lines.push(
+      `# =============================================================================`,
+    );
     lines.push(`# ${title} - ${environment.toUpperCase()}`);
-    lines.push(`# =============================================================================`);
+    lines.push(
+      `# =============================================================================`,
+    );
     if (fileType === 'secrets') {
-      lines.push(`# Fill in the actual secret values for ${environment} deployment`);
+      lines.push(
+        `# Fill in the actual secret values for ${environment} deployment`,
+      );
       lines.push(`# This file should NEVER be committed to version control`);
     } else {
-      lines.push(`# Auto-generated from environment schema. Do not edit manually.`);
+      lines.push(
+        `# Auto-generated from environment schema. Do not edit manually.`,
+      );
       lines.push(`# Run 'pnpm run generate-env' to regenerate this file.`);
     }
     lines.push(``);

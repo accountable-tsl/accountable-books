@@ -1,6 +1,4 @@
 import * as React from 'react';
-import { ChevronsUpDown, Plus } from 'lucide-react';
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +14,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { ChevronsUpDown, Plus } from 'lucide-react';
 
 export function CompanySwitcher({
   teams,
@@ -58,7 +57,9 @@ export function CompanySwitcher({
             side={isMobile ? 'bottom' : 'right'}
             sideOffset={4}
           >
-            <DropdownMenuLabel className="text-muted-foreground text-xs">Teams</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-muted-foreground text-xs">
+              Teams
+            </DropdownMenuLabel>
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}

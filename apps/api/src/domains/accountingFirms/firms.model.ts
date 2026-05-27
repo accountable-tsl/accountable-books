@@ -1,21 +1,38 @@
 import type { Knex } from 'knex';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import {
-  type AccFirmCamelResponse,
-  type AccFirmWithId,
-  type NewAccFirm,
-  newAccFirm,
-} from './firms.types.js';
-import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { redis } from '../../lib/redis.js';
-import { firmSlugRedisKey, isReservedSlug, isValidSlug } from './firms.utils.js';
-import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import z from 'zod';
 
-export const resolveFirm = async (trx: Knex.Transaction, firmId?: string): Promise<string> => {
+import { knexClient } from '../../db/knexClient.js';
+import { redis } from '../../lib/redis.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { isPlatformWorkspace } from '../companies/workspace-class.js';
+import { newAccFirm } from './firms.types.js';
+import {
+  firmSlugRedisKey,
+  isReservedSlug,
+  isValidSlug,
+} from './firms.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  AccFirmCamelResponse,
+  AccFirmWithId,
+  NewAccFirm,
+} from './firms.types.js';
+
+export const resolveFirm = async (
+  trx: Knex.Transaction,
+  firmId?: string,
+): Promise<string> => {
   if (firmId) {
-    const [verifyFirm] = await trx('accounting_firms_meta').where('id', firmId).select('id');
+    const [verifyFirm] = await trx('accounting_firms_meta')
+      .where('id', firmId)
+      .select('id');
 
     if (verifyFirm) {
       return verifyFirm.id;
@@ -24,7 +41,7 @@ export const resolveFirm = async (trx: Knex.Transaction, firmId?: string): Promi
 
   const platformFirm = await trx('accounting_firms_meta as af')
     .join('companies as c', 'af.company_id', 'c.id')
-    .where('c.is_platform', true)
+    .where('c.workspace_class', 'platform')
     .select('af.id');
 
   if (!platformFirm || platformFirm.length > 1) {
@@ -40,12 +57,23 @@ export const createAccountingFirm = async (
   const validatedInput = newAccFirm.safeParse(input);
 
   if (!validatedInput.success) {
-    return errorResponse('Invalid input', validatedInput.error.flatten());
+    return errorResponse('Invalid input', z.flattenError(validatedInput.error));
   }
   const { data } = validatedInput;
 
+  if (data.slug) {
+    if (!isValidSlug(data.slug)) {
+      return errorResponse('Invalid slug format');
+    }
+    if (isReservedSlug(data.slug)) {
+      return errorResponse('Slug is reserved');
+    }
+  }
+
   try {
-    const [newFirm] = await knexTrx('accounting_firms_meta').insert(data).returning('*');
+    const [newFirm] = await knexTrx('accounting_firms_meta')
+      .insert(data)
+      .returning('*');
 
     if (!newFirm) return errorResponse('Failed to create firm');
     const { company_id: id, ...rest } = newFirm;
@@ -86,7 +114,8 @@ const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 export const checkSlugAvailability = async (
   slug: string,
 ): Promise<ApiResponse<{ isAvailable: boolean }>> => {
-  if (!slug || typeof slug !== 'string') return errorResponse('Missing or invalid slug');
+  if (!slug || typeof slug !== 'string')
+    return errorResponse('Missing or invalid slug');
 
   if (!isValidSlug(slug)) return errorResponse('Invalid slug format');
   if (isReservedSlug(slug)) return errorResponse('Slug is reserved');
@@ -96,10 +125,13 @@ export const checkSlugAvailability = async (
     const redisKey = `slug:taken:${slug}`;
     const isTaken = await redis.get(redisKey);
 
-    if (isTaken) return successResponse('Slug is already taken', { isAvailable: false });
+    if (isTaken)
+      return successResponse('Slug is already taken', { isAvailable: false });
 
     // Check database
-    const existingSlug = await knexClient('accounting_firms_meta').where({ slug }).first();
+    const existingSlug = await knexClient('accounting_firms_meta')
+      .where({ slug })
+      .first();
 
     if (existingSlug) {
       // Cache that this slug is taken
@@ -159,7 +191,7 @@ export const updateFirm = async (
       });
     }
 
-    if (company.is_platform) {
+    if (isPlatformWorkspace(company.workspace_class)) {
       return errorResponse('Cannot update', null, {
         code: ErrorCode.FORBIDDEN,
       });
@@ -221,7 +253,11 @@ export const getCompanySlug = async (
 
     // Query with proper joins
     const result = await knexClient('companies')
-      .join('accounting_firms_meta', 'companies.assigned_firm_id', 'accounting_firms_meta.id')
+      .join(
+        'accounting_firms_meta',
+        'companies.assigned_firm_id',
+        'accounting_firms_meta.id',
+      )
       .where('companies.id', companyUUID)
       .select('accounting_firms_meta.slug')
       .first();
@@ -250,7 +286,10 @@ export const checkSlugForCompany = async ({
 }): Promise<ApiResponse<{ isAvailable: boolean; isCurrent: boolean }>> => {
   // First check if slug is available
   const availabilityCheck = await checkSlugAvailability(slug);
-  if (!availabilityCheck.success && availabilityCheck.message !== 'Slug is already taken') {
+  if (
+    !availabilityCheck.success &&
+    availabilityCheck.message !== 'Slug is already taken'
+  ) {
     // Return validation errors (invalid format, reserved, etc.)
     return errorResponse(availabilityCheck.message || 'Slug validation failed');
   }
@@ -260,7 +299,9 @@ export const checkSlugForCompany = async ({
   // Then check if it's the company's current slug
   const companySlugResult = await getCompanySlug(companyId);
   if (!companySlugResult.success) {
-    return errorResponse(companySlugResult.message || 'Failed to get company slug');
+    return errorResponse(
+      companySlugResult.message || 'Failed to get company slug',
+    );
   }
 
   const isCurrent = companySlugResult.data?.slug === slug;

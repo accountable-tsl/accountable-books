@@ -1,7 +1,12 @@
-import { z } from 'zod';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import type { Knex } from 'knex';
+import { z } from 'zod';
+
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 const purposes = {
   signup: {

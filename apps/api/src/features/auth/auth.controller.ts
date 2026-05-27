@@ -1,16 +1,29 @@
 import { type Request, type Response } from 'express';
 import {
+  authSessionPayload,
+  refreshSessionPayload,
+} from '@accountable-books/contracts/schema';
+
+import { ENV, isProd } from '../../config/env.js';
+import { redis } from '../../lib/redis.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import {
   loginService,
   meService,
   refreshTokenService,
   resendVerificationEmailService,
   verifyEmailService,
 } from './auth.service.js';
-import { ErrorCode, errorResponse, successResponse } from '../../shared/utils/response.utils.js';
 import { type AuthRequest } from './auth.types.js';
-import { clearCsrfCookie, generateCsrfToken, setAuthCookies } from './auth.utils.js';
-import { redis } from '../../lib/redis.js';
-import { ENV, isProd } from '../../config/env.js';
+import {
+  clearCsrfCookie,
+  generateCsrfToken,
+  setAuthCookies,
+} from './auth.utils.js';
 
 export async function loginController(req: AuthRequest, res: Response) {
   try {
@@ -35,13 +48,12 @@ export async function loginController(req: AuthRequest, res: Response) {
     req.company = rest.activeCompany;
     req.user = rest.user;
     const csrfToken = generateCsrfToken(req, res);
+    const payload = authSessionPayload.parse({
+      user: rest.user,
+      csrfToken,
+    });
 
-    return res.json(
-      successResponse('User logged in successfully', {
-        user: rest.user,
-        csrfToken,
-      }),
-    );
+    return res.json(successResponse('User logged in successfully', payload));
   } catch (error) {
     return res.status(500).json(errorResponse('Something went wrong', error));
   }
@@ -65,15 +77,18 @@ export async function refreshTokenController(req: AuthRequest, res: Response) {
     if (!result.success || !result.data) {
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      return res.status(403).json(errorResponse('Refresh token validation failed', result));
+      return res
+        .status(403)
+        .json(errorResponse('Refresh token validation failed', result));
     }
 
     const { accessToken, refreshToken: newRefreshToken } = result.data;
 
     setAuthCookies(req, res, accessToken, newRefreshToken);
     const csrfToken = generateCsrfToken(req, res);
+    const payload = refreshSessionPayload.parse({ csrfToken });
 
-    return res.json(successResponse('Tokens refreshed', { csrfToken }));
+    return res.json(successResponse('Tokens refreshed', payload));
   } catch (error) {
     res.clearCookie('accessToken');
     res.clearCookie('refreshToken');
@@ -125,7 +140,9 @@ export async function meController(req: AuthRequest, res: Response) {
         : context?.code === ErrorCode.GENERIC
           ? 500
           : 403;
-    return res.status(status).json(errorResponse(context.message, context.data || undefined));
+    return res
+      .status(status)
+      .json(errorResponse(context.message, context.data || undefined));
   }
 
   const { user, activeCompany } = context.data;
@@ -133,13 +150,14 @@ export async function meController(req: AuthRequest, res: Response) {
   // I want to attach company data to req.company but not return it in the response
   req.company = activeCompany;
   req.user = user;
+  const payload = authSessionPayload.parse({
+    user,
+    csrfToken: generateCsrfToken(req, res),
+  });
 
-  return res.status(200).json(
-    successResponse('User retrieved successfully', {
-      user: user,
-      csrfToken: generateCsrfToken(req, res),
-    }),
-  );
+  return res
+    .status(200)
+    .json(successResponse('User retrieved successfully', payload));
 }
 
 export async function verifyEmailController(req: Request, res: Response) {
@@ -160,7 +178,9 @@ export async function verifyEmailController(req: Request, res: Response) {
       userId: String(userId),
     });
 
-    return result.success ? res.status(200).json(result) : res.status(400).json(result);
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
   } catch (error) {
     return res.status(500).json(
       errorResponse('Something went wrong', {
@@ -171,7 +191,10 @@ export async function verifyEmailController(req: Request, res: Response) {
   }
 }
 
-export async function resendVerEmailController(req: AuthRequest, res: Response) {
+export async function resendVerEmailController(
+  req: AuthRequest,
+  res: Response,
+) {
   const userId = String(req.body.userId);
   if (!userId) {
     return res.status(400).json(errorResponse('User email or id is required'));

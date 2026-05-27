@@ -1,0 +1,1053 @@
+{
+  "version": "1.0.0",
+  "patterns": [
+    {
+      "name": "Uber Technologies Inc.",
+      "patterns": ["\\bUBER\\b", "\\bUBER\\s*\\*", "\\bUBER\\s+EATS\\b"],
+      "countries": ["global"],
+      "category_hints": ["Travel & Transportation", "Meals & Entertainment"]
+    },
+    {
+      "name": "Lyft Inc.",
+      "patterns": ["\\bLYFT\\b", "\\bLYFT\\s*RIDE\\b"],
+      "countries": ["global"],
+      "category_hints": ["Travel & Transportation", "Meals & Entertainment"]
+    },
+    {
+      "name": "DoorDash Inc.",
+      "patterns": ["\\bDOORDASH\\b", "\\bDOOR\\s+DASH\\b"],
+      "countries": ["us"],
+      "category_hints": ["Meals & Entertainment", "Delivery Services"]
+    },
+    {
+      "name": "Airbnb, Inc.",
+      "patterns": ["\\bAIRBNB\\b", "\\bAIR\\s*B\\s*N\\s*B\\b"],
+      "countries": ["global"],
+      "category_hints": ["Travel & Transportation", "Lodging"]
+    },
+    {
+      "name": "Maplebear Inc. (Instacart)",
+      "patterns": ["\\bINSTACART\\b", "\\bMAPLEBEAR\\b"],
+      "countries": ["us"],
+      "category_hints": ["Meals & Entertainment", "Delivery Services"]
+    },
+    {
+      "name": "Amazon Web Services",
+      "patterns": [
+        "\\bAMAZON\\s+WEB\\s+SERVICES\\b",
+        "\\bAMZN\\s+WEB\\s+SERVICES\\b",
+        "\\bAMZN\\s*AWS\\b",
+        "\\bAWS\\s+(?:EMEA|EU|EUROPE|BILL(?:ING)?|CHARGES?|CLOUD)\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Infrastructure",
+        "Cloud Computing",
+        "Infrastructure as a Service"
+      ]
+    },
+    {
+      "name": "Google Cloud Platform",
+      "patterns": [
+        "\\bGOOGLE\\s+CLOUD\\s+PLATFORM\\b",
+        "\\bGOOGLE\\s+CLOUD\\s+(?:BILLING|SERVICES)\\b",
+        "\\bGCP\\s+(?:BILLING|SERVICES)\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Infrastructure",
+        "Cloud Computing",
+        "Platform Services"
+      ]
+    },
+    {
+      "name": "Microsoft Azure",
+      "patterns": [
+        "\\bMICROSOFT\\s+AZURE\\b",
+        "\\bMSFT\\s+AZURE\\b",
+        "\\bAZURE\\s+(?:SUBSCRIPTIONS?|PLAN|BILLING|CONSUMPTION)\\b",
+        "\\bMICROSOFT\\s+AZURE\\s+(?:BILLING|SERVICES)\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Infrastructure",
+        "Cloud Computing",
+        "Enterprise Cloud"
+      ]
+    },
+    {
+      "name": "Google Workspace",
+      "patterns": [
+        "\\bGOOGLE\\s+WORKSPACE\\b",
+        "\\bGOOGLE\\s+WORKSPACE\\s+(?:BILLING|SUBSCRIPTIONS?)\\b",
+        "\\bGOOGLE\\s+APPS\\b",
+        "\\bG\\s*SUITE\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Productivity Software",
+        "Subscriptions",
+        "Business Email",
+        "Productivity Suite"
+      ]
+    },
+    {
+      "name": "Microsoft 365",
+      "patterns": [
+        "\\bMICROSOFT\\s*365\\b",
+        "\\bOFFICE\\s*365\\b",
+        "\\bMSFT\\s*365\\b",
+        "\\bMICROSOFT\\s+365\\s+(?:BUSINESS|SUBSCRIPTIONS?)\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Productivity Software",
+        "Subscriptions",
+        "Office Suite",
+        "Business Productivity"
+      ]
+    },
+    {
+      "name": "Stripe Inc.",
+      "patterns": [
+        "\\bSTRIPE\\s*\\*",
+        "\\bSTRIPE\\s+PAYMENTS?\\b",
+        "\\bSTRIPE\\s+(?:BILLING|INTERNET)\\b",
+        "\\bSTRIPE\\.COM\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Payment Processing",
+        "Software & Technology",
+        "Online Payments",
+        "Payment Gateway"
+      ]
+    },
+    {
+      "name": "Block Inc. (Square)",
+      "patterns": [
+        "\\bSQ\\s*\\*",
+        "\\bSQUARE\\s*\\*",
+        "\\bSQUAREUP(?:\\.COM)?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": ["Payment Processing", "POS Systems"]
+    },
+    {
+      "name": "PayPal Holdings Inc.",
+      "patterns": [
+        "\\bPAYPAL\\s*\\*",
+        "\\bPAYPAL\\s+(?:PTE|ECOM|PAYMENTS?|BILLING)\\b",
+        "\\bPAYPAL\\s+HOLDINGS?\\b",
+        "\\bPP\\s*\\*PAYPAL\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Payment Processing",
+        "Financial Services",
+        "Digital Wallet",
+        "Online Payments"
+      ]
+    },
+    {
+      "name": "Adyen N.V.",
+      "patterns": ["\\bADYEN\\b"],
+      "countries": ["global"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Shopify Inc.",
+      "patterns": [
+        "\\bSHOPIFY\\s*\\*",
+        "\\bSHOPIFY\\.COM\\b",
+        "\\bSHOPIFY\\s+PAYMENTS?\\b",
+        "\\bSHOPIFY\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "E-commerce Platform",
+        "Subscriptions",
+        "Commerce Platform",
+        "Online Storefront"
+      ]
+    },
+    {
+      "name": "GitHub Inc.",
+      "patterns": [
+        "\\bGITHUB\\s*\\*",
+        "\\bGITHUB\\.COM\\b",
+        "\\bGITHUB\\s+MARKETPLACE\\b",
+        "\\bGITHUB\\s+BILLING\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Software & Technology",
+        "Subscriptions",
+        "Developer Tools",
+        "Version Control"
+      ]
+    },
+    {
+      "name": "GitLab Inc.",
+      "patterns": [
+        "\\bGITLAB\\s*\\*",
+        "\\bGITLAB\\.COM\\b",
+        "\\bGITLAB\\s+SUBSCRIPTIONS?\\b",
+        "\\bGITLAB\\s+PLAN\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Software & Technology",
+        "DevOps",
+        "Developer Tools",
+        "DevOps Platform"
+      ]
+    },
+    {
+      "name": "DigitalOcean LLC",
+      "patterns": [
+        "\\bDIGITALOCEAN\\s*\\*",
+        "\\bDIGITALOCEAN\\.COM\\b",
+        "\\bDIGITAL\\s+OCEAN\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Cloud Hosting",
+        "Infrastructure"
+      ]
+    },
+    {
+      "name": "Heroku Inc.",
+      "patterns": [
+        "\\bHEROKU\\s*\\*",
+        "\\bHEROKU\\.COM\\b",
+        "\\bHEROKU\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Platform as a Service",
+        "Developer Tools"
+      ]
+    },
+    {
+      "name": "Vercel Inc.",
+      "patterns": [
+        "\\bVERCEL\\s*\\*",
+        "\\bVERCEL\\.COM\\b",
+        "\\bZEIT\\s+NOW\\b",
+        "\\bVERCEL\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Services",
+        "Software & Technology",
+        "Web Hosting",
+        "Hosting Platform",
+        "Developer Tools"
+      ]
+    },
+    {
+      "name": "Cloudflare Inc.",
+      "patterns": [
+        "\\bCLOUDFLARE\\s*\\*",
+        "\\bCLOUDFLARE\\.COM\\b",
+        "\\bCLOUDFLARE\\s+BILLING\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Security",
+        "Infrastructure",
+        "Software & Technology",
+        "Content Delivery Network"
+      ]
+    },
+    {
+      "name": "Twilio Inc.",
+      "patterns": [
+        "\\bTWILIO\\s*\\*",
+        "\\bTWILIO\\.COM\\b",
+        "\\bTWILIO\\s+COMMUNICATIONS\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Communications API",
+        "Software & Technology",
+        "Messaging Services"
+      ]
+    },
+    {
+      "name": "SendGrid Inc.",
+      "patterns": [
+        "\\bSENDGRID\\s*\\*",
+        "\\bSENDGRID\\.COM\\b",
+        "\\bTWILIO\\s+SENDGRID\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Email Services",
+        "Software & Technology",
+        "Marketing Automation"
+      ]
+    },
+    {
+      "name": "Mailchimp LLC",
+      "patterns": [
+        "\\bMAILCHIMP\\s*\\*",
+        "\\bMAILCHIMP\\.COM\\b",
+        "\\bINTUIT\\s+MAILCHIMP\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Marketing Software",
+        "Subscriptions",
+        "Email Marketing",
+        "Marketing Automation"
+      ]
+    },
+    {
+      "name": "HubSpot Inc.",
+      "patterns": [
+        "\\bHUBSPOT\\s*\\*",
+        "\\bHUBSPOT\\.COM\\b",
+        "\\bHUBSPOT\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": ["Marketing Software", "CRM", "Marketing Automation"]
+    },
+    {
+      "name": "Salesforce Inc.",
+      "patterns": [
+        "\\bSALESFORCE\\s*\\*",
+        "\\bSALESFORCE\\.COM\\b",
+        "\\bSFDC\\s+BILLING\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": ["CRM", "Software & Technology", "Enterprise Software"]
+    },
+    {
+      "name": "Zendesk Inc.",
+      "patterns": [
+        "\\bZENDESK\\s*\\*",
+        "\\bZENDESK\\.COM\\b",
+        "\\bZENDESK\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Customer Support",
+        "Software & Technology",
+        "Help Desk Software"
+      ]
+    },
+    {
+      "name": "Intercom Inc.",
+      "patterns": [
+        "\\bINTERCOM\\s*\\*",
+        "\\bINTERCOM\\.IO\\b",
+        "\\bINTERCOM\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Customer Support",
+        "Marketing Software",
+        "Conversational Messaging"
+      ]
+    },
+    {
+      "name": "Slack Technologies LLC",
+      "patterns": [
+        "\\bSLACK\\s*\\*",
+        "\\bSLACK\\s+TECH(?:NOLOGIES)?\\b",
+        "\\bSLACK\\.COM\\b",
+        "\\bSLACK\\s+BILLING\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Software & Technology",
+        "Subscriptions",
+        "Collaboration Tools",
+        "Team Communication",
+        "Messaging Platform"
+      ]
+    },
+    {
+      "name": "Zoom Video Communications",
+      "patterns": [
+        "\\bZOOM\\.US\\b",
+        "\\bZOOM\\s+VIDEO\\s+COMMUNICATIONS\\b",
+        "\\bZOOM\\s*\\*",
+        "\\bZOOM\\s+MEETINGS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Software & Technology",
+        "Subscriptions",
+        "Video Conferencing",
+        "Video Meetings",
+        "Remote Collaboration"
+      ]
+    },
+    {
+      "name": "Dropbox Inc.",
+      "patterns": [
+        "\\bDROPBOX\\s*\\*",
+        "\\bDROPBOX\\.COM\\b",
+        "\\bDROPBOX\\s+BILLING\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Cloud Storage",
+        "Software & Technology",
+        "File Storage",
+        "File Sharing"
+      ]
+    },
+    {
+      "name": "Figma Inc.",
+      "patterns": [
+        "\\bFIGMA\\s*\\*",
+        "\\bFIGMA\\.COM\\b",
+        "\\bFIGMA\\s+DESIGN\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Design Software",
+        "Subscriptions",
+        "Design Collaboration",
+        "Product Design"
+      ]
+    },
+    {
+      "name": "Adobe Inc.",
+      "patterns": [
+        "\\bADOBE\\s*\\*",
+        "\\bADOBE\\.COM\\b",
+        "\\bADOBE\\s+SYSTEMS\\b",
+        "\\bADOBE\\s+SUBSCRIPTIONS?\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": ["Creative Software", "Subscriptions", "Design Tools"]
+    },
+    {
+      "name": "Canva Pty Ltd",
+      "patterns": [
+        "\\bCANVA\\s*\\*",
+        "\\bCANVA\\.COM\\b",
+        "\\bCANVA\\s+PTY\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Design Software",
+        "Subscriptions",
+        "Graphic Design",
+        "Marketing Content"
+      ]
+    },
+    {
+      "name": "Notion Labs Inc.",
+      "patterns": [
+        "\\bNOTION\\s*\\*",
+        "\\bNOTION\\.SO\\b",
+        "\\bNOTION\\s+LABS\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": [
+        "Productivity Software",
+        "Subscriptions",
+        "Knowledge Management",
+        "Project Management"
+      ]
+    },
+    {
+      "name": "PagerDuty Inc.",
+      "patterns": ["\\bPAGERDUTY\\b"],
+      "countries": ["global"],
+      "category_hints": ["Monitoring & Alerting", "Software & Technology"]
+    },
+    {
+      "name": "Amplitude, Inc.",
+      "patterns": ["\\bAMPLITUDE\\b"],
+      "countries": ["global"],
+      "category_hints": ["Product Analytics", "Software & Technology"]
+    },
+    {
+      "name": "Algolia Inc.",
+      "patterns": ["\\bALGOLIA\\b"],
+      "countries": ["global"],
+      "category_hints": ["Search-as-a-Service", "Software & Technology"]
+    },
+    {
+      "name": "Fivetran Inc.",
+      "patterns": ["\\bFIVETRAN\\b"],
+      "countries": ["global"],
+      "category_hints": ["Data Integration", "Software & Technology"]
+    },
+    {
+      "name": "Optimizely Inc.",
+      "patterns": ["\\bOPTIMIZELY\\b"],
+      "countries": ["global"],
+      "category_hints": ["Experimentation", "Software & Technology"]
+    },
+    {
+      "name": "PlanGrid, Inc.",
+      "patterns": ["\\bPLANGRID\\b"],
+      "countries": ["global"],
+      "category_hints": ["Construction Software", "Project Management"]
+    },
+    {
+      "name": "Benchling Inc.",
+      "patterns": ["\\bBENCHLING\\b"],
+      "countries": ["global"],
+      "category_hints": ["Life Sciences Software", "R&D Tools"]
+    },
+    {
+      "name": "Checkr, Inc.",
+      "patterns": ["\\bCHECKR\\b"],
+      "countries": ["us"],
+      "category_hints": ["Background Screening", "HR & Benefits"]
+    },
+    {
+      "name": "HelloSign Inc.",
+      "patterns": ["\\bHELLOSIGN\\b"],
+      "countries": ["global"],
+      "category_hints": ["E-signature", "Document Management"]
+    },
+    {
+      "name": "Atlassian Corporation",
+      "patterns": [
+        "\\bATLASSIAN\\b|\\bJIRA\\b|\\bCONFLUENCE\\b|\\bBITBUCKET\\b|\\bTRELLO\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": ["Project Management", "Software & Technology"]
+    },
+    {
+      "name": "Asana Inc.",
+      "patterns": ["\\bASANA\\b"],
+      "countries": ["global"],
+      "category_hints": ["Project Management", "Subscriptions"]
+    },
+    {
+      "name": "Monday.com Ltd.",
+      "patterns": ["\\bMONDAY\\.COM\\b|\\bMONDAY\\s+DOT\\s+COM\\b"],
+      "countries": ["global"],
+      "category_hints": ["Project Management", "Subscriptions"]
+    },
+    {
+      "name": "Smartsheet Inc.",
+      "patterns": ["\\bSMARTSHEET\\b"],
+      "countries": ["global"],
+      "category_hints": ["Project Management", "Productivity Software"]
+    },
+    {
+      "name": "Formagrid Inc. (Airtable)",
+      "patterns": ["\\bAIRTABLE\\b"],
+      "countries": ["global"],
+      "category_hints": ["Productivity Software", "Database Tools"]
+    },
+    {
+      "name": "RealtimeBoard Inc. (Miro)",
+      "patterns": ["\\bMIRO\\b"],
+      "countries": ["global"],
+      "category_hints": ["Design Software", "Collaboration Tools"]
+    },
+    {
+      "name": "LinkedIn Corporation",
+      "patterns": ["\\bLINKEDIN\\b"],
+      "countries": ["global"],
+      "category_hints": ["Advertising", "Recruitment"]
+    },
+    {
+      "name": "Google LLC",
+      "patterns": ["\\bGOOGLE\\s+ADS\\b|\\bGOOGLE\\s+ADWORDS\\b"],
+      "countries": ["global"],
+      "category_hints": ["Advertising", "Marketing"]
+    },
+    {
+      "name": "Meta Platforms Inc.",
+      "patterns": [
+        "\\bFACEBOOK\\s+ADS\\b|\\bMETA\\s+ADS\\b|\\bMETA\\s+PAYMENTS\\b"
+      ],
+      "countries": ["global"],
+      "category_hints": ["Advertising", "Marketing"]
+    },
+    {
+      "name": "Intuit QuickBooks",
+      "patterns": ["\\bQUICKBOOKS\\b"],
+      "countries": ["global"],
+      "category_hints": ["Accounting Software", "Subscriptions"]
+    },
+    {
+      "name": "Xero Limited",
+      "patterns": ["\\bXERO\\b"],
+      "countries": ["global"],
+      "category_hints": ["Accounting Software", "Subscriptions"]
+    },
+    {
+      "name": "Oracle NetSuite",
+      "patterns": ["\\bNETSUITE\\b|\\bORACLE\\s+NETSUITE\\b"],
+      "countries": ["global"],
+      "category_hints": ["ERP", "Accounting Software"]
+    },
+    {
+      "name": "SAP Concur",
+      "patterns": ["\\bSAP\\s+CONCUR\\b|\\bCONCUR\\b"],
+      "countries": ["global"],
+      "category_hints": ["Travel & Transportation", "Expense Management"]
+    },
+    {
+      "name": "Expensify Inc.",
+      "patterns": ["\\bEXPENSIFY\\b"],
+      "countries": ["global"],
+      "category_hints": ["Expense Management", "Software & Technology"]
+    },
+    {
+      "name": "Bill.com LLC",
+      "patterns": ["\\bBILL\\.COM\\b"],
+      "countries": ["global"],
+      "category_hints": ["Payment Processing", "Accounting Software"]
+    },
+    {
+      "name": "Rippling, Inc.",
+      "patterns": ["\\bRIPPLING\\b"],
+      "countries": ["global"],
+      "category_hints": ["HR & Benefits", "Payroll Services"]
+    },
+    {
+      "name": "Gusto Inc.",
+      "patterns": ["\\bGUSTO\\b"],
+      "countries": ["us"],
+      "category_hints": ["Payroll Services", "HR & Benefits"]
+    },
+    {
+      "name": "Automatic Data Processing, Inc.",
+      "patterns": [
+        "\\bADP\\s+(?:PAYROLL|FEES|RUN)\\b|\\bAUTOMATIC\\s+DATA\\s+PROCESSING\\b"
+      ],
+      "countries": ["us"],
+      "category_hints": ["Payroll Services", "HR & Benefits"]
+    },
+    {
+      "name": "Paychex Inc.",
+      "patterns": ["\\bPAYCHEX\\b"],
+      "countries": ["us"],
+      "category_hints": ["Payroll Services", "HR & Benefits"]
+    },
+    {
+      "name": "Deel Inc.",
+      "patterns": ["\\bDEEL\\b"],
+      "countries": ["global"],
+      "category_hints": ["Payroll Services", "HR & Benefits"]
+    },
+    {
+      "name": "Wise Payments Limited",
+      "patterns": ["\\bWISE\\b|\\bTRANSFERWISE\\b"],
+      "countries": ["global"],
+      "category_hints": ["International Payments", "Financial Services"]
+    },
+    {
+      "name": "Coinbase Global, Inc.",
+      "patterns": ["\\bCOINBASE\\b|\\bCOINBASE\\s*\\*"],
+      "countries": ["global"],
+      "category_hints": ["Crypto Services", "Financial Services"]
+    },
+    {
+      "name": "Brex Inc.",
+      "patterns": ["\\bBREX\\b"],
+      "countries": ["us"],
+      "category_hints": ["Financial Services", "Expense Management"]
+    },
+    {
+      "name": "Paystack Payments Limited",
+      "patterns": ["\\bPAYSTACK\\b"],
+      "countries": ["gh", "ng"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Razorpay Software Private Limited",
+      "patterns": ["\\bRAZORPAY\\b"],
+      "countries": ["in"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Flutterwave Inc.",
+      "patterns": ["\\bFLUTTERWAVE\\b"],
+      "countries": ["gh", "ng"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "OPay Digital Services Limited",
+      "patterns": ["\\bOPAY\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Digital Banking", "Financial Services"]
+    },
+    {
+      "name": "Moniepoint Inc.",
+      "patterns": ["\\bMONIEPOINT\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Digital Banking", "Payment Processing"]
+    },
+    {
+      "name": "PalmPay Limited",
+      "patterns": ["\\bPALMPAY\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Digital Banking", "Financial Services"]
+    },
+    {
+      "name": "Kuda Microfinance Bank Limited",
+      "patterns": ["\\bKUDA\\b|\\bKUDA\\s+MICROFINANCE\\s+BANK\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Digital Banking", "Financial Services"]
+    },
+    {
+      "name": "Pagatech Limited",
+      "patterns": ["\\bPAGA\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Interswitch Limited",
+      "patterns": ["\\bINTERSWITCH\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Remita Payment Services Limited",
+      "patterns": ["\\bREMITA\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Payment Processing", "Government Services"]
+    },
+    {
+      "name": "Jumia Technologies AG",
+      "patterns": ["\\bJUMIA\\b"],
+      "countries": ["eg", "gh", "ng"],
+      "category_hints": ["E-commerce Platform", "Retail"]
+    },
+    {
+      "name": "Konga Online Shopping Ltd.",
+      "patterns": ["\\bKONGA\\b"],
+      "countries": ["ng"],
+      "category_hints": ["E-commerce Platform", "Retail"]
+    },
+    {
+      "name": "MTN Nigeria Communications PLC",
+      "patterns": [
+        "\\bMTN\\s*(?:NG|NGR|NIG(?:ERIA)?|COMM(?:UNICATIONS)?|DATA|TOPUP|VTU)\\b"
+      ],
+      "countries": ["ng"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Airtel Networks Limited",
+      "patterns": ["\\bAIRTEL\\s*(?:NG|NIG|NIGERIA|AFRICA|DATA|TOPUP|VTU)\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Globacom Limited",
+      "patterns": ["\\bGLOBACOM\\b|\\bGLO\\s+NIG\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Emerging Markets Telecommunication Services Ltd.",
+      "patterns": ["\\b9MOBILE\\b"],
+      "countries": ["ng"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Flipkart Pvt. Ltd.",
+      "patterns": ["\\bFLIPKART\\b"],
+      "countries": ["in"],
+      "category_hints": ["E-commerce Platform", "Retail"]
+    },
+    {
+      "name": "Bundle Technologies Pvt. Ltd. (Swiggy)",
+      "patterns": ["\\bSWIGGY\\b"],
+      "countries": ["in"],
+      "category_hints": ["Meals & Entertainment", "Delivery Services"]
+    },
+    {
+      "name": "Zomato Limited",
+      "patterns": ["\\bZOMATO\\b"],
+      "countries": ["in"],
+      "category_hints": ["Meals & Entertainment", "Delivery Services"]
+    },
+    {
+      "name": "One97 Communications Ltd. (Paytm)",
+      "patterns": ["\\bPAYTM\\b"],
+      "countries": ["in"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "PhonePe Private Limited",
+      "patterns": ["\\bPHONEPE\\b"],
+      "countries": ["in"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Freshworks Inc.",
+      "patterns": ["\\bFRESHWORKS\\b"],
+      "countries": ["global"],
+      "category_hints": ["Customer Support", "Software & Technology"]
+    },
+    {
+      "name": "Zoho Corporation Pvt. Ltd.",
+      "patterns": ["\\bZOHO\\b"],
+      "countries": ["global"],
+      "category_hints": ["Productivity Software", "Subscriptions"]
+    },
+    {
+      "name": "Tally Solutions Pvt. Ltd.",
+      "patterns": ["\\bTALLY\\s+SOLUTIONS\\b|\\bTALLYPRIME\\b"],
+      "countries": ["in"],
+      "category_hints": ["Accounting Software", "Software & Technology"]
+    },
+    {
+      "name": "Think & Learn Pvt. Ltd. (BYJU'S)",
+      "patterns": ["\\bBYJU'?S\\b"],
+      "countries": ["in"],
+      "category_hints": ["Education", "Subscriptions"]
+    },
+    {
+      "name": "Alibaba Cloud Computing Ltd.",
+      "patterns": ["\\bALIBABA\\s+CLOUD\\b|\\bALIYUN\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Cloud Services", "Software & Technology"]
+    },
+    {
+      "name": "Tencent Cloud Computing (Beijing) Co., Ltd.",
+      "patterns": ["\\bTENCENT\\s+CLOUD\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Cloud Services", "Software & Technology"]
+    },
+    {
+      "name": "Huawei Cloud Computing Technologies Co., Ltd.",
+      "patterns": ["\\bHUAWEI\\s+CLOUD\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Cloud Services", "Software & Technology"]
+    },
+    {
+      "name": "Alipay (Hangzhou) Information Technology Co., Ltd.",
+      "patterns": ["\\bALIPAY\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "Tencent WeChat Pay",
+      "patterns": ["\\bWECHAT\\s+PAY\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Payment Processing", "Financial Services"]
+    },
+    {
+      "name": "JD.com, Inc.",
+      "patterns": ["\\bJD\\.COM\\b"],
+      "countries": ["cn"],
+      "category_hints": ["E-commerce Platform", "Retail"]
+    },
+    {
+      "name": "Meituan Dianping",
+      "patterns": ["\\bMEITUAN\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Meals & Entertainment", "Delivery Services"]
+    },
+    {
+      "name": "ByteDance Ltd.",
+      "patterns": ["\\bBYTEDANCE\\b|\\bTIKTOK\\s+ADS\\b"],
+      "countries": ["cn"],
+      "category_hints": ["Advertising", "Marketing"]
+    },
+    {
+      "name": "Nedbank Group Limited",
+      "patterns": ["\\bNEDBANK\\b"],
+      "countries": ["za"],
+      "category_hints": ["Banking", "Financial Services"]
+    },
+    {
+      "name": "FirstRand Bank Limited",
+      "patterns": [
+        "\\bFIRSTRAND\\b|\\bFNB\\s+BANK\\b|\\bFIRST\\s+NATIONAL\\s+BANK\\b"
+      ],
+      "countries": ["za"],
+      "category_hints": ["Banking", "Financial Services"]
+    },
+    {
+      "name": "Standard Bank Group Limited",
+      "patterns": ["\\bSTANDARD\\s+BANK\\b|\\bSTANBIC\\b"],
+      "countries": ["za"],
+      "category_hints": ["Banking", "Financial Services"]
+    },
+    {
+      "name": "Absa Group Limited",
+      "patterns": ["\\bABSA\\b|\\bBARCLAYS\\s+AFRICA\\b"],
+      "countries": ["za"],
+      "category_hints": ["Banking", "Financial Services"]
+    },
+    {
+      "name": "Capitec Bank Limited",
+      "patterns": ["\\bCAPITEC\\b"],
+      "countries": ["za"],
+      "category_hints": ["Banking", "Financial Services"]
+    },
+    {
+      "name": "Discovery Limited",
+      "patterns": [
+        "\\bDISCOVERY\\s+(?:HEALTH|INSURE|INSURANCE|BANK|VITALITY)\\b"
+      ],
+      "countries": ["za"],
+      "category_hints": ["Insurance", "Healthcare"]
+    },
+    {
+      "name": "MTN Group Limited (South Africa)",
+      "patterns": ["\\bMTN\\s+SA\\b|\\bMTN\\s+SOUTH\\s+AFRICA\\b"],
+      "countries": ["za"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Vodacom Group Limited",
+      "patterns": ["\\bVODACOM\\b"],
+      "countries": ["za"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Telkom SA SOC Ltd.",
+      "patterns": ["\\bTELKOM\\s+SA\\b|\\bTELKOM\\b"],
+      "countries": ["za"],
+      "category_hints": ["Telecommunications", "Utilities"]
+    },
+    {
+      "name": "Shoprite Holdings Ltd.",
+      "patterns": [
+        "\\bSHOPRITE\\b|\\bCHECKERS\\s*(?:HYPER|LIQUOR|FOOD|\\d{2,})\\b"
+      ],
+      "countries": ["za"],
+      "category_hints": ["Retail", "Groceries"]
+    },
+    {
+      "name": "The SPAR Group Limited",
+      "patterns": ["\\bSPAR\\s*(?:GROUP|SA|SUPERMARKET|STORE|\\d{2,})\\b"],
+      "countries": ["za"],
+      "category_hints": ["Retail", "Groceries"]
+    },
+    {
+      "name": "Woolworths Holdings Limited",
+      "patterns": [
+        "\\bWOOLWORTHS\\s*(?:SA|SOUTH\\s+AFRICA|HOLDINGS|FOOD|\\d{2,})\\b"
+      ],
+      "countries": ["za"],
+      "category_hints": ["Retail", "Groceries"]
+    },
+    {
+      "name": "Takealot Online (Pty) Ltd.",
+      "patterns": ["\\bTAKEALOT\\b"],
+      "countries": ["za"],
+      "category_hints": ["E-commerce Platform", "Retail"]
+    },
+    {
+      "name": "Mr Price Group Limited",
+      "patterns": ["\\bMR\\s*PRICE\\b|\\bMRP\\s+GROUP\\b"],
+      "countries": ["za"],
+      "category_hints": ["Retail", "Apparel"]
+    },
+    {
+      "name": "Pick n Pay Stores Limited",
+      "patterns": [
+        "\\bPICK\\s*N\\s*PAY\\b|\\bPNP\\s*(?:STORES?|ONLINE|LIQUOR|HYPER)\\b"
+      ],
+      "countries": ["za"],
+      "category_hints": ["Retail", "Groceries"]
+    },
+    {
+      "name": "TotalEnergies Marketing South Africa (Pty) Ltd.",
+      "patterns": ["\\bTOTAL(?:ENERGIES)?\\s*(?:SA|SOUTH\\s+AFRICA)\\b"],
+      "countries": ["za"],
+      "category_hints": ["Fuel", "Utilities"]
+    },
+    {
+      "name": "Engen Petroleum Ltd.",
+      "patterns": ["\\bENGEN\\b"],
+      "countries": ["za"],
+      "category_hints": ["Fuel", "Utilities"]
+    },
+    {
+      "name": "Shell Downstream South Africa (Pty) Ltd.",
+      "patterns": ["\\bSHELL\\s+SA\\b|\\bSHELL\\s+SOUTH\\s+AFRICA\\b"],
+      "countries": ["za"],
+      "category_hints": ["Fuel", "Utilities"]
+    },
+    {
+      "name": "Zapier Inc.",
+      "patterns": ["\\bZAPIER\\b"],
+      "countries": ["global"],
+      "category_hints": ["Automation", "Productivity Software"]
+    },
+    {
+      "name": "Webflow Inc.",
+      "patterns": ["\\bWEBFLOW\\b"],
+      "countries": ["global"],
+      "category_hints": ["Website Builder", "Software & Technology"]
+    },
+    {
+      "name": "Retool Inc.",
+      "patterns": ["\\bRETOOL\\b"],
+      "countries": ["global"],
+      "category_hints": ["Developer Tools", "Software & Technology"]
+    },
+    {
+      "name": "Mixpanel, Inc.",
+      "patterns": ["\\bMIXPANEL\\b"],
+      "countries": ["global"],
+      "category_hints": ["Analytics", "Software & Technology"]
+    },
+    {
+      "name": "Twilio Segment",
+      "patterns": ["\\bSEGMENT\\.IO\\b|\\bTWILIO\\s+SEGMENT\\b"],
+      "countries": ["global"],
+      "category_hints": ["Customer Data Platform", "Analytics"]
+    },
+    {
+      "name": "Superhuman Labs, Inc.",
+      "patterns": ["\\bSUPERHUMAN\\b"],
+      "countries": ["global"],
+      "category_hints": ["Productivity Software", "Subscriptions"]
+    },
+    {
+      "name": "Clerky Inc.",
+      "patterns": ["\\bCLERKY\\b"],
+      "countries": ["us"],
+      "category_hints": ["Legal Services", "Professional Services"]
+    },
+    {
+      "name": "Scale AI Inc.",
+      "patterns": ["\\bSCALE\\s+AI\\b|\\bSCALEAI\\b"],
+      "countries": ["us"],
+      "category_hints": ["AI Services", "Data Annotation"]
+    },
+    {
+      "name": "Mux, Inc.",
+      "patterns": ["\\bMUX\\.COM\\b|\\bMUX\\s+INC\\b"],
+      "countries": ["global"],
+      "category_hints": ["Video Infrastructure", "Software & Technology"]
+    },
+    {
+      "name": "Flexport Inc.",
+      "patterns": ["\\bFLEXPORT\\b"],
+      "countries": ["global"],
+      "category_hints": ["Logistics", "Shipping"]
+    },
+    {
+      "name": "ShipBob, Inc.",
+      "patterns": ["\\bSHIPBOB\\b"],
+      "countries": ["us"],
+      "category_hints": ["Logistics", "Fulfillment"]
+    }
+  ]
+}

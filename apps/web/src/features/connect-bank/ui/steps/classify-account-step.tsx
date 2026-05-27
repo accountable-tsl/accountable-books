@@ -1,17 +1,30 @@
-import { ArrowRight, Building2, Check, Dot, Landmark, Plus, User } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import type {
+  BusinessOrPersonalAccount,
+  MinimalBankAccountDetails,
+} from '@/modules/banking/accounts';
+import type {
+  ConnectAccountsResponse,
+  ConnectedAccount,
+} from '@/modules/banking/connections';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import type { ConnectedAccount, ConnectAccountsResponse } from '@/modules/banking/connections';
-import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
-import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   useMinimalBankAccountDetails,
   useUpdateBankAccounts,
-  type BusinessOrPersonalAccount,
-  type MinimalBankAccountDetails,
 } from '@/modules/banking/accounts';
+import {
+  ArrowRight,
+  Building2,
+  Check,
+  Dot,
+  Landmark,
+  Plus,
+  User,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ClassifyAccountStepProps {
   stepWrapperClass: string;
@@ -31,17 +44,19 @@ export function ClassifyAccountStep({
   const updateBankAccountsMutation = useUpdateBankAccounts();
 
   // Start with bank connection data immediately (no loading delay)
-  const [accounts, setAccounts] = useState<ConnectedAccount[]>(connectedAccounts.accounts);
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>(
+    connectedAccounts.accounts,
+  );
 
   // Track what we know is saved in the database
-  const [savedState, setSavedState] = useState<ConnectedAccount[]>(connectedAccounts.accounts);
+  const [savedState, setSavedState] = useState<ConnectedAccount[]>(
+    connectedAccounts.accounts,
+  );
 
   // Fetch database state in background (non-blocking)
   const bankAccountIds = connectedAccounts.accounts.map((acc) => acc.id);
-  const { data: databaseResponse, refetch: refetchDatabaseState } = useMinimalBankAccountDetails(
-    companyId,
-    bankAccountIds,
-  );
+  const { data: databaseResponse, refetch: refetchDatabaseState } =
+    useMinimalBankAccountDetails(companyId, bankAccountIds);
 
   // When database response arrives, update saved state and current accounts
   useEffect(() => {
@@ -52,7 +67,8 @@ export function ClassifyAccountStep({
         );
         const mergedAccount = {
           ...bankAccount,
-          businessOrPersonal: dbAccount?.businessOrPersonal ?? bankAccount.businessOrPersonal,
+          businessOrPersonal:
+            dbAccount?.businessOrPersonal ?? bankAccount.businessOrPersonal,
         };
         return mergedAccount;
       });
@@ -96,7 +112,9 @@ export function ClassifyAccountStep({
     (accountId: string, newType: BusinessOrPersonalAccount) => {
       setAccounts((prevAccounts) =>
         prevAccounts.map((account) =>
-          account.id === accountId ? { ...account, businessOrPersonal: newType } : account,
+          account.id === accountId
+            ? { ...account, businessOrPersonal: newType }
+            : account,
         ),
       );
     },
@@ -132,7 +150,13 @@ export function ClassifyAccountStep({
         },
       },
     );
-  }, [companyId, hasUnsavedChanges, accounts, updateBankAccountsMutation, refetchDatabaseState]);
+  }, [
+    companyId,
+    hasUnsavedChanges,
+    accounts,
+    updateBankAccountsMutation,
+    refetchDatabaseState,
+  ]);
 
   const handleDone = useCallback(() => {
     if (hasUnsavedChanges) return;
@@ -151,7 +175,7 @@ export function ClassifyAccountStep({
   );
 
   return (
-    <div className={cn(stepWrapperClass, 'w-full h-[490px]')}>
+    <div className={cn(stepWrapperClass, 'h-[490px] w-full')}>
       <StepHeader
         Icon={Check}
         title="Mark your business accounts"
@@ -159,18 +183,22 @@ export function ClassifyAccountStep({
       />
 
       <div className="space-y-4">
-        <div className="flex text-sm items-center gap-4 justify-between">
+        <div className="flex items-center justify-between gap-4 text-sm">
           <div className="flex items-center gap-1">
-            <div className="w-8 h-8 overflow-hidden rounded-full bg-muted flex items-center justify-center border">
+            <div className="bg-muted flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border">
               {bank.logoUrl ? (
-                <img src={bank.logoUrl} alt={bank.name} className="w-8 h-8 object-contain" />
+                <img
+                  src={bank.logoUrl}
+                  alt={bank.name}
+                  className="h-8 w-8 object-contain"
+                />
               ) : (
-                <Landmark className="w-4 h-4" />
+                <Landmark className="h-4 w-4" />
               )}
             </div>
             <div>{bank.name || 'Bank'}</div>
           </div>
-          <div className="flex items-center text-muted-foreground">
+          <div className="text-muted-foreground flex items-center">
             <span>{businessAccounts.length} business</span>
             <Dot className="size-4" />
             <span>{personalAccounts.length} personal</span>
@@ -181,24 +209,26 @@ export function ClassifyAccountStep({
           {accounts.map((acc) => (
             <div
               key={acc.id}
-              className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              className="bg-card hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 transition-colors"
             >
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm">{acc.displayName}</div>
-                    <div className="text-xs text-muted-foreground">****{acc.mask}</div>
+                    <div className="text-muted-foreground text-xs">
+                      ****{acc.mask}
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-sm">
                       {acc.businessOrPersonal === 'business' ? (
-                        <span className="text-green-700 flex items-center gap-1">
-                          <Building2 className="w-3 h-3" />
+                        <span className="flex items-center gap-1 text-green-700">
+                          <Building2 className="h-3 w-3" />
                           Business
                         </span>
                       ) : (
                         <span className="text-muted-foreground flex items-center gap-1">
-                          <User className="w-3 h-3" />
+                          <User className="h-3 w-3" />
                           Personal
                         </span>
                       )}
@@ -207,10 +237,14 @@ export function ClassifyAccountStep({
                       checked={acc.businessOrPersonal === 'business'}
                       disabled={updateBankAccountsMutation.isPending}
                       className={cn(
-                        updateBankAccountsMutation.isPending && 'cursor-not-allowed opacity-70',
+                        updateBankAccountsMutation.isPending &&
+                          'cursor-not-allowed opacity-70',
                       )}
                       onCheckedChange={(checked) =>
-                        handleAccountTypeChange(acc.id, checked ? 'business' : 'personal')
+                        handleAccountTypeChange(
+                          acc.id,
+                          checked ? 'business' : 'personal',
+                        )
                       }
                     />
                   </div>
@@ -221,10 +255,11 @@ export function ClassifyAccountStep({
         </div>
 
         {personalAccounts.length > 0 && (
-          <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
             <p className="text-sm text-orange-800">
-              Personal accounts are excluded from business reports. Transfers between business and
-              personal accounts appear as director transactions.
+              Personal accounts are excluded from business reports. Transfers
+              between business and personal accounts appear as director
+              transactions.
             </p>
           </div>
         )}
@@ -236,7 +271,7 @@ export function ClassifyAccountStep({
             onClick={onConnectAnother}
             disabled={hasUnsavedChanges || updateBankAccountsMutation.isPending}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Connect another account
           </Button>
 
@@ -256,7 +291,7 @@ export function ClassifyAccountStep({
               disabled={updateBankAccountsMutation.isPending}
             >
               Done linking accounts
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
         </div>

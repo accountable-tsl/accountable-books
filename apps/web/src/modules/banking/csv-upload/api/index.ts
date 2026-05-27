@@ -1,6 +1,6 @@
+import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/model/types';
 import api from '@/lib/axios';
 import { isAxiosError } from 'axios';
-import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/model/types';
 
 // const normalize = (txn) => ({
 //   date: txn.date, // already YYYY-MM-DD
@@ -33,9 +33,15 @@ import type { BankTransactionBatchInsert } from '@/modules/banking/csv-upload/mo
 //     .join('');
 // }
 
-export async function uploadBankTransactions(companyId: string, data: BankTransactionBatchInsert) {
+export async function uploadBankTransactions(
+  companyId: string,
+  data: BankTransactionBatchInsert,
+) {
   try {
-    const res = await api.post(`/api/${companyId}/bank-accounts/transactions/import`, data);
+    const res = await api.post(
+      `/api/${companyId}/bank-accounts/transactions/import`,
+      data,
+    );
 
     return res.data;
   } catch (err) {

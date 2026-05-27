@@ -1,13 +1,17 @@
 import type { Knex } from 'knex';
-import { DemoFilter, DEMO_CURRENCIES } from '../../shared/config.js';
+
+import { DEMO_CURRENCIES } from '../../shared/config.js';
 import {
   deleteDemoData,
   getAccountTypeByKey,
   getBankMap,
-  resolveFiltersToIds,
   getDemoUserMap,
+  resolveFiltersToIds,
 } from '../../shared/utils.js';
-import { getRawBankAccountsForInsertion, RawBankAccount } from './bank-accounts.data.js';
+import { getRawBankAccountsForInsertion } from './bank-accounts.data.js';
+
+import type { DemoFilter } from '../../shared/config.js';
+import type { RawBankAccount } from './bank-accounts.data.js';
 
 /**
  * Create COA and bank account atomically following production pattern
@@ -41,7 +45,9 @@ const createBankAccountWithCoa = async (
     .returning('*');
 
   if (!coa || !coa.id) {
-    throw new Error(`Failed to create COA for bank account ${account.displayName}`);
+    throw new Error(
+      `Failed to create COA for bank account ${account.displayName}`,
+    );
   }
 
   // Create bank account with reference to COA
@@ -70,8 +76,14 @@ const createBankAccountWithCoa = async (
   return { bankAccount, coa };
 };
 
-export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: DemoFilter) => {
-  const rawBankAccountsData = await getRawBankAccountsForInsertion(trx, filters);
+export const createDemoBankAccounts = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
+  const rawBankAccountsData = await getRawBankAccountsForInsertion(
+    trx,
+    filters,
+  );
 
   if (rawBankAccountsData.length === 0) {
     console.log('No bank accounts to create based on filters');
@@ -97,19 +109,28 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
     if (!bankAccounts || bankAccounts.length === 0) continue;
 
     // Check if bank accounts already exist for this company (idempotency)
-    const existingAccounts = await trx('bank_accounts').where({ company_id: company.id }).first();
+    const existingAccounts = await trx('bank_accounts')
+      .where({ company_id: company.id })
+      .first();
 
     if (existingAccounts) {
-      console.log(`Bank accounts already exist for company ${company.shortCode}, skipping`);
+      console.log(
+        `Bank accounts already exist for company ${company.shortCode}, skipping`,
+      );
       continue;
     }
 
-    console.log(`Creating ${bankAccounts.length} bank accounts for company ${company.shortCode}`);
+    console.log(
+      `Creating ${bankAccounts.length} bank accounts for company ${company.shortCode}`,
+    );
 
     // Get currency ID from existing DEMO_CURRENCIES config
-    const demoCurrency = DEMO_CURRENCIES[currencyCode as keyof typeof DEMO_CURRENCIES];
+    const demoCurrency =
+      DEMO_CURRENCIES[currencyCode as keyof typeof DEMO_CURRENCIES];
     if (!demoCurrency) {
-      throw new Error(`Demo currency ${currencyCode} not found for company ${company.shortCode}`);
+      throw new Error(
+        `Demo currency ${currencyCode} not found for company ${company.shortCode}`,
+      );
     }
 
     // Get bank mapping from cache
@@ -134,7 +155,10 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
         );
         companyResults.push(result);
       } catch (error) {
-        console.error(`Failed to create bank account ${account.displayName}:`, error);
+        console.error(
+          `Failed to create bank account ${account.displayName}:`,
+          error,
+        );
         throw error;
       }
     }
@@ -142,16 +166,21 @@ export const createDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
     results.push(companyResults);
   }
 
-  console.log(`Successfully created bank accounts for ${rawBankAccountsData.length} companies`);
+  console.log(
+    `Successfully created bank accounts for ${rawBankAccountsData.length} companies`,
+  );
   return results;
 };
 
-export const deleteDemoBankAccounts = async (trx: Knex.Transaction, filters?: DemoFilter) => {
+export const deleteDemoBankAccounts = async (
+  trx: Knex.Transaction,
+  filters?: DemoFilter,
+) => {
   // First get the COA IDs that are referenced by bank accounts we're about to delete
   // Use the same filtering logic as deleteDemoData to ensure consistency
   const bankAccountsQuery = trx('bank_accounts')
     .join('companies', 'bank_accounts.company_id', 'companies.id')
-    .where('companies.is_demo_company', true);
+    .where('companies.workspace_class', 'demo');
 
   // Apply shortCode-based filtering (same as deleteDemoData does)
   if (filters) {
@@ -161,7 +190,9 @@ export const deleteDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
     }
   }
 
-  const bankAccountsToDelete = await bankAccountsQuery.select('bank_accounts.coa_id');
+  const bankAccountsToDelete = await bankAccountsQuery.select(
+    'bank_accounts.coa_id',
+  );
   const coaIds = bankAccountsToDelete.map((ba) => ba.coa_id).filter((id) => id); // Filter out any null coa_ids
 
   // Delete bank accounts first (they reference COA)
@@ -175,6 +206,8 @@ export const deleteDemoBankAccounts = async (trx: Knex.Transaction, filters?: De
   if (coaIds.length > 0) {
     await trx('coa').whereIn('id', coaIds).delete();
 
-    console.log(`Deleted ${coaIds.length} associated COA entries for bank accounts`);
+    console.log(
+      `Deleted ${coaIds.length} associated COA entries for bank accounts`,
+    );
   }
 };

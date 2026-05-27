@@ -1,0 +1,8 @@
+from pydantic import BaseModel, constr
+from typing import Optional
+from datetime import datetime
+
+class BillingCheckoutSessionResponseSchema(BaseModel):
+    checkoutUrl: str
+    sessionId: constr(min_length=1, max_length=128)
+    expiresAt: Optional[datetime] = None

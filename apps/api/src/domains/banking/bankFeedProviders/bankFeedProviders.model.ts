@@ -1,21 +1,28 @@
 import type { Knex } from 'knex';
+import z from 'zod';
+
 import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
+import { getCountryByCode } from '../../../domains/countries/countries.model.js';
+import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
+import { redis } from '../../../lib/redis.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
 import {
   bankFeedProviderInputCamel,
   updateProviderInput,
-  type BankFeedProviderInputCamel,
-  type BankFeedProviderStatus,
-  type BankFeedProviderWithCountries,
-  type BankProviderKey,
-  type RawBankFeedProviderResponse,
-  type UpdateProviderInput,
 } from './bankFeedProviders.types.js';
-import { redis } from '../../../lib/redis.js';
-import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
-import z from 'zod';
-import { getCountryByCode } from '../../../domains/countries/countries.model.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  BankFeedProviderInputCamel,
+  BankFeedProviderStatus,
+  BankFeedProviderWithCountries,
+  BankProviderKey,
+  RawBankFeedProviderResponse,
+  UpdateProviderInput,
+} from './bankFeedProviders.types.js';
 
 const TTL = 60 * 60 * 1; // 1 hour
 export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {
@@ -152,7 +159,11 @@ export async function getBankFeedProviders({
     const knex = trx || knexClient;
     const query = knex('bank_feed_providers as p')
       .select(selectFields)
-      .innerJoin('bank_feed_provider_countries as bpc', 'p.id', 'bpc.bank_feed_provider_id')
+      .innerJoin(
+        'bank_feed_provider_countries as bpc',
+        'p.id',
+        'bpc.bank_feed_provider_id',
+      )
       .innerJoin('countries as c', 'bpc.country_id', 'c.id')
       .whereIn('p.status', status)
       .where('bpc.active', true)
@@ -235,7 +246,9 @@ export async function updateBankFeedProvider({
 
   const exec = async (trx: Knex.Transaction) => {
     // Get current provider
-    const currentProvider = await trx('bank_feed_providers').where('key', providerKey).first();
+    const currentProvider = await trx('bank_feed_providers')
+      .where('key', providerKey)
+      .first();
 
     if (!currentProvider) {
       throw new Error(`Provider with key '${providerKey}' not found`);
@@ -248,12 +261,15 @@ export async function updateBankFeedProvider({
     };
 
     // Remove undefined values and country arrays (handled separately)
-    const { new_countries, disable_countries, ...updateFields } = providerUpdateData;
+    const { new_countries, disable_countries, ...updateFields } =
+      providerUpdateData;
 
     // Update provider if there are changes
     if (Object.keys(updateFields).length > 1) {
       // More than just updated_by_id
-      await trx('bank_feed_providers').where('id', currentProvider.id).update(updateFields);
+      await trx('bank_feed_providers')
+        .where('id', currentProvider.id)
+        .update(updateFields);
     }
 
     // Handle country updates

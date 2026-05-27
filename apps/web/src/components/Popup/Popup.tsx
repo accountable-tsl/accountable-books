@@ -1,9 +1,11 @@
-import { RefObject, useEffect, useRef } from 'react';
-import ReactDOM from 'react-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircleXmark } from '@fortawesome/free-solid-svg-icons';
-import { usePopup } from '../../contexts/PopupContext';
 import './Popup.scss';
+
+import type { RefObject } from 'react';
+import { useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
+
+//
+import { usePopup } from '../../contexts/PopupContext';
 
 interface PopupProps {
   popupId: string;
@@ -14,13 +16,15 @@ export default function Popup({ popupId, children }: PopupProps) {
 
   const popupRef: RefObject<HTMLDivElement> = useRef(null);
 
-  const isVisible = popups.includes(popupId) || componentPopups.some((p) => p.id === popupId);
+  const isVisible =
+    popups.includes(popupId) || componentPopups.some((p) => p.id === popupId);
 
   useEffect(() => {
     if (!isVisible) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
-      if (popupRef.current && !popupRef.current.contains(event.target as Node)) closePopup(popupId);
+      if (popupRef.current && !popupRef.current.contains(event.target as Node))
+        closePopup(popupId);
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
@@ -39,7 +43,7 @@ export default function Popup({ popupId, children }: PopupProps) {
       <div className="popup-content" ref={popupRef}>
         {children}
         <button className="popup-close" onClick={() => closePopup(popupId)}>
-          <FontAwesomeIcon icon={faCircleXmark} />
+          {/* <FontAwesomeIcon icon={faCircleXmark} /> */}
         </button>
       </div>
     </div>,

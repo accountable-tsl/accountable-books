@@ -1,13 +1,22 @@
 import {
+  type ComponentProps,
+  type Dispatch,
+  type FC,
+  type ReactNode,
+  type SetStateAction,
+  type SVGProps,
+} from 'react';
+import {
+  type ColumnDef,
   type ColumnSort,
   type Row,
   type RowData,
   type RowSelectionState,
+  type TableOptions,
+  type Table as TanstackTable,
 } from '@tanstack/react-table';
-import { type Table as TanstackTable } from '@tanstack/react-table';
-import { type TableOptions } from '@tanstack/react-table';
+
 import { type DataTableConfig, type FilterItemSchema } from '../utils/config';
-import { type Dispatch, type SetStateAction } from 'react';
 import { type ResolvedRowClick, type RowClickBehavior } from './row-click';
 
 // --- Module Augmentation (No Change Here) ---
@@ -23,9 +32,11 @@ declare module '@tanstack/react-table' {
     options?: Option[];
     range?: [number, number];
     unit?: string;
-    icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+    icon?: FC<SVGProps<SVGSVGElement>>;
     separateFilter?: boolean;
     hidden?: boolean;
+    cellClassName?: string; // For custom cell styling
+    headerClassName?: string; // For custom header cell styling
     // Use type parameters to satisfy linter
     _dataType?: TData;
     _valueType?: TValue;
@@ -33,7 +44,7 @@ declare module '@tanstack/react-table' {
 }
 
 // --- Common Base Interfaces for Features ---
-// These remain as you defined them, as they describe the *structure*
+// These remain as defined, as they describe the *structure*
 // of how these features are configured, regardless of input or output context.
 export interface PaginationOptions {
   enabled: boolean;
@@ -47,12 +58,23 @@ export interface SortingOptions {
 }
 
 export interface RowSelectionOptions {
-  enabled?: boolean;
+  enabled?: boolean | ((row: any) => boolean);
   addCheckboxes?: boolean;
   enableMultiRowSelection?: boolean;
 
   rowSelectionState?: RowSelectionState;
-  setRowSelectionState?: React.Dispatch<React.SetStateAction<RowSelectionState>>;
+  setRowSelectionState?: Dispatch<SetStateAction<RowSelectionState>>;
+  checkboxColumnId?: string;
+  checkboxColumnPosition?:
+    | 'start'
+    | 'end'
+    | { beforeColumnId: string }
+    | { afterColumnId: string }
+    | { index: number };
+  checkboxClassNames?: {
+    header?: string;
+    cell?: string;
+  };
 }
 
 export interface GlobalSearch {
@@ -67,7 +89,7 @@ export interface Option {
   label: string;
   value: string;
   count?: number;
-  icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+  icon?: FC<SVGProps<SVGSVGElement>>;
 }
 
 // --- Input Configuration for DataTable (Subset of DataTableExtras) ---
@@ -81,7 +103,20 @@ export interface BaseDataTableOptions {
     enabled: boolean;
     estimatedRowHeight?: number;
     overscan?: number;
+    // When false, skip measuring actual row heights and use estimatedRowHeight as fixed height.
+    measure?: boolean;
+    // Force rows to a fixed height equal to estimatedRowHeight.
+    fixedRowHeight?: boolean;
   };
+
+  infiniteScroll?: {
+    enabled: boolean;
+    fetchNextPage: () => void;
+    hasNextPage?: boolean;
+    isFetching?: boolean;
+    threshold?: number;
+  };
+
   pagination?: PaginationOptions;
   sorting?: SortingOptions;
   rowSelection?: RowSelectionOptions; // Note: rowSelectionState/setRowSelectionState here are for initial controlled state
@@ -101,12 +136,14 @@ export interface BaseDataTableOptions {
 export type DataTableInputOptions<TData = any> = BaseDataTableOptions & {
   rowClick?: RowClickBehavior<TData>;
   uniqueRowIdentifierKey?: string;
+  expandableRows?: ExpandableRowsOptions<TData>;
 };
 
 export type DataTableExtras<TData = any> = BaseDataTableOptions & {
   stableData?: any[];
   setGlobalSearchColumns?: Dispatch<SetStateAction<string[]>>;
   rowClick?: ResolvedRowClick<TData>;
+  expandableRows?: ExpandableRowsOptions<TData>;
 };
 
 // --- UseDataTable Props (Hook Input) ---
@@ -144,9 +181,9 @@ export type UseDataTableReturn<TData> = {
 };
 
 // Props for Data table Component
-export interface DataTableProps<TData> extends React.ComponentProps<'div'> {
+export interface DataTableProps<TData> extends ComponentProps<'div'> {
   table: CustomTable<TData>; // TanStack table instance — provides all table state + render info
-  actionBar?: React.ReactNode; // Optional UI element shown if there are selected rows
+  actionBar?: ReactNode; // Optional UI element shown if there are selected rows
 }
 
 export type FilterOperator = DataTableConfig['operators'][number];
@@ -164,4 +201,62 @@ export interface ExtendedColumnFilter<TData> extends FilterItemSchema {
 export interface DataTableRowAction<TData> {
   row: Row<TData>;
   variant: 'update' | 'delete';
+}
+
+export interface ExpandableRowsOptions<TData> {
+  /**
+   * Enable expandable rows feature
+   * @default false
+   */
+  enabled?: boolean;
+
+  /**
+   * Property name on your data that contains sub-rows
+   *
+   * @example
+   * // If your data has: { id: 1, name: 'Parent', children: [...] }
+   * subRowsProperty: 'children'
+   *
+   * @default 'subRows'
+   */
+  subRowsProperty?: string;
+
+  /**
+   * Custom function to extract sub-rows (overrides subRowsProperty)
+   * Use this for complex data structures or computed sub-rows
+   *
+   * @example
+   * getSubRows: (row) => row.items?.filter(item => item.active)
+   */
+  getSubRows?: (row: TData) => TData[] | undefined;
+
+  /**
+   * Function to determine if a row can be expanded
+   * If not provided, rows with sub-rows are automatically expandable
+   *
+   * @example
+   * canExpand: (row) => row.original.hasChildren && row.original.isActive
+   */
+  canExpand?: (row: Row<TData>) => boolean;
+
+  /**
+   * Custom render function for expanded content
+   * If not provided, sub-rows are rendered as regular table rows
+   */
+  renderExpandedContent?: (props: {
+    row: Row<TData>;
+    subRows: TData[];
+    columns: ColumnDef<TData>[];
+  }) => ReactNode;
+
+  /**
+   * CSS class name for expanded content row
+   */
+  expandedRowClassName?: string;
+
+  /**
+   * Indentation size for nested rows in rem or px
+   * @default '1.5rem'
+   */
+  indentSize?: string;
 }

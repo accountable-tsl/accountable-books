@@ -1,28 +1,32 @@
-import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import type { Knex } from 'knex';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
 import {
-  resolveFiltersToIds,
-  deleteDemoData,
-  loadDemoCompanies,
-  getCompanyIdMap,
-  getCompanyId,
-  getFilteredCompanyIds,
-  getDemoCompanies,
+  DEMO_COMPANIES,
+  US_DEMO_COMPANIES,
+} from '../config/002_companies/companies.data.js';
+import {
+  clearAccountTypesCache,
+  clearAllCaches,
+  clearBanksCache,
   clearCompanyCache,
-  loadAccountTypes,
+  clearDemoUsersCache,
+  deleteDemoData,
   getAccountTypeByKey,
   getAccountTypeMap,
-  clearAccountTypesCache,
-  loadBanks,
   getBankMap,
-  clearBanksCache,
-  loadDemoUsers,
+  getCompanyId,
+  getCompanyIdMap,
+  getDemoCompanies,
   getDemoUserByEmail,
   getDemoUserMap,
-  clearDemoUsersCache,
-  clearAllCaches,
+  getFilteredCompanyIds,
+  loadAccountTypes,
+  loadBanks,
+  loadDemoCompanies,
+  loadDemoUsers,
+  resolveFiltersToIds,
 } from './utils.js';
-import { DEMO_COMPANIES, US_DEMO_COMPANIES } from '../config/002_companies/companies.data.js';
 
 // Mock transaction and query builders
 let mockTransaction: any;
@@ -40,9 +44,9 @@ const mockQueryBuilder = {
 };
 
 const createMockCompanies = () => [
-  { id: 'company-1', short_code: 'bizDemoUS', is_demo_company: true },
-  { id: 'company-2', short_code: 'firmDemoUS', is_demo_company: true },
-  { id: 'company-3', short_code: 'indDemoUS', is_demo_company: true },
+  { id: 'company-1', short_code: 'bizDemoUS', workspace_class: 'demo' },
+  { id: 'company-2', short_code: 'firmDemoUS', workspace_class: 'demo' },
+  { id: 'company-3', short_code: 'indDemoUS', workspace_class: 'demo' },
 ];
 
 const createMockAccountTypes = () => [
@@ -58,8 +62,18 @@ const createMockBanks = () => [
 ];
 
 const createMockUsers = () => [
-  { id: 'user-1', email: 'alice@us-demo.com', firstname: 'Alice', lastname: 'Smith' },
-  { id: 'user-2', email: 'ngozi@ng-demo.com', firstname: 'Ngozi', lastname: 'Okafor' },
+  {
+    id: 'user-1',
+    email: 'alice@us-demo.com',
+    firstname: 'Alice',
+    lastname: 'Smith',
+  },
+  {
+    id: 'user-2',
+    email: 'ngozi@ng-demo.com',
+    firstname: 'Ngozi',
+    lastname: 'Okafor',
+  },
 ];
 
 beforeEach(() => {
@@ -101,9 +115,9 @@ describe('resolveFiltersToIds', () => {
 
   test('returns all US company shortCodes when filtering by US country', () => {
     const result = resolveFiltersToIds({ countryCodes: ['US'] });
-    const expectedIds = DEMO_COMPANIES.filter((c) => c.country.code === 'US').map(
-      (c) => c.shortCode,
-    );
+    const expectedIds = DEMO_COMPANIES.filter(
+      (c) => c.country.code === 'US',
+    ).map((c) => c.shortCode);
 
     expect(result).toHaveLength(3);
     expect(result.sort()).toEqual(expectedIds.sort());
@@ -111,9 +125,9 @@ describe('resolveFiltersToIds', () => {
 
   test('returns all NG company shortCodes when filtering by NG country', () => {
     const result = resolveFiltersToIds({ countryCodes: ['NG'] });
-    const expectedIds = DEMO_COMPANIES.filter((c) => c.country.code === 'NG').map(
-      (c) => c.shortCode,
-    );
+    const expectedIds = DEMO_COMPANIES.filter(
+      (c) => c.country.code === 'NG',
+    ).map((c) => c.shortCode);
 
     expect(result).toHaveLength(3);
     expect(result.sort()).toEqual(expectedIds.sort());
@@ -121,9 +135,9 @@ describe('resolveFiltersToIds', () => {
 
   test('returns all business company shortCodes when filtering by business type', () => {
     const result = resolveFiltersToIds({ companyTypes: ['business'] });
-    const expectedIds = DEMO_COMPANIES.filter((c) => c.companyType === 'business').map(
-      (c) => c.shortCode,
-    );
+    const expectedIds = DEMO_COMPANIES.filter(
+      (c) => c.companyType === 'business',
+    ).map((c) => c.shortCode);
 
     expect(result).toHaveLength(2);
     expect(result.sort()).toEqual(expectedIds.sort());
@@ -131,9 +145,9 @@ describe('resolveFiltersToIds', () => {
 
   test('returns all individual company shortCodes when filtering by individual type', () => {
     const result = resolveFiltersToIds({ companyTypes: ['individual'] });
-    const expectedIds = DEMO_COMPANIES.filter((c) => c.companyType === 'individual').map(
-      (c) => c.shortCode,
-    );
+    const expectedIds = DEMO_COMPANIES.filter(
+      (c) => c.companyType === 'individual',
+    ).map((c) => c.shortCode);
 
     expect(result).toHaveLength(2);
     expect(result.sort()).toEqual(expectedIds.sort());
@@ -149,13 +163,17 @@ describe('resolveFiltersToIds', () => {
   test('filters out invalid company shortCodes', () => {
     const validShortCode = US_DEMO_COMPANIES[0].shortCode;
     const invalidShortCode = 'invalid-company-id';
-    const result = resolveFiltersToIds({ companyIds: [validShortCode, invalidShortCode] });
+    const result = resolveFiltersToIds({
+      companyIds: [validShortCode, invalidShortCode],
+    });
 
     expect(result).toEqual([validShortCode]);
   });
 
   test('returns empty array for only invalid company shortCodes', () => {
-    const result = resolveFiltersToIds({ companyIds: ['invalid-id-1', 'invalid-id-2'] });
+    const result = resolveFiltersToIds({
+      companyIds: ['invalid-id-1', 'invalid-id-2'],
+    });
 
     expect(result).toEqual([]);
   });
@@ -166,12 +184,12 @@ describe('resolveFiltersToIds', () => {
       companyTypes: ['individual'],
     });
 
-    const ngCompanies = DEMO_COMPANIES.filter((c) => c.country.code === 'NG').map(
-      (c) => c.shortCode,
-    );
-    const individualCompanies = DEMO_COMPANIES.filter((c) => c.companyType === 'individual').map(
-      (c) => c.shortCode,
-    );
+    const ngCompanies = DEMO_COMPANIES.filter(
+      (c) => c.country.code === 'NG',
+    ).map((c) => c.shortCode);
+    const individualCompanies = DEMO_COMPANIES.filter(
+      (c) => c.companyType === 'individual',
+    ).map((c) => c.shortCode);
     const expectedIds = [...new Set([...ngCompanies, ...individualCompanies])];
 
     expect(result.sort()).toEqual(expectedIds.sort());
@@ -181,11 +199,15 @@ describe('resolveFiltersToIds', () => {
     const result = resolveFiltersToIds({ countryCodes: ['US', 'NG'] });
 
     expect(result).toHaveLength(6); // All companies
-    expect(result.sort()).toEqual(DEMO_COMPANIES.map((c) => c.shortCode).sort());
+    expect(result.sort()).toEqual(
+      DEMO_COMPANIES.map((c) => c.shortCode).sort(),
+    );
   });
 
   test('handles multiple company types', () => {
-    const result = resolveFiltersToIds({ companyTypes: ['business', 'individual'] });
+    const result = resolveFiltersToIds({
+      companyTypes: ['business', 'individual'],
+    });
     const expectedIds = DEMO_COMPANIES.filter(
       (c) => c.companyType === 'business' || c.companyType === 'individual',
     ).map((c) => c.shortCode);
@@ -233,7 +255,10 @@ describe('deleteDemoData', () => {
       'test_table.company_id',
       'companies.id',
     );
-    expect(mockQueryBuilder.where).toHaveBeenCalledWith('companies.is_demo_company', true);
+    expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+      'companies.workspace_class',
+      'demo',
+    );
     expect(mockQueryBuilder.delete).toHaveBeenCalled();
   });
 
@@ -462,7 +487,10 @@ describe('Demo Users Cache Functions', () => {
     const mockUsers = createMockUsers();
     mockQueryBuilder.select.mockResolvedValue(mockUsers);
 
-    const result = await getDemoUserByEmail(mockTransaction, 'alice@us-demo.com');
+    const result = await getDemoUserByEmail(
+      mockTransaction,
+      'alice@us-demo.com',
+    );
     expect(result).toEqual({
       id: 'user-1',
       email: 'alice@us-demo.com',
@@ -494,7 +522,9 @@ describe('getFilteredCompanyIds', () => {
     const mockCompanies = createMockCompanies();
     mockQueryBuilder.select.mockResolvedValue(mockCompanies);
 
-    const result = await getFilteredCompanyIds(mockTransaction, { countryCodes: ['US'] });
+    const result = await getFilteredCompanyIds(mockTransaction, {
+      countryCodes: ['US'],
+    });
     expect(result).toBeInstanceOf(Array);
     expect(result.length).toBeGreaterThan(0);
   });
@@ -505,7 +535,9 @@ describe('getDemoCompanies', () => {
     const mockCompanies = createMockCompanies();
     mockQueryBuilder.select.mockResolvedValue(mockCompanies);
 
-    const result = await getDemoCompanies(mockTransaction, { countryCodes: ['US'] });
+    const result = await getDemoCompanies(mockTransaction, {
+      countryCodes: ['US'],
+    });
     expect(result).toBeInstanceOf(Array);
   });
 });

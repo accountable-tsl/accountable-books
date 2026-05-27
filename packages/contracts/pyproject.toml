@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "accountable-contracts"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["accountable_contracts*"]
+exclude = ["node_modules*", "accountable_contracts.schema/source*", "accountable_contracts.schema/json*", "accountable_contracts.data/source*", "accountable_contracts.data/generated/ts*"]
+
+# Include JSON files as package data
+[tool.setuptools.package-data]
+"accountable_contracts.data.generated.json" = ["**/*.json"]

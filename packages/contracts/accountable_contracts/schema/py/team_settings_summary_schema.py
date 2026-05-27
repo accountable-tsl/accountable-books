@@ -1,0 +1,7 @@
+from pydantic import BaseModel, conint
+
+class TeamSettingsSummarySchema(BaseModel):
+    total: conint(ge=0)
+    active: conint(ge=0)
+    invited: conint(ge=0)
+    admins: conint(ge=0)

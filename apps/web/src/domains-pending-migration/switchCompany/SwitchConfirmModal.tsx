@@ -1,4 +1,7 @@
+import type { AuthCompanyContext } from '@/modules/auth';
 import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -7,10 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { BuildingIcon, UserIcon, Building2Icon } from 'lucide-react';
-import type { AuthCompanyContext } from '@/modules/auth/types';
+import { Building2Icon, BuildingIcon, UserIcon } from 'lucide-react';
 
 interface SwitchConfirmModalProps {
   isOpen: boolean;
@@ -46,7 +46,9 @@ export function SwitchConfirmModal({
 
   const getCompanyName = (company: AuthCompanyContext | null) => {
     if (!company) return 'Unknown Company';
-    return company.displayName || company.legalName || company.id.slice(0, 8) + '...';
+    return (
+      company.displayName || company.legalName || company.id.slice(0, 8) + '...'
+    );
   };
 
   const handleConfirm = () => {
@@ -75,16 +77,21 @@ export function SwitchConfirmModal({
         <DialogHeader>
           <DialogTitle>Switch Company?</DialogTitle>
           <DialogDescription>
-            You're about to switch from your current company to a different company.
+            You're about to switch from your current company to a different
+            company.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
+        <div className="space-y-4 py-4">
           {/* From Company */}
-          <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
-            <div className="text-muted-foreground">{getCompanyIcon(fromCompany.companyType)}</div>
+          <div className="bg-muted/50 flex items-center gap-3 rounded-lg border p-3">
+            <div className="text-muted-foreground">
+              {getCompanyIcon(fromCompany.companyType)}
+            </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-muted-foreground">From:</div>
+              <div className="text-muted-foreground text-sm font-medium">
+                From:
+              </div>
               <div className="font-semibold">{getCompanyName(fromCompany)}</div>
               {fromCompany.isDemoCompany && (
                 <div className="text-xs text-orange-600">Demo Company</div>
@@ -98,10 +105,14 @@ export function SwitchConfirmModal({
           </div>
 
           {/* To Company */}
-          <div className="flex items-center gap-3 p-3 border rounded-lg bg-primary/5">
-            <div className="text-primary">{getCompanyIcon(toCompany.companyType)}</div>
+          <div className="bg-primary/5 flex items-center gap-3 rounded-lg border p-3">
+            <div className="text-primary">
+              {getCompanyIcon(toCompany.companyType)}
+            </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-muted-foreground">To:</div>
+              <div className="text-muted-foreground text-sm font-medium">
+                To:
+              </div>
               <div className="font-semibold">{getCompanyName(toCompany)}</div>
               {toCompany.isDemoCompany && (
                 <div className="text-xs text-orange-600">Demo Company</div>
@@ -117,7 +128,10 @@ export function SwitchConfirmModal({
               onCheckedChange={(checked) => setRememberChoice(checked === true)}
               disabled={isLoading}
             />
-            <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+            <label
+              htmlFor="remember"
+              className="text-muted-foreground cursor-pointer text-sm"
+            >
               Don't ask again for this session
             </label>
           </div>

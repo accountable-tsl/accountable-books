@@ -1,8 +1,8 @@
+import type { Country } from '@/shared/types/core';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Loader, MapPin, Shield } from 'lucide-react';
 import { StepHeader } from '@/features/connect-bank/ui/components/step-header';
 import { TrustIndicators } from '@/features/connect-bank/ui/components/trust-signals';
-import type { Country } from '@/shared/types/core';
+import { ArrowRight, Loader, MapPin, Shield } from 'lucide-react';
 
 type WelcomeStepProps = {
   detectedCountry: Country | null | undefined;
@@ -39,9 +39,9 @@ export function WelcomeStep({
 
       {/* Location detection indicator */}
       {detectingLocation && (
-        <div className="p-4 rounded-md bg-blue-50 dark:bg-muted">
+        <div className="dark:bg-muted rounded-md bg-blue-50 p-4">
           <div className="flex items-center gap-3">
-            <Loader className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+            <Loader className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
             <div className="text-sm">
               <span className="font-medium text-blue-900 dark:text-blue-100">
                 Detecting your location...
@@ -56,15 +56,15 @@ export function WelcomeStep({
 
       {detectedCountry && !detectingLocation && (
         <div
-          className={`p-4 rounded-md ${
+          className={`rounded-md p-4 ${
             detectedCountryIsSupported
-              ? 'bg-green-50 border-green-200 dark:bg-muted'
-              : 'bg-yellow-50 border-yellow-200 dark:bg-muted'
+              ? 'dark:bg-muted border-green-200 bg-green-50'
+              : 'dark:bg-muted border-yellow-200 bg-yellow-50'
           }`}
         >
           <div className="flex items-center gap-3">
             <MapPin
-              className={`w-4 h-4 ${
+              className={`h-4 w-4 ${
                 detectedCountryIsSupported
                   ? 'text-green-600 dark:text-emerald-500'
                   : 'text-yellow-600 dark:text-yellow-500'
@@ -98,8 +98,8 @@ export function WelcomeStep({
               onClick={onChangeCountry}
               className={`font-normal ${
                 detectedCountryIsSupported
-                  ? 'text-green-700 dark:text-emerald-600 hover:text-emerald-800 dark:hover:text-emerald-400 dark:border-1 dark:border-muted dark:hover:border-emerald-900'
-                  : 'text-yellow-700 dark:text-yellow-600 hover:text-yellow-800 dark:hover:text-yellow-400 dark:border-1 dark:border-muted dark:hover:border-yellow-900'
+                  ? 'dark:border-muted text-green-700 hover:text-emerald-800 dark:border-1 dark:text-emerald-600 dark:hover:border-emerald-900 dark:hover:text-emerald-400'
+                  : 'dark:border-muted text-yellow-700 hover:text-yellow-800 dark:border-1 dark:text-yellow-600 dark:hover:border-yellow-900 dark:hover:text-yellow-400'
               }`}
             >
               Change
@@ -110,16 +110,20 @@ export function WelcomeStep({
 
       <TrustIndicators />
 
-      <Button className="w-full" disabled={detectingLocation || isLoading} onClick={onContinue}>
+      <Button
+        className="w-full"
+        disabled={detectingLocation || isLoading}
+        onClick={onContinue}
+      >
         {selectedCountry && selectedCountryIsSupported
           ? 'Connect your bank'
           : 'Choose a different country'}
-        <ArrowRight className="w-4 h-4 ml-2" />
+        <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
 
       <div className="text-center">
         <button
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
           onClick={onSkipToCSV}
         >
           Prefer to upload a file instead?

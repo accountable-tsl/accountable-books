@@ -32,7 +32,9 @@ export type EmailPayload = BaseEmailPayload &
   );
 
 // For template-based verification/invite emails
-export type TokenBasedEmailPayload = BaseTemplatedEmailPayload & { name: string } & (
+export type TokenBasedEmailPayload = BaseTemplatedEmailPayload & {
+  name: string;
+} & (
     | {
         token: string;
         url?: string;
@@ -40,7 +42,11 @@ export type TokenBasedEmailPayload = BaseTemplatedEmailPayload & { name: string 
     | { token?: string; url: string }
   );
 
-export const urlType = z.enum(['verify-email', 'reset-password', 'accept-invite']);
+export const urlType = z.enum([
+  'verify-email',
+  'reset-password',
+  'accept-invite',
+]);
 export type UrlType = z.infer<typeof urlType>;
 
 export type UrlParams = {

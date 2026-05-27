@@ -1,0 +1,6 @@
+from pydantic import BaseModel, constr
+from typing import Optional
+
+class ManagedByFirmSchema(BaseModel):
+    firmName: constr(min_length=1, max_length=256)
+    firmLogo: Optional[str] = None

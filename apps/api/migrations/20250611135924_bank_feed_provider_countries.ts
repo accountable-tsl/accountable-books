@@ -1,17 +1,13 @@
 import type { Knex } from 'knex';
-import {
-  addStandardColumns,
-  createUpdateTimestampTrigger,
-  dropUpdateTimestampTrigger,
-} from './utils/db';
-import { adminUser } from './20250403184441_users';
+
+import { adminUser } from './20250403184441_users.js';
+import { countryMap } from './20250404021752_banks.js';
 import {
   MONO_COUNTRIES,
   PLAID_COUNTRIES,
   SEED_BANK_FEED_PROVIDERS,
   STRIPE_COUNTRIES,
-} from './data/feed_providers';
-import { countryMap } from './20250404021752_banks';
+} from './data/feed_providers.js';
 
 function mapProviderToCountry(
   providerKey: string,
@@ -38,7 +34,17 @@ function mapProviderToCountry(
   });
 }
 
-export const FEED_PROVIDERS_BY_KEY = new Map<string, any & { id: string }>();
+interface FeedProvider {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  status: string;
+  priority: number;
+}
+export const FEED_PROVIDERS_BY_KEY = new Map<string, FeedProvider>();
 
 const getProvidersData = (adminUserId: string) =>
   SEED_BANK_FEED_PROVIDERS.map((p) => {
@@ -57,7 +63,10 @@ const getProvidersData = (adminUserId: string) =>
     };
   });
 
-const addBankFeedProviders = async (knex: Knex, data: ReturnType<typeof getProvidersData>) => {
+const addBankFeedProviders = async (
+  knex: Knex,
+  data: ReturnType<typeof getProvidersData>,
+) => {
   await knex('bank_feed_providers').insert(data).onConflict().ignore();
 };
 
@@ -102,7 +111,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('RESTRICT');
 
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     table.primary(['bank_feed_provider_id', 'country_id']);
   });

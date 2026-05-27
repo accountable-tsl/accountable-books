@@ -1,10 +1,10 @@
 import { z } from 'zod';
+
 import { dbBaseFields, zDate, zEmail } from '../../core/types/core.js';
+import { userOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
-import {
-  type UserOnboardingState,
-  userOnboardingState,
-} from '../../features/onboarding/onboarding.types.js';
+
+import type { UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
 
 // user
 export const newUser = z.object({
@@ -24,7 +24,7 @@ export const newUser = z.object({
   last_active_company_id: z.uuid().nullish(),
   onboarding_state: userOnboardingState,
 
-  is_demo_user: z.boolean().prefault(false).optional(),
+  user_type: z.enum(['regular', 'demo', 'system']).default('regular'),
 });
 
 export const newUserDirect = newUser.extend({

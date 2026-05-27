@@ -1,9 +1,9 @@
-import { Navigate, useLocation, useSearchParams } from 'react-router';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import { routes } from '@/shared/routes/routes';
-import { useSession } from '@session';
-import { getPathByStepKey } from '@/domains-pending-migration/onboarding/utils';
 import ErrorPage from '@/components/ErrorPage';
+import { getPathByStepKey } from '@/domains-pending-migration/onboarding/utils';
+import { routes } from '@/shared/routes';
+import { useSession } from '@session';
+import { Navigate, useLocation, useSearchParams } from 'react-router';
 
 export function OnboardingRouter() {
   /**
@@ -23,7 +23,13 @@ export function OnboardingRouter() {
   const hasTokenVerificationParams = !!verificationToken && !!userIdFromUrl;
 
   if (loading) {
-    return <CenteredLoader fullscreen message="Loading..." showAuthHeader={!isLoggedIn} />;
+    return (
+      <CenteredLoader
+        fullscreen
+        message="Loading..."
+        showAuthHeader={!isLoggedIn}
+      />
+    );
   }
 
   if (!isLoggedIn || !user) {
@@ -39,14 +45,19 @@ export function OnboardingRouter() {
   }
 
   if (!onboarding?.nextStepToComplete) {
-    return <ErrorPage />;
+    return <ErrorPage showHeader />;
   }
 
   const nextStepPath = getPathByStepKey(onboarding.nextStepToComplete);
 
   if (!nextStepPath) {
-    return <ErrorPage />;
+    return <ErrorPage showHeader />;
   }
 
-  return <Navigate to={routes.onboarding.step.build({ step: nextStepPath })} replace />;
+  return (
+    <Navigate
+      to={routes.onboarding.step.build({ step: nextStepPath })}
+      replace
+    />
+  );
 }

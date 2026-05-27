@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'predictions';
 export async function up(knex: Knex): Promise<void> {
@@ -17,12 +18,27 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('companies')
       .onDelete('RESTRICT');
-    table.uuid('coa_id').notNullable().references('id').inTable('coa').onDelete('RESTRICT');
+    table
+      .uuid('coa_id')
+      .notNullable()
+      .references('id')
+      .inTable('coa')
+      .onDelete('RESTRICT');
     table.enu('method', ['rule', 'knn', 'human']).notNullable();
     table.decimal('confidence', 7, 6).notNullable(); // between 0 and 1
     table.jsonb('reason_json').notNullable().defaultTo('{}');
-    table.uuid('created_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
-    table.uuid('updated_by_id').nullable().references('id').inTable('users').onDelete('SET NULL');
+    table
+      .uuid('created_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable('users')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
 

@@ -1,0 +1,11 @@
+from pydantic import BaseModel
+from typing import Literal
+from datetime import datetime
+from uuid import UUID
+
+class InviteTeamMemberResponseAlreadyMemberSchema(BaseModel):
+    status: Literal["already_member"]
+    email: str
+    createdAt: datetime
+    membershipId: UUID
+    userId: UUID

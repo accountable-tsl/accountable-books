@@ -1,22 +1,33 @@
 import type { Knex } from 'knex';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../shared/utils/response.utils.js';
-import {
-  type ContactInput,
-  contactInputSchema,
-  type ContactResponse,
-  getContactsParams,
-  type GetContactsParams,
-  type UpdateContact,
-  updateContactSchema,
-} from './contact.types.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { createHybridSearch, defineSearchableColumns } from '../../shared/utils/search.utils.js';
-import { logger, logError, logDatabaseOperation, logTiming } from '../../shared/utils/logger.js';
 import z from 'zod';
 
-const normalizeName = (name: string) => name.trim().toLowerCase();
+import { knexClient } from '../../db/knexClient.js';
+import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
+import { logger } from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import {
+  createHybridSearch,
+  defineSearchableColumns,
+} from '../../shared/utils/search.utils.js';
+import {
+  contactInputSchema,
+  getContactsParams,
+  updateContactSchema,
+} from './contacts.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  ContactInput,
+  ContactResponse,
+  GetContactsParams,
+  UpdateContact,
+} from './contacts.types.js';
+
+export const normalizeContactName = (name: string) => name.trim().toLowerCase();
 
 /**
  * Sanitizes contact input data by trimming whitespace and normalizing text fields
@@ -81,12 +92,13 @@ export async function addNewContacts({
   }));
 
   const sanitizedContacts = camelCaseContacts.map(sanitizeContactInput);
-  contactsLogger.debug({ sanitizedCount: sanitizedContacts.length }, 'Contact input sanitized');
+  contactsLogger.debug(
+    { sanitizedCount: sanitizedContacts.length },
+    'Contact input sanitized',
+  );
 
   const query = async (tx: Knex.Transaction) => {
     try {
-      // Get company's UUID with logging
-      logDatabaseOperation('SELECT', 'companies', { companyId });
       const companyUUID = await getCompanyUUID(companyId, tx);
 
       if (!companyUUID) {
@@ -98,7 +110,9 @@ export async function addNewContacts({
       contactsLogger.debug({ companyUUID }, 'Company resolved successfully');
 
       // Normalize names to verify uniqueness
-      const normalizedNames = sanitizedContacts.map((c) => normalizeName(c.displayName));
+      const normalizedNames = sanitizedContacts.map((c) =>
+        normalizeContactName(c.displayName),
+      );
       contactsLogger.debug(
         {
           names: sanitizedContacts.map((c) => c.displayName),
@@ -107,11 +121,6 @@ export async function addNewContacts({
         'Contact names normalized for duplicate check',
       );
 
-      // Check for existing contacts
-      logDatabaseOperation('SELECT', 'contacts', {
-        companyId: companyUUID,
-        nameCount: normalizedNames.length,
-      });
       const existingContacts: { display_name: string }[] = await tx('contacts')
         .whereIn('normalized_name', normalizedNames)
         .andWhere('company_id', companyUUID)
@@ -130,7 +139,9 @@ export async function addNewContacts({
         throw new Error(duplicateError);
       }
 
-      contactsLogger.debug('No duplicate contacts found, proceeding with creation');
+      contactsLogger.debug(
+        'No duplicate contacts found, proceeding with creation',
+      );
 
       // Create data structure for insertion
       const data = sanitizedContacts.map((contact) => ({
@@ -140,21 +151,24 @@ export async function addNewContacts({
         address: contact.address,
         notes: contact.notes,
         status: contact.status,
-        normalized_name: normalizeName(contact.displayName),
+        normalized_name: normalizeContactName(contact.displayName),
         company_id: companyUUID,
         created_by_id: userId,
         updated_by_id: userId,
       }));
 
-      // Insert contacts with logging
-      logDatabaseOperation('INSERT', 'contacts', {
-        companyId: companyUUID,
-        contactCount: data.length,
-        names: data.map((c) => c.display_name),
-      });
       const result = await tx('contacts')
         .insert(data)
-        .returning(['id', 'display_name as displayName', 'address', 'email', 'status', 'notes']);
+        .returning([
+          'id',
+          'display_name as displayName',
+          'address',
+          'email',
+          'status',
+          'notes',
+          'created_at as createdAt',
+          'updated_at as updatedAt',
+        ]);
 
       contactsLogger.info(
         {
@@ -166,7 +180,8 @@ export async function addNewContacts({
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       contactsLogger.error(
         {
           error: error instanceof Error ? error : new Error(String(error)),
@@ -175,14 +190,6 @@ export async function addNewContacts({
         `Contact creation failed: ${errorMessage}`,
       );
 
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'addNewContacts',
-        companyId,
-        userId,
-        operationId,
-        contactCount: sanitizedContacts.length,
-      });
-
       throw error;
     }
   };
@@ -190,10 +197,12 @@ export async function addNewContacts({
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
 
-    logTiming('addNewContacts', startTime, {
+    logFlowStep({
+      flow: 'contacts',
+      step: 'add_contacts',
+      status: 'ok',
+      durationMs: Date.now() - startTime,
       contactCount: result.length,
-      companyId,
-      operationId,
     });
 
     const message =
@@ -210,7 +219,8 @@ export async function addNewContacts({
 
     return successResponse(message, result);
   } catch (error: any) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error';
 
     contactsLogger.error(
       {
@@ -231,19 +241,37 @@ export async function addNewContacts({
       return errorResponse('Invalid company identifier', error);
     }
 
-    return errorResponse('Failed to create contact(s). Please try again.', error);
+    return errorResponse(
+      'Failed to create contact(s). Please try again.',
+      error,
+    );
   }
 }
 
-export async function getContacts(input: GetContactsParams): Promise<ApiResponse<ContactResponse>> {
+export async function getContacts(
+  input: GetContactsParams,
+): Promise<ApiResponse<ContactResponse>> {
   // Input validation
   const parseInput = getContactsParams.safeParse(input);
   if (!parseInput.success) {
-    return errorResponse('Invalid request parameters', z.treeifyError(parseInput.error));
+    return errorResponse(
+      'Invalid request parameters',
+      z.treeifyError(parseInput.error),
+    );
   }
 
-  const { companyId, ids, displayNames, page, limit, search, status, sortBy, sortOrder, trx } =
-    parseInput.data;
+  const {
+    companyId,
+    ids,
+    displayNames,
+    page,
+    limit,
+    search,
+    status,
+    sortBy,
+    sortOrder,
+    trx,
+  } = parseInput.data;
 
   const searchableColumns = defineSearchableColumns('c', [
     { column: 'display_name', name: 'displayName', weight: 2.0 },
@@ -297,7 +325,9 @@ export async function getContacts(input: GetContactsParams): Promise<ApiResponse
 
     // Validate page bounds
     if (page > totalPages) {
-      return errorResponse(`Page ${page} exceeds maximum pages (${totalPages})`);
+      return errorResponse(
+        `Page ${page} exceeds maximum pages (${totalPages})`,
+      );
     }
 
     const defaultSortCol = 'c.display_name';
@@ -382,24 +412,34 @@ export async function updateContacts({
       .select('id');
 
     if (existingContacts.length !== contactIds.length) {
-      const missingIds = contactIds.filter((id) => !existingContacts.some((c) => c.id === id));
-      throw new Error(`Contact(s) with these IDs do not exist: ${missingIds.join(', ')}`);
+      const missingIds = contactIds.filter(
+        (id) => !existingContacts.some((c) => c.id === id),
+      );
+      throw new Error(
+        `Contact(s) with these IDs do not exist: ${missingIds.join(', ')}`,
+      );
     }
 
     // Check for display name uniqueness if any updates include display names
     const displayNamesToUpdate = validate.data
-      .filter((c) => typeof c.display_name === 'string' && c.display_name.trim() !== '')
+      .filter(
+        (c) =>
+          typeof c.display_name === 'string' && c.display_name.trim() !== '',
+      )
       .map((c) => c.display_name as string);
 
     if (displayNamesToUpdate.length > 0) {
-      const normalizedNamesToUpdate = displayNamesToUpdate.map(normalizeName);
+      const normalizedNamesToUpdate =
+        displayNamesToUpdate.map(normalizeContactName);
 
       // Check for duplicates within the batch itself
       const duplicatesInBatch = normalizedNamesToUpdate.filter(
         (name, index, arr) => arr.indexOf(name) !== index,
       );
       if (duplicatesInBatch.length > 0) {
-        throw new Error(`Duplicate names found in update batch: ${duplicatesInBatch.join(', ')}`);
+        throw new Error(
+          `Duplicate names found in update batch: ${duplicatesInBatch.join(', ')}`,
+        );
       }
 
       // Check for conflicts with existing contacts (excluding those being updated)
@@ -411,7 +451,9 @@ export async function updateContacts({
 
       if (duplicateContacts.length > 0) {
         const duplicateNames = duplicateContacts.map((c) => c.display_name);
-        throw new Error(`Contact(s) with these names already exist: ${duplicateNames.join(', ')}`);
+        throw new Error(
+          `Contact(s) with these names already exist: ${duplicateNames.join(', ')}`,
+        );
       }
     }
 
@@ -426,7 +468,7 @@ export async function updateContacts({
       // Only include fields that are explicitly provided
       if (contact.display_name !== undefined) {
         data.display_name = contact.display_name;
-        data.normalized_name = normalizeName(contact.display_name);
+        data.normalized_name = normalizeContactName(contact.display_name);
       }
       if (contact.address !== undefined) data.address = contact.address;
       if (contact.email !== undefined) data.email = contact.email;
@@ -441,7 +483,14 @@ export async function updateContacts({
       const [updatedContact] = await tx('contacts')
         .where({ id, company_id: companyUUID })
         .update(updateFields)
-        .returning(['id', 'display_name as displayName', 'address', 'email', 'status', 'notes']);
+        .returning([
+          'id',
+          'display_name as displayName',
+          'address',
+          'email',
+          'status',
+          'notes',
+        ]);
       return updatedContact;
     });
 

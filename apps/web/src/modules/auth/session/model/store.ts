@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+
 import type { AuthState, SessionStore } from './types';
 
 export const authStore = create<AuthState>()((set) => ({
@@ -26,7 +27,8 @@ export const sessionStore = create<SessionStore>()(
       failedAttempts: 0, // Track failed attempts
       setCheckingSession: (checking) => set({ checkingSession: checking }),
       setSessionValid: (valid) => set({ sessionValid: valid }),
-      incrementFailedAttempts: () => set((state) => ({ failedAttempts: state.failedAttempts + 1 })),
+      incrementFailedAttempts: () =>
+        set((state) => ({ failedAttempts: state.failedAttempts + 1 })),
       resetFailedAttempts: () => set({ failedAttempts: 0 }),
     }),
     {

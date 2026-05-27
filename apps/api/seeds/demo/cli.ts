@@ -1,12 +1,30 @@
 #!/usr/bin/env tsx
-
 import knex from 'knex';
-import { createDemoSeedRunner } from './engine/runner.js';
-import { runtimeKnexConfig } from '../../knexfile.js';
-import { DemoFilter, COUNTRY_CODES, COMPANY_TYPES, DemoCompanyType } from './shared/config.js';
 
-// Create knex instance for the CLI
-const knexClient = knex(runtimeKnexConfig);
+import { runtimeKnexConfig } from '../../knexfile.js';
+import { queueBroker } from '../../src/jobs/queues';
+import { createDemoSeedRunner } from './engine/runner.js';
+import { COMPANY_TYPES, COUNTRY_CODES } from './shared/config.js';
+
+import type { DemoCompanyType, DemoFilter } from './shared/config.js';
+
+// Apply conservative per-session Postgres timeouts for seeds to avoid stuck backends
+if (!process.env.PGOPTIONS) {
+  process.env.PGOPTIONS =
+    '-c statement_timeout=30000 -c idle_in_transaction_session_timeout=15000 -c lock_timeout=5000';
+}
+
+// Create knex instance for the CLI with a small pool and short acquire timeout
+const knexClient = knex({
+  ...runtimeKnexConfig,
+  pool: {
+    ...(runtimeKnexConfig.pool as object),
+    min: 0,
+    max: 5,
+    acquireTimeoutMillis: 10_000,
+    idleTimeoutMillis: 10_000,
+  },
+});
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -20,7 +38,9 @@ function parseFilters(args: string[]): DemoFilter | undefined {
     const arg = args[i];
 
     if (arg === '--country' && args[i + 1]) {
-      const countries = args[i + 1].split(',') as Array<keyof typeof COUNTRY_CODES>;
+      const countries = args[i + 1].split(',') as Array<
+        keyof typeof COUNTRY_CODES
+      >;
       filters.countryCodes = countries.filter((c) => c in COUNTRY_CODES);
       hasFilters = true;
       i++; // skip next arg
@@ -57,10 +77,19 @@ function parseFilters(args: string[]): DemoFilter | undefined {
 }
 
 function parseOptions(args: string[]) {
+  const getArgList = (flag: string) => {
+    const idx = args.indexOf(flag);
+    if (idx === -1) return undefined;
+    const next = args[idx + 1];
+    if (!next || next.startsWith('--')) return undefined;
+    return next.split(',').filter(Boolean);
+  };
+
   return {
     parallel: args.includes('--parallel'),
     dryRun: args.includes('--dry-run'),
-    steps: args.includes('--steps') ? args[args.indexOf('--steps') + 1]?.split(',') : undefined,
+    steps: getArgList('--steps'),
+    exclude: getArgList('--exclude'),
   };
 }
 
@@ -84,6 +113,7 @@ Filters:
 
 Options:
   --steps users,companies      Only run specific steps
+  --exclude bank-transactions  Exclude specific steps from execution
   --parallel                   Run steps in parallel (dangerous!)
   --dry-run                    Show what would happen without doing it
 
@@ -91,6 +121,7 @@ Examples:
   tsx apps/api/seeds/demo/cli.ts apply                           # Create all demo data
   tsx apps/api/seeds/demo/cli.ts apply --country US              # Create US demo data only
   tsx apps/api/seeds/demo/cli.ts apply --type business           # Create business demo data only
+  tsx apps/api/seeds/demo/cli.ts apply --exclude bank-transactions # Apply all except transactions
   tsx apps/api/seeds/demo/cli.ts reverse --company bizDemoUS     # Delete specific company data
   tsx apps/api/seeds/demo/cli.ts reset --country NG --steps users,companies
   tsx apps/api/seeds/demo/cli.ts status                          # Show current state
@@ -104,17 +135,49 @@ Workspace Commands (from project root):
 `);
 }
 
+// Track cleanup state to prevent multiple cleanup attempts
+let cleanupInProgress = false;
+let isShuttingDown = false;
+
 // Cleanup function to ensure database connection is properly closed
 async function cleanup() {
+  if (cleanupInProgress) {
+    return; // Already cleaning up
+  }
+
+  cleanupInProgress = true;
+  isShuttingDown = true;
+
   try {
+    // Give Knex time to finish any in-flight queries and close connections
     await knexClient.destroy();
+    console.log('✓ Database connections closed');
   } catch (error) {
-    console.warn('Warning: Error during cleanup:', error instanceof Error ? error.message : error);
+    console.warn(
+      '⚠️  Warning: Error during cleanup:',
+      error instanceof Error ? error.message : error,
+    );
   }
 }
 
 async function main() {
-  if (!command || command === 'help' || command === '--help' || command === '-h') {
+  // Configure queue broker for seeding
+  // Disable queues during seeding unless explicitly enabled via DISABLE_QUEUES=false
+  if (process.env.DISABLE_QUEUES !== 'false') {
+    queueBroker.configure({
+      disableAll: true,
+      logSkipped: true, // Log so users know what's happening
+    });
+    console.log('⚠️  Queue operations disabled during seeding');
+    console.log('   Set DISABLE_QUEUES=false to enable queues');
+  }
+
+  if (
+    !command ||
+    command === 'help' ||
+    command === '--help' ||
+    command === '-h'
+  ) {
     showHelp();
     return;
   }
@@ -143,36 +206,51 @@ async function main() {
 
       default:
         console.error(`❌ Unknown command: ${command}`);
-        console.log('Run "tsx apps/api/seeds/demo/cli.ts help" for usage information');
+        console.log(
+          'Run "tsx apps/api/seeds/demo/cli.ts help" for usage information',
+        );
         throw new Error(`Unknown command: ${command}`);
     }
   } catch (error) {
-    console.error('❌ Command failed:', error instanceof Error ? error.message : error);
+    console.error(
+      '❌ Command failed:',
+      error instanceof Error ? error.message : error,
+    );
     throw error; // Re-throw to be handled by main catch
   }
 }
 
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
+// Handle graceful shutdown - use process.once to prevent multiple handlers
+process.once('SIGINT', async () => {
+  if (isShuttingDown) {
+    console.log('\n⚠️  Shutdown already in progress, forcing exit...');
+    process.exit(1);
+  }
   console.log('\n👋 Received SIGINT, cleaning up...');
   await cleanup();
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
+process.once('SIGTERM', async () => {
+  if (isShuttingDown) {
+    console.log('\n⚠️  Shutdown already in progress, forcing exit...');
+    process.exit(1);
+  }
   console.log('\n👋 Received SIGTERM, cleaning up...');
   await cleanup();
   process.exit(0);
 });
 
 // Handle uncaught errors without preventing cleanup
-process.on('unhandledRejection', async (error) => {
+process.once('unhandledRejection', async (error) => {
+  if (isShuttingDown) return; // Already cleaning up
   console.error('❌ Unhandled rejection:', error);
   await cleanup();
   process.exit(1);
 });
 
-process.on('uncaughtException', async (error) => {
+process.once('uncaughtException', async (error) => {
+  if (isShuttingDown) return; // Already cleaning up
   console.error('❌ Uncaught exception:', error);
   await cleanup();
   process.exit(1);

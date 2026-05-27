@@ -1,21 +1,24 @@
-import axios from 'axios';
-import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
-import { errorResponse, successResponse } from '../../../shared/utils/response.utils.js';
-import { logger, logError, logDatabaseOperation, logTiming } from '../../../shared/utils/logger.js';
-import {
-  type CreateBankProviderMappings,
-  type MonoBankCoverage,
-  type NewBankProviderMapping,
-  newBankProviderMappingCamel,
-} from './bankProviderMappings.types.js';
-import { ENV } from '../../../config/env.js';
 import type { Knex } from 'knex';
-import { retryAxios } from '../../../shared/utils/random.utils.js';
+import axios from 'axios';
+
+import { ENV } from '../../../config/env.js';
+import { knexClient } from '../../../db/knexClient.js';
 import { redis } from '../../../lib/redis.js';
+import { logger } from '../../../shared/utils/logger.js';
+import { retryAxios } from '../../../shared/utils/random.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
+import { newBankProviderMappingCamel } from './bankProviderMappings.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
+  CreateBankProviderMappings,
   GetBankProviderMappingInput,
   GetBankProviderMappingResponse,
+  MonoBankCoverage,
+  NewBankProviderMapping,
 } from './bankProviderMappings.types.js';
 
 export async function createBankProviderMappings({
@@ -25,9 +28,14 @@ export async function createBankProviderMappings({
 }: CreateBankProviderMappings): Promise<ApiResponse<{ id: string }[]>> {
   const inputArray = Array.isArray(input) ? input : [input];
 
-  const validatedInput = newBankProviderMappingCamel.array().safeParse(inputArray);
+  const validatedInput = newBankProviderMappingCamel
+    .array()
+    .safeParse(inputArray);
   if (!validatedInput.success) {
-    return errorResponse<{ id: string }[]>('Invalid input data', validatedInput.error.flatten());
+    return errorResponse<{ id: string }[]>(
+      'Invalid input data',
+      validatedInput.error.flatten(),
+    );
   }
 
   const toInsert = validatedInput.data.map((mapping) => ({
@@ -38,10 +46,14 @@ export async function createBankProviderMappings({
 
   const executeOperation = async (knex: Knex | Knex.Transaction) => {
     try {
-      const inserted = await knex('bank_provider_mappings').insert(toInsert).returning('id');
+      const inserted = await knex('bank_provider_mappings')
+        .insert(toInsert)
+        .returning('id');
 
       if (!inserted.length) {
-        return errorResponse<{ id: string }[]>('Failed to create bank provider mapping(s)');
+        return errorResponse<{ id: string }[]>(
+          'Failed to create bank provider mapping(s)',
+        );
       }
 
       return successResponse(
@@ -53,9 +65,13 @@ export async function createBankProviderMappings({
       if (error instanceof Error && 'code' in error) {
         switch (error.code) {
           case '23503':
-            return errorResponse<{ id: string }[]>('Referenced bank or provider not found');
+            return errorResponse<{ id: string }[]>(
+              'Referenced bank or provider not found',
+            );
           case '23505':
-            return errorResponse<{ id: string }[]>('Bank provider mapping already exists');
+            return errorResponse<{ id: string }[]>(
+              'Bank provider mapping already exists',
+            );
           case '23502':
             return errorResponse<{ id: string }[]>('Required field is missing');
           default:
@@ -63,13 +79,18 @@ export async function createBankProviderMappings({
         }
       }
 
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'createBankProviderMappings',
-        userId,
-        recordCount: toInsert.length,
-      });
+      logger.error(
+        {
+          err: error instanceof Error ? error : new Error(String(error)),
+          userId,
+          recordCount: toInsert.length,
+        },
+        'createBankProviderMappings failed',
+      );
 
-      return errorResponse<{ id: string }[]>('Failed to create bank provider mapping(s)');
+      return errorResponse<{ id: string }[]>(
+        'Failed to create bank provider mapping(s)',
+      );
     }
   };
 
@@ -123,15 +144,21 @@ export async function syncMonoInstitutionsToMappingsNG(
       monoInstitutionsResp.status !== 'successful' ||
       !monoInstitutionsResp.data
     ) {
-      return errorResponse('Invalid response from Mono API', monoInstitutionsResp);
+      return errorResponse(
+        'Invalid response from Mono API',
+        monoInstitutionsResp,
+      );
     }
 
     // Filter for Nigerian institutions with valid NIP codes
     const monoInstitutionsToMap = monoInstitutionsResp.data.filter(
-      (inst) => inst.country?.toLowerCase() === 'ng' && inst.id && inst.institution,
+      (inst) =>
+        inst.country?.toLowerCase() === 'ng' && inst.id && inst.institution,
     );
 
-    console.log(`Found ${monoInstitutionsToMap.length} Nigerian institutions to process`);
+    console.log(
+      `Found ${monoInstitutionsToMap.length} Nigerian institutions to process`,
+    );
 
     if (monoInstitutionsToMap.length === 0) {
       return successResponse('No institutions to sync', {
@@ -158,7 +185,13 @@ export async function syncMonoInstitutionsToMappingsNG(
 
       knex('bank_provider_mappings')
         .where({ provider_id: provider.id })
-        .select('bank_id', 'provider_bank_id', 'id', 'provider_bank_name', 'raw_provider_data'),
+        .select(
+          'bank_id',
+          'provider_bank_id',
+          'id',
+          'provider_bank_name',
+          'raw_provider_data',
+        ),
     ]);
 
     // Create lookup maps
@@ -194,7 +227,9 @@ export async function syncMonoInstitutionsToMappingsNG(
 
       const processInTransaction = async (trx: Knex | Knex.Transaction) => {
         const toInsert: NewBankProviderMapping[] = [];
-        const toUpdate: Partial<Omit<NewBankProviderMapping, 'created_by_id'>>[] = [];
+        const toUpdate: Partial<
+          Omit<NewBankProviderMapping, 'created_by_id'>
+        >[] = [];
 
         for (const inst of batch) {
           // Simplified bank lookup
@@ -244,7 +279,9 @@ export async function syncMonoInstitutionsToMappingsNG(
         // Bulk update existing mappings
         for (const updateData of toUpdate) {
           const { id, ...updateFields } = updateData;
-          await trx('bank_provider_mappings').where({ id }).update(updateFields);
+          await trx('bank_provider_mappings')
+            .where({ id })
+            .update(updateFields);
         }
       };
       if (knex.isTransaction) {
@@ -270,7 +307,9 @@ export async function syncMonoInstitutionsToMappingsNG(
   }
 }
 
-function generateBankProviderMappingCacheKey(params: GetBankProviderMappingInput): string {
+function generateBankProviderMappingCacheKey(
+  params: GetBankProviderMappingInput,
+): string {
   return `bank_provider_mapping:${JSON.stringify(params)}`;
 }
 
@@ -286,11 +325,15 @@ export async function getBankProviderMapping(
 ): Promise<ApiResponse<GetBankProviderMappingResponse>> {
   try {
     // Extract properties with type safety - this is safer than destructuring union types
-    const providerKey = 'providerKey' in params ? params.providerKey : undefined;
+    const providerKey =
+      'providerKey' in params ? params.providerKey : undefined;
     const providerId = 'providerId' in params ? params.providerId : undefined;
-    const internalBankId = 'internalBankId' in params ? params.internalBankId : undefined;
-    const providerBankId = 'providerBankId' in params ? params.providerBankId : undefined;
-    const providerBankName = 'providerBankName' in params ? params.providerBankName : undefined;
+    const internalBankId =
+      'internalBankId' in params ? params.internalBankId : undefined;
+    const providerBankId =
+      'providerBankId' in params ? params.providerBankId : undefined;
+    const providerBankName =
+      'providerBankName' in params ? params.providerBankName : undefined;
     const search = 'search' in params ? params.search : undefined;
 
     // Must have exactly one provider identifier
@@ -300,7 +343,9 @@ export async function getBankProviderMapping(
       );
     }
     if (providerKey && providerId) {
-      return errorResponse('Cannot provide both providerKey and providerId - choose one');
+      return errorResponse(
+        'Cannot provide both providerKey and providerId - choose one',
+      );
     }
 
     // Must have at least one bank identifier
@@ -318,7 +363,10 @@ export async function getBankProviderMapping(
       try {
         const cached = await redis.get(cacheKey);
         if (cached) {
-          return successResponse('Bank provider mapping retrieved from cache', JSON.parse(cached));
+          return successResponse(
+            'Bank provider mapping retrieved from cache',
+            JSON.parse(cached),
+          );
         }
       } catch (cacheError) {
         console.warn('Cache read failed:', cacheError);
@@ -360,7 +408,11 @@ export async function getBankProviderMapping(
     }
 
     if (providerBankName) {
-      query.andWhere('bpm.provider_bank_name', 'ILIKE', `%${providerBankName}%`);
+      query.andWhere(
+        'bpm.provider_bank_name',
+        'ILIKE',
+        `%${providerBankName}%`,
+      );
     }
 
     if (search) {
@@ -390,7 +442,9 @@ export async function getBankProviderMapping(
     });
 
     if (!result) {
-      return errorResponse('No bank provider mapping found for the specified criteria');
+      return errorResponse(
+        'No bank provider mapping found for the specified criteria',
+      );
     }
 
     // Cache successful results (only if not in transaction)
@@ -402,7 +456,10 @@ export async function getBankProviderMapping(
       }
     }
 
-    return successResponse('Bank provider mapping retrieved successfully', result);
+    return successResponse(
+      'Bank provider mapping retrieved successfully',
+      result,
+    );
   } catch (error) {
     console.error('Error retrieving bank provider mapping:', {
       error: error instanceof Error ? error.message : String(error),

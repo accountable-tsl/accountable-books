@@ -1,0 +1,7 @@
+from enum import Enum
+
+class RecurringTemplateStatus(str, Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    CLOSED = "closed"

@@ -1,6 +1,10 @@
 import type { Knex } from 'knex';
-import { DEMO_COMPANIES, DEMO_COMPANIES_IDS } from '../config/002_companies/companies.data.js';
-import { DemoFilter } from './config.js';
+
+import {
+  DEMO_COMPANIES,
+  DEMO_COMPANIES_IDS,
+} from '../config/002_companies/companies.data.js';
+import { type DemoFilter } from './config.js';
 
 // In-memory cache for company data
 let demoCompaniesCache: CompanyRecord[] | null = null;
@@ -17,7 +21,7 @@ let demoUsersCache: DemoUserRecord[] | null = null;
 type CompanyRecord = {
   id: string;
   short_code: string;
-  is_demo_company: boolean;
+  workspace_class: 'demo';
 };
 
 type AccountTypeRecord = {
@@ -104,14 +108,16 @@ export const deleteDemoData = async ({
   }
 
   // Resolve company shortCodes from filters
-  const shortCodes = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES_IDS;
+  const shortCodes = filters
+    ? resolveFiltersToIds(filters)
+    : DEMO_COMPANIES_IDS;
   if (requireFilters && shortCodes.length === 0) return;
 
   if (before) await before();
 
   const qb = trx(table)
     .join('companies', `${table}.${targetCompanyIdCol}`, 'companies.id')
-    .where('companies.is_demo_company', true);
+    .where('companies.workspace_class', 'demo');
 
   if (shortCodes.length) {
     qb.whereIn('companies.short_code', shortCodes);
@@ -130,14 +136,17 @@ export const deleteDemoData = async ({
  * Fetch and cache all demo company data from database
  * This is the SINGLE source of truth for company data
  */
-export const loadDemoCompanies = async (trx: Knex, refresh = false): Promise<CompanyRecord[]> => {
+export const loadDemoCompanies = async (
+  trx: Knex,
+  refresh = false,
+): Promise<CompanyRecord[]> => {
   if (!refresh && demoCompaniesCache) {
     return demoCompaniesCache;
   }
 
   demoCompaniesCache = (await trx('companies')
-    .where('is_demo_company', true)
-    .select('id', 'short_code', 'is_demo_company')) as CompanyRecord[];
+    .where('workspace_class', 'demo')
+    .select('id', 'short_code', 'workspace_class')) as CompanyRecord[];
 
   return demoCompaniesCache;
 };
@@ -145,7 +154,10 @@ export const loadDemoCompanies = async (trx: Knex, refresh = false): Promise<Com
 /**
  * Get company ID mapping - uses cached data, loads if needed
  */
-export const getCompanyIdMap = async (trx: Knex, refresh = false): Promise<Map<string, string>> => {
+export const getCompanyIdMap = async (
+  trx: Knex,
+  refresh = false,
+): Promise<Map<string, string>> => {
   const companies = await loadDemoCompanies(trx, refresh);
   return new Map(companies.map((c) => [c.short_code, c.id]));
 };
@@ -153,7 +165,10 @@ export const getCompanyIdMap = async (trx: Knex, refresh = false): Promise<Map<s
 /**
  * Get a single company ID by shortCode - uses cached data
  */
-export const getCompanyId = async (trx: Knex, shortCode: string): Promise<string | undefined> => {
+export const getCompanyId = async (
+  trx: Knex,
+  shortCode: string,
+): Promise<string | undefined> => {
   const companies = await loadDemoCompanies(trx);
   const company = companies.find((c) => c.short_code === shortCode);
   return company?.id;
@@ -162,11 +177,18 @@ export const getCompanyId = async (trx: Knex, shortCode: string): Promise<string
 /**
  * Get filtered company IDs (actual database IDs, not shortCodes) - uses cached data
  */
-export const getFilteredCompanyIds = async (trx: Knex, filters?: DemoFilter): Promise<string[]> => {
-  const shortCodes = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES_IDS;
+export const getFilteredCompanyIds = async (
+  trx: Knex,
+  filters?: DemoFilter,
+): Promise<string[]> => {
+  const shortCodes = filters
+    ? resolveFiltersToIds(filters)
+    : DEMO_COMPANIES_IDS;
   const companies = await loadDemoCompanies(trx);
 
-  return companies.filter((c) => shortCodes.includes(c.short_code)).map((c) => c.id);
+  return companies
+    .filter((c) => shortCodes.includes(c.short_code))
+    .map((c) => c.id);
 };
 
 /**
@@ -176,7 +198,9 @@ export const getDemoCompanies = async (
   trx: Knex,
   filters?: DemoFilter,
 ): Promise<CompanyRecord[]> => {
-  const shortCodes = filters ? resolveFiltersToIds(filters) : DEMO_COMPANIES_IDS;
+  const shortCodes = filters
+    ? resolveFiltersToIds(filters)
+    : DEMO_COMPANIES_IDS;
 
   if (shortCodes.length === 0) {
     return [];
@@ -246,12 +270,19 @@ export const clearAccountTypesCache = (): void => {
 /**
  * Fetch and cache all banks from database
  */
-export const loadBanks = async (trx: Knex, refresh = false): Promise<BankRecord[]> => {
+export const loadBanks = async (
+  trx: Knex,
+  refresh = false,
+): Promise<BankRecord[]> => {
   if (!refresh && banksCache) {
     return banksCache;
   }
 
-  banksCache = (await trx('banks').select('id', 'key', 'display_name')) as BankRecord[];
+  banksCache = (await trx('banks').select(
+    'id',
+    'key',
+    'display_name',
+  )) as BankRecord[];
 
   return banksCache;
 };
@@ -259,7 +290,10 @@ export const loadBanks = async (trx: Knex, refresh = false): Promise<BankRecord[
 /**
  * Get bank mapping - uses cached data
  */
-export const getBankMap = async (trx: Knex, refresh = false): Promise<Map<string, string>> => {
+export const getBankMap = async (
+  trx: Knex,
+  refresh = false,
+): Promise<Map<string, string>> => {
   const banks = await loadBanks(trx, refresh);
   return new Map(banks.map((b) => [b.key, b.id]));
 };
@@ -274,13 +308,16 @@ export const clearBanksCache = (): void => {
 /**
  * Fetch and cache all demo users from database
  */
-export const loadDemoUsers = async (trx: Knex, refresh = false): Promise<DemoUserRecord[]> => {
+export const loadDemoUsers = async (
+  trx: Knex,
+  refresh = false,
+): Promise<DemoUserRecord[]> => {
   if (!refresh && demoUsersCache) {
     return demoUsersCache;
   }
 
   demoUsersCache = (await trx('users')
-    .where('is_demo_user', true)
+    .where('user_type', 'demo')
     .select('id', 'email', 'firstname', 'lastname')) as DemoUserRecord[];
 
   return demoUsersCache;
@@ -300,7 +337,10 @@ export const getDemoUserByEmail = async (
 /**
  * Get demo user mapping - uses cached data
  */
-export const getDemoUserMap = async (trx: Knex, refresh = false): Promise<Map<string, string>> => {
+export const getDemoUserMap = async (
+  trx: Knex,
+  refresh = false,
+): Promise<Map<string, string>> => {
   const users = await loadDemoUsers(trx, refresh);
   return new Map(users.map((u) => [u.email, u.id]));
 };

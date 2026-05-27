@@ -1,6 +1,9 @@
 import { faker } from '@faker-js/faker';
-import { NewProjectInput, projectStatus } from '../../../../src/domains/projects/projects.types';
-import { DemoCompanyType, DemoCountryCode } from '../../shared/config';
+
+import { projectStatus } from '../../../../src/domains/projects/projects.types.js';
+
+import type { NewProjectInput } from '../../../../src/domains/projects/projects.types.js';
+import type { DemoCompanyType, DemoCountryCode } from '../../shared/config.js';
 
 // Projects seed template without IDs or contact references.
 export type SeedProject = Omit<NewProjectInput, 'id' | 'contactId'> & {
@@ -37,7 +40,9 @@ export function getFirmProjects(): SeedProject[] {
   ];
 }
 
-export function getBusinessProjects(countryCode: DemoCountryCode): SeedProject[] {
+export function getBusinessProjects(
+  countryCode: DemoCountryCode,
+): SeedProject[] {
   return [
     {
       name: 'E-commerce Site Redesign',
@@ -48,7 +53,10 @@ export function getBusinessProjects(countryCode: DemoCountryCode): SeedProject[]
       endDate: new Date('2024-08-01'),
     },
     {
-      name: countryCode === 'NG' ? 'Lagos Mainland Store Launch' : 'Local Market Expansion',
+      name:
+        countryCode === 'NG'
+          ? 'Lagos Mainland Store Launch'
+          : 'Local Market Expansion',
       code: 'EXP-01',
       description:
         countryCode === 'NG'

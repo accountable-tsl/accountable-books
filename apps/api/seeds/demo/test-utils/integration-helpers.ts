@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
-  setupTestDatabase,
-  getTestDb,
-  teardownTestDatabase,
   assertTestEnvironment,
+  closeTestDbConnection,
+  getTestDb,
+  setupTestDatabase,
 } from '../../../config/test-db.js';
 
 /**
@@ -60,7 +61,10 @@ export class SeedIntegrationTestHelper {
   /**
    * Count records in a table with optional conditions
    */
-  async countRecords(tableName: string, where?: Record<string, any>): Promise<number> {
+  async countRecords(
+    tableName: string,
+    where?: Record<string, any>,
+  ): Promise<number> {
     const trx = this.getTransaction();
     let query = trx(tableName);
 
@@ -75,7 +79,10 @@ export class SeedIntegrationTestHelper {
   /**
    * Check if records exist with specific conditions
    */
-  async recordsExist(tableName: string, where: Record<string, any>): Promise<boolean> {
+  async recordsExist(
+    tableName: string,
+    where: Record<string, any>,
+  ): Promise<boolean> {
     const count = await this.countRecords(tableName, where);
     return count > 0;
   }
@@ -83,7 +90,10 @@ export class SeedIntegrationTestHelper {
   /**
    * Get records from a table with optional conditions
    */
-  async getRecords(tableName: string, where?: Record<string, any>): Promise<any[]> {
+  async getRecords(
+    tableName: string,
+    where?: Record<string, any>,
+  ): Promise<any[]> {
     const trx = this.getTransaction();
     let query = trx(tableName);
 
@@ -132,8 +142,10 @@ export class SeedIntegrationTestHelper {
     coa: number;
   }> {
     return {
-      users: await this.countRecords('users', { is_demo_user: true }),
-      companies: await this.countRecords('companies', { is_demo_company: true }),
+      users: await this.countRecords('users', { user_type: 'demo' }),
+      companies: await this.countRecords('companies', {
+        workspace_class: 'demo',
+      }),
       contacts: await this.countRecords('contacts', {}),
       projects: await this.countRecords('projects', {}),
       bankAccounts: await this.countRecords('bank_accounts', {}),
@@ -154,8 +166,11 @@ export async function setupIntegrationTest(): Promise<SeedIntegrationTestHelper>
 /**
  * Cleanup function for integration tests
  */
-export async function cleanupIntegrationTest(helper: SeedIntegrationTestHelper): Promise<void> {
+export async function cleanupIntegrationTest(
+  helper: SeedIntegrationTestHelper,
+): Promise<void> {
   await helper.cleanup();
+  await closeTestDbConnection();
 }
 
 /**
@@ -170,7 +185,7 @@ export const TestDataFactories = {
     lastname: 'User',
     email: 'test@example.com',
     password: 'testpass',
-    is_demo_user: true,
+    user_type: 'demo',
     ...overrides,
   }),
 
@@ -182,7 +197,7 @@ export const TestDataFactories = {
     display_name: 'Test Company',
     short_code: 'testCo',
     type: 'business',
-    is_demo_company: true,
+    workspace_class: 'demo',
     year_end_day: 31,
     year_end_month: 12,
     accounting_basis: 'modified_accrual_basis',
@@ -202,7 +217,7 @@ export const SeedTestAssertions = {
     helper: SeedIntegrationTestHelper,
     expectedCount: number,
   ): Promise<void> {
-    const count = await helper.countRecords('users', { is_demo_user: true });
+    const count = await helper.countRecords('users', { user_type: 'demo' });
     if (count !== expectedCount) {
       throw new Error(`Expected ${expectedCount} demo users, found ${count}`);
     }
@@ -215,16 +230,22 @@ export const SeedTestAssertions = {
     helper: SeedIntegrationTestHelper,
     expectedCount: number,
   ): Promise<void> {
-    const count = await helper.countRecords('companies', { is_demo_company: true });
+    const count = await helper.countRecords('companies', {
+      workspace_class: 'demo',
+    });
     if (count !== expectedCount) {
-      throw new Error(`Expected ${expectedCount} demo companies, found ${count}`);
+      throw new Error(
+        `Expected ${expectedCount} demo companies, found ${count}`,
+      );
     }
   },
 
   /**
    * Assert that foreign key relationships are maintained
    */
-  async assertForeignKeyIntegrity(helper: SeedIntegrationTestHelper): Promise<void> {
+  async assertForeignKeyIntegrity(
+    helper: SeedIntegrationTestHelper,
+  ): Promise<void> {
     const trx = helper.getTransaction();
 
     // Check that all companies have valid created_by_id references
@@ -232,7 +253,7 @@ export const SeedTestAssertions = {
       SELECT c.id, c.short_code 
       FROM companies c 
       LEFT JOIN users u ON c.created_by_id = u.id 
-      WHERE c.is_demo_company = true AND u.id IS NULL
+      WHERE c.workspace_class = 'demo' AND u.id IS NULL
     `);
 
     if (companiesWithInvalidUsers.rows.length > 0) {
@@ -246,7 +267,7 @@ export const SeedTestAssertions = {
       SELECT ct.id, ct.normalized_name 
       FROM contacts ct 
       LEFT JOIN companies c ON ct.company_id = c.id 
-      WHERE c.id IS NULL OR c.is_demo_company = false
+      WHERE c.id IS NULL OR c.workspace_class <> 'demo'
     `);
 
     if (contactsWithInvalidCompanies.rows.length > 0) {
@@ -259,12 +280,14 @@ export const SeedTestAssertions = {
   /**
    * Assert that data follows demo seed conventions
    */
-  async assertDemoSeedConventions(helper: SeedIntegrationTestHelper): Promise<void> {
+  async assertDemoSeedConventions(
+    helper: SeedIntegrationTestHelper,
+  ): Promise<void> {
     const trx = helper.getTransaction();
 
     // All demo companies should have proper short codes
     const invalidShortCodes = await trx('companies')
-      .where('is_demo_company', true)
+      .where('workspace_class', 'demo')
       .whereNot('short_code', 'like', '%Demo%')
       .select('id', 'short_code');
 
@@ -276,12 +299,14 @@ export const SeedTestAssertions = {
 
     // All demo users should have demo emails
     const invalidEmails = await trx('users')
-      .where('is_demo_user', true)
+      .where('user_type', 'demo')
       .whereNot('email', 'like', '%demo%')
       .select('id', 'email');
 
     if (invalidEmails.length > 0) {
-      throw new Error(`Demo users should have 'demo' in email: ${JSON.stringify(invalidEmails)}`);
+      throw new Error(
+        `Demo users should have 'demo' in email: ${JSON.stringify(invalidEmails)}`,
+      );
     }
   },
 };

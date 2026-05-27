@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 // Custom plugin to show helpful dev server messages
 const devServerMessages = () => ({
@@ -10,8 +10,12 @@ const devServerMessages = () => ({
   configureServer(server: any) {
     // Show message when server starts
     console.log('\n🚀 Web App Development Server');
-    console.log('📍 Primary URL: http://app.lvh.me:5173 (for proper cookie handling)');
-    console.log('📍 Alternative: http://localhost:5173 (if hosts not configured)');
+    console.log(
+      '📍 Primary URL: http://app.lvh.me:5173 (for proper cookie handling)',
+    );
+    console.log(
+      '📍 Alternative: http://localhost:5173 (if hosts not configured)',
+    );
     console.log('💡 To enable app.lvh.me add to /etc/hosts');
     console.log('💡 Or just start local staging and run in docker');
   },

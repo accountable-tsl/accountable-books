@@ -23,7 +23,7 @@ type DisplayScale = 'unit' | 'thousands' | 'millions' | 'billions';
 type CurrencyDisplayType = 'symbol' | 'narrowSymbol' | 'code' | 'name';
 
 type FormatAmountBase = {
-  amount: number | string;
+  amount: number | string | Decimal;
   currency?: string;
   locale?: string;
   showSymbol?: boolean;
@@ -112,7 +112,8 @@ const formatAmountForRendering = (
 
   const suffix = getSuffix();
 
-  const useCurrency = currency && showSymbol && /^[A-Z]{3}$/.test(currency.toString());
+  const useCurrency =
+    currency && showSymbol && /^[A-Z]{3}$/.test(currency.toString());
 
   const formatOptions: Intl.NumberFormatOptions = useCurrency
     ? {
@@ -132,8 +133,12 @@ const formatAmountForRendering = (
   let formattedString = '';
 
   try {
-    formattedParts = new Intl.NumberFormat(locale, formatOptions).formatToParts(scaledNum);
-    formattedString = new Intl.NumberFormat(locale, formatOptions).format(scaledNum);
+    formattedParts = new Intl.NumberFormat(locale, formatOptions).formatToParts(
+      scaledNum,
+    );
+    formattedString = new Intl.NumberFormat(locale, formatOptions).format(
+      scaledNum,
+    );
   } catch (error) {
     formattedString = String(num);
   }
@@ -169,17 +174,18 @@ export const FormattedAmount = ({
   scaleSuffixClassName = '',
   scaleSuffixPosition = 'suffix',
 }: FormattedAmountProps) => {
-  const { isNegative, formattedParts, scaledNum, suffix } = formatAmountForRendering({
-    amount,
-    currency,
-    locale,
-    showSymbol,
-    currencyDisplay,
-    minFractionDigits,
-    maxFractionDigits,
-    displayScale,
-    scaleSuffix,
-  });
+  const { isNegative, formattedParts, scaledNum, suffix } =
+    formatAmountForRendering({
+      amount,
+      currency,
+      locale,
+      showSymbol,
+      currencyDisplay,
+      minFractionDigits,
+      maxFractionDigits,
+      displayScale,
+      scaleSuffix,
+    });
 
   let symbolPart: React.ReactNode = null;
   const numberParts: React.ReactNode[] = [];
@@ -196,7 +202,9 @@ export const FormattedAmount = ({
     }
   });
 
-  const scaleElement = suffix ? <span className={scaleSuffixClassName}>{suffix}</span> : null;
+  const scaleElement = suffix ? (
+    <span className={scaleSuffixClassName}>{suffix}</span>
+  ) : null;
 
   const numberWithSuffix =
     scaleSuffixPosition === 'prefix' ? (
@@ -214,23 +222,33 @@ export const FormattedAmount = ({
     );
 
   const safeCurrency =
-    typeof currency === 'string' && currency.trim().length > 0 ? currency : undefined;
+    typeof currency === 'string' && currency.trim().length > 0
+      ? currency
+      : undefined;
 
   // Add currency code if requested
   const codeElement =
-    showCode && safeCurrency ? <span className={codeClassName}>{safeCurrency}</span> : null;
+    showCode && safeCurrency ? (
+      <span className={codeClassName}>{safeCurrency}</span>
+    ) : null;
 
   const symbolGroup = symbolPart ? (
     <span className={`symbol-group ${symbolClassName}`}>{symbolPart}</span>
   ) : null;
 
   const codeGroup = codeElement ? (
-    <span className={`currency-code-group ${codeClassName}`}>{codeElement}</span>
+    <span className={`currency-code-group ${codeClassName}`}>
+      {codeElement}
+    </span>
   ) : null;
 
   const numberGroup = (
     <span className={`number-group ${valueClassName}`}>
-      {isNegative && accountingNegatives ? <>({numberWithSuffix})</> : numberWithSuffix}
+      {isNegative && accountingNegatives ? (
+        <>({numberWithSuffix})</>
+      ) : (
+        numberWithSuffix
+      )}
     </span>
   );
 
@@ -246,7 +264,10 @@ export const FormattedAmount = ({
       {numberGroup}
       {symbolPosition === 'suffix' && numberGroup && symbolGroup && separator}
       {symbolPosition === 'suffix' && symbolGroup}
-      {codePosition === 'suffix' && (symbolGroup || numberGroup) && codeGroup && separator}
+      {codePosition === 'suffix' &&
+        (symbolGroup || numberGroup) &&
+        codeGroup &&
+        separator}
       {codePosition === 'suffix' && codeGroup}
     </span>
   );
@@ -255,7 +276,10 @@ export const FormattedAmount = ({
   const content = (() => {
     if (isNegative && accountingNegatives) {
       return (
-        <span aria-label={`negative ${scaledNum} ${currency || ''}`} className={className}>
+        <span
+          aria-label={`negative ${scaledNum} ${currency || ''}`}
+          className={className}
+        >
           {/* Code group (prefix) */}
           {codePosition === 'prefix' && codeGroup}
           {/* Separator between code and symbol */}
@@ -263,14 +287,20 @@ export const FormattedAmount = ({
           {/* Symbol group (prefix) */}
           {symbolPosition === 'prefix' && symbolGroup}
           {/* Separator between code/symbol and number */}
-          {(codePosition === 'prefix' && codeGroup && numberGroup && !symbolGroup) ||
+          {(codePosition === 'prefix' &&
+            codeGroup &&
+            numberGroup &&
+            !symbolGroup) ||
           (symbolPosition === 'prefix' && symbolGroup && numberGroup)
             ? separator
             : null}
           {/* Number group */}
           {numberGroup}
           {/* Separator after number and before symbol (suffix) */}
-          {symbolPosition === 'suffix' && numberGroup && symbolGroup && separator}
+          {symbolPosition === 'suffix' &&
+            numberGroup &&
+            symbolGroup &&
+            separator}
           {/* Symbol group (suffix) */}
           {symbolPosition === 'suffix' && symbolGroup}
           {/* Separator after symbol and before code (suffix) */}
@@ -282,7 +312,10 @@ export const FormattedAmount = ({
     } else if (isNegative) {
       // Regular negative with minus sign
       return (
-        <span aria-label={`negative ${scaledNum} ${currency || ''}`} className={className}>
+        <span
+          aria-label={`negative ${scaledNum} ${currency || ''}`}
+          className={className}
+        >
           <span className={valueClassName}>-</span>
           {finalValue}
         </span>
@@ -290,7 +323,10 @@ export const FormattedAmount = ({
     } else {
       // Positive number
       return (
-        <span aria-label={`${scaledNum} ${currency || ''}`} className={className}>
+        <span
+          aria-label={`${scaledNum} ${currency || ''}`}
+          className={className}
+        >
           {finalValue}
         </span>
       );

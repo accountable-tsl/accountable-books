@@ -1,9 +1,9 @@
-import { ConfettiCelebration } from '@/components/Confetti';
 import { useEffect, useState } from 'react';
+import { ConfettiCelebration } from '@/components/Confetti';
+import { routes } from '@/shared/routes';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-import { useNavigate } from 'react-router';
 import { useSession } from '@session';
-import { routes } from '@/shared/routes/routes';
+import { useNavigate } from 'react-router';
 
 export default function Welcome() {
   const navigate = useNavigate();
@@ -36,12 +36,15 @@ export default function Welcome() {
       clearTimeout(setupTimer);
       clearTimeout(doneTimer);
     };
-  }, [navigate]);
+  }, [navigate, companyId, tenantRoutes?.general]);
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-6">
-      <ConfettiCelebration isActive={isConfettiActive} duration={confettiDuration} />
+    <div className="relative flex min-h-screen flex-col items-center justify-center p-6">
+      <ConfettiCelebration
+        isActive={isConfettiActive}
+        duration={confettiDuration}
+      />
       <div className="flex flex-col items-center">
-        <div className="w-48 h-auto">
+        <div className="h-auto w-48">
           <DotLottieReact
             src="https://lottie.host/cd21f427-784a-4c41-a8ad-996513ccbc53/PXZnpvunKI.lottie"
             loop

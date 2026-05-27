@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
-import { getAllCurrencies } from './currencies.model.js';
+
 import { errorResponse } from '../../shared/utils/response.utils.js';
+import { getAllCurrencies } from './currencies.model.js';
 
 export async function allCurrencies(req: Request, res: Response) {
   try {

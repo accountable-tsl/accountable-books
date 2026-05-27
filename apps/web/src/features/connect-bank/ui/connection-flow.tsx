@@ -1,24 +1,30 @@
+import type {
+  ConnectAccountsResponse,
+  CountryDisplay,
+} from '@/modules/banking/connections';
+import type {
+  BankProvider,
+  ProviderSelectionResult,
+} from '@/modules/banking/providers';
 import { useState } from 'react';
-import { useSession } from '@session';
-import { WelcomeStep } from '../ui/steps/welcome-step';
-import { CountrySelectStep } from '../ui/steps/country-select-step';
-import { ProviderSelectStep } from '../ui/steps/provider-select-step';
-import { ProviderWidget } from '../ui/provider-widget';
-import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { useNavigate } from 'react-router';
-import type { BankProvider, ProviderSelectionResult } from '@/modules/banking/providers';
+import { Button } from '@/components/ui/button';
 import {
   useBanking,
   useConnectAccounts,
   useCountrySelection,
   useCreateLinkToken,
-  type ConnectAccountsResponse,
-  type CountryDisplay,
 } from '@/modules/banking/connections';
+import { useSession } from '@session';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { ProviderWidget } from '../ui/provider-widget';
+import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
+import { CountrySelectStep } from '../ui/steps/country-select-step';
+import { ProviderSelectStep } from '../ui/steps/provider-select-step';
+import { WelcomeStep } from '../ui/steps/welcome-step';
 
 type FlowStep =
   | 'welcome'
@@ -30,15 +36,25 @@ type FlowStep =
 
 export function BankConnectionFlow() {
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome');
-  const [selectedProvider, setSelectedProvider] = useState<BankProvider | null>(null);
-  const [selectionStrategy, setSelectionStrategy] = useState<ProviderSelectionResult | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<BankProvider | null>(
+    null,
+  );
+  const [selectionStrategy, setSelectionStrategy] =
+    useState<ProviderSelectionResult | null>(null);
   const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [connectedAccounts, setConnectedAccounts] = useState<ConnectAccountsResponse>({
-    bank: { id: '', name: '', logoUrl: null },
-    accounts: [],
-  });
+  const [connectedAccounts, setConnectedAccounts] =
+    useState<ConnectAccountsResponse>({
+      bank: { id: '', name: '', logoUrl: null },
+      accounts: [],
+    });
 
-  const { user, companyId, companyType, loading: sessionLoading, tenantRoutes } = useSession();
+  const {
+    user,
+    companyId,
+    companyType,
+    loading: sessionLoading,
+    tenantRoutes,
+  } = useSession();
   const navigate = useNavigate();
   const createLinkTokenMutation = useCreateLinkToken();
   const connectAccountsMutation = useConnectAccounts();
@@ -82,7 +98,8 @@ export function BankConnectionFlow() {
     }
   };
 
-  const stepWrapperClass = 'md:min-w-md w-full max-w-lg flex flex-col gap-6 mx-auto';
+  const stepWrapperClass =
+    'md:min-w-md w-full max-w-lg flex flex-col gap-6 mx-auto';
 
   const handleWelcomeContinue = () => {
     if (selectedCountry && selectedCountryIsSupported) {
@@ -159,6 +176,7 @@ export function BankConnectionFlow() {
     connectAccountsMutation.mutate(
       {
         providerKey: selectedProvider.key,
+        countryCode: selectedCountry?.code || 'US', // Use selected country or default to US for Plaid
         publicToken,
         metadata,
         userId: user?.id || '',
@@ -168,7 +186,8 @@ export function BankConnectionFlow() {
         onSuccess: (response) => {
           if (response.success && response.data) {
             setConnectedAccounts(response.data);
-            const message = response?.message || 'Bank account connected successfully!';
+            const message =
+              response?.message || 'Bank account connected successfully!';
             toast.success(message);
             if (companyType === 'individual') {
               setCurrentStep('success');
@@ -179,7 +198,10 @@ export function BankConnectionFlow() {
         },
         onError: (error: any) => {
           const errorData = error.response?.data?.error;
-          const message = errorData?.displayMessage || errorData?.message || 'Connection failed';
+          const message =
+            errorData?.displayMessage ||
+            errorData?.message ||
+            'Connection failed';
 
           toast.error('Failed to connect bank account', {
             description: message,
@@ -247,12 +269,14 @@ export function BankConnectionFlow() {
         return selectedProvider && linkToken ? (
           <div className={stepWrapperClass}>
             {connectAccountsMutation.isPending ? (
-              <div className="text-center space-y-4">
+              <div className="space-y-4 text-center">
                 <div className="flex items-center justify-center">
-                  <div className="w-6 h-6 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                  <span className="text-lg font-semibold">Connecting your accounts...</span>
+                  <div className="border-primary mr-2 h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"></div>
+                  <span className="text-lg font-semibold">
+                    Connecting your accounts...
+                  </span>
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   Please wait while we securely connect your bank accounts
                 </div>
               </div>
@@ -262,19 +286,29 @@ export function BankConnectionFlow() {
                 token={linkToken}
                 onSuccess={connectAccount}
                 onExit={() => setCurrentStep('provider-select')}
+                onLoad={() => setCurrentStep('connecting')}
                 onError={() => {
                   setCurrentStep('country-select');
                 }}
+                user={{
+                  id: user?.id ?? '',
+                  name: user?.firstname ?? '',
+                  email: user?.email ?? '',
+                }}
+                companyId={companyId}
+                countryCode={selectedCountry?.code || 'US'}
               />
             )}
           </div>
         ) : (
           <div className={stepWrapperClass}>
-            <div className="text-center space-y-4">
+            <div className="space-y-4 text-center">
               <div className="text-lg font-semibold">
-                {createLinkTokenMutation.isPending ? 'Creating connection...' : 'Loading...'}
+                {createLinkTokenMutation.isPending
+                  ? 'Creating connection...'
+                  : 'Loading...'}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 Please wait while we set up your connection
               </div>
             </div>
@@ -295,11 +329,13 @@ export function BankConnectionFlow() {
       case 'success':
         return (
           <div className={stepWrapperClass}>
-            <div className="text-center space-y-4">
-              <div className="text-lg font-semibold text-green-600">Success!</div>
-              <div className="text-sm text-muted-foreground">
-                Your bank account has been connected successfully. Transactions will start syncing
-                shortly.
+            <div className="space-y-4 text-center">
+              <div className="text-lg font-semibold text-green-600">
+                Success!
+              </div>
+              <div className="text-muted-foreground text-sm">
+                Your bank account has been connected successfully. Transactions
+                will start syncing shortly.
               </div>
               <Button onClick={() => window.location.reload()} className="mt-4">
                 Continue
@@ -330,12 +366,12 @@ export function BankConnectionFlow() {
     return <CenteredLoader />;
   }
 
-  if (!companyId || !user?.id) {
+  if (!companyId || !user) {
     return <ErrorPage type="default" />;
   }
 
   return (
-    <div className="min-h-0 h-full p-4 pb-12 flex flex-col items-center justify-center">
+    <div className="flex h-full min-h-0 flex-col items-center justify-center p-4 pb-12">
       {renderCurrentStep()}
     </div>
   );

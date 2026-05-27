@@ -1,4 +1,13 @@
-import { coaSource } from '@/domains-pending-migration/coa/types';
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
+import type {
+  Bank,
+  BankTransactionBatch,
+  Coa,
+  Company,
+  Currency,
+} from '@/shared/types/core';
+import { coaSource } from '@/modules/accounting/chart-of-accounts';
+import { zDate } from '@/shared/types/core';
 import { z } from 'zod';
 
 export interface BankAccount {
@@ -36,6 +45,13 @@ export const bankAccountType = z.enum([
 ]);
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
+export const bankOpeningBalanceOrigin = z.enum(['user_entered']);
+export const bankOpeningBalanceRole = z.enum([
+  'baseline',
+  'checkpoint',
+  'archived',
+]);
+
 export const newBankAccountInput = z.object({
   displayName: z
     .string()
@@ -47,11 +63,32 @@ export const newBankAccountInput = z.object({
   accountNumber: z.string().min(1, 'Account number is required'),
   accountCode: z.string().optional(),
   source: coaSource.prefault('user').optional(),
+  openingBalance: z.number().optional(),
+  openingBalanceDate: z.string().optional(),
+  accountMetadata: z.record(z.string(), z.any()).optional(),
 });
+
+const openingBalance = z.object({
+  amount: z.number(),
+  date: zDate,
+  origin: bankOpeningBalanceOrigin,
+  role: bankOpeningBalanceRole,
+  metadata: z.object({
+    captureChannel: z.enum(['user_account_creation', 'ui']).optional(),
+    captureInitiator: z.enum(['user']),
+    note: z.string().max(1024).optional(),
+  }),
+});
+const bankAccountForApi = newBankAccountInput
+  .omit({ openingBalance: true, openingBalanceDate: true })
+  .extend({
+    openingBalance: openingBalance.optional(),
+  });
 export type NewBankAccountInput = z.infer<typeof newBankAccountInput>;
+export type BankAccountForApi = z.infer<typeof bankAccountForApi>;
 
 export interface AddBankAccountProps {
-  onSuccess?: (data?: BankAccountWithMeta) => void;
+  onSuccess?: (data?: CreateBankAccountRes) => void;
   onCancel?: () => void;
 }
 
@@ -66,7 +103,8 @@ export const bankAccountWithMeta = z.object({
   id: z.uuid(),
   displayName: z.string(),
   accountType: bankAccountType,
-  accountNumber: z.string(),
+  mask: z.string(),
+  balance: z.number().optional(),
 
   bankId: z.uuid(),
   bankName: z.string(),
@@ -88,6 +126,13 @@ export const bankAccountWithMeta = z.object({
   coaCode: z.string().optional(),
   coaTypeKey: z.string().optional(),
   coaTypeLabel: z.string().optional(),
+  connectionCredentialId: z.string().optional(),
+  lastSyncAt: z.date().optional(),
+  statementBalance: z.string(),
+  ledgerBalance: z.string(),
+  uncategorizedTxCount: z.number(),
+  needsReviewTxCount: z.number(),
+  latestExchangeRate: z.string().nullish(),
 });
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
 
@@ -97,10 +142,14 @@ export const bankAccountConnectionStatus = z.enum([
   'error',
   'not_connected',
 ]);
-export type BankAccountConnectionStatus = z.infer<typeof bankAccountConnectionStatus>;
+export type BankAccountConnectionStatus = z.infer<
+  typeof bankAccountConnectionStatus
+>;
 
 export const businessOrPersonalAccount = z.enum(['business', 'personal']);
-export type BusinessOrPersonalAccount = z.infer<typeof businessOrPersonalAccount>;
+export type BusinessOrPersonalAccount = z.infer<
+  typeof businessOrPersonalAccount
+>;
 
 export const updateBankAccount = z
   .object({

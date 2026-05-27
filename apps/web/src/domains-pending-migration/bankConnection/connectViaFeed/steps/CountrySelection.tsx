@@ -1,13 +1,13 @@
+import type { Country } from '@/shared/types/core';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useCountries } from '@/shared/hooks/useCountries';
-import type { Country } from '@/shared/types/core';
 import { getCountryFromLocale } from '@/shared/utils/random-utils';
 import { CheckCircle, Globe, MapPin, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 interface CountrySelectionProps {
@@ -32,9 +32,14 @@ export default function CountrySelection({
   const navigate = useNavigate();
 
   // Computed
-  const countries = useMemo(() => countriesData?.data || [], [countriesData?.data]);
+  const countries = useMemo(
+    () => countriesData?.data || [],
+    [countriesData?.data],
+  );
   const detectedCountry =
-    countriesData && countriesData?.data && getCountryFromLocale(countriesData?.data);
+    countriesData &&
+    countriesData?.data &&
+    getCountryFromLocale(countriesData?.data);
 
   // const detectedCountryIsSupported = SUPPORTED_COUNTRIES_CODES.includes(
   //   detectedCountry?.code || ""
@@ -90,27 +95,29 @@ export default function CountrySelection({
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-6 p-4 min-h-0 max-h-full">
-      <div className="text-center flex-shrink-0">
-        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Globe className="w-8 h-8 text-blue-600" />
+    <div className="flex max-h-full min-h-0 flex-1 flex-col gap-6 p-4">
+      <div className="shrink-0 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+          <Globe className="h-8 w-8 text-blue-600" />
         </div>
         <h2 className="text-lg font-semibold">Select Your Country</h2>
         <p className="text-muted-foreground mx-auto text-sm">
-          Select your country to find the best way to securely connect your bank account.
+          Select your country to find the best way to securely connect your bank
+          account.
         </p>
       </div>
 
       {/* <div className="flex-1 min-h-0 overflow-y-auto"> */}
       {detectedCountry && (
-        <div className="bg-blue-50 dark:bg-slate-800 border border-blue-200 dark:border-slate-600 rounded-lg p-4 flex-shrink-0">
+        <div className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-slate-600 dark:bg-slate-800">
           <div className="flex items-center space-x-3">
-            <MapPin className="w-5 h-5 text-blue-600" />
+            <MapPin className="h-5 w-5 text-blue-600" />
             <div className="flex-1">
               <p className="text-sm font-medium">
-                We detected you're in <span className="font-semibold">{detectedCountry.name}</span>
+                We detected you're in{' '}
+                <span className="font-semibold">{detectedCountry.name}</span>
               </p>
-              <p className="hidden md:block text-sm text-muted-foreground">
+              <p className="text-muted-foreground hidden text-sm md:block">
                 You can change this if needed
               </p>
             </div>
@@ -124,20 +131,24 @@ export default function CountrySelection({
             </Button>
           </div>
           {!detectedCountryIsSupported && (
-            <div className="mt-3 text-sm text-amber-700 dark:text-amber-200 bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-700 rounded p-2">
-              Sorry, we don't support bank connections in {detectedCountry.name} yet.
+            <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-200">
+              Sorry, we don't support bank connections in {detectedCountry.name}{' '}
+              yet.
             </div>
           )}
         </div>
       )}
 
-      <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
-        <div className="flex-shrink-0">
-          <Label htmlFor="country-search" className="text-sm font-medium text-gray-700">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <div className="shrink-0">
+          <Label
+            htmlFor="country-search"
+            className="text-sm font-medium text-gray-700"
+          >
             Country
           </Label>
           <div className="relative mt-1">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+            <Search className="absolute top-3 left-3 h-4 w-4 text-gray-400" />
             <Input
               id="country-search"
               type="text"
@@ -149,7 +160,7 @@ export default function CountrySelection({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 min-h-0 overflow-y-auto scrollbar-thin-2px h-50">
+        <div className="scrollbar-thin-2px flex h-50 min-h-0 flex-col gap-2 overflow-y-auto">
           {searchTerm ? (
             <>
               {filteredCountries.map((country) => {
@@ -158,16 +169,16 @@ export default function CountrySelection({
                   <div
                     key={country.code}
                     className={cn(
-                      'cursor-pointer transition-all duration-200 border rounded-sm mr-1',
+                      'mr-1 cursor-pointer rounded-sm border transition-all duration-200',
                       // If there's a valid country:
                       isSupported
                         ? selectedCountry?.code === country.code
                           ? // Selected
                             'border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900'
                           : // Normal
-                            ' hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-500'
+                            'hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-500'
                         : // Disabled
-                          'bg-gray-50 opacity-60 cursor-not-allowed dark:bg-gray-800',
+                          'cursor-not-allowed bg-gray-50 opacity-60 dark:bg-gray-800',
                     )}
                     onClick={() => isSupported && handleCountrySelect(country)}
                   >
@@ -177,7 +188,7 @@ export default function CountrySelection({
                         <span className="font-medium">{country.name}</span>
                       </div>
                       {selectedCountry?.code === country.code && (
-                        <CheckCircle className="w-4 h-4 text-blue-600" />
+                        <CheckCircle className="h-4 w-4 text-blue-600" />
                       )}
                       {!isSupported && (
                         <Badge variant="secondary" className="text-xs">
@@ -189,15 +200,17 @@ export default function CountrySelection({
                 );
               })}
               {filteredCountries.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-muted-foreground py-8 text-center">
                   No countries found matching your search.
                 </div>
               )}
             </>
           ) : (
             <>
-              <p className="text-sm font-medium text-muted-foreground mb-3">Popular Countries</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <p className="text-muted-foreground mb-3 text-sm font-medium">
+                Popular Countries
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {popularCountries.map((country) => {
                   const isSupported = isCountrySupported(country);
 
@@ -205,10 +218,10 @@ export default function CountrySelection({
                     <div
                       key={country.code}
                       className={cn(
-                        'cursor-pointer transition-all duration-200 border rounded-sm',
+                        'cursor-pointer rounded-sm border transition-all duration-200',
                         // for now everyone is disabled except NG
                         country.code !== 'NG'
-                          ? 'bg-gray-50 opacity-60 cursor-not-allowed dark:bg-gray-800 pointer-events-none'
+                          ? 'pointer-events-none cursor-not-allowed bg-gray-50 opacity-60 dark:bg-gray-800'
                           : '',
                         // If there's a valid country:
                         country
@@ -216,19 +229,21 @@ export default function CountrySelection({
                             ? // Selected
                               'border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900'
                             : // Normal
-                              ' hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-500'
+                              'hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-500'
                           : // Disabled...
-                            'bg-gray-50 opacity-60 cursor-not-allowed dark:bg-gray-800',
+                            'cursor-not-allowed bg-gray-50 opacity-60 dark:bg-gray-800',
                       )}
-                      onClick={() => isSupported && handleCountrySelect(country)}
+                      onClick={() =>
+                        isSupported && handleCountrySelect(country)
+                      }
                     >
-                      <div className="flex items-center space-x-3 p-3 rounded-xs">
+                      <div className="flex items-center space-x-3 rounded-xs p-3">
                         <span className="text-lg">{country.flag}</span>
                         <div className="flex-1">
                           <span className="font-medium">{country.name}</span>
                         </div>
                         {selectedCountry?.code === country.code && (
-                          <CheckCircle className="w-4 h-4 text-blue-600" />
+                          <CheckCircle className="h-4 w-4 text-blue-600" />
                         )}
                         {!isSupported && (
                           <Badge variant="secondary" className="text-xs">
@@ -245,14 +260,18 @@ export default function CountrySelection({
         </div>
       </div>
 
-      <div className="flex-shrink-0 flex justify-between">
+      <div className="flex shrink-0 justify-between">
         <Button variant="outline" onClick={handleCancel}>
           Cancel
         </Button>
         <Button
           onClick={handleNext}
-          disabled={!selectedCountry || isLoadingCountries || selectedCountry.code !== 'NG'} // TODO: Remove NG limit later
-          className="px-6 ml-auto"
+          disabled={
+            !selectedCountry ||
+            isLoadingCountries ||
+            selectedCountry.code !== 'NG'
+          } // TODO: Remove NG limit later
+          className="ml-auto px-6"
         >
           Continue
         </Button>

@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+
 import type { RoleName } from './types';
 
 export const grantAccessToCompany = async (data: {

@@ -1,19 +1,19 @@
-import { useNavigate } from 'react-router';
 import type { SwitchCompanyOpts } from '@/domains-pending-migration/switchCompany/types';
-import { useCompany } from '@/domains-pending-migration/company/store';
 import { useRef } from 'react';
-import { toast } from 'sonner';
-import { switchCompanyApi } from './api';
+import { useSession } from '@/app/session';
 import { authStore } from '@/modules/auth';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from '@session';
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { switchCompanyApi } from './api';
 
 export function useCompanySwitch() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  // const { user } = authStore((s) => s);
-  const { setAuth, user, refetchSession, refetchCompany } = useSession();
-  const { companyId: currentCompanyId, slug: currentSlug } = useCompany();
+  const { setAuth, user, refetchSession, refetchCompany, companyId, company } =
+    useSession();
+  const currentCompanyId = companyId ?? null;
+  const currentSlug = company?.assignedFirmSlug ?? null;
 
   const originalCompanyRef = useRef<{
     companyId: string | null;
@@ -80,7 +80,8 @@ export function useCompanySwitch() {
       );
     },
     onError: (error) => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       toast.error(errorMessage);
     },
   });

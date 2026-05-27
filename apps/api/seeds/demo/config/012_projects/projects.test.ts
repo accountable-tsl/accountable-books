@@ -1,9 +1,10 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
 import {
   createDemoProjects,
-  getOrCreateDemoProjectsMap,
   deleteDemoProjects,
+  getOrCreateDemoProjectsMap,
 } from './projects.fn.js';
 import { demoProjectsByCompanyMap } from './projects.state.js';
 
@@ -76,7 +77,10 @@ vi.mock('./projects.utils.js', () => ({
   ]),
   getBusinessProjects: vi.fn().mockImplementation((countryCode) => [
     {
-      name: countryCode === 'NG' ? 'Lagos Mainland Store Launch' : 'E-commerce Site Redesign',
+      name:
+        countryCode === 'NG'
+          ? 'Lagos Mainland Store Launch'
+          : 'E-commerce Site Redesign',
       code: 'BUS-01',
       description: 'Business project for ' + countryCode,
       status: 'in_progress',
@@ -185,7 +189,9 @@ describe('createDemoProjects', () => {
 
     // Mock only business company
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-1', short_code: 'bizDemoUS', type: 'business' },
@@ -216,7 +222,9 @@ describe('createDemoProjects', () => {
 
     // Mock only accounting firm company
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-2', short_code: 'firmDemoUS', type: 'accounting_firm' },
@@ -247,7 +255,9 @@ describe('createDemoProjects', () => {
 
     // Mock only individual company
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-3', short_code: 'indDemoUS', type: 'individual' },
@@ -269,7 +279,9 @@ describe('createDemoProjects', () => {
     const result = await createDemoProjects(mockTransaction);
 
     // Should not call addNewProjects for individual companies (no projects)
-    const { addNewProjects } = await import('../../../../src/domains/projects/projects.model.js');
+    const { addNewProjects } = await import(
+      '../../../../src/domains/projects/projects.model.js'
+    );
     expect(addNewProjects).not.toHaveBeenCalled();
     expect(result).toEqual([]);
   });
@@ -279,7 +291,9 @@ describe('createDemoProjects', () => {
 
     // Mock NG business company
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     (getDemoCompanies as any).mockResolvedValueOnce([
       { id: 'company-ng', short_code: 'bizDemoNG', type: 'business' },
@@ -315,7 +329,9 @@ describe('createDemoProjects', () => {
 
     // Should check for existing projects but not create new ones
     expect(mockTransaction).toHaveBeenCalledWith('projects');
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Projects already exist'));
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Projects already exist'),
+    );
   });
 
   test('should handle missing contacts error', async () => {
@@ -356,13 +372,17 @@ describe('createDemoProjects', () => {
     const mockTransaction = createMockTransaction({ hasContacts: true });
 
     // Mock addNewProjects to return failure
-    const { addNewProjects } = await import('../../../../src/domains/projects/projects.model.js');
+    const { addNewProjects } = await import(
+      '../../../../src/domains/projects/projects.model.js'
+    );
     (addNewProjects as any).mockResolvedValueOnce({
       success: false,
       message: 'Project creation failed',
     });
 
-    await expect(createDemoProjects(mockTransaction)).rejects.toThrow('Project creation failed');
+    await expect(createDemoProjects(mockTransaction)).rejects.toThrow(
+      'Project creation failed',
+    );
   });
 
   test('should populate state map correctly', async () => {
@@ -383,7 +403,9 @@ describe('createDemoProjects', () => {
 
     // Should pass filters to getDemoCompanies and generateDemoCompaniesMap
     const { getDemoCompanies } = await import('../../shared/utils.js');
-    const { generateDemoCompaniesMap } = await import('../002_companies/companies.data.js');
+    const { generateDemoCompaniesMap } = await import(
+      '../002_companies/companies.data.js'
+    );
 
     expect(getDemoCompanies).toHaveBeenCalledWith(expect.anything(), filters);
     expect(generateDemoCompaniesMap).toHaveBeenCalledWith(filters);
