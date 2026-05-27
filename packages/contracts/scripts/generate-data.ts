@@ -465,11 +465,11 @@ function processCSVFile(config: ResolvedConfig): any[] {
  * Generate JSON output
  * JSON filenames are always in snake_case for consistency
  */
-function generateJSON(
+async function generateJSON(
   config: ResolvedConfig,
   data: any,
   exportName?: string,
-): void {
+): Promise<void> {
   const outputDir = join(JSON_OUTPUT_DIR, config.domain);
 
   // All JSON files use snake_case for consistency
@@ -496,8 +496,13 @@ function generateJSON(
     copyFileSync(sourcePath, outputFile);
     console.log(`⏩ Large file copied directly (${fileSize} bytes)`);
   } else {
-    // Normal processing with pretty-printing
-    writeFileSync(outputFile, JSON.stringify(data, null, 2), 'utf-8');
+    // Keep generated JSON stable with Prettier/lint-staged output.
+    const content = await format(JSON.stringify(data), {
+      parser: 'json',
+      trailingComma: 'none',
+      printWidth: 80,
+    });
+    writeFileSync(outputFile, content, 'utf-8');
   }
 
   console.log(`✓ Generated ${relative(PACKAGE_ROOT, outputFile)}`);
@@ -611,7 +616,7 @@ async function processFile(config: ResolvedConfig): Promise<void> {
     }
 
     // Step 2: Generate JSON (always)
-    generateJSON(config, data, exportName);
+    await generateJSON(config, data, exportName);
 
     // Step 3: Generate TS if enabled
     if (config.typescript.enabled) {

@@ -17,9 +17,7 @@
     "currency_code": "USD",
     "reference": "INV-001",
     "source": "ingestion",
-    "metadata": {
-      "origin": "test"
-    }
+    "metadata": { "origin": "test" }
   },
   "normalized": {
     "description": "ACH PAYMENT TO VENDOR INV-001",
@@ -84,10 +82,7 @@
       "as_of_transaction_date": "2025-01-01"
     }
   },
-  "signals": {
-    "likely_trf_btw_accounts": false,
-    "notes": []
-  },
+  "signals": { "likely_trf_btw_accounts": false, "notes": [] },
   "temporal": {
     "day_of_week": 3,
     "day_of_month": 1,
