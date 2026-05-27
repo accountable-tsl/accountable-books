@@ -21,13 +21,26 @@ export async function createUpdateTimestampTrigger(
 ) {
   const quoted = `"${tableName}"`;
   await knex.raw(`
-    CREATE OR REPLACE FUNCTION update_timestamp()
-    RETURNS TRIGGER AS $$
+    DO $migration$
     BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = current_schema()
+          AND p.proname = 'update_timestamp'
+          AND pg_get_function_identity_arguments(p.oid) = ''
+      ) THEN
+        CREATE FUNCTION update_timestamp()
+        RETURNS TRIGGER AS $function$
+        BEGIN
+          NEW.updated_at = NOW();
+          RETURN NEW;
+        END;
+        $function$ LANGUAGE plpgsql;
+      END IF;
+    END
+    $migration$;
   `);
 
   // Create the trigger for the specific table
@@ -53,12 +66,25 @@ export async function dropUpdateTimestampTrigger(
 export async function preventUpdateOrDelete(knex: Knex, tableName: string) {
   const quoted = `"${tableName}"`;
   await knex.raw(`
-    CREATE OR REPLACE FUNCTION prevent_update_or_delete()
-    RETURNS TRIGGER AS $$
+    DO $migration$
     BEGIN
-      RAISE EXCEPTION 'Updates or deletions are not allowed on table: %', TG_TABLE_NAME;
-    END;
-    $$ LANGUAGE plpgsql;
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = current_schema()
+          AND p.proname = 'prevent_update_or_delete'
+          AND pg_get_function_identity_arguments(p.oid) = ''
+      ) THEN
+        CREATE FUNCTION prevent_update_or_delete()
+        RETURNS TRIGGER AS $function$
+        BEGIN
+          RAISE EXCEPTION 'Updates or deletions are not allowed on table: %', TG_TABLE_NAME;
+        END;
+        $function$ LANGUAGE plpgsql;
+      END IF;
+    END
+    $migration$;
     `);
 
   // Create the trigger for the specific table
