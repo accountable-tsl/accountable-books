@@ -45,7 +45,7 @@
     "db:reset:test": "NODE_ENV=test tsx scripts/resetDatabase.ts",
     "db:reset": "pnpm run db:reset:local && pnpm run db:reset:test && pnpm run migrate && pnpm run demo:apply",
     "demo": "tsx seeds/demo/cli.ts",
-    "demo:apply:test": "NODE_ENV=test pnpm run demo apply --all",
+    "demo:apply:test": "pnpm run bootstrap:test && NODE_ENV=test pnpm run demo apply --all",
     "demo:apply:local": "pnpm run demo apply --all",
     "demo:apply": "pnpm run demo:apply:local && pnpm run demo:apply:test",
     "demo:apply:staging:local": "NODE_ENV=staging LOCAL_STAGING=true pnpm run demo apply",

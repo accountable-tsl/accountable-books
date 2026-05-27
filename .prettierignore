@@ -51,5 +51,9 @@ reports/
 
 # Generated
 packages/contracts/generated/
+packages/contracts/accountable_contracts/**/*.d.ts
+packages/contracts/accountable_contracts/**/*.d.ts.map
+packages/contracts/accountable_contracts/**/*.js
+packages/contracts/accountable_contracts/**/*.js.map
 packages/api-types/src/generated/
 **/routeTree.gen.ts
