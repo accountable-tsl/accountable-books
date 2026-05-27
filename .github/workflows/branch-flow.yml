@@ -1,0 +1,33 @@
+name: Branch Flow Guard
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+
+jobs:
+  validate-branch-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch flow
+        run: |
+          BASE="${{ github.base_ref }}"
+          HEAD="${{ github.head_ref }}"
+
+          if [ "$BASE" = "develop" ]; then
+            echo "Allowed merge path: $HEAD -> $BASE"
+            exit 0
+          fi
+
+          if [ "$BASE" = "staging" ] && [ "$HEAD" = "develop" ]; then
+            echo "Allowed merge path: develop -> staging"
+            exit 0
+          fi
+
+          if [ "$BASE" = "main" ] && [ "$HEAD" = "staging" ]; then
+            echo "Allowed merge path: staging -> main"
+            exit 0
+          fi
+
+          echo "Invalid merge path: $HEAD -> $BASE"
+          echo "Allowed: any branch -> develop, develop -> staging, staging -> main"
+          exit 1
