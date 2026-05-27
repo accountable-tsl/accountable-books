@@ -1,9 +1,6 @@
 name: Deploy Staging
 on:
-  workflow_run:
-    workflows: ['CI']
-    types:
-      - completed
+  push:
     branches:
       - staging
   workflow_dispatch:
@@ -18,25 +15,74 @@ env:
   PNPM_VERSION: 11.3.0
   NODE_VERSION: 24.16.0
 
+permissions:
+  actions: read
+  contents: read
+
 concurrency:
   group: deploy-staging
   cancel-in-progress: true
 
 jobs:
+  # Step 0: On staging pushes, wait for CI on the same commit before deploying.
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure staging ref
+        run: |
+          if [ "${{ github.ref_name }}" != "staging" ]; then
+            echo "❌ Staging deploys must run from the staging branch."
+            echo "Current ref: ${{ github.ref_name }}"
+            exit 1
+          fi
+
+      - name: Wait for CI workflow
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "⏳ Waiting for CI to pass on ${{ github.sha }}..."
+          for attempt in {1..60}; do
+            result="$(gh run list \
+              --workflow "CI" \
+              --branch "${{ github.ref_name }}" \
+              --commit "${{ github.sha }}" \
+              --json status,conclusion \
+              --jq '.[0] | if . == null then "pending" elif .status == "completed" then .conclusion else .status end')"
+
+            echo "Attempt $attempt/60: CI status is $result"
+
+            if [ "$result" = "success" ]; then
+              echo "✅ CI passed"
+              exit 0
+            fi
+
+            if [ "$result" = "failure" ] || \
+               [ "$result" = "cancelled" ] || \
+               [ "$result" = "timed_out" ] || \
+               [ "$result" = "action_required" ]; then
+              echo "❌ CI completed with status: $result"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "❌ Timed out waiting for CI"
+          exit 1
+
+      - name: Skip CI wait for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "Manual staging deploy requested; skipping CI wait."
+
   # Step 1: Run database migrations BEFORE deploying API
   run-migrations:
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
+    needs: wait-for-ci
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -84,17 +130,10 @@ jobs:
   deploy-api:
     runs-on: ubuntu-latest
     needs: run-migrations
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -157,17 +196,10 @@ jobs:
   deploy-ml-engine:
     runs-on: ubuntu-latest
     needs: run-migrations
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@v1
@@ -206,17 +238,10 @@ jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api, deploy-ml-engine]
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -256,16 +281,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [run-migrations, deploy-api, deploy-ml-engine, deploy-frontend]
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_demo_seed != 'true') ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.skip_demo_seed != 'true'
     environment: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -302,19 +323,14 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       [
+        wait-for-ci,
         run-migrations,
         deploy-api,
         deploy-ml-engine,
         deploy-frontend,
         apply-demo-data,
       ]
-    if: >
-      always() && (
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'workflow_run' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'staging')
-      )
+    if: always()
     steps:
       - name: Deployment summary
         run: |
@@ -329,6 +345,7 @@ jobs:
           echo "Frontend URL: https://staging.getaccountable.com"
           echo ""
           echo "Job Status:"
+          echo "- CI Wait: ${{ needs.wait-for-ci.result }}"
           echo "- Migrations: ${{ needs.run-migrations.result }}"
           echo "- API Deployment: ${{ needs.deploy-api.result }}"
           echo "- ML Engine Deployment: ${{ needs.deploy-ml-engine.result }}"
@@ -339,18 +356,23 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          if [ "${{ needs.run-migrations.result }}" = "success" ] && \
+          if [ "${{ needs.wait-for-ci.result }}" = "success" ] && \
+             [ "${{ needs.run-migrations.result }}" = "success" ] && \
              [ "${{ needs.deploy-api.result }}" = "success" ] && \
              [ "${{ needs.deploy-ml-engine.result }}" = "success" ] && \
              [ "${{ needs.deploy-frontend.result }}" = "success" ] && \
-             [ "${{ needs.apply-demo-data.result }}" = "success" ]; then
+             { [ "${{ needs.apply-demo-data.result }}" = "success" ] || \
+               [ "${{ needs.apply-demo-data.result }}" = "skipped" ]; }; then
             echo "✅ Staging deployment completed successfully!"
           else
             echo "❌ Staging deployment failed. Check the logs for details."
             echo "Failed jobs:"
+            [ "${{ needs.wait-for-ci.result }}" != "success" ] && echo "- CI Wait"
             [ "${{ needs.run-migrations.result }}" != "success" ] && echo "- Database Migrations"
             [ "${{ needs.deploy-api.result }}" != "success" ] && echo "- API Deployment"
             [ "${{ needs.deploy-ml-engine.result }}" != "success" ] && echo "- ML Engine Deployment"
             [ "${{ needs.deploy-frontend.result }}" != "success" ] && echo "- Frontend Deployment"
-            [ "${{ needs.apply-demo-data.result }}" != "success" ] && echo "- Demo Data Seeding"
+            [ "${{ needs.apply-demo-data.result }}" != "success" ] && \
+              [ "${{ needs.apply-demo-data.result }}" != "skipped" ] && \
+              echo "- Demo Data Seeding"
           fi
