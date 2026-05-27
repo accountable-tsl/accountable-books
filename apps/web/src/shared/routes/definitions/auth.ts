@@ -1,4 +1,4 @@
-import { route } from '@/shared/routes/utils';
+import { route } from '../route-factory';
 
 export const authRoutes = {
   login: route('/login', {

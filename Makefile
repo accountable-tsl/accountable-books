@@ -25,25 +25,40 @@ guard-nonprod:
 		exit 1; \
 	fi
 
+check-prereqs: ## Check for required tools
+	@./scripts/check-prerequisites.sh
+
 ##@ 🚀 Quick Start (Most Common)
-setup: guard-nonprod ## One-command setup: infra + deps + db + demo
+setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + db + demo
 	@echo "$(GREEN)🚀 Setting up Accountable Books development environment...$(RESET)"
 	@echo "$(YELLOW)🐳 Starting infrastructure (DB + Redis)...$(RESET)"
 	@$(MAKE) db-up
+	@echo "$(YELLOW)📦 Installing Node.js dependencies...$(RESET)"
+	@pnpm install
+	@echo "$(YELLOW)🔨 Building @accountable-books/utils...$(RESET)"
+	@pnpm -F @accountable-books/utils run build
 	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
 	@$(MAKE) db-migrate
-	@echo "$(YELLOW)📦 Installing dependencies...$(RESET)"
-	@pnpm install
+	@echo "$(YELLOW)🔨 Building @accountable-books/contracts (data + pydantic)...$(RESET)"
+	@pnpm -F @accountable-books/contracts run build
+	@echo "$(YELLOW)🐍 Installing Python dependencies (ML Engine)...$(RESET)"
+	@cd apps/ml-engine && uv sync --frozen
 	@echo "$(YELLOW)🌱 Applying demo data...$(RESET)"
 	@$(MAKE) db-seed
 	@echo "$(GREEN)✅ Setup complete!$(RESET)"
 	@echo "$(BLUE)💡 Run 'make dev' to start developing$(RESET)"
 
+install: guard-nonprod ## Install dependencies
+	@echo "$(GREEN)📦 Installing Node.js dependencies...$(RESET)"
+	@pnpm install
+	@cd apps/ml-engine && uv sync --frozen
+
 dev: guard-nonprod ## Start all apps in development mode (Turbo)
 	@echo "$(GREEN)🎯 Starting development environment...$(RESET)"
 	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
-	@pnpm dev
+	@pnpm -F @accountable-books/contracts run build
+	@pnpm dev:core
 
 ##@ 🚀 Combined Workflows
 dev-full: guard-nonprod ## Start development with infrastructure (db + redis + turbo)
@@ -52,6 +67,7 @@ dev-full: guard-nonprod ## Start development with infrastructure (db + redis + t
 	@$(MAKE) db-up
 	@echo "$(YELLOW)🔨 Ensuring dependencies are built...$(RESET)"
 	@pnpm -F @accountable-books/utils run build
+	@pnpm -F @accountable-books/contracts run build
 	@echo "$(YELLOW)⚡ Starting apps via Turbo...$(RESET)"
 	@pnpm dev
 
@@ -70,6 +86,10 @@ demo: ## Apply demo data
 demo-status: ## Show demo data status
 	@pnpm -F @accountable-books/api run demo:status
 
+demo-basic: ## Apply demo data without bank transactions
+	@echo "$(GREEN)🌱 Applying demo data (without transactions)...$(RESET)"
+	@pnpm -F @accountable-books/api run demo:apply:basic
+
 demo-reverse: guard-nonprod ## Remove demo data
 	@echo "$(YELLOW)🗑️ Removing demo data...$(RESET)"
 	@pnpm -F @accountable-books/api run demo:reverse
@@ -85,6 +105,10 @@ check: ## Run all quality checks (lint + typecheck + format)
 build: ## Build all packages
 	@echo "$(GREEN)🔨 Building all packages...$(RESET)"
 	@pnpm build
+
+contracts-build: ## Build contracts package explicitly
+	@echo "$(GREEN)🔨 Building contracts package...$(RESET)"
+	@pnpm -F @accountable-books/contracts run build
 
 test: ## Run all tests
 	@echo "$(GREEN)🧪 Running tests...$(RESET)"
@@ -115,24 +139,8 @@ clean: guard-nonprod ## Clean workspace: stop infra, clean caches
 	@docker system prune -f || true
 	@echo "$(GREEN)✅ Workspace cleaned$(RESET)"
 
-clean-all: guard-nonprod ## Nuclear cleanup: remove everything and reinstall
-	@echo "$(RED)💥 Nuclear cleanup starting...$(RESET)"
-	@echo "$(YELLOW)🛑 Stopping infrastructure...$(RESET)"
-	@$(MAKE) db-down || true
-	@echo "$(YELLOW)🗑️ Removing node_modules and caches...$(RESET)"
-	@rm -rf node_modules pnpm-lock.yaml apps/*/node_modules packages/*/node_modules
-	@rm -rf apps/*/dist packages/*/dist dist .pnpm-store .vscode
-	@rm -rf apps/*/coverage packages/*/coverage coverage
-	@rm -rf .turbo apps/*/.turbo packages/*/.turbo
-	@echo "$(YELLOW)📦 Cleaning pnpm cache...$(RESET)"
-	@pnpm store prune || true
-	@echo "$(YELLOW)🐳 Cleaning Docker...$(RESET)"
-	@docker system prune -f || true
-	@echo "$(GREEN)📦 Reinstalling dependencies...$(RESET)"
-	@pnpm install
-	@echo "$(GREEN)🔨 Running quality checks...$(RESET)"
-	@$(MAKE) check
-	@echo "$(GREEN)✅ Nuclear cleanup complete!$(RESET)"
+clean-all: guard-nonprod ## Nuclear cleanup: deps, lockfiles, build/caches, Python venvs; reinstall (not .env)
+	@bash ./scripts/clean-all.sh
 
 ##@ 🚢 Deployment & Quality
 deploy-check: ## Run all deployment checks (tests + lint + build)

@@ -1,9 +1,10 @@
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
+
 import type {
   BankAccountWithMeta,
-  UpdateBankAccount,
   MinimalBankAccountDetails,
+  UpdateBankAccount,
 } from '../model/types';
 
 // export const createBankAccount = async (

@@ -1,14 +1,25 @@
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import type { Knex } from 'knex';
-import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
+
 import { getDemoCompanies } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
-import {
-  demoContactsByCompanyMap,
-  type DemoContact,
-} from './contacts.state.js';
+import { demoContactsByCompanyMap } from './contacts.state.js';
 import { generateRandomContacts } from './contacts.utils.js';
-import * as ngContacts from './raw/ng_contacts.json';
-import * as usContacts from './raw/us_contacts.json';
+
+import type { DemoCompanyType, DemoFilter } from '../../shared/config.js';
+import type { DemoContact } from './contacts.state.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const ngContactsfilePath = join(__dirname, './raw/ng_contacts.json');
+const usContactsfilePath = join(__dirname, './raw/us_contacts.json');
+const rawNgContacts = readFileSync(ngContactsfilePath, 'utf-8');
+const rawUsContacts = readFileSync(usContactsfilePath, 'utf-8');
+
+const ngContacts = JSON.parse(rawNgContacts);
+const usContacts = JSON.parse(rawUsContacts);
 
 export type DemoContactData = {
   displayName: string;

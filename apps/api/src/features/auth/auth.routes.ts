@@ -1,4 +1,6 @@
 import express from 'express';
+
+import { authLimiter } from '../../core/middlewares/rateLimiter.middleware.js';
 import {
   loginController,
   logoutController,
@@ -7,20 +9,20 @@ import {
   resendVerEmailController,
   verifyEmailController,
 } from './auth.controller.js';
-import { verifyRefreshToken } from './auth.middleware.js';
-import { authLimiter } from '../../core/middlewares/rateLimiter.middleware.js';
+import { verifyRefreshToken, verifySessionToken } from './auth.middleware.js';
 import { csrfProtection, generateCsrfToken } from './auth.utils.js';
+
 const router = express.Router({ mergeParams: true });
 
-// router.post("/login", authLimiter, loginController);
-router.post('/login', loginController);
+// router.post('/login', loginController);
+router.post('/login', authLimiter, loginController);
 router.post('/refresh', verifyRefreshToken, refreshTokenController);
-router.get('/me', verifyRefreshToken, csrfProtection, meController);
-router.post('/logout', verifyRefreshToken, logoutController);
+router.get('/me', verifySessionToken, csrfProtection, meController);
+router.post('/logout', verifySessionToken, logoutController);
 router.post('/verify-email', verifyEmailController);
 router.post(
   '/resend-verification',
-  verifyRefreshToken,
+  verifySessionToken,
   resendVerEmailController,
 );
 

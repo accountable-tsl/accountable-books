@@ -1,29 +1,24 @@
+import type { Knex } from 'knex';
 import axios from 'axios';
+
+import { ENV } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
+import { redis } from '../../../lib/redis.js';
+import { logger } from '../../../shared/utils/logger.js';
+import { retryAxios } from '../../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../../shared/utils/logger.js';
-import {
-  type CreateBankProviderMappings,
-  type MonoBankCoverage,
-  type NewBankProviderMapping,
-  newBankProviderMappingCamel,
-} from './bankProviderMappings.types.js';
-import { ENV } from '../../../config/env.js';
-import type { Knex } from 'knex';
-import { retryAxios } from '../../../shared/utils/random.utils.js';
-import { redis } from '../../../lib/redis.js';
+import { newBankProviderMappingCamel } from './bankProviderMappings.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
+  CreateBankProviderMappings,
   GetBankProviderMappingInput,
   GetBankProviderMappingResponse,
+  MonoBankCoverage,
+  NewBankProviderMapping,
 } from './bankProviderMappings.types.js';
 
 export async function createBankProviderMappings({
@@ -84,11 +79,14 @@ export async function createBankProviderMappings({
         }
       }
 
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'createBankProviderMappings',
-        userId,
-        recordCount: toInsert.length,
-      });
+      logger.error(
+        {
+          err: error instanceof Error ? error : new Error(String(error)),
+          userId,
+          recordCount: toInsert.length,
+        },
+        'createBankProviderMappings failed',
+      );
 
       return errorResponse<{ id: string }[]>(
         'Failed to create bank provider mapping(s)',

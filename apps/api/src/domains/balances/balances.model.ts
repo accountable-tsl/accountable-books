@@ -1,17 +1,19 @@
-import { knexClient as knex, knexClient } from '../../db/knexClient.js';
-import { z } from 'zod';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import type { Knex } from 'knex';
+import { z } from 'zod';
+
+import { knexClient as knex, knexClient } from '../../db/knexClient.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import {
-  enqueueGLBalance,
   enqueueBankBalance,
-} from '../../jobs/queues/balance-recalc.queue.js';
+  enqueueGLBalance,
+} from './balance-recalc.queue.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 // Validation schemas
 const dateStringSchema = z
@@ -1028,7 +1030,7 @@ export async function recalculateBankBalances({
       jobs.push({
         companyId: account.company_id,
         bankAccountId: account.id,
-        jobId: job.id || '',
+        jobId: job?.id || '',
       });
     }
 
@@ -1100,7 +1102,7 @@ export async function recalculateGLBalance({
     });
 
     return successResponse('GL balance recalculation queued', {
-      jobId: job.id || '',
+      jobId: job?.id || '',
       coaId,
       recalcFrom,
       recalcTo,
@@ -1164,7 +1166,7 @@ export async function recalculateBankBalance({
     });
 
     return successResponse('Bank balance recalculation queued', {
-      jobId: job.id || '',
+      jobId: job?.id || '',
       bankAccountId,
       recalcFrom,
       recalcTo,
@@ -1315,7 +1317,7 @@ export async function recalculateGLBalances({
       jobs.push({
         companyId: coa.company_id,
         coaId: coa.id,
-        jobId: job.id || '',
+        jobId: job?.id || '',
       });
     }
 

@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { ENV, isProd, isDev } from '../../../config/env.js';
-import { logger } from '../../../shared/utils/logger.js';
 import type { Request } from 'express';
+
+import { ENV, isDev, isProd } from '../../../config/env.js';
+import { logger } from '../../../shared/utils/logger.js';
 
 /**
  * Simplified webhook verification for Plaid
@@ -25,6 +26,7 @@ export function verifyPlaidWebhook(
       logger.warn(
         'PLAID_WEBHOOK_SECRET not configured - webhook verification disabled',
       );
+      return false;
     }
     return true;
   }

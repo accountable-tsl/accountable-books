@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { PlaidWidget } from '@/features/connect-bank/ui/providers/plaid-widget';
-import { MonoWidget } from '@/features/connect-bank/ui/providers/mono-widget';
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
+import { MonoWidget } from '@/features/connect-bank/ui/providers/mono-widget';
+import { PlaidWidget } from '@/features/connect-bank/ui/providers/plaid-widget';
 
 interface ProviderWidgetProps {
   provider: string;
@@ -69,8 +69,8 @@ export function ProviderWidget({
   }
 
   return (
-    <div className="p-4 border border-red-200 rounded-md bg-red-50">
-      <p className="text-red-800 text-sm">Unsupported provider: {provider}</p>
+    <div className="rounded-md border border-red-200 bg-red-50 p-4">
+      <p className="text-sm text-red-800">Unsupported provider: {provider}</p>
     </div>
   );
 }

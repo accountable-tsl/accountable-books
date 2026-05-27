@@ -1,17 +1,13 @@
 import type {
-  BuildCanonicalUrlOptions,
   ExtractPathParams,
   FlatRoutes,
-  FlattenedRouteKey,
   HasCompanyId,
   OmitCompanyId,
   RouteIndex,
   RouteLike,
   RouteMatch,
   RouteMeta,
-} from '@/shared/routes/types';
-import { routes } from '@/shared/routes/routes';
-import { matchPath } from 'react-router';
+} from './types';
 
 /**
  * Replace route params in a template string with the actual values.
@@ -187,8 +183,6 @@ export function memoize<Args extends any[], Return>(
 // The core route type created by `route()`
 export type RouteEntry = ReturnType<typeof route>;
 
-export type RouteKey = keyof typeof routes;
-
 export function flatRoutesForCanonicalUrls(
   obj: Record<string, any>,
   prefix = '',
@@ -213,106 +207,7 @@ export function flatRoutesForCanonicalUrls(
   return flat;
 }
 
-export const flatRoutes = flatRoutesForCanonicalUrls(routes);
-
-export const routeIndex = buildSmartIndex(flatRoutes);
-
-/**
- * Builds a full canonical URL for a given route and user context.
- *
- * Automatically injects `companyId` if the route requires it, and constructs
- * a type-safe URL using the user's assigned firm subdomain in production,
- * or the current browser origin in development.
- *
- * @example
- * buildCanonicalUrl({
- *   user,
- *   routeKey: "dashboard.report",
- *   routeParams: { reportId: "abc123" },
- * });
- * // https://firmSlug.getaccountable.com/companyId/report/abc123
- *
- * @template K - A valid route key from the flattened routes map
- * @param options - Includes the user context, route key, params (excluding companyId), and optional origin override
- * @returns The full URL string
- * @throws If the company is not found or the route is invalid
- */
-export function buildCanonicalUrl<K extends FlattenedRouteKey>({
-  user,
-  routeKey,
-  routeParams,
-  origin,
-}: BuildCanonicalUrlOptions<K>): string {
-  const route = flatRoutes[routeKey];
-  if (!route) {
-    const availableKeys = Object.keys(flatRoutes).join(', ');
-    throw new Error(
-      `Route key "${routeKey}" not found. Available keys: ${availableKeys}`,
-    );
-  }
-
-  const { currentCompanyId, companies } = user;
-  const company = companies.find((c) => c.id === currentCompanyId);
-  if (!company) throw new Error('Current company not found in user data');
-
-  const firmSlug = company.assignedFirmSlug;
-
-  const needsCompanyId = route.meta.requiresCompanyId ?? true;
-
-  const params = needsCompanyId
-    ? { companyId: currentCompanyId, ...(routeParams as object) }
-    : routeParams;
-
-  const fullPath = route.build(params as any);
-
-  const normalizedPath =
-    fullPath === '' ? '' : fullPath.startsWith('/') ? fullPath : `/${fullPath}`;
-
-  // Use 'app' as default subdomain when no firm is assigned
-  const subdomain = firmSlug || 'app';
-
-  // Determine the base domain based on environment
-  const getBaseDomain = () => {
-    if (import.meta.env.PROD) {
-      return 'getaccountable.com';
-    }
-    // Check if we're on staging
-    if (window.location.hostname.includes('staging.getaccountable.com')) {
-      return 'staging.getaccountable.com';
-    }
-    // Local development
-    return `${window.location.hostname}:${window.location.port}`;
-  };
-
-  const resolvedOrigin =
-    origin ||
-    (import.meta.env.PROD ||
-    window.location.hostname.includes('getaccountable.com')
-      ? `https://${subdomain}.${getBaseDomain()}`
-      : `${window.location.protocol}//${getBaseDomain()}`);
-
-  return `${resolvedOrigin}${normalizedPath}`;
-}
-
-export const flattenedRoutes = flattenRoutes(routes);
-
-export function matchRouteForPath(path: string): RouteLike | undefined {
-  return flattenedRoutes.find((route) =>
-    matchPath({ path: route.staticPath, end: true }, path),
-  );
-}
-
-const flattenedPublicRoutes = flattenRoutes(routes).filter(
-  (r) => r.meta?.public,
-);
-
-export function isPublicRoute(path: string): boolean {
-  return flattenedPublicRoutes.some((route) =>
-    matchPath({ path: route.staticPath, end: true }, path),
-  );
-}
-
-function buildSmartIndex(flatRoutes: FlatRoutes): RouteIndex {
+export function buildSmartIndex(flatRoutes: FlatRoutes): RouteIndex {
   const directRoutes = new Map(); // For routes without company ID
   const companyRoutes = new Map(); // For routes with company ID (indexed by suffix)
 
@@ -327,6 +222,21 @@ function buildSmartIndex(flatRoutes: FlatRoutes): RouteIndex {
   });
 
   return { directRoutes, companyRoutes };
+}
+
+/**
+ * Simple pattern matcher for route templates with `:param` segments.
+ * e.g. matchRoutePattern('/dashboard/:tab', '/dashboard/balance') → true
+ */
+function matchRoutePattern(pattern: string, pathname: string): boolean {
+  const patternSegments = pattern.split('/').filter(Boolean);
+  const pathSegments = pathname.split('/').filter(Boolean);
+
+  if (patternSegments.length !== pathSegments.length) return false;
+
+  return patternSegments.every(
+    (seg, i) => seg.startsWith(':') || seg === pathSegments[i],
+  );
 }
 
 export function findMatchingRouteSmart(
@@ -345,9 +255,18 @@ export function findMatchingRouteSmart(
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length > 1) {
     const suffixPath = '/' + segments.slice(1).join('/');
+
+    // Exact match
     const companyMatch = companyRoutes.get(suffixPath);
     if (companyMatch) {
       return companyMatch;
+    }
+
+    // Fallback: pattern match for parameterized routes (e.g. /dashboard/:tab)
+    for (const [pattern, match] of companyRoutes) {
+      if (pattern.includes(':') && matchRoutePattern(pattern, suffixPath)) {
+        return match;
+      }
     }
   }
 

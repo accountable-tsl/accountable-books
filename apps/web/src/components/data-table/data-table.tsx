@@ -1,11 +1,11 @@
-import * as React from 'react';
-
-import { cn } from '@/lib/utils';
-import { DataTableBody, MemoizedDataTableBody } from './data-table-body';
-import { DataTableHeader } from '@/components/data-table/data-table-header';
-import { Table } from '@/components/CustomTable';
 import type { DataTableProps } from '@/components/data-table/types/data-table';
+import * as React from 'react';
+import { Table } from '@/components/CustomTable';
+import { DataTableHeader } from '@/components/data-table/data-table-header';
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { cn } from '@/lib/utils';
+
+import { DataTableBody, MemoizedDataTableBody } from './data-table-body';
 
 /**
  * Generic, flexible data table wrapper built with TanStack Table v8.
@@ -24,6 +24,7 @@ export function DataTable<TData>({
 }: DataTableProps<TData>) {
   const { customClassNames, pagination } = table.customOptions || {};
   const { wrapper, table: tableClass } = customClassNames || {};
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   /**
    * Instead of calling `column.getSize()` on every render for every header
@@ -40,7 +41,11 @@ export function DataTable<TData>({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+  }, [table]);
+
+  // const hasPinnedColumns =
+  //   (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
+  //   (table.getState().columnPinning?.right?.length ?? 0) > 0;
 
   const BodyComponent = table.getState().columnSizingInfo.isResizingColumn
     ? MemoizedDataTableBody
@@ -49,7 +54,7 @@ export function DataTable<TData>({
   return (
     <div
       className={cn(
-        'flex flex-col w-full h-full min-h-0 gap-2.5',
+        'flex h-full min-h-0 w-full flex-col gap-2.5',
         wrapper || '',
       )}
       {...props}
@@ -58,20 +63,24 @@ export function DataTable<TData>({
       {children}
 
       {/* Main table */}
-      <Table
-        className={cn(
-          'min-w-full rounded-md overflow-clip border',
-          tableClass || '',
-        )}
-        style={{
-          ...columnSizeVars,
-          width: '100%',
-        }}
-      >
-        <DataTableHeader table={table} />
+      <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-md border">
+        <Table
+          ref={scrollRef}
+          className={cn(tableClass)}
+          style={{
+            ...columnSizeVars,
+          }}
+        >
+          <DataTableHeader table={table} />
 
-        <BodyComponent table={table} />
-      </Table>
+          <BodyComponent table={table} scrollRef={scrollRef} />
+        </Table>
+        {table.customOptions?.infiniteScroll?.isFetching && (
+          <div className="bg-background/90 text-muted-foreground pointer-events-none absolute right-2 bottom-2 rounded-full border px-2 py-1 text-xs shadow-sm">
+            Loading more…
+          </div>
+        )}
+      </div>
       <div className="flex flex-col gap-2.5">
         {/* Conditional pagination rendering */}
         {pagination?.enabled && pagination.style === 'standard' && (

@@ -1,0 +1,5 @@
+# Compiled TypeScript output (build artifacts from tsc)
+accountable_contracts/**/*.js
+accountable_contracts/**/*.d.ts
+accountable_contracts/**/*.d.ts.map
+accountable_contracts/**/*.js.map

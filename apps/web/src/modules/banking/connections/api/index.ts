@@ -1,10 +1,11 @@
-import api from '@/lib/axios';
 import type { ApiResponse } from '@/shared/types/core';
+import api from '@/lib/axios';
+
 import type {
   ConnectAccountRequest,
+  ConnectAccountsResponse,
   CreateLinkTokenRequest,
   CreateLinkTokenResponse,
-  ConnectAccountsResponse,
 } from '../model/types';
 
 export const createLinkToken = async (

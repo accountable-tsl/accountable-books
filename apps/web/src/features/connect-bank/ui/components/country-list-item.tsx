@@ -1,6 +1,6 @@
+import type { CountryDisplay } from '@/modules/banking/connections/utils/utils';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { CountryDisplay } from '@/modules/banking/connections/utils/utils';
 
 type CountryListItemProps = {
   country: CountryDisplay;
@@ -20,7 +20,7 @@ export function CountryListItem({
   return (
     <div
       className={cn(
-        'p-3 cursor-pointer hover:shadow-md transition-shadow border rounded-lg',
+        'cursor-pointer rounded-lg border p-3 transition-shadow hover:shadow-md',
         'active:bg-muted/40 active:border-muted-foreground/50',
         !country.isSupported && 'opacity-60 hover:opacity-80',
         className,
@@ -32,7 +32,7 @@ export function CountryListItem({
         <span className="text-sm font-medium">{country.name}</span>
         <Badge
           variant={country.isSupported ? 'outline' : 'secondary'}
-          className="text-xs ml-auto"
+          className="ml-auto text-xs"
         >
           {country.isSupported ? 'Available' : 'Coming Soon'}
         </Badge>

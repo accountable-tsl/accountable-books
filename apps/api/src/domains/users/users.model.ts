@@ -1,32 +1,31 @@
 import type { Knex } from 'knex';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
-import {
-  type CreateUserResponse,
-  type NewUserDirect,
-  newUserDirect,
-  type UserResponseCamel,
-} from '../../domains/users/users.types.js';
-import {
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
+import dayjs from 'dayjs';
+
+import { NODE_ENV } from '../../config/env.js';
+import { knexClient } from '../../db/knexClient.js';
+import { newUserDirect } from '../../domains/users/users.types.js';
+import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
+import { redis } from '../../lib/redis.js';
+import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
 import {
   generateRandomToken,
   hashPassword,
   hashToken,
 } from '../../shared/utils/crypto.utils.js';
-import dayjs from 'dayjs';
-import { knexClient } from '../../db/knexClient.js';
-import { addNewToken } from '../tokens/tokens.model.js';
-import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import { logger } from '../../shared/utils/logger.js';
 import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../shared/utils/logger.js';
-import { redis } from '../../lib/redis.js';
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
+import { addNewToken } from '../tokens/tokens.model.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  CreateUserResponse,
+  NewUserDirect,
+  UserResponseCamel,
+} from '../../domains/users/users.types.js';
 
 /**
  * Options for creating a user directly
@@ -63,7 +62,7 @@ export async function createUserDirect(
     operation: 'createUserDirect',
     operationId,
     email: input.email,
-    isDemo: input.is_demo_user || false,
+    isDemo: input.user_type === 'demo' || false,
   });
 
   userLogger.info('Starting user creation');
@@ -95,8 +94,6 @@ export async function createUserDirect(
 
   // Execute user creation within the provided transaction
   try {
-    logDatabaseOperation('SELECT', 'users', { email: sanitizedEmail });
-
     // Check for existing user
     const existingUser = await trx('users')
       .select(['id', 'firstname', 'lastname', 'email', 'onboarding_state'])
@@ -120,7 +117,6 @@ export async function createUserDirect(
     const onboardingState = createInitialUserOnboardingState();
 
     // Insert user
-    logDatabaseOperation('INSERT', 'users', { email: sanitizedEmail });
     const [user] = await trx('users')
       .insert({
         ...rest,
@@ -141,11 +137,6 @@ export async function createUserDirect(
 
     // Create verification token
     const hashedVerificationToken = await hashToken(verificationToken);
-
-    logDatabaseOperation('INSERT', 'tokens', {
-      userId: user.id,
-      tokenType: 'email_verification',
-    });
 
     await addNewToken(
       {
@@ -168,9 +159,12 @@ export async function createUserDirect(
       verificationToken,
     };
 
-    logTiming('createUserDirect', startTime, {
+    logFlowStep({
+      flow: 'user',
+      step: 'create_user',
+      status: 'ok',
+      durationMs: Date.now() - startTime,
       userId: user.id,
-      operationId,
     });
 
     userLogger.info(
@@ -189,15 +183,16 @@ export async function createUserDirect(
       `User creation failed: ${errorMessage}`,
     );
 
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      operation: 'createUserDirect',
-      email: sanitizedEmail,
-      operationId,
+    logFlowStep({
+      flow: 'user',
+      step: 'create_user',
+      status: 'failed',
+      err: error instanceof Error ? error : new Error(String(error)),
     });
 
     return errorResponse(
       "We couldn't create your account. Please try again.",
-      process.env.NODE_ENV === 'production' ? undefined : error,
+      NODE_ENV === 'production' ? undefined : error,
     );
   }
 }
@@ -224,36 +219,97 @@ export async function getUserDetails(
   }
 }
 
-export async function getSystemUser({
-  email,
-  trx,
-}: { email?: string; trx?: Knex.Transaction } = {}): Promise<{
+type SystemUser = {
   id: string;
   email: string;
-}> {
-  const CACHE_KEY_PREFIX = 'system_user:';
-  const emailKey = email || 'system@getaccountable.com';
-  const cacheKey = `${CACHE_KEY_PREFIX}${emailKey}`;
+};
 
-  // Check Redis cache
-  const cached = await redis.get(cacheKey);
+const SYSTEM_USER_CACHE_KEY = 'system_users:pool';
+/**
+ * Fetches a system user.
+ * Defaults to randomly selecting 1 from a pool of 5 system users.
+ * Set deterministic: true to always return the same user from that pool.
+ */
+export async function getSystemUser({
+  deterministic = false,
+  trx,
+}: {
+  deterministic?: boolean;
+  trx?: Knex.Transaction;
+} = {}): Promise<SystemUser> {
+  const CACHE_KEY = SYSTEM_USER_CACHE_KEY;
+  const POOL_SIZE = 5;
+
+  let pool: SystemUser[] = [];
+  const cached = await redis.get(CACHE_KEY);
+
   if (cached) {
-    return JSON.parse(cached);
+    pool = JSON.parse(cached);
+  } else {
+    // Query DB if cache miss
+    const knex = trx || knexClient;
+    pool = await knex('users')
+      .select(['id', 'email'])
+      .where({ user_type: 'system' })
+      .limit(POOL_SIZE);
+
+    if (pool.length === 0) {
+      throw new Error('No system users found in the database.');
+    }
+
+    // Store pool in Redis (2 hours)
+    await redis.set(CACHE_KEY, JSON.stringify(pool), 'EX', 60 * 60 * 2);
   }
 
-  // Query DB if not in cache
+  // Select User
+  if (deterministic) {
+    // Always return the first user in the list
+    return pool[0];
+  }
+
+  // Return a random user from the pool
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex];
+}
+
+/**
+ * Checks if the given identifier (either ID or Email) belongs to a system user.
+ * Checks the system user pool first (fastest, no DB) and if not found, checks against the DB.
+ * @param {string} identifier - the ID or Email to check
+ * @param {Knex.Transaction} [trx] - optional transaction object
+ * @returns {Promise<boolean>} - true if the identifier belongs to a system user, false otherwise
+ */
+export async function isSystemUser(
+  identifier: string,
+  trx?: Knex.Transaction,
+): Promise<boolean> {
+  const CACHE_KEY = SYSTEM_USER_CACHE_KEY;
+
+  // Check the Pool first (Fastest, no DB)
+  const cachedPool = await redis.get(CACHE_KEY);
+
+  if (cachedPool) {
+    const pool: SystemUser[] = JSON.parse(cachedPool);
+    // Check if the identifier matches any ID or Email in the pool
+    const foundInPool = pool.some(
+      (u) => u.id === identifier || u.email === identifier,
+    );
+
+    if (foundInPool) return true;
+  }
+
+  // Fallback: If not in pool, we must verify against DB
+  // (This handles the case where a system user exists but isn't in the random pool of 5)
   const knex = trx || knexClient;
   const user = await knex('users')
-    .select(['id', 'email'])
-    .where({ email: emailKey })
+    .select('id')
+    .where((b) => {
+      b.where('id', identifier).orWhere('email', identifier);
+    })
+    .andWhere('user_type', 'system')
     .first();
 
-  // Store in Redis with 2-hour expiration
-  if (user) {
-    await redis.set(cacheKey, JSON.stringify(user), 'EX', 60 * 60 * 2);
-  }
-
-  return user;
+  return !!user;
 }
 
 // export async function createUserInvite(

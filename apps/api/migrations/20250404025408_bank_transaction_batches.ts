@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'bank_transaction_batches';
 export async function up(knex: Knex): Promise<void> {
@@ -16,7 +17,13 @@ export async function up(knex: Knex): Promise<void> {
     table.date('start_date').notNullable();
     table.date('end_date').notNullable();
 
-    table.specificType('source', 'bank_transaction_source').notNullable();
+    table
+      .text('source')
+      .checkIn(
+        ['file_import', 'bank_feed', 'manual_entry'],
+        'bank_transaction_source',
+      )
+      .notNullable();
 
     table.text('fingerprint').notNullable();
     table.integer('import_row_count').nullable();

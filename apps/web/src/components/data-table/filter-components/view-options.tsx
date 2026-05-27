@@ -1,5 +1,4 @@
 import type { Table } from '@tanstack/react-table';
-import { Check, ChevronsUpDown, Settings2 } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { toTitleCase } from '@/shared/utils/formatting-utils';
+import { Check, ChevronsUpDown, Settings2 } from 'lucide-react';
 
 interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;

@@ -1,6 +1,9 @@
-import { isProd, NODE_ENV } from '../../config/env.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import * as Sentry from '@sentry/node';
+
+import { isProd, NODE_ENV } from '../../config/env.js';
+import { scrubForTelemetry } from '../telemetry/scrub.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 export function successResponse<T>(
   message = 'Query successful',
@@ -48,7 +51,10 @@ export function errorResponse<T = null>(
     Sentry.captureException(
       error instanceof Error ? error : new Error(finalMessage),
       {
-        extra: { error: parsedError, code: finalCode },
+        extra: scrubForTelemetry({
+          error: parsedError,
+          code: finalCode,
+        }) as Record<string, unknown>,
       },
     );
   }
@@ -79,6 +85,30 @@ export function errorResponse<T = null>(
     error: parsedError,
     ...options.metadata,
   };
+}
+
+export function getHttpStatusFromErrorCode(code?: string): number {
+  switch (code) {
+    case ErrorCode.INVALID_CREDENTIALS:
+    case ErrorCode.UNAUTHORIZED:
+      return 401;
+    case ErrorCode.FORBIDDEN:
+      return 403;
+    case ErrorCode.NOT_FOUND:
+      return 404;
+    case ErrorCode.CONFLICT:
+    case ErrorCode.OPERATION_NOT_ALLOWED:
+      return 409;
+    case ErrorCode.SERVICE_UNAVAILABLE:
+      return 503;
+    case ErrorCode.INVALID_INPUT:
+    case ErrorCode.ONBOARDING_INCOMPLETE:
+      return 400;
+    case ErrorCode.DATABASE_ERROR:
+    case ErrorCode.GENERIC:
+    default:
+      return 500;
+  }
 }
 
 // export const throwError = (message: string, errorDetails?: any): never => {

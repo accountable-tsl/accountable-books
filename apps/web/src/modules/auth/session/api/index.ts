@@ -1,9 +1,13 @@
+import type { ApiResponse } from '@/shared/types/core';
+import type {
+  AuthSessionPayload,
+  RefreshSessionPayload,
+} from '@accountable-books/contracts/schema';
 import api from '@/lib/axios';
 import { isAxiosError } from 'axios';
-import type { ApiResponse } from '@/shared/types/core';
-import type { AuthUserContext } from '../model/types';
-import { authStore } from '../model/store';
+
 import { setLogoutReason } from '../../credentials';
+import { authStore } from '../model/store';
 
 export const handleLogout = async () => {
   await api.post('/auth/logout').catch(() => {});
@@ -17,7 +21,7 @@ export const handleLogout = async () => {
  * This is because we're storing csrfToken in store and not local or session storage for security reasons
  */
 export const fetchSession = async (): Promise<
-  ApiResponse<{ user: AuthUserContext; csrfToken: string }>
+  ApiResponse<AuthSessionPayload>
 > => {
   try {
     const res = await api.get('/auth/me');
@@ -42,11 +46,11 @@ export const fetchSession = async (): Promise<
 };
 
 export const refreshToken = async (): Promise<
-  ApiResponse<{ csrfToken: string }>
+  ApiResponse<RefreshSessionPayload>
 > => {
   try {
     const res = await api.post('/auth/refresh');
-    return res.data as ApiResponse<{ csrfToken: string }>;
+    return res.data as ApiResponse<RefreshSessionPayload>;
   } catch (err: unknown) {
     if (isAxiosError(err) && err.response?.data) {
       return err.response.data;

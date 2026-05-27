@@ -1,11 +1,12 @@
 import express from 'express';
+
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
+import { verifyAccessToken } from '../../features/auth/auth.middleware.js';
 import {
   getCompanyController,
   switchCompanyController,
   updateCompanyController,
 } from './companies.controller.js';
-import { verifyAccessToken } from '../../features/auth/auth.middleware.js';
-import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
 
 const router = express.Router({ mergeParams: true });
 
@@ -25,6 +26,11 @@ router.get(
   getCompanyController,
 );
 
-router.patch('/:companyId', checkCompanyId, updateCompanyController);
+router.patch(
+  '/:companyId',
+  verifyAccessToken,
+  checkCompanyId,
+  updateCompanyController,
+);
 
 export default router;

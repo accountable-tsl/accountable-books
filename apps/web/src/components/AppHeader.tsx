@@ -1,5 +1,5 @@
-import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import type { CompanyData } from '@/modules/company/companies';
+import React from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,12 +8,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import React from 'react';
-import { ThemeToggle } from './ThemeToggle';
+import { Separator } from '@/components/ui/separator';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { CompanySwitcher } from '@/domains-pending-migration/switchCompany/CompanySwitcher';
 import { cn } from '@/lib/utils';
 import { useBreadcrumbs } from '@/shared/hooks/useBreadcrumbs';
-import { CompanySwitcher } from '@/domains-pending-migration/switchCompany/CompanySwitcher';
-import type { CompanyData } from '@/modules/company/companies';
+
+import { ThemeToggle } from './ThemeToggle';
 
 type BreadcrumbItem = {
   label: string;
@@ -34,9 +35,9 @@ export function AppHeader({ company }: AppHeaderProps) {
   return (
     <header
       className={cn(
-        'group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0',
-        'items-center gap-2 border-b transition-[width,height] ease-linear relative',
-        'flex-shrink-0 z-50',
+        'flex h-12 shrink-0 group-has-data-[collapsible=icon]/sidebar-wrapper:h-12',
+        'relative items-center gap-2 border-b transition-[width,height] ease-linear',
+        'z-50 shrink-0',
       )}
     >
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2">
@@ -67,8 +68,8 @@ export function AppHeader({ company }: AppHeaderProps) {
         </Breadcrumb>
       </div>
 
-      <div className="text-center text-[0.65rem] rounded absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-1/2 flex flex-col">
-        <div className="text-muted-foreground whitespace-nowrap truncate">
+      <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 translate-y-1/2 flex-col rounded text-center text-[0.65rem]">
+        <div className="text-muted-foreground truncate whitespace-nowrap">
           You are signed into{' '}
           <strong>
             <span className="text-destructive">

@@ -1,24 +1,27 @@
+import { type Request, type Response } from 'express';
+import { authUserContext } from '@accountable-books/contracts/schema';
+import { doubleCsrf } from 'csrf-csrf';
 import jwt from 'jsonwebtoken';
+
 import { ENV, isProd } from '../../config/env.js';
+import { knexClient } from '../../db/knexClient.js';
+import { getAccessibleCompaniesForUser } from '../../domains/user-roles/user-roles.model.js';
+import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  type AuthCompanyContext,
-  type AuthUserContext,
-  type DecodedToken,
-  type TokenConfig,
-  TokenExpiration,
-} from './auth.types.js';
-import { type Request, type Response } from 'express';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
+import { TokenExpiration } from './auth.types.js';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { getAccessibleCompaniesForUser } from '../../domains/userRoles/userRoles.model.js';
-import { getOnboardingState } from '../../features/onboarding/onboarding.service.js';
-import { doubleCsrf } from 'csrf-csrf';
+import type {
+  AuthCompanyContext,
+  AuthUserContext,
+  DecodedToken,
+  TokenConfig,
+} from './auth.types.js';
 
 if (!ENV.JWT_ACCESS_SECRET || !ENV.JWT_REFRESH_SECRET) {
   throw new AppError('JWT secrets must be defined in .env');
@@ -185,7 +188,7 @@ export async function buildAuthContext(
     });
 
     // Build user context
-    const user: AuthUserContext = {
+    const user = authUserContext.parse({
       id: sub,
       email,
       firstname,
@@ -202,7 +205,7 @@ export async function buildAuthContext(
       currentCompany: { ...activeCompany, onboarding: onboardingStatus },
       companies: accessibleCompanies,
       // permissions: to be handled later (to be added to companies)
-    };
+    });
 
     return successResponse('Auth context built successfully', {
       user,

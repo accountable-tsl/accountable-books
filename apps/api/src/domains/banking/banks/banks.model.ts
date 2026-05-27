@@ -1,5 +1,6 @@
+import type { Knex } from 'knex';
+
 import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
 import { redis } from '../../../lib/redis.js';
 import {
   camelToSnake,
@@ -10,15 +11,14 @@ import {
   successResponse,
 } from '../../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../../shared/utils/string.utils.js';
-import {
-  fetchBanksOptions,
-  type FetchBanksOptions,
-  type FetchBanksResponse,
-  newBank,
-  newBankInput,
-  type NewInput,
+import { fetchBanksOptions, newBank, newBankInput } from './banks.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  FetchBanksOptions,
+  FetchBanksResponse,
+  NewInput,
 } from './banks.types.js';
-import type { Knex } from 'knex';
 
 export async function addNewBank(params: {
   data: NewInput[];

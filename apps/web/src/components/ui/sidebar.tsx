@@ -1,10 +1,5 @@
+import type { VariantProps } from 'class-variance-authority';
 import * as React from 'react';
-import { Slot } from '@radix-ui/react-slot';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { PanelLeftIcon } from 'lucide-react';
-
-import { useIsMobile } from '@/shared/hooks/use-media-query';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -22,6 +17,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { Slot } from '@radix-ui/react-slot';
+import { cva } from 'class-variance-authority';
+import { PanelLeftIcon } from 'lucide-react';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;

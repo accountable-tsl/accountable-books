@@ -1,17 +1,19 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { DataTableViewOptions } from '@/components/data-table/filter-components/view-options';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Search, X } from 'lucide-react';
-import { DataTableViewOptions } from '@/components/data-table/filter-components/view-options';
-import {
-  generateSearchPlaceholder,
-  categorizeColumns,
-  resolveToolbarItems,
-  mergeConfigs,
-} from './utils';
-import type { DataTableToolbarProps, ToolbarItem } from './types';
+
 import { DataTableToolbarFilter } from './DataTableToolbarFilter';
+import {
+  categorizeColumns,
+  generateSearchPlaceholder,
+  mergeConfigs,
+  resolveToolbarItems,
+} from './utils';
+
+import type { DataTableToolbarProps, ToolbarItem } from './types';
 
 export function DataTableToolbar<TData>({
   table,
@@ -72,7 +74,7 @@ export function DataTableToolbar<TData>({
         globalSearchPlaceholder: 'Search...',
       };
     }
-  }, [filterableColumns, customPlaceholder]);
+  }, [filterableColumns, customPlaceholder, globalSearchType]);
 
   const handleGlobalSearchChange = useCallback(
     (value: string) => {
@@ -125,7 +127,7 @@ export function DataTableToolbar<TData>({
             ...(globalSearchEnabled && groupedTextColumns.length > 0
               ? [
                   <div className="relative" key="global-search">
-                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="text-muted-foreground absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2 transform" />
                     <Input
                       placeholder={globalSearchPlaceholder}
                       value={globalSearchValue}
@@ -133,7 +135,7 @@ export function DataTableToolbar<TData>({
                         handleGlobalSearchChange(event.target.value)
                       }
                       className={cn(
-                        'pl-8 h-8 w-40 lg:w-56',
+                        'h-8 w-40 pl-8 lg:w-56',
                         globalSearchClassName,
                       )}
                     />
@@ -220,6 +222,9 @@ export function DataTableToolbar<TData>({
     handleGlobalSearchChange,
     globalSearchClassName,
     allowIndividualFilters,
+    toolbarSections.center,
+    toolbarSections.left,
+    toolbarSections.right,
     individualTextColumns,
     otherColumns,
     isFiltered,

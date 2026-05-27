@@ -1,82 +1,151 @@
-# ML Engine
+# ML Engine for Accountable Books
 
-AI-native machine learning service for Accountable Books platform.
+## What This Does
 
-## Features
+Automatically suggests which account to use when categorizing bank transactions.
 
-- Transaction categorization using machine learning
-- Financial insights and predictions
-- Model versioning and explainability
-- RESTful API built with FastAPI
+**Example:** You have a $500 transaction from "Legal Services Inc" - the ML engine suggests:
 
-## Development
+- Account: "Professional Fees"
+- Confidence: 85%
+- Accrual suggestion: "Accrued Professional Fees" (if needed)
 
-### Local Development (without Docker)
+## How It Works (Simple Explanation)
 
-```bash
-# Install dependencies
-poetry install
+1. **Model A (Intent Classifier):** Figures out what type of expense/revenue this is
+   - "Is this professional fees, travel, or utilities?"
 
-# Run development server
-poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8002
+2. **Model B (Account Ranker):** Picks the specific account from your chart
+   - "Which account in your books matches this best?"
 
-# Run tests
-poetry run pytest
+3. **Accrual Resolver:** Suggests if you need an accrual account
+   - "Should this be prepaid or accrued?"
 
-# Format code
-poetry run black .
-poetry run ruff check .
-```
+## Current Status: Phase 0 (Baseline)
 
-### Docker Development
+**What's Live:**
 
-#### Using Root Docker Compose (Recommended)
+- ✅ Text matching using embeddings (AI-powered similarity)
+- ✅ Historical pattern learning (remembers past choices)
+- ✅ Confidence scores and explanations
+- ✅ Accrual recommendations (cash vs accrual basis)
 
-For development, use the root-level `docker-compose.dev.yml`:
+**What's Not Yet:**
 
-```bash
-# From the project root directory
-docker-compose -f docker-compose.dev.yml up ml-engine
+- ❌ Machine learning training (using heuristics now)
+- ❌ Accuracy metrics (no evaluation yet)
+- ❌ Multi-account splits (one account per transaction only)
 
-# Run the full development stack
-docker-compose -f docker-compose.dev.yml up
+## Technology Stack
 
-# View logs
-docker-compose -f docker-compose.dev.yml logs -f ml-engine
+- **Language:** Python 3.12
+- **Framework:** FastAPI
+- **AI Model:** MiniLM (384-dimension embeddings)
+- **Database:** Redis (for caching)
+- **Packages:** sentence-transformers, scikit-learn, pydantic
 
-# Stop the service
-docker-compose -f docker-compose.dev.yml down
-```
+## Local Development
 
-#### Using Docker directly
+**Start the server:**
 
 ```bash
-# Build development image
-docker build -f infra/docker/Dockerfile.dev -t ml-engine-dev .
-
-# Run development container with hot reload
-docker run -p 8002:8002 -v $(pwd):/app ml-engine-dev
-
-# Or for production build
-docker build -t ml-engine .
-docker run -p 8002:8002 ml-engine
+cd apps/ml-engine
+uv sync --frozen
+uv run uvicorn ml_engine.main:app --reload --port 8001
 ```
 
-### Production Deployment
-
-The production Dockerfile uses a multi-stage build for optimized image size:
+**Run tests:**
 
 ```bash
-# Build production image
-docker build -t ml-engine:latest .
-
-# Run production container
-docker run -p 8002:8002 --env ENV=production ml-engine:latest
+uv run pytest
 ```
 
-## Architecture
+**Check API docs:**
 
-- **FastAPI**: Modern Python web framework
-- **scikit-learn**: Machine learning models
-- **Pydantic**: Data validation and serialization
-- **Poetry**: Dependency management
+```
+http://localhost:8001/docs
+```
+
+## Project Structure
+
+```
+ml_engine/
+├── domains/
+│   ├── prediction/          # Main prediction pipeline
+│   └── accrual/             # Accrual resolver logic
+├── models/
+│   ├── categorization/      # Model A & Model B
+│   └── registry/            # Model versioning
+├── core/                    # Embeddings, utilities
+└── main.py                  # FastAPI app
+```
+
+## Known Limitations & TODOs
+
+### High Priority
+
+1. **No ML training yet** - Using heuristic baselines (TF-IDF, cosine similarity)
+   - Need to collect labeled training data
+   - Plan: Switch to LightGBM after collecting 1000+ labeled transactions
+
+2. **No evaluation framework** - Can't measure accuracy
+   - Need test set with ground truth labels
+   - Plan: Build evaluation pipeline with precision/recall metrics
+
+3. **Single account only** - Can't split transactions
+   - Example: Can't split $1000 into $800 rent + $200 utilities
+   - Plan: Add split logic after Phase 1
+
+### Medium Priority
+
+4. **Company size missing** - Accrual resolver assumes all companies are "small"
+   - Need `company_size` field in companies table
+   - Affects materiality thresholds
+
+5. **Historical patterns incomplete** - Missing frequency and recurring flags
+   - `typical_frequency`: Should come from historical patterns
+   - `is_recurring`: Should come from transaction signals
+
+6. **No A/B testing** - Can't test model improvements safely
+   - Need model version deployment strategy
+   - Plan: Use model registry versions for gradual rollout
+
+### Low Priority
+
+7. **String matching could be better** - Currently uses simple token matching
+   - Could use `rapidfuzz` for fuzzy matching
+   - Or n-grams for better similarity
+
+8. **Embeddings not cached** - Computing on every request
+   - Pre-compute account embeddings
+   - Store in Redis with COA snapshot
+
+## Performance Notes
+
+- **Typical latency:** 200-500ms per prediction
+- **Accrual resolver adds:** ~20-50ms overhead (10-15%)
+- **Bottleneck:** Embedding computation (can cache)
+
+## What's Next: Roadmap
+
+**Phase 1: Training** (After collecting data)
+
+- Train Model A on labeled account types
+- Use LightGBM classifier
+- Add SHAP explanations
+
+**Phase 2: Ranking** (After 30-50 companies)
+
+- Train Model B with LambdaRank
+- Learn tenant-specific patterns
+- Improve historical matching
+
+**Phase 3: Evaluation** (Ongoing)
+
+- Build test framework
+- Track accuracy over time
+- Set up monitoring
+
+## Questions?
+
+See [TECHNICAL.md](TECHNICAL.md) for detailed technical design.

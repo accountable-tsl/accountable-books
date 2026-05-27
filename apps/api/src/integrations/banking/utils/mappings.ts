@@ -1,4 +1,5 @@
 import type { AccountSubtype, AccountType } from 'plaid';
+
 import type { BankAccountType } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 
 export function mapPlaidAccountType({

@@ -1,6 +1,7 @@
 import { type Response } from 'express';
-import { type AuthRequest } from '../auth/auth.types.js';
+
 import { ErrorCode, errorResponse } from '../../shared/utils/response.utils.js';
+import { type AuthRequest } from '../auth/auth.types.js';
 
 export async function updateOnboardingStatusController(
   req: AuthRequest,

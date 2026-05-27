@@ -1,6 +1,7 @@
 import { type Response } from 'express';
-import { type AuthRequest } from '../../features/auth/auth.types.js';
+
 import { getUserDetails } from '../../domains/users/users.model.js';
+import { type AuthRequest } from '../../features/auth/auth.types.js';
 import { errorResponse } from '../../shared/utils/response.utils.js';
 
 export async function getUserDetailsController(

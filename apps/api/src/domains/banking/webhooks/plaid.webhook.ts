@@ -1,11 +1,11 @@
-import { Router } from 'express';
-import express from 'express';
-import type { Request, Response } from 'express';
-import { logger, logError } from '../../../shared/utils/logger.js';
-import { transactionSyncService } from '../../../integrations/banking/services/transactionSync.service.js';
-import { transactionSyncQueue } from '../../../jobs/queues/transaction-sync.queue.js';
-import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
 import { randomUUID } from 'crypto';
+import type { Request, Response } from 'express';
+import express, { Router } from 'express';
+
+import { scheduleTransactionSync } from '../../../integrations/banking/index.js';
+import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
+import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
+import { logger } from '../../../shared/utils/logger.js';
 
 const router = Router();
 
@@ -116,11 +116,13 @@ router.post(
 
       log('completed', {});
     } catch (error) {
-      logError(error as Error, {
-        message: 'Plaid webhook processing failed',
-        traceId,
-        body: req.body,
-      });
+      logger.error(
+        {
+          err: error instanceof Error ? error : new Error(String(error)),
+          traceId,
+        },
+        'Plaid webhook processing failed',
+      );
 
       // Still return 200 to prevent Plaid from retrying
       res.status(200).json({ received: true, error: true });
@@ -167,8 +169,7 @@ async function handleTransactionWebhook(
       }
 
       // Queue sync job
-      await transactionSyncQueue.add(
-        'sync-transactions',
+      await scheduleTransactionSync(
         {
           credentialId: credential.id,
           syncType: 'webhook',

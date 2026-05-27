@@ -1,7 +1,8 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import type { ErrorInfo, ReactNode } from 'react';
+import { Component } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -52,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <AlertDescription className="flex flex-col gap-2">
             <div>
               <strong>Something went wrong</strong>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-muted-foreground mt-1 text-sm">
                 An unexpected error occurred while displaying the transaction
                 details.
               </p>
@@ -63,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={this.handleRetry}
               className="w-fit"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
           </AlertDescription>

@@ -1,10 +1,11 @@
 import { z } from 'zod';
+
+import { dateOrStringNullish } from '../../shared/utils/random.utils.js';
 import {
   companyOnboardingStepKeys,
   onboardingStepKeys,
   userOnboardingStepKeys,
 } from './onboarding.constants.js';
-import { dateOrStringNullish } from '../../shared/utils/random.utils.js';
 
 // STEP KEYS
 export type UserOnboardingStepKey =

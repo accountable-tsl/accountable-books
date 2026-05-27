@@ -1,13 +1,16 @@
 import { type NextFunction, type Response } from 'express';
-import { csrfProtection, JWT_CONFIG } from './auth.utils.js';
 import jwt from 'jsonwebtoken';
+
+import { redis } from '../../lib/redis.js';
+import { updateRequestContext } from '../../shared/telemetry/request-context.js';
+import { errorResponse } from '../../shared/utils/response.utils.js';
+import { publicPaths } from './auth.constants.js';
 import {
   type AuthRequest,
   type BaseAuthRequest,
   type DecodedToken,
 } from './auth.types.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
-import { publicPaths } from './auth.constants.js';
+import { csrfProtection, JWT_CONFIG } from './auth.utils.js';
 
 export const verifyAccessToken = async (
   req: BaseAuthRequest,
@@ -39,6 +42,7 @@ export const verifyAccessToken = async (
       ...req.user,
       id: decoded.sub,
     };
+    updateRequestContext({ userId: decoded.sub });
 
     // proceed
     next();
@@ -73,12 +77,111 @@ export const verifyRefreshToken = async (
       JWT_CONFIG.refreshToken.secret,
     ) as DecodedToken;
 
+    if (!decoded.sub) {
+      return res
+        .status(403)
+        .json(
+          errorResponse('Invalid refresh token payload', 'User ID not found'),
+        );
+    }
+
     req.user = {
       ...req.user,
       id: decoded.sub,
     };
+    updateRequestContext({ userId: decoded.sub });
 
     next();
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return res
+        .status(401)
+        .json(errorResponse('Refresh token expired', error));
+    }
+    return res.status(403).json(errorResponse('Invalid refresh token', error));
+  }
+};
+
+export const verifySessionToken = async (
+  req: BaseAuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const accessToken = req.cookies?.accessToken;
+  if (accessToken) {
+    try {
+      const decoded = jwt.verify(
+        accessToken,
+        JWT_CONFIG.accessToken.secret,
+      ) as DecodedToken;
+
+      if (!decoded.sub) {
+        return res
+          .status(403)
+          .json(
+            errorResponse(
+              'Invalid token payload',
+              'User ID not found in token',
+            ),
+          );
+      }
+
+      req.user = {
+        ...req.user,
+        id: decoded.sub,
+      };
+      updateRequestContext({ userId: decoded.sub });
+
+      return next();
+    } catch (error) {
+      if (
+        !(error instanceof jwt.TokenExpiredError) &&
+        !(error instanceof jwt.JsonWebTokenError)
+      ) {
+        return res
+          .status(500)
+          .json(errorResponse('Authentication failed', error));
+      }
+    }
+  }
+
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return res
+      .status(401)
+      .json(errorResponse('Unauthorized', 'Token not found'));
+  }
+
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      JWT_CONFIG.refreshToken.secret,
+    ) as DecodedToken;
+
+    if (!decoded.sub) {
+      return res
+        .status(403)
+        .json(
+          errorResponse('Invalid refresh token payload', 'User ID not found'),
+        );
+    }
+
+    const isValidSession = await redis.sismember(
+      `refreshTokens:${decoded.sub}`,
+      refreshToken,
+    );
+
+    if (!isValidSession) {
+      return res.status(403).json(errorResponse('Invalid session'));
+    }
+
+    req.user = {
+      ...req.user,
+      id: decoded.sub,
+    };
+    updateRequestContext({ userId: decoded.sub });
+
+    return next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       return res

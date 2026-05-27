@@ -1,29 +1,42 @@
+import { randomUUID } from 'crypto';
+import type { Knex } from 'knex';
+
 import { knexClient } from '../../db/knexClient.js';
+import { generateFingerprintSync } from '../../shared/index.js';
+import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
+import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
+  AppError,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { enqueueBankBalance } from '../balances/index.js';
+import {
+  emitTxnDeletedEvent,
+  enqueueTransactionEnrichment,
+  handleTransactionsDeleted,
+} from '../categorization/index.js';
+import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 import {
   bankTransactionBatchInput,
-  type BankTransactionFilters,
-  type BankTransactionInput,
   bankTransactionsFilters,
-  type NewBankTransaction,
-  type BankTransactionBatchInput,
+  deleteBankTransactionsInput,
 } from './bankTransactions.types.js';
-import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import { categorizationStatus } from '../../core/types/core.js';
 import {
   buildBankTransactionQuery,
   generateBatchFingerprint,
 } from './bankTransactions.utils.js';
-import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
-import { logger } from '../../shared/utils/logger.js';
-import crypto from 'crypto';
-import type { Knex } from 'knex';
-import { randomUUID } from 'crypto';
-import { enqueueBankBalance } from '../../jobs/queues/balance-recalc.queue.js';
+
+import type {
+  BankTransaction,
+  BankTransactionBatchInput,
+  BankTransactionFilters,
+  BankTransactionInput,
+  BankTransactionWithFilteredFields,
+  DeleteBankTransactionsInput,
+  NewBankTransaction,
+} from './bankTransactions.types.js';
 
 export async function addNewBankTransactions({
   userId,
@@ -69,8 +82,13 @@ export async function addNewBankTransactions({
     });
   }
 
-  const { source, bank_account_id, bank_transactions, metadata } =
-    validate.data;
+  const {
+    source,
+    provider_key: batch_provider_key,
+    bank_account_id,
+    bank_transactions,
+    metadata,
+  } = validate.data;
   log('validation_complete');
 
   // const sameBankAccountIds = bank_transactions.every(
@@ -113,10 +131,13 @@ export async function addNewBankTransactions({
       const bankAccount = await txn('bank_accounts as ba')
         .select(
           'ba.currency_id as bankCurrencyId',
+          'ba.display_name as bankAccountName',
+          'b.display_name as bankName',
           'c.reporting_currency_id as reportingCurrencyId',
           'c.conversion_date as conversionDate',
         )
         .join('companies as c', 'ba.company_id', 'c.id')
+        .join('banks as b', 'ba.bank_id', 'b.id')
         .where({
           'ba.id': bank_account_id,
           'ba.company_id': companyUUID,
@@ -130,7 +151,8 @@ export async function addNewBankTransactions({
           traceId,
         });
       }
-      const { bankCurrencyId, reportingCurrencyId } = bankAccount;
+      const { bankCurrencyId, reportingCurrencyId, bankAccountName, bankName } =
+        bankAccount;
 
       // Build batch insert object
       // Determine start and end dates
@@ -209,6 +231,27 @@ export async function addNewBankTransactions({
         createdContacts.map((r) => [r.normalized_name, r.id as string]),
       );
 
+      const inputContactIds = Array.from(
+        new Set(
+          bank_transactions
+            .map((tx) => tx.contact_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      const contactNameById = inputContactIds.length
+        ? new Map(
+            (
+              await txn('contacts')
+                .select(['id', 'display_name'])
+                .where({ company_id: companyUUID, is_deleted: false })
+                .whereIn('id', inputContactIds)
+            ).map((contact) => [
+              contact.id as string,
+              contact.display_name as string,
+            ]),
+          )
+        : new Map<string, string>();
+
       const sameCurrency = reportingCurrencyId === bankCurrencyId;
 
       // Pre-fetch all unique exchange rates in one optimized query
@@ -272,22 +315,37 @@ export async function addNewBankTransactions({
             bankAccountId: bank_account_id,
           });
 
-          const contactId = tx.payee
-            ? contactIdByName.get(tx.payee.trim().toLowerCase())
-            : undefined;
+          const normalizedPayee = tx.payee?.trim();
+          const contactId = normalizedPayee
+            ? contactIdByName.get(normalizedPayee.toLowerCase())
+            : (tx.contact_id ?? undefined);
+          const contactName = normalizedPayee
+            ? normalizedPayee
+            : contactId
+              ? (contactNameById.get(contactId) ?? null)
+              : null;
+
+          const txSource =
+            (batch_provider_key && source === 'bank_feed'
+              ? batch_provider_key
+              : source) || null;
 
           return {
             ...tx,
             txn_at: tx.txn_at || tx.date,
             bank_account_id,
             contact_id: contactId,
+            contact_type_snapshot: tx.contact_type_snapshot ?? null,
+            contact_name: contactName,
+            bank_account_name: bankAccountName ?? null,
+            bank_name: bankName ?? null,
             external_id: tx.external_id || generatedExternalId,
             amount: Number(tx.amount),
             system_exchange_rate: Number(rate),
-            categorization_status: categorizationStatus.enum.uncategorized,
             bank_transaction_batch_id: batch.id,
             created_by_id: userId,
             updated_by_id: userId,
+            source: txSource,
           };
         },
       );
@@ -344,6 +402,28 @@ export async function addNewBankTransactions({
           // Don't fail the transaction if balance recalc enqueue fails, Log and notify
           // TODO: Add to notification system later
           log('balance_recalc_enqueue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            bankAccountId: bank_account_id,
+          });
+        }
+
+        // Trigger transaction enrichment for categorization
+        try {
+          const insertedTransactionIds = insertedTxns.map((txn) => txn.id);
+          await enqueueTransactionEnrichment({
+            companyId: companyUUID,
+            bankAccountId: bank_account_id,
+            bankTransactionIds: insertedTransactionIds,
+            source: 'ingestion',
+          });
+
+          log('enrichment_queued', {
+            bankAccountId: bank_account_id,
+            transactionCount: insertedTransactionIds.length,
+          });
+        } catch (error) {
+          // Don't fail the transaction if enrichment enqueue fails, just log
+          log('enrichment_enqueue_failed', {
             error: error instanceof Error ? error.message : 'Unknown error',
             bankAccountId: bank_account_id,
           });
@@ -443,6 +523,156 @@ export async function getBankTransactions(
   }
 }
 
+/**
+ * Get bank transactions by IDs
+ *
+ * This function retrieves bank transactions by their IDs. It supports
+ * filtering out auto-generated fields (database + computed fields).
+ *
+ * @param bankTransactionIds - Array of bank transaction IDs
+ * @param excludeAutoGeneratedFields - If true, excludes auto-generated fields from results
+ * @param trx - Optional database transaction
+ * @returns Array of bank transactions
+ * @throws AppError if bankTransactionIds is empty
+ */
+export async function getBankTransactionsByIds({
+  bankTransactionIds,
+  excludeAutoGeneratedFields = false,
+  trx,
+}: {
+  bankTransactionIds: string[];
+  excludeAutoGeneratedFields?: boolean;
+  trx?: Knex.Transaction;
+}): Promise<Array<BankTransaction | BankTransactionWithFilteredFields>> {
+  const client = trx || knexClient;
+
+  if (!Array.isArray(bankTransactionIds) || bankTransactionIds.length === 0) {
+    throw new AppError('bankTransactionIds must be a non-empty array');
+  }
+
+  const query = client('bank_transactions as bt')
+    .whereIn('bt.id', bankTransactionIds)
+    .where('bt.is_deleted', false)
+    .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
+    .select(
+      'bt.*',
+      'ba.coa_id as bank_account_coa_id',
+      'ba.currency_id as bank_account_currency_id',
+    );
+
+  const transactions = await query.orderBy('bt.created_at', 'asc');
+
+  if (!transactions.length) return [];
+
+  if (excludeAutoGeneratedFields) {
+    return transactions.map((transaction) => {
+      const txn = transaction as BankTransaction & {
+        absolute_amount?: number;
+        search_text?: string;
+        bank_account_coa_id?: string;
+        bank_account_currency_id?: string;
+      };
+      const {
+        created_at,
+        updated_at,
+        is_deleted,
+        deleted_at,
+        absolute_amount,
+        search_text,
+        ...t
+      } = txn;
+      return t;
+    });
+  }
+
+  return transactions;
+}
+
+export async function deleteBankTransactions({
+  companyId,
+  userId,
+  input,
+  trx,
+}: {
+  companyId: string;
+  userId: string;
+  input: DeleteBankTransactionsInput;
+  trx?: Knex.Transaction;
+}) {
+  const validate = deleteBankTransactionsInput.safeParse(input);
+  if (!validate.success) {
+    return errorResponse('Invalid request body', validate.error.flatten());
+  }
+
+  const { bankTransactionIds, reason } = validate.data;
+
+  try {
+    const execute = async (txn: Knex.Transaction) => {
+      const companyUUID = await getCompanyUUID(companyId, txn);
+      if (!companyUUID) {
+        return {
+          response: errorResponse('Company not found'),
+        };
+      }
+
+      const deletedRows = await txn('bank_transactions')
+        .where('company_id', companyUUID)
+        .whereIn('id', bankTransactionIds)
+        .andWhere('is_deleted', false)
+        .update({
+          is_deleted: true,
+          deleted_at: txn.fn.now(),
+          updated_at: txn.fn.now(),
+          updated_by_id: userId,
+        })
+        .returning('id');
+
+      const deletedIds = deletedRows.map((row) => row.id);
+
+      if (deletedIds.length > 0) {
+        await handleTransactionsDeleted({
+          bankTransactionIds: deletedIds,
+          reason,
+          trx: txn,
+        });
+      }
+
+      return {
+        response: successResponse('Transactions deleted', {
+          deleted: deletedIds.length,
+        }),
+        companyUUID,
+        deletedIds,
+      };
+    };
+
+    const result = trx
+      ? await execute(trx)
+      : await knexClient.transaction(execute);
+
+    if ('companyUUID' in result && (result.deletedIds?.length ?? 0) > 0) {
+      await emitTxnDeletedEvent({
+        company_uuid: result.companyUUID!,
+        bank_transaction_ids: result.deletedIds || [],
+        reason: reason ?? null,
+      });
+    }
+
+    return result.response;
+  } catch (error) {
+    logger.error(
+      {
+        companyId,
+        userId,
+        bankTransactionIds,
+        error,
+      },
+      'Failed to delete bank transactions',
+    );
+    return errorResponse('Failed to delete bank transactions');
+  }
+}
+
 function allSameAccount(txns: BankTransactionInput[], bankAccountId: string) {
   return (
     txns.length > 0 && txns.every((t) => t.bank_account_id === bankAccountId)
@@ -485,10 +715,7 @@ function generateExternalId(input: {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return crypto
-    .createHash('sha256')
-    .update(
-      `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`,
-    )
-    .digest('hex');
+  return generateFingerprintSync(
+    `${formattedDate}|${amountHash}|${payeeNorm}|${descNorm}|${bankAccountId}`,
+  );
 }

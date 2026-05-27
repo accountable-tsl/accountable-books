@@ -2,27 +2,19 @@
 import '../config/env-loader.js';
 
 import * as Sentry from '@sentry/node';
+
+import { ENV, NODE_ENV } from './config/env.js';
 import {
+  getWorkersStatus,
   startAllWorkers,
   stopAllWorkers,
-  getWorkersStatus,
 } from './jobs/workers/index.js';
-import { scheduleNightlyAutoExtend } from './jobs/queues/fiscal-calendar.queue.js';
+import { getRedisStats, initRedisMonitoring } from './lib/redis-monitor.js';
 import { initSentry } from './sentry.bootstrap.js';
-import { NODE_ENV, ENV } from './config/env.js';
-import { initRedisMonitoring, getRedisStats } from './lib/redis-monitor.js';
-import pino from 'pino';
+import { getLogger } from './shared/utils/logger.js';
 
 // Initialize logger
-const logger =
-  NODE_ENV === 'local'
-    ? pino({
-        transport: {
-          target: 'pino-pretty',
-          options: { colorize: true, singleLine: true },
-        },
-      })
-    : pino();
+const logger = getLogger({ component: 'worker', processSource: 'worker' });
 
 /**
  * Main worker process entry point
@@ -32,7 +24,7 @@ async function main() {
   try {
     // Initialize Sentry for error tracking
     initSentry();
-    logger.info('🔧 Worker process starting...');
+    logger.info('🔧 Worker process starting (consumers only)...');
 
     // Initialize Redis monitoring
     initRedisMonitoring();
@@ -51,12 +43,6 @@ async function main() {
 
     // Start all configured workers
     const workers = await startAllWorkers();
-
-    // Schedule nightly fiscal calendar auto-extend job
-    await scheduleNightlyAutoExtend();
-    logger.info(
-      '📅 Scheduled nightly fiscal calendar auto-extend (2 AM daily)',
-    );
 
     // Log worker status
     const status = getWorkersStatus();
@@ -119,7 +105,6 @@ async function main() {
       logger.error({ error }, '🚨 Uncaught exception in worker process');
       Sentry.captureException(error);
 
-      // For uncaught exceptions, shut down gracefully
       stopAllWorkers().finally(() => {
         process.exit(1);
       });
@@ -135,6 +120,6 @@ async function main() {
 
 // Start the worker process
 main().catch((error) => {
-  console.error('💥 Fatal error in worker process:', error);
+  logger.error({ error }, 'Fatal error in worker process');
   process.exit(1);
 });

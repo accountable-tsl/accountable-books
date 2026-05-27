@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
-import { useSession } from '@session';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/shared/hooks/use-media-query';
+import { useSession } from '@session';
 import { Headset, ScreenShareIcon } from 'lucide-react';
 
 export function OnboardingFormFooter() {
@@ -13,18 +13,18 @@ export function OnboardingFormFooter() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-2 mb-4 md:mb-8">
+    <div className="mb-4 flex flex-col items-center gap-2 md:mb-8">
       {isMobile && (
-        <span className="text-center text-foreground/70 text-xs px-4">
+        <span className="text-foreground/70 px-4 text-center text-xs">
           For a better experience, view on larger screen
         </span>
       )}
       {!isMobile && (
         <div
           className={cn(
-            'text-sm hover:underline flex gap-1 text-muted-foreground hover:text-foreground cursor-pointer',
+            'text-muted-foreground hover:text-foreground flex cursor-pointer gap-1 text-sm hover:underline',
             'flex items-center gap-1',
-            isMobile ? 'font-medium underline text-foreground' : '',
+            isMobile ? 'text-foreground font-medium underline' : '',
           )}
         >
           <span>See the platform in action</span> <ScreenShareIcon size={14} />
@@ -34,12 +34,12 @@ export function OnboardingFormFooter() {
       <div className="flex flex-col">
         <Button variant={'outline'} size={'sm'}>
           <Headset size={14} />
-          <span className="font-light text-xs">Contact support</span>
+          <span className="text-xs font-light">Contact support</span>
         </Button>
         <Button
           variant="link"
           size={'sm'}
-          className="text-xs text-muted-foreground h-6"
+          className="text-muted-foreground h-6 text-xs"
           onClick={handleLogout}
         >
           Logout

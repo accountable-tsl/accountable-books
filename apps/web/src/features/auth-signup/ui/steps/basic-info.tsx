@@ -1,14 +1,15 @@
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
-import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
-import { newUser, type NewUser } from '@/modules/auth';
-import { useForm } from 'react-hook-form';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { FormField } from '@/components/FormField';
+import type { NewUser } from '@/modules/auth';
 import type { AxiosError } from 'axios';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { FormField } from '@/components/FormField';
+import { PasswordStrengthMeter } from '@/components/PasswordStrengthMeter';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { newUser } from '@/modules/auth';
+import { usePasswordRules } from '@/shared/hooks/usePasswordRules';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { Eye, EyeOff } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 
 export interface SignupBasicInfoHandle {
   validate: () => Promise<boolean>;
@@ -109,7 +110,7 @@ export const SignupBasicInfo = forwardRef<
         />
       </FormField>
 
-      <div className="grid md:grid-cols-2 gap-2">
+      <div className="grid gap-2 md:grid-cols-2">
         {/* Lastname */}
         <FormField
           id="lastname"
@@ -199,7 +200,7 @@ export const SignupBasicInfo = forwardRef<
           type="button"
           onClick={togglePasswordVisibility}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
-          className="absolute right-2 top-1/3 bg-transparent text-foreground hover:bg-transparent"
+          className="text-foreground absolute top-1/3 right-2 bg-transparent hover:bg-transparent"
         >
           {showPassword ? <EyeOff /> : <Eye />}
         </Button>

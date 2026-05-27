@@ -1,19 +1,19 @@
-import icon from '@/assets/images/email-file.gif';
-import { Button } from '@/components/ui/button';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import type { VerifyEmailFnResponse } from '@/domains-pending-migration/onboarding/types';
+import type { OnboardingStatus } from '@/modules/company/companies';
 import { useCallback, useEffect, useState } from 'react';
-import { routes } from '@/shared/routes/routes';
+import icon from '@/assets/images/email-file.gif';
 import { CenteredLoader } from '@/components/CenteredLoader';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   handleEmailVerification,
   resendVerificationEmail,
 } from '@/domains-pending-migration/onboarding/api';
-import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
 import { cn } from '@/lib/utils';
-import { TriangleAlert } from 'lucide-react';
-import type { VerifyEmailFnResponse } from '@/domains-pending-migration/onboarding/types';
+import { routes } from '@/shared/routes';
 import { useSession } from '@session';
+import { TriangleAlert } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { toast } from 'sonner';
 
 export const VerifyEmail = ({
   className,
@@ -143,14 +143,26 @@ export const VerifyEmail = ({
     if (!isLoggedIn || userIdFromUrl || isEmailVerificationStepComplete) {
       setHasTriggeredVerification(true);
     }
-  }, [isLoggedIn]);
+  }, [
+    isLoggedIn,
+    isEmailVerificationStepComplete,
+    isLoading,
+    sessionLoading,
+    userIdFromUrl,
+  ]);
 
   useEffect(() => {
     if (!hasTriggeredVerification) return;
     if (!isLoggedIn && (!verificationToken || !userIdFromUrl)) return;
 
     verifyEmailFn();
-  }, [userIdFromUrl, verificationToken, hasTriggeredVerification]);
+  }, [
+    userIdFromUrl,
+    verificationToken,
+    hasTriggeredVerification,
+    isLoggedIn,
+    verifyEmailFn,
+  ]);
 
   if (isLoading || sessionLoading) {
     return (
@@ -177,8 +189,8 @@ export const VerifyEmail = ({
   const initialPage = (
     <>
       <div className="flex flex-col items-center">
-        <p className="font-medium text-lg">Verify your email</p>
-        <p className="text-sm text-muted-foreground text-center">
+        <p className="text-lg font-medium">Verify your email</p>
+        <p className="text-muted-foreground text-center text-sm">
           <span className="hidden md:inline">
             Your financial data needs to be kept secure and confidential.
           </span>
@@ -193,7 +205,7 @@ export const VerifyEmail = ({
       <div className="text-center text-sm md:text-base">
         <div>
           We've sent a verification link to
-          <span className="text-blue-500 px-1">
+          <span className="px-1 text-blue-500">
             {verifiedEmail || userEmail || 'your email'}.
           </span>
           Click it to verify your account and continue setup. Can't find it?
@@ -203,7 +215,7 @@ export const VerifyEmail = ({
 
       <div
         className={cn(
-          'flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16',
+          'mt-8 mb-8 flex flex-col-reverse gap-4 md:mt-16 md:mb-0 md:flex-row',
         )}
       >
         <Button
@@ -223,8 +235,8 @@ export const VerifyEmail = ({
   const loggedInAndVerificationFailed = (
     <>
       <div className="flex flex-col items-center">
-        <p className="font-medium text-lg">Verify your email</p>
-        <p className="text-sm text-muted-foreground text-center">
+        <p className="text-lg font-medium">Verify your email</p>
+        <p className="text-muted-foreground text-center text-sm">
           <span className="hidden md:inline">
             Your financial data needs to be kept secure and confidential.
           </span>
@@ -232,8 +244,8 @@ export const VerifyEmail = ({
         </p>
       </div>
 
-      <div className="w-40 h-40 flex items-center justify-center">
-        <TriangleAlert strokeWidth={1} className="w-25 h-25 text-destructive" />
+      <div className="flex h-40 w-40 items-center justify-center">
+        <TriangleAlert strokeWidth={1} className="text-destructive h-25 w-25" />
       </div>
 
       <div className="text-center text-sm md:text-base">
@@ -265,7 +277,7 @@ export const VerifyEmail = ({
 
       <div
         className={cn(
-          'flex flex-col-reverse md:flex-row gap-4 mb-8 mt-8 md:mb-0 md:mt-16',
+          'mt-8 mb-8 flex flex-col-reverse gap-4 md:mt-16 md:mb-0 md:flex-row',
         )}
       >
         <Button variant="default" onClick={handleResendEmail}>
@@ -277,13 +289,13 @@ export const VerifyEmail = ({
 
   const loggedOutAndVerificationFailed = (
     <>
-      <h2 className="text-xl font-bold mb-2">❌ Verification Failed</h2>
+      <h2 className="mb-2 text-xl font-bold">❌ Verification Failed</h2>
       <p className="text-center">
         This verification link is invalid or has expired.
       </p>
       <Link
         to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(email || '')}`}
-        className="text-blue-500 underline mt-4 block"
+        className="mt-4 block text-blue-500 underline"
       >
         Log in to request a new link
       </Link>
@@ -292,7 +304,7 @@ export const VerifyEmail = ({
 
   const verifiedSuccessfully = (
     <>
-      <h2 className="text-xl font-bold mb-2">✅ Email Verified</h2>
+      <h2 className="mb-2 text-xl font-bold">✅ Email Verified</h2>
 
       {loggedInDifferentUser ? (
         <p>
@@ -306,7 +318,7 @@ export const VerifyEmail = ({
       {loggedOut ? (
         <Link
           to={`${routes.auth.login.staticPath}?email=${encodeURIComponent(verifiedEmail || '')}`}
-          className="text-blue-600 underline mt-4 block"
+          className="mt-4 block text-blue-600 underline"
         >
           Log in to continue onboarding
         </Link>
@@ -330,11 +342,11 @@ export const VerifyEmail = ({
 
   const fallbackContent = (
     <>
-      <h2 className="text-xl font-bold mb-2">⚠️ Unexpected State</h2>
+      <h2 className="mb-2 text-xl font-bold">⚠️ Unexpected State</h2>
       <p>Something doesn't look right. Please log in to continue.</p>
       <Link
         to={routes.auth.login.staticPath}
-        className="text-blue-600 underline mt-4 block"
+        className="mt-4 block text-blue-600 underline"
       >
         Log in {!loggedOut ? 'again' : ''}
       </Link>
@@ -353,9 +365,9 @@ export const VerifyEmail = ({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 items-center p-8 md:p-16 max-w-3xl mx-auto w-full',
+        'mx-auto flex w-full max-w-3xl flex-col items-center gap-4 p-8 md:p-16',
         'flex-1 justify-center md:h-full',
-        !isLoggedIn ? 'max-h-[45rem] h-[45rem]' : '',
+        !isLoggedIn ? 'h-[45rem] max-h-[45rem]' : '',
         className,
       )}
     >

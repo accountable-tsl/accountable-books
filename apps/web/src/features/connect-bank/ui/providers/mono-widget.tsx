@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import MonoConnect from '@mono.co/connect.js';
 import z from 'zod';
+
 import { WidgetManualFallback } from './widget-manual-fallback';
 
 const identitySchema = z.object({
@@ -85,7 +86,7 @@ export function MonoWidget({
       // no documented destroy API; just drop the ref
       monoRef.current = null;
     };
-  }, [publicKey, autoOpen]);
+  }, [publicKey, autoOpen, customer, onClose, onLoad, onSuccess]);
 
   // Expose manual open method
   const open = () => monoRef.current?.open();

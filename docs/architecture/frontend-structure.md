@@ -236,8 +236,8 @@ pnpm -w add -D eslint-plugin-import eslint-plugin-boundaries
 Update `eslint.config.mjs` (Flat config) with layered boundaries and import hygiene. Enable after migration; until then, scope it to `apps/web/src` and optionally exclude `domains-pending-migration`.
 
 ```js
-import importPlugin from 'eslint-plugin-import';
 import boundaries from 'eslint-plugin-boundaries';
+import importPlugin from 'eslint-plugin-import';
 
 export default [
   // ...existing configs
@@ -364,11 +364,10 @@ Examples:
 
 ```ts
 // Feature importing domain hook via barrel
-import { useUploadBankTransactions } from '@modules/banking/transactions';
 
 // Page importing a feature entry
 import { ConnectBank } from '@features/connect-bank';
-
+import { useUploadBankTransactions } from '@modules/banking/transactions';
 // Module importing shared utility
 import { queryClient } from '@shared/lib/queryClient';
 

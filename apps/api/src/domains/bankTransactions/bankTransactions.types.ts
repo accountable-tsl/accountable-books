@@ -1,15 +1,11 @@
 import { z } from 'zod';
-import {
-  categorizationStatus,
-  dbBaseFields,
-  debitCredit,
-  zDate,
-} from '../../core/types/core.js';
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../shared/utils/formatting.utils.js';
-import Decimal from 'decimal.js';
+
+import { dbBaseFields, debitCredit, zDate } from '../../core/types/core.js';
+import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
+import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
+import { contactType } from '../contacts/index.js';
+
+import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([
@@ -26,13 +22,14 @@ export const bankTransactionInput = z.object({
   amount: z.number(),
   bank_account_id: z.uuid().optional(),
   contact_id: z.uuid().nullish(),
+  contact_type_snapshot: contactType.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
-  additional_comments: z.string().nullish(),
+  additional_notes: z.string().nullish(),
   raw_data: z.any().nullish(),
   external_id: z.string().optional(),
-  //   id: z.string().uuid().optional(),
+  //   id: z.uuid().optional(),
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
 
@@ -45,16 +42,21 @@ export type BankTransactionInputCamel = SnakeToCamelCaseObject<
 export const newBankTransaction = bankTransactionInput.extend({
   bank_account_id: z.uuid(),
   system_exchange_rate: z.number(),
-  categorization_status: categorizationStatus.default('uncategorized'),
   bank_transaction_batch_id: z.uuid().nullish(),
   external_id: z.string().max(256),
   ledger_transaction_id: z.uuid().nullish(),
+  contact_name: z.string().nullish(),
+  bank_account_name: z.string().nullish(),
+  bank_name: z.string().nullish(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().nullish(),
 });
 export type NewBankTransaction = z.infer<typeof newBankTransaction>;
 
-export const bankTransaction = newBankTransaction.merge(dbBaseFields);
+export const bankTransaction = z.object({
+  ...newBankTransaction.shape,
+  ...dbBaseFields.shape,
+});
 export type BankTransaction = z.infer<typeof bankTransaction>;
 
 // BANK TRANSACTION BATCHES
@@ -66,6 +68,7 @@ export const bankTransactionBatchInput = z.object({
   // opening_balance: z.number().optional(), // Balance before the first transaction
   // closing_balance: z.number().optional(), // Balance after the last transaction
   metadata: z.any().nullish(),
+  provider_key: bankProviderKey.nullish(),
   created_by_id: z.uuid().optional(),
   updated_by_id: z.uuid().optional(),
 });
@@ -129,7 +132,7 @@ export const bankTransactionsFilters = z.object({
   endDate: z.date().optional(),
   bankAccountIds: z.array(z.uuid()).optional(),
   transactionSide: debitCredit.optional(),
-  categorizationStatus: categorizationStatus.optional(),
+  // categorizationStatus: categorizationStatus.optional(),
   isDeleted: z.boolean().optional(),
   searchQuery: z.string().optional(),
   minAmount: z.number().optional(),
@@ -139,3 +142,25 @@ export const bankTransactionsFilters = z.object({
   offset: z.number().optional(),
 });
 export type BankTransactionFilters = z.infer<typeof bankTransactionsFilters>;
+
+export const deleteBankTransactionsInput = z.object({
+  bankTransactionIds: z.array(z.uuid()).min(1),
+  reason: z.string().max(256).optional(),
+});
+export type DeleteBankTransactionsInput = z.infer<
+  typeof deleteBankTransactionsInput
+>;
+
+// Types for getBankTransactionsByIds
+export type BankTransactionWithFilteredFields = Omit<
+  BankTransaction,
+  | 'created_at'
+  | 'updated_at'
+  | 'is_deleted'
+  | 'deleted_at'
+  | 'absolute_amount'
+  | 'search_text'
+> & {
+  bank_account_coa_id: string;
+  bank_account_currency_id: string;
+};

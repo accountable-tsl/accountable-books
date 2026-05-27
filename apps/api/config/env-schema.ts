@@ -5,7 +5,7 @@
  * Generates only essential files: .env.local, .env.example
  */
 
-import type { EnvSchema } from '@accountable-books/utils/env/types';
+import type { EnvSchema } from '@accountable-books/utils/env';
 
 // Target environments to generate files for
 export const API_TARGET_ENVIRONMENTS: ('local' | 'staging' | 'production')[] = [
@@ -108,7 +108,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
   DATABASE_URL: {
     description: 'Complete PostgreSQL connection string',
     type: 'secret',
-    local: `postgresql://user:password@localhost:5433/accountable_books'`,
+    local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
   DATABASE_URL_NOPOOL: {
@@ -136,6 +136,17 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Local Redis connection URL',
     type: 'secret',
     local: '',
+  },
+
+  // ============================================================================
+  // ML ENGINE CONFIGURATION
+  // ============================================================================
+  ML_ENGINE_URL: {
+    description: 'ML Engine API URL for transaction categorization',
+    type: 'url',
+    local: 'http://localhost:8000',
+    staging: 'http://localhost:8000',
+    production: 'https://ml-engine.getaccountable.com',
   },
 
   // ============================================================================
@@ -219,12 +230,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // ============================================================================
   // ANALYTICS & MONITORING
   // ============================================================================
-  MIXPANEL_TOKEN: {
-    description: 'Mixpanel analytics token',
-    type: 'secret',
-    required: false,
-  },
-
   SENTRY_DSN: {
     description: 'Sentry error tracking DSN',
     type: 'secret',
@@ -236,6 +241,42 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Sentry release version',
     type: 'string',
     default: '0.0.0',
+  },
+
+  POSTHOG_API_KEY: {
+    description: 'PostHog server-side project API key',
+    type: 'secret',
+    required: false,
+  },
+
+  POSTHOG_HOST: {
+    description: 'PostHog ingestion host (EU cloud)',
+    type: 'url',
+    required: false,
+    local: 'https://eu.i.posthog.com',
+    staging: 'https://eu.i.posthog.com',
+    production: 'https://eu.i.posthog.com',
+  },
+
+  POSTHOG_ENABLED: {
+    description: 'Enable PostHog product analytics (server-side)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
+  },
+
+  TELEMETRY_ENABLED: {
+    description:
+      'Master switch for non-Sentry telemetry (PostHog, OTel traces)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'true',
+    production: 'true',
+    default: 'false',
   },
 
   // ============================================================================
@@ -280,6 +321,13 @@ export const API_ENV_SCHEMA: EnvSchema = {
     local: 'https://logos.getaccountable.com',
     staging: 'https://logos.getaccountable.com',
     production: 'https://logos.getaccountable.com',
+  },
+
+  R2_TRANSACTION_FILES_BUCKET_NAME: {
+    description: 'Cloudflare R2 bucket name for transaction files',
+    type: 'string',
+    required: false,
+    default: 'transaction-files',
   },
 
   // ============================================================================
@@ -343,7 +391,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Test admin user ID (UUID)',
     type: 'string',
     required: false,
-    local: '018f7e5e-0000-0000-0000-000000000001',
+    local: '00000000-0000-4000-8000-000000000000',
   },
 
   TEST_ADMIN_EMAIL: {
@@ -416,6 +464,35 @@ export const API_ENV_SCHEMA: EnvSchema = {
     local: 'false',
     staging: 'true',
     production: 'false',
+  },
+
+  // ============================================================================
+  // AI (APP-LEVEL)
+  // ============================================================================
+  AI_ENABLED: {
+    description: 'Enable AI endpoints (app-level)',
+    type: 'boolean',
+    required: false,
+    local: 'false',
+    staging: 'false',
+    production: 'false',
+  },
+
+  OPENAI_API_KEY: {
+    description: 'OpenAI API key used by the AI orchestrator',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  OPENAI_MODEL: {
+    description:
+      'Default OpenAI model name for chat (capabilities may override)',
+    type: 'string',
+    required: false,
+    local: 'gpt-4o-mini',
+    staging: 'gpt-4o-mini',
+    production: 'gpt-4o-mini',
   },
 
   BULLBOARD_USER: {
@@ -592,9 +669,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
  * Can be executed directly: tsx apps/api/config/env-schema.ts
  */
 export async function generateFiles() {
-  const { createEnvGenerator } = await import(
-    '@accountable-books/utils/env/cli'
-  );
+  const { createEnvGenerator } = await import('@accountable-books/utils/env');
   await createEnvGenerator('API', API_ENV_SCHEMA, API_TARGET_ENVIRONMENTS);
 }
 

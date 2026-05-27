@@ -1,17 +1,26 @@
+import { randomUUID } from 'crypto';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import type { Knex } from 'knex';
+import z from 'zod';
+
+import { isDev } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import data from './data/countries.json';
-import { randomUUID } from 'crypto';
-import { isDev } from '../config/env-loader';
-import z from 'zod';
+} from './utils/db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const filePath = join(__dirname, './data/countries.json');
+const raw = readFileSync(filePath, 'utf-8');
+const data = JSON.parse(raw) as NewCountryInput[];
 
 const newCountry = z.object({
-  id: z.string().uuid().optional(),
+  id: z.uuid().optional(),
   code: z
     .string()
     .min(2)

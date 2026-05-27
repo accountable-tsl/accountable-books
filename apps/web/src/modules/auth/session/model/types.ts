@@ -1,12 +1,22 @@
-import { z } from 'zod';
-import type {
-  CompanyData,
-  CompanyOnboardingState,
-  CompanyType,
-  OnboardingState,
-} from '@/modules/company/companies';
+import type { CompanyData } from '@/modules/company/companies/model/types';
 import type { TenantRoutes } from '@/shared/routes/types';
+import type {
+  AuthUserContext,
+  CompanyType,
+  CurrentCompanyContext,
+} from '@accountable-books/contracts/schema';
+import { roleKey, roleScope } from '@accountable-books/contracts/schema';
+
 import type { LogoutOptions } from '../../credentials';
+
+export type {
+  AuthCompanyContext,
+  AuthUserContext,
+  CurrentCompanyContext,
+  RoleKey,
+  RoleScope,
+} from '@accountable-books/contracts/schema';
+export { roleKey, roleScope };
 
 export interface AuthState {
   user: AuthUserContext | null;
@@ -29,54 +39,6 @@ export interface SessionStore {
   resetFailedAttempts: () => void;
 }
 
-export interface AuthUserContext {
-  id: string;
-  email: string;
-  firstname: string;
-  lastname?: string;
-
-  isPlatformUser?: boolean;
-  platformUserKey?: RoleKey;
-
-  currentCompanyId: string;
-  currentCompany: CurrentCompanyContext;
-  companies: AuthCompanyContext[];
-}
-
-export interface AuthCompanyContext {
-  id: string; // API field name for companyId
-  legalName: string;
-  displayName: string | null;
-  assignedFirmSlug: string; // API field name for firmSlug
-  companyType: CompanyType;
-  hasExplicitAccess: boolean;
-  roleKey: RoleKey | null;
-  roleScope: RoleScope | null;
-  isDemoCompany: boolean;
-  onboardingState: CompanyOnboardingState;
-}
-
-export type CurrentCompanyContext = AuthCompanyContext & {
-  onboarding: OnboardingState;
-};
-
-export const roleKey = z.enum([
-  'super_admin',
-  'support_admin',
-  'support_agent',
-  'firm_owner',
-  'firm_admin',
-  'accountant',
-  'staff_accountant',
-  'client_owner',
-  'client_admin',
-  'client_user',
-]);
-export type RoleKey = z.infer<typeof roleKey>;
-
-export const roleScope = z.enum(['platform', 'firm', 'company']);
-export type RoleScope = z.infer<typeof roleScope>;
-
 export type SessionContextType = {
   loading: boolean;
   isLoggedIn: boolean;
@@ -84,7 +46,7 @@ export type SessionContextType = {
 
   user: AuthUserContext | null;
   companyId?: string;
-  onboarding?: OnboardingState;
+  onboarding?: CurrentCompanyContext['onboarding'];
 
   company?: CompanyData;
   companyType?: CompanyType;

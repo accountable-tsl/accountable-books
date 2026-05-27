@@ -1,4 +1,5 @@
 import './config/env-loader.js';
+
 import type { Knex } from 'knex';
 
 // Environment detection

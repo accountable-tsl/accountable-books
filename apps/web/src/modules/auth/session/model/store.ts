@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+
 import type { AuthState, SessionStore } from './types';
 
 export const authStore = create<AuthState>()((set) => ({

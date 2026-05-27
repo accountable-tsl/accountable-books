@@ -1,0 +1,7 @@
+from enum import Enum
+
+class BillingInvoiceLinePreviewTypeSchema(str, Enum):
+    FIRM_SUBSCRIPTION = "firm_subscription"
+    FIRM_USAGE = "firm_usage"
+    CLIENT_PLAN_GROUP = "client_plan_group"
+    CLIENT_USAGE_GROUP = "client_usage_group"

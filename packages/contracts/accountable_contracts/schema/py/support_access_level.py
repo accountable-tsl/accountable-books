@@ -1,0 +1,5 @@
+from enum import Enum
+
+class SupportAccessLevel(str, Enum):
+    READ_ONLY = "read_only"
+    COMPANY_PROFILE_WRITE = "company_profile_write"

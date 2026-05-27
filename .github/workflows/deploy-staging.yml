@@ -15,8 +15,12 @@ on:
         type: boolean
 
 env:
-  PNPM_VERSION: 10.15.1
-  NODE_VERSION: 24
+  PNPM_VERSION: 11.3.0
+  NODE_VERSION: 24.16.0
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
 
 jobs:
   # Step 1: Run database migrations BEFORE deploying API
@@ -52,6 +56,9 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
+      - name: 'Contracts: Generate Pydantic models'
+        run: pnpm --filter @accountable-books/contracts build
+
       - name: Generate environment files
         run: pnpm --filter @accountable-books/api generate-env
 
@@ -63,6 +70,15 @@ jobs:
           echo "🔄 Running database migrations on staging..."
           pnpm -F @accountable-books/api run migrate:staging:remote
           echo "✅ Database migrations completed successfully"
+
+      - name: Bootstrap application workspaces
+        env:
+          DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+        run: |
+          echo "🔄 Bootstrapping application workspaces..."
+          pnpm -F @accountable-books/api run bootstrap:staging:remote
+          echo "✅ Workspace bootstrap completed"
 
   # Step 2: Deploy API only after migrations succeed
   deploy-api:
@@ -98,6 +114,9 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
+      - name: 'Contracts: Generate Pydantic models'
+        run: pnpm --filter @accountable-books/contracts build
+
       - name: Generate environment files
         run: pnpm --filter @accountable-books/api generate-env
 
@@ -121,7 +140,7 @@ jobs:
           max_attempts=30
           attempt=0
           while [ $attempt -lt $max_attempts ]; do
-            if curl -f https://accountable-books-api-staging.fly.dev/health; then
+            if curl -f https://accountable-books-api-staging.fly.dev/health/ready; then
               echo "✅ API is healthy"
               break
             fi
@@ -134,10 +153,59 @@ jobs:
             exit 1
           fi
 
+  # Step 2b: Deploy ML Engine in parallel with API (independent services)
+  deploy-ml-engine:
+    runs-on: ubuntu-latest
+    needs: run-migrations
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging')
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@v1
+
+      - name: Deploy ML Engine to Fly.io
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "🚀 Deploying ML Engine to Fly.io..."
+          flyctl deploy \
+            --app accountable-books-ml-engine-staging \
+            --config fly.ml-staging.toml \
+            --strategy immediate
+          echo "✅ ML Engine deployment completed"
+
+      - name: Wait for ML Engine to be healthy
+        run: |
+          echo "⏳ Waiting for ML Engine health check..."
+          max_attempts=30
+          attempt=0
+          while [ $attempt -lt $max_attempts ]; do
+            if curl -f https://accountable-books-ml-engine-staging.fly.dev/health; then
+              echo "✅ ML Engine is healthy"
+              break
+            fi
+            echo "Attempt $((attempt + 1))/$max_attempts: ML Engine not ready yet..."
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "❌ ML Engine health check failed after $max_attempts attempts"
+            exit 1
+          fi
+
   # Step 3: Deploy Frontend to Vercel only after API is healthy
   deploy-frontend:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api]
+    needs: [run-migrations, deploy-api, deploy-ml-engine]
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
@@ -167,6 +235,9 @@ jobs:
 
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
+
+      - name: Build contracts artifacts
+        run: pnpm --filter @accountable-books/contracts build
 
       - name: Generate environment files
         run: pnpm --filter @accountable-books/web generate-env
@@ -183,9 +254,9 @@ jobs:
   # Step 4: Apply demo data only after both API and frontend are deployed
   apply-demo-data:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api, deploy-frontend]
+    needs: [run-migrations, deploy-api, deploy-ml-engine, deploy-frontend]
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_demo_seed != 'true') ||
       (github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'staging')
@@ -214,24 +285,36 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @accountable-books/utils build
 
+      - name: Build contracts artifacts
+        run: pnpm --filter @accountable-books/contracts build
+
       - name: Apply demo data
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
           DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
         run: |
           echo "🌱 Seeding demo data..."
-          pnpm -F @accountable-books/api run demo:apply:staging:remote -- --all
+          pnpm -F @accountable-books/api run demo:apply:staging:remote
           echo "✅ Demo data applied successfully"
 
   # Step 5: Deployment summary and notifications
   deployment-summary:
     runs-on: ubuntu-latest
-    needs: [run-migrations, deploy-api, deploy-frontend, apply-demo-data]
+    needs:
+      [
+        run-migrations,
+        deploy-api,
+        deploy-ml-engine,
+        deploy-frontend,
+        apply-demo-data,
+      ]
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging')
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'staging')
+      )
     steps:
       - name: Deployment summary
         run: |
@@ -240,12 +323,15 @@ jobs:
           echo "Branch: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
           echo "API URL: https://accountable-books-api-staging.fly.dev"
-          echo "API Health: https://accountable-books-api-staging.fly.dev/health"
+          echo "API Health: https://accountable-books-api-staging.fly.dev/health/ready"
+          echo "ML Engine URL: https://accountable-books-ml-engine-staging.fly.dev"
+          echo "ML Engine Health: https://accountable-books-ml-engine-staging.fly.dev/health"
           echo "Frontend URL: https://staging.getaccountable.com"
           echo ""
           echo "Job Status:"
           echo "- Migrations: ${{ needs.run-migrations.result }}"
           echo "- API Deployment: ${{ needs.deploy-api.result }}"
+          echo "- ML Engine Deployment: ${{ needs.deploy-ml-engine.result }}"
           echo "- Frontend Deployment: ${{ needs.deploy-frontend.result }}"
           echo "- Demo Data: ${{ needs.apply-demo-data.result }}"
 
@@ -253,13 +339,18 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
+          if [ "${{ needs.run-migrations.result }}" = "success" ] && \
+             [ "${{ needs.deploy-api.result }}" = "success" ] && \
+             [ "${{ needs.deploy-ml-engine.result }}" = "success" ] && \
+             [ "${{ needs.deploy-frontend.result }}" = "success" ] && \
+             [ "${{ needs.apply-demo-data.result }}" = "success" ]; then
             echo "✅ Staging deployment completed successfully!"
           else
             echo "❌ Staging deployment failed. Check the logs for details."
             echo "Failed jobs:"
             [ "${{ needs.run-migrations.result }}" != "success" ] && echo "- Database Migrations"
             [ "${{ needs.deploy-api.result }}" != "success" ] && echo "- API Deployment"
+            [ "${{ needs.deploy-ml-engine.result }}" != "success" ] && echo "- ML Engine Deployment"
             [ "${{ needs.deploy-frontend.result }}" != "success" ] && echo "- Frontend Deployment"
             [ "${{ needs.apply-demo-data.result }}" != "success" ] && echo "- Demo Data Seeding"
           fi

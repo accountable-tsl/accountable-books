@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'firm_user_client_assignments';
 export async function up(knex: Knex): Promise<void> {

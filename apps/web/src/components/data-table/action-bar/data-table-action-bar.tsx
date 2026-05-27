@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import type { CustomTable } from '@/components/data-table/types/data-table';
 import type { Table } from '@tanstack/react-table';
-import { Loader, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -10,7 +9,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import type { CustomTable } from '@/components/data-table/types/data-table';
+import { Loader, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface DataTableActionBarProps<TData>
   extends React.ComponentProps<typeof motion.div> {
@@ -86,8 +86,8 @@ export function DataTableActionBar<TData>({
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
           className={cn(
-            'flex w-fit items-center justify-center gap-2 rounded-md border bg-background p-2 shadow-sm',
-            'absolute z-50 transform left-1/2 -translate-x-1/2',
+            'bg-background flex w-fit items-center justify-center gap-2 rounded-md border p-2 shadow-sm',
+            'absolute left-1/2 z-50 -translate-x-1/2 transform',
             className,
           )}
           {...props}
@@ -119,7 +119,7 @@ export function DataTableActionBarAction({
       variant="secondary"
       size={size}
       className={cn(
-        'gap-1.5 border border-secondary bg-secondary/50 hover:bg-secondary/70 [&>svg]:size-3.5',
+        'border-secondary bg-secondary/50 hover:bg-secondary/70 gap-1.5 border [&>svg]:size-3.5',
         size === 'icon' ? 'size-7' : 'h-7',
         className,
       )}
@@ -137,7 +137,7 @@ export function DataTableActionBarAction({
       <TooltipTrigger asChild>{trigger}</TooltipTrigger>
       <TooltipContent
         sideOffset={6}
-        className="border bg-accent font-semibold text-foreground dark:bg-zinc-900 [&>span]:hidden"
+        className="bg-accent text-foreground border font-semibold dark:bg-zinc-900 [&>span]:hidden"
       >
         <p>{tooltip}</p>
       </TooltipContent>
@@ -158,7 +158,7 @@ export function DataTableActionBarSelection<TData>({
 
   return (
     <div className="flex h-7 items-center rounded-md border pr-1 pl-2.5">
-      <span className="whitespace-nowrap text-xs">
+      <span className="text-xs whitespace-nowrap">
         {table.getFilteredSelectedRowModel().rows.length} selected
       </span>
       <Separator
@@ -178,10 +178,10 @@ export function DataTableActionBarSelection<TData>({
         </TooltipTrigger>
         <TooltipContent
           sideOffset={10}
-          className="flex items-center gap-2 border bg-accent px-2 py-1 font-semibold text-foreground dark:bg-zinc-900 [&>span]:hidden"
+          className="bg-accent text-foreground flex items-center gap-2 border px-2 py-1 font-semibold dark:bg-zinc-900 [&>span]:hidden"
         >
           <p>Clear selection</p>
-          <kbd className="select-none rounded border bg-background px-1.5 py-px font-mono font-normal text-[0.7rem] text-foreground shadow-xs">
+          <kbd className="bg-background text-foreground rounded border px-1.5 py-px font-mono text-[0.7rem] font-normal shadow-xs select-none">
             <abbr title="Escape" className="no-underline">
               Esc
             </abbr>

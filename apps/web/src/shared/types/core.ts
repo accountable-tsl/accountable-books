@@ -1,4 +1,4 @@
-import type { BankTransactionSource } from '@/modules/bank-transactions/manual-upload/types';
+import type { BankTransactionSource } from '@/modules/banking/csv-upload';
 import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
 import z from 'zod';
@@ -9,13 +9,6 @@ export const zEmail = z
   .toLowerCase();
 
 export type Email = z.infer<typeof zEmail>;
-
-export const companyType = z.enum([
-  'business',
-  'accounting_firm',
-  'individual',
-]);
-export type CompanyType = z.infer<typeof companyType>;
 
 export const userType = z.enum(['admin', 'client', 'bookkeeper']);
 export type UserType = z.infer<typeof userType>;

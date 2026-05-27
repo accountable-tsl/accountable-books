@@ -1,0 +1,72 @@
+
+Rules table - Rule header; defines ownership, scope, priority and metadata
+rule_conditions - Defines WHEN a rule should fire
+rule_actions - Defines WHAT happens when conditions match
+rule_logs - Captures every rule evaluation for transparency and debugging. What to log: when a rule evaluates to true, conflict, error etc... non matches might lead to noise so we don't log them by default. We should keep an optional debug mode though
+
+Within our rules engine, priority is at two levels tier and priority
+tier: something like global = 1; region = 2, country = 3 and so on; and
+priority within a tier, if priority = NULL, treat as 0
+
+
+Knowing which jurisdiction rules apply
+We get the company's jurisdiction (country etc), for now only country is in system [ We have to create canonical region, subregion, tax auth codes later]
+We then match rules by tier: global - always, region and others - same code
+In the future, we might precompute a scope_key per company (e.g., JURIS|EU|FR|FR-IDF) and an index on rules by (scope_key_prefix) to filter fast
+
+At run time, if two rules at the same tier + priority try to set different values for the same exclusive target, we're going to have to log a conflict
+Mark the transaction in a way that shows it requires review and we stop running rules
+Thought - we need to make sure we're kind of logging or keeping the results of each rule run so we compare within that run
+
+If rules resolved a transaction, I guess we should be able to know which rule actually and finally categorized this transaction
+So we can maintain counts over time. Not sure how we'd implement this yet
+Users should only see their own company rules win counts while system rules remain implicit
+
+Explainability is important
+We must always be able give a one liner explanation of what happened, what rules resolved txn etc in a human readable manner
+Perhaps, maintianing a deterministic order might help
+
+We might need to maintain a flag on certain rules
+For example, if in a country, all transactions above 1m must attract VAT of 5%, even though country rules run first and company rules after,
+Whatever the country rule has set should be locked and not changeable. This should be a simple, explicit override policy
+
+Engine design for speed (and simplicity)
+- Single fetch per run: load all enabled rules for the company’s applicable tiers in one query.
+- Pre-filter by cheap fields first (direction, bank_scope, tier) before evaluating the condition tree.
+- Precompile condition trees to JS functions once (memoized) and reuse.
+- Short-circuit: stop evaluating a rule as soon as a group fails.
+- Apply in-memory, batch logs (buffer then insert), avoid DB roundtrips per rule.
+- No regex on tenant rules; only allow in system rules (and cache compiled patterns).
+- Use cache wisely
+
+
+----
+
+Execution Flow
+- Categorization job is enqueued in rule-runner.queue file
+- Worker in rule-runner.worker file picks up that job and executes runRulesForEnrichedTransaction which sits in rule-runner.service file
+- The runRulesForEnrichedTransaction does the following:
+    - Reorganizes the input for the rules engine, runs the rule engine, and persist the results by adding metadata to categorization task and create prediction + candidate records
+- The rulesEngine.run function executes:
+    - It fetches the applicable rules via RuleRepository.fetchApplicableRules
+    - For each rule, in a deterministic order, it compiles conditions and actions using RuleCompiler (cached fingerpint)
+    - Evaluate the rules in priority order
+    - Execute the matching Rules
+    - Detect conflicts, if any
+    - Persist logs  
+
+
+
+----
+
+File Structure
+
+- rules.def.* - Rule JSON schema (conditions, actions, templates)
+- rules.types.ts - Shared TypeScript types (RuleEntity, RuleDraftState, etc.)
+- rules.compiler.ts - Compiles rule JSON → executable functions (CompiledCondition, CompiledAction)
+- rules.engine.ts - Pure engine: runs compiled rules against transaction, returns RuleEngineResult
+- rules.repository.ts - DB access: fetches applicable rules by scope/priority
+- rule-logs.* - Persists execution logs (RuleLogDraft → DB) for audit/debugging
+- rule-runner.* - Job orchestration: event → engine → persist outcome → create predictions
+- rules.txt - Design notes and architecture decisions
+

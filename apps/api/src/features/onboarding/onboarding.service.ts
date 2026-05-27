@@ -1,4 +1,4 @@
-import { isUserCompanyOwner } from '../../domains/userRoles/userRoles.model.js';
+import { isUserCompanyOwner } from '../../domains/user-roles/user-roles.model.js';
 import {
   type OnboardingCompanyObj,
   type OnboardingStateResult,

@@ -1,0 +1,8 @@
+from enum import Enum
+
+class BillingSubscriptionStatusSchema(str, Enum):
+    ACTIVE = "active"
+    TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    NONE = "none"

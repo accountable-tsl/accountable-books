@@ -1,8 +1,8 @@
-import { type FieldValue } from '@/modules/banking/csv-upload/model/types';
-import { type SpreadsheetImporterField } from '@/domains-pending-migration/spreadsheets/types';
-import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
 import { FormattedAmount } from '@/components/FormattedAmount';
+import { type SpreadsheetImporterField } from '@/domains-pending-migration/spreadsheets/types';
 import { cn } from '@/lib/utils';
+import { type FieldValue } from '@/modules/banking/csv-upload/model/types';
+import { formatDate, parseDateString } from '@/shared/utils/formatting-utils';
 
 type Fields = SpreadsheetImporterField & {
   value: FieldValue;

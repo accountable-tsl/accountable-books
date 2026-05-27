@@ -1,31 +1,31 @@
 import type { Knex } from 'knex';
-import type { ApiResponse } from '../../core/types/api.types.js';
+import z from 'zod';
+
+import { knexClient } from '../../db/knexClient.js';
+import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
+import { logger } from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import {
-  type ContactInput,
-  contactInputSchema,
-  type ContactResponse,
-  getContactsParams,
-  type GetContactsParams,
-  type UpdateContact,
-  updateContactSchema,
-} from './contact.types.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
 import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../shared/utils/logger.js';
-import z from 'zod';
+  contactInputSchema,
+  getContactsParams,
+  updateContactSchema,
+} from './contacts.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  ContactInput,
+  ContactResponse,
+  GetContactsParams,
+  UpdateContact,
+} from './contacts.types.js';
 
 export const normalizeContactName = (name: string) => name.trim().toLowerCase();
 
@@ -99,8 +99,6 @@ export async function addNewContacts({
 
   const query = async (tx: Knex.Transaction) => {
     try {
-      // Get company's UUID with logging
-      logDatabaseOperation('SELECT', 'companies', { companyId });
       const companyUUID = await getCompanyUUID(companyId, tx);
 
       if (!companyUUID) {
@@ -123,11 +121,6 @@ export async function addNewContacts({
         'Contact names normalized for duplicate check',
       );
 
-      // Check for existing contacts
-      logDatabaseOperation('SELECT', 'contacts', {
-        companyId: companyUUID,
-        nameCount: normalizedNames.length,
-      });
       const existingContacts: { display_name: string }[] = await tx('contacts')
         .whereIn('normalized_name', normalizedNames)
         .andWhere('company_id', companyUUID)
@@ -164,12 +157,6 @@ export async function addNewContacts({
         updated_by_id: userId,
       }));
 
-      // Insert contacts with logging
-      logDatabaseOperation('INSERT', 'contacts', {
-        companyId: companyUUID,
-        contactCount: data.length,
-        names: data.map((c) => c.display_name),
-      });
       const result = await tx('contacts')
         .insert(data)
         .returning([
@@ -179,6 +166,8 @@ export async function addNewContacts({
           'email',
           'status',
           'notes',
+          'created_at as createdAt',
+          'updated_at as updatedAt',
         ]);
 
       contactsLogger.info(
@@ -201,14 +190,6 @@ export async function addNewContacts({
         `Contact creation failed: ${errorMessage}`,
       );
 
-      logError(error instanceof Error ? error : new Error(String(error)), {
-        operation: 'addNewContacts',
-        companyId,
-        userId,
-        operationId,
-        contactCount: sanitizedContacts.length,
-      });
-
       throw error;
     }
   };
@@ -216,10 +197,12 @@ export async function addNewContacts({
   try {
     const result = trx ? await query(trx) : await knexClient.transaction(query);
 
-    logTiming('addNewContacts', startTime, {
+    logFlowStep({
+      flow: 'contacts',
+      step: 'add_contacts',
+      status: 'ok',
+      durationMs: Date.now() - startTime,
       contactCount: result.length,
-      companyId,
-      operationId,
     });
 
     const message =

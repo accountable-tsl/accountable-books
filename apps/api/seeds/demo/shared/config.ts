@@ -1,5 +1,5 @@
-import { COUNTRY_MAP } from '../../../migrations/20250403184419_countries';
-import { CURRENCY_MAP } from '../../../migrations/20250403184410_currencies';
+import { CURRENCY_MAP } from '../../../migrations/20250403184410_currencies.js';
+import { COUNTRY_MAP } from '../../../migrations/20250403184419_countries.js';
 
 export const COUNTRY_CODES = {
   US: 'US',

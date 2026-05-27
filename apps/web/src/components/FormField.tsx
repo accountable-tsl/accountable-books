@@ -1,8 +1,9 @@
-import { CircleHelp } from 'lucide-react';
+import type { HTMLAttributes } from 'react';
 import { Label } from '@/components/ui/label';
-import { TooltipHelper } from './TooltipHelper';
 import { cn } from '@/lib/utils';
-import { HTMLAttributes } from 'react';
+import { CircleHelp } from 'lucide-react';
+
+import { TooltipHelper } from './TooltipHelper';
 
 interface FormFieldProps extends HTMLAttributes<HTMLDivElement> {
   id?: string;
@@ -39,10 +40,12 @@ export const FormField = ({
   errorTooltip,
   errorTooltipStyle,
   className = '',
+  labelWrapperClassName,
+  labelClassName,
   errorClassName,
   ...rest
 }: FormFieldProps) => (
-  <div className={cn('space-y-2 relative', className)} {...rest}>
+  <div className={cn('relative space-y-2', className)} {...rest}>
     {renderLabel ?? (
       <FormFieldLabel
         id={id}
@@ -55,6 +58,8 @@ export const FormField = ({
         error={error}
         errorTooltip={errorTooltip}
         errorTooltipStyle={errorTooltipStyle}
+        labelWrapperClassName={labelWrapperClassName}
+        labelClassName={labelClassName}
         errorClassName={errorClassName}
         {...rest}
       />
@@ -80,14 +85,14 @@ export const FormFieldLabel = ({
 }: Omit<FormFieldProps, 'children' | 'renderLabel'>) => (
   <div
     className={cn(
-      'flex justify-between items-center gap-2',
+      'flex items-center justify-between gap-2',
       labelWrapperClassName,
     )}
   >
-    <div className="flex gap-1 items-center">
+    <div className="flex items-center gap-1">
       <Label htmlFor={id} className={cn('whitespace-nowrap', labelClassName)}>
         {label}
-        {required && <span className="-ml-1.5 text-destructive">*</span>}
+        {required && <span className="text-destructive -ml-1.5">*</span>}
       </Label>
       {helpIcon && (
         <CircleHelp size={iconSize} className="text-muted-foreground" />
@@ -103,7 +108,7 @@ export const FormFieldLabel = ({
     {error && (
       <div
         className={cn(
-          'text-xs text-destructive truncate cursor-help',
+          'text-destructive cursor-help truncate text-xs',
           errorClassName,
         )}
         id={`${id}-error`}

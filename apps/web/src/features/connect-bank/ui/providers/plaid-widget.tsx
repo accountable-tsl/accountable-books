@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 import { WidgetLoading } from '@/features/connect-bank/ui/components/widget-loading';
 import { plaidOAuthStorage } from '@/features/connect-bank/utils/oauth-storage';
+import { usePlaidLink } from 'react-plaid-link';
+
 import { WidgetManualFallback } from './widget-manual-fallback';
 
 interface PlaidWidgetProps {
@@ -95,8 +96,8 @@ export function PlaidWidget({
 
   if (error) {
     return (
-      <div className="p-4 border border-red-200 rounded-md bg-red-50">
-        <p className="text-red-800 text-sm">
+      <div className="rounded-md border border-red-200 bg-red-50 p-4">
+        <p className="text-sm text-red-800">
           Error loading Plaid Link. Please try again.
         </p>
         <Button

@@ -1,5 +1,12 @@
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import type { VariantProps } from 'class-variance-authority';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Command,
@@ -14,16 +21,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import type { VariantProps } from 'class-variance-authority';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
+import { Check, ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
+import { BeatLoader } from 'react-spinners';
+
 import {
   Drawer,
   DrawerContent,
@@ -31,7 +33,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from './ui/drawer';
-import { BeatLoader } from 'react-spinners';
 
 type Item =
   | string
@@ -56,6 +57,11 @@ export interface GroupedItems {
 interface NormalizedItem {
   value: string;
   label: string;
+}
+
+interface ClassNames {
+  commandList?: string;
+  actionItemsContainer?: string;
 }
 
 interface AutocompleteDropdownProps
@@ -86,6 +92,7 @@ interface AutocompleteDropdownProps
   groupLabel?: string | ((item: any) => string);
   groups?: GroupedItems[];
   ungroupedLabel?: string; // default: "Other"
+  groupOrder?: string[] | ((a: string, b: string) => number); // Custom group ordering
 
   // Async and infinite scroll
   async?: boolean;
@@ -94,6 +101,13 @@ interface AutocompleteDropdownProps
   isLoading?: boolean; // Loading state for async fetches
   hasMore?: boolean;
   debounceTimeout?: number; //in ms
+
+  chevron?: 'down' | 'updown';
+
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+
+  classNames?: ClassNames;
 }
 
 // Helper function to get nested property value using dot notation
@@ -184,6 +198,7 @@ export const AutocompleteDropdown = forwardRef<
     groupLabel,
     groups = [],
     ungroupedLabel = 'Other',
+    groupOrder,
 
     async: asyncMode = false,
     onSearchChange,
@@ -192,12 +207,22 @@ export const AutocompleteDropdown = forwardRef<
     hasMore = false,
     debounceTimeout = 300,
 
+    chevron = 'updown',
+
+    open: controlledOpen,
+    onOpenChange: controlledOnOpenChange,
+
+    classNames = {},
+
     ...rest
   } = props;
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [selectedValue, setSelectedValue] = useState(value);
   const [searchQuery, setSearchQuery] = useState('');
   const lastItemObserver = useRef<IntersectionObserver | null>(null);
+
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
   const isMobile = useMediaQuery('(max-width: 768px)');
   const selectedItemRef = useCallback((node: HTMLDivElement | null) => {
@@ -297,7 +322,25 @@ export const AutocompleteDropdown = forwardRef<
 
     // Handle pre-grouped data
     if (groups?.length) {
-      groups.forEach((group) => {
+      let groupsToProcess = groups;
+
+      // Apply custom ordering if provided
+      if (groupOrder) {
+        if (typeof groupOrder === 'function') {
+          groupsToProcess = [...groups].sort((a, b) => groupOrder(a.id, b.id));
+        } else {
+          // Order by provided array, then append any missing groups
+          const orderedGroups = groupOrder
+            .map((id) => groups.find((g) => g.id === id))
+            .filter((g): g is GroupedItems => g !== undefined);
+          const remainingGroups = groups.filter(
+            (g) => !groupOrder.includes(g.id),
+          );
+          groupsToProcess = [...orderedGroups, ...remainingGroups];
+        }
+      }
+
+      groupsToProcess.forEach((group) => {
         const normalizedGroupItems = group.items
           .map((item) => normalizeItem(item, mapItem))
           .filter((item) => item.value.trim() !== '');
@@ -350,22 +393,31 @@ export const AutocompleteDropdown = forwardRef<
         itemGroups[groupKey].push(item);
       });
 
-      // Convert to GroupedItems format
-      Object.keys(itemGroups)
-        .sort()
-        .forEach((groupKey) => {
-          const normalizedGroupItems = itemGroups[groupKey]
-            .map((item) => normalizeItem(item, mapItem))
-            .filter((item) => item.value.trim() !== '');
+      // Convert to GroupedItems format with custom ordering
+      const groupKeys = Object.keys(itemGroups);
+      const sortedGroupKeys = groupOrder
+        ? typeof groupOrder === 'function'
+          ? groupKeys.sort(groupOrder)
+          : // Order by provided array, then append any missing keys
+            [
+              ...groupOrder.filter((key) => groupKeys.includes(key)),
+              ...groupKeys.filter((key) => !groupOrder.includes(key)),
+            ]
+        : groupKeys.sort(); // Default to alphabetical
 
-          if (normalizedGroupItems.length > 0) {
-            result.push({
-              id: groupKey,
-              label: groupLabels[groupKey],
-              items: normalizedGroupItems,
-            });
-          }
-        });
+      sortedGroupKeys.forEach((groupKey) => {
+        const normalizedGroupItems = itemGroups[groupKey]
+          .map((item) => normalizeItem(item, mapItem))
+          .filter((item) => item.value.trim() !== '');
+
+        if (normalizedGroupItems.length > 0) {
+          result.push({
+            id: groupKey,
+            label: groupLabels[groupKey],
+            items: normalizedGroupItems,
+          });
+        }
+      });
 
       if (ungroupedItems.length > 0) {
         const normalizedUngroupedItems = ungroupedItems
@@ -383,7 +435,38 @@ export const AutocompleteDropdown = forwardRef<
     }
 
     return result;
-  }, [items, groups, groupBy, groupLabel, mapItem, useGrouping]);
+  }, [
+    items,
+    groups,
+    groupBy,
+    groupLabel,
+    mapItem,
+    useGrouping,
+    groupOrder,
+    ungroupedLabel,
+  ]);
+
+  // Create a flattened lookup map for O(1) access to all items
+  // This serves as the single source of truth for item lookups
+  const allItemsMap = useMemo(() => {
+    const map = new Map<string, string>();
+
+    // Add items from normalizedItems (for non-grouped or when groupBy is used)
+    normalizedItems.forEach((item) => {
+      map.set(item.value, item.label);
+    });
+
+    // Add items from groups (overwrites if duplicate, which is correct - groups take precedence)
+    if (useGrouping && groupedData) {
+      groupedData.forEach((group) => {
+        group.items.forEach((item) => {
+          map.set(item.value, item.label);
+        });
+      });
+    }
+
+    return map;
+  }, [normalizedItems, useGrouping, groupedData]);
 
   // Filter items based on search query
   const filteredData = useMemo(() => {
@@ -447,7 +530,7 @@ export const AutocompleteDropdown = forwardRef<
 
   // Shared content for Popover and Drawer
   const dropdownContent = (
-    <Command shouldFilter={false}>
+    <Command shouldFilter={false} className="flex flex-col">
       <CommandInput
         id={id}
         ref={ref}
@@ -456,7 +539,7 @@ export const AutocompleteDropdown = forwardRef<
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
-      <CommandList aria-busy={isLoading}>
+      <CommandList aria-busy={isLoading} className={classNames.commandList}>
         <CommandGroup>
           {!useGrouping && (
             <>
@@ -487,7 +570,7 @@ export const AutocompleteDropdown = forwardRef<
                 );
               })}
               {hasMore && isLoading && (
-                <div className="py-3 text-center text-sm text-muted-foreground">
+                <div className="text-muted-foreground py-3 text-center text-sm">
                   <BeatLoader />
                 </div>
               )}
@@ -502,7 +585,7 @@ export const AutocompleteDropdown = forwardRef<
               return (filteredData as GroupedItems[]).map(
                 (group, groupIndex, allGroups) => (
                   <div key={group.id}>
-                    <div className="px-2 pt-2 text-sm font-semibold text-muted-foreground">
+                    <div className="text-muted-foreground px-2 pt-2 text-sm font-semibold">
                       {group.label}
                     </div>
                     <CommandSeparator className="my-1" />
@@ -538,7 +621,7 @@ export const AutocompleteDropdown = forwardRef<
                     {groupIndex === allGroups.length - 1 &&
                       hasMore &&
                       isLoading && (
-                        <div className="py-3 text-center text-sm text-muted-foreground">
+                        <div className="text-muted-foreground py-3 text-center text-sm">
                           <BeatLoader />
                         </div>
                       )}
@@ -547,12 +630,24 @@ export const AutocompleteDropdown = forwardRef<
               );
             })()}
 
-          {(hasSearchResults || showEmptyState || showNoResults) &&
-            showActionItems && <CommandSeparator className="my-1" />}
+          {showEmptyState && (
+            <div className="text-muted-foreground py-6 text-center text-sm">
+              {emptyStateMessage}
+            </div>
+          )}
+          {showNoResults && (
+            <div className="text-muted-foreground py-6 text-center text-sm">
+              {noResultsMessage}
+            </div>
+          )}
+        </CommandGroup>
+      </CommandList>
 
-          {/* Action items - always visible regardless of search */}
-          {showActionItems &&
-            actionItems.map((action) => (
+      {/* Action items - fixed at bottom, outside scroll area */}
+      {showActionItems && (
+        <div className={cn('border-t', classNames.actionItemsContainer)}>
+          <CommandGroup>
+            {actionItems.map((action) => (
               <CommandItem
                 key={action.id}
                 value={`action-${action.id} |_| ${action.label}`}
@@ -565,21 +660,17 @@ export const AutocompleteDropdown = forwardRef<
                 {action.label}
               </CommandItem>
             ))}
-
-          {showEmptyState && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              {emptyStateMessage}
-            </div>
-          )}
-          {showNoResults && (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              {noResultsMessage}
-            </div>
-          )}
-        </CommandGroup>
-      </CommandList>
+          </CommandGroup>
+        </div>
+      )}
     </Command>
   );
+
+  // Get the label for the selected value using O(1) lookup
+  const getSelectedLabel = useMemo(() => {
+    if (!selectedValue) return placeholder;
+    return allItemsMap.get(selectedValue) ?? placeholder;
+  }, [selectedValue, allItemsMap, placeholder]);
 
   // Common trigger button
   const triggerButton = (
@@ -591,19 +682,25 @@ export const AutocompleteDropdown = forwardRef<
         'w-full justify-between',
         width,
         className,
-        disabled ? 'opacity-50 cursor-not-allowed' : '',
+        disabled ? 'cursor-not-allowed opacity-50' : '',
       )}
       disabled={disabled}
     >
       <span
         className={`truncate text-left ${selectedValue ? '' : 'text-muted-foreground'}`}
       >
-        {selectedValue
-          ? normalizedItems.find((item) => item.value === selectedValue)?.label
-          : placeholder}
+        {getSelectedLabel}
       </span>
 
-      <ChevronsUpDown className="opacity-50" />
+      {chevron === 'down' ? (
+        open ? (
+          <ChevronUp className="opacity-50" />
+        ) : (
+          <ChevronDown className="opacity-50" />
+        )
+      ) : (
+        <ChevronsUpDown className="opacity-50" />
+      )}
     </Button>
   );
 

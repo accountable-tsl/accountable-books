@@ -1,22 +1,17 @@
-import { useEffect, useState } from 'react';
-import { FormField } from '@/components/FormField';
-import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
-import { useCurrencies } from '@/shared/hooks/useCurrencies';
-import { useCountries } from '@/shared/hooks/useCountries';
-import ErrorPage from '@/components/ErrorPage';
-import { getDefaultCountryAndCurrency } from '@/shared/utils/random-utils';
-import { companyType, type Country } from '@/shared/types/core';
-import { Controller, useForm } from 'react-hook-form';
-import {
-  type AddBankAccountProps,
-  bankAccountType,
-  type NewBankAccountInput,
-  newBankAccountInput,
+import type { CreateBankAccountRes } from '@/domains-pending-migration/bankConnection/shared/api';
+import type {
+  AddBankAccountProps,
+  NewBankAccountInput,
 } from '@/modules/banking/accounts';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { Input } from '@/components/ui/input';
-import { toTitleCase } from '@/shared/utils/formatting-utils';
+import type { Country } from '@/shared/types/core';
+import { useEffect, useMemo, useState } from 'react';
+import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
+import ErrorPage from '@/components/ErrorPage';
+import { FormField } from '@/components/FormField';
+import { SkeletonBlock } from '@/components/SkeletonBlock';
+import { TooltipHelper } from '@/components/TooltipHelper';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -24,24 +19,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useBanks } from '@/modules/banking/institutions/model/hooks';
-import { toast } from 'sonner';
+import { createNewBankAccount } from '@/domains-pending-migration/bankConnection/shared/api';
 import { cn } from '@/lib/utils';
-import { SkeletonBlock } from '@/components/SkeletonBlock';
 import {
-  CircleCheck,
+  bankAccountType,
+  newBankAccountInput,
+} from '@/modules/banking/accounts';
+import { useBanks } from '@/modules/banking/institutions/model/hooks';
+import { useCountries } from '@/shared/hooks/useCountries';
+import { useCurrencies } from '@/shared/hooks/useCurrencies';
+import { toTitleCase } from '@/shared/utils/formatting-utils';
+import { getDefaultCountryAndCurrency } from '@/shared/utils/random-utils';
+import { companyType } from '@accountable-books/contracts/schema';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import {
+  Building2,
   ChevronDown,
   ChevronUp,
-  Wallet,
-  Building2,
+  CircleCheck,
   Coins,
+  Wallet,
 } from 'lucide-react';
-import {
-  createNewBankAccount,
-  type CreateBankAccountRes,
-} from '@/domains-pending-migration/bankConnection/shared/api';
-import { useSession } from '@session';
-import { TooltipHelper } from '@/components/TooltipHelper';
+import { Controller, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 
 export default function AddBankAccount({
   onSuccess,
@@ -64,8 +65,14 @@ export default function AddBankAccount({
   const { company, loading } = useSession();
 
   // Computed
-  const currencies = currenciesData?.data ?? [];
-  const countries = countriesData?.data ?? [];
+  const currencies = useMemo(
+    () => currenciesData?.data ?? [],
+    [currenciesData?.data],
+  );
+  const countries = useMemo(
+    () => countriesData?.data ?? [],
+    [countriesData?.data],
+  );
   const banks = bankData?.data ?? [];
   const isIndividual = company?.companyType === companyType.enum.individual;
 
@@ -230,11 +237,19 @@ export default function AddBankAccount({
         bankId: '',
       });
     }
-  }, [company, countries, currencies, hasUserInteracted, setValue]);
+  }, [
+    company,
+    countries,
+    currencies,
+    hasUserInteracted,
+    setValue,
+    getValues,
+    reset,
+  ]);
 
   if (loading || isLoadingCurrencies || isLoadingCountries) {
     return (
-      <div className="flex flex-col gap-4 p-4 max-w-md">
+      <div className="flex max-w-md flex-col gap-4 p-4">
         <SkeletonBlock height="400px" />
       </div>
     );
@@ -264,10 +279,10 @@ export default function AddBankAccount({
 
   if (createdAccount) {
     return (
-      <div className="flex flex-col gap-4 p-4 min-w-sm max-w-md justify-between mx-auto">
+      <div className="mx-auto flex max-w-md min-w-sm flex-col justify-between gap-4 p-4">
         <div className="flex flex-col items-center justify-center">
           <CircleCheck className="h-12 w-12" />
-          <p className="mt-2 text-lg font-medium text-foreground">
+          <p className="text-foreground mt-2 text-lg font-medium">
             Bank Account Added!
           </p>
           <p className="text-muted-foreground text-sm">
@@ -275,19 +290,19 @@ export default function AddBankAccount({
           </p>
         </div>
         {/* <div className="rounded flex-1 border p-4 w-full bg-muted grid grid-cols-[auto_1fr] gap-x-4 gap-y-1"> */}
-        <div className="flex flex-col gap-4 text-sm p-4 rounded-sm bg-muted/80">
+        <div className="bg-muted/80 flex flex-col gap-4 rounded-sm p-4 text-sm">
           {caf.map((c) => (
-            <div className="flex gap-3 items-center">
+            <div className="flex items-center gap-3">
               <div>
-                <div className="p-2 bg-background rounded-md border border-border/50">
-                  <c.icon className="w-4 h-4 text-muted-foreground" />
+                <div className="bg-background border-border/50 rounded-md border p-2">
+                  <c.icon className="text-muted-foreground h-4 w-4" />
                 </div>
               </div>
               <div className="flex-1">
-                <p className="font-medium text-muted-foreground text-xs mb-1">
+                <p className="text-muted-foreground mb-1 text-xs font-medium">
                   {c.name}
                 </p>
-                <p className="font-medium text-foreground truncate">
+                <p className="text-foreground truncate font-medium">
                   {c.value || 'Not specified'}
                 </p>
               </div>
@@ -301,7 +316,7 @@ export default function AddBankAccount({
           <div className="">Currency:</div>
           <div>{`${createdAccount?.currencyCode}`}</div> */}
         {/* </div> */}
-        <div className="grid grid-cols-2 gap-2 w-full justify-between my-4">
+        <div className="my-4 grid w-full grid-cols-2 justify-between gap-2">
           <Button
             variant="outline"
             onClick={() => {
@@ -327,7 +342,7 @@ export default function AddBankAccount({
   }
 
   return (
-    <div className="flex flex-col gap-4 py-4 max-w-md mx-auto w-full relative">
+    <div className="relative mx-auto flex w-full max-w-md flex-col gap-4 py-4">
       <div className="text-lg font-semibold">Add Bank Account</div>
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="flex w-full gap-2">
@@ -447,10 +462,10 @@ export default function AddBankAccount({
           <button
             type="button"
             onClick={() => setShowOptionalFields(!showOptionalFields)}
-            className="flex items-center justify-between w-full p-3 text-left bg-muted/50 hover:bg-muted rounded-lg border transition-colors"
+            className="bg-muted/50 hover:bg-muted flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors"
           >
             <div>
-              <span className="font-medium text-[0.9rem] text-">
+              <span className="text- text-[0.9rem] font-medium">
                 Additional Settings
               </span>
               <p className="text-xs text-gray-500">
@@ -469,11 +484,11 @@ export default function AddBankAccount({
             className={cn(
               'overflow-hidden transition-all duration-300 ease-in-out',
               showOptionalFields
-                ? 'max-h-96 opacity-100 mt-3'
+                ? 'mt-3 max-h-96 opacity-100'
                 : 'max-h-0 opacity-0',
             )}
           >
-            <div className="rounded-lg py-4 space-y-4">
+            <div className="space-y-4 rounded-lg py-4">
               <div className="grid grid-cols-2 gap-2">
                 <FormField
                   id="accountType"
@@ -531,7 +546,7 @@ export default function AddBankAccount({
               </div>
 
               <div className="space-y-2">
-                <div className="text-sm font-medium ">
+                <div className="text-sm font-medium">
                   <TooltipHelper
                     trigger="Opening Balance "
                     content="The initial balance on this account at the start of the tracking period (date). Use negative values for debt or overdraft."

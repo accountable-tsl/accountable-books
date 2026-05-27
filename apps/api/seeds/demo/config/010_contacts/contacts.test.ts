@@ -1,5 +1,6 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
 import {
   createDemoContacts,
   deleteDemoContacts,

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+
 import { BankingController, createCredential } from './banking.controller.js';
 
 const router = Router({ mergeParams: true });

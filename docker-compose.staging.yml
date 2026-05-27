@@ -79,7 +79,7 @@ services:
           '--no-verbose',
           '--tries=1',
           '--spider',
-          'http://localhost:5001/health',
+          'http://localhost:5001/health/ready',
         ]
       interval: 120s
       timeout: 10s

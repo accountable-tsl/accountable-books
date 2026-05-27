@@ -1,4 +1,5 @@
 import { type CompanyType } from '../../domains/companies/companies.types.js';
+
 import type {
   CompanyOnboardingState,
   CompanyOnboardingStepKey,

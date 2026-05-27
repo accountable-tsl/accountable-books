@@ -1,44 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { createPlatformCompany } from './20250403194332_companies';
-
-export const buildPlatformAccountingFirm = (platformCompany: {
-  id: string;
-}) => ({
-  company_id: platformCompany.id,
-  slug: 'app',
-});
-export const createPlatformFirm = async (knex: Knex) => {
-  const platformCompany = await createPlatformCompany(knex);
-
-  const platformFirm = buildPlatformAccountingFirm(platformCompany);
-
-  const platformFirmExists = await knex(tableName)
-    .where({ company_id: platformFirm.company_id })
-    .first();
-
-  if (platformFirmExists) {
-    console.log('Platform accounting firm already exists. Skipping insert.');
-    const { company_id: platformCompanyId, ...rest } = platformFirmExists;
-    return {
-      id: platformCompanyId,
-      ...rest,
-    };
-  }
-
-  const [{ company_id: id, ...rest }] = await knex(tableName)
-    .insert(platformFirm)
-    .returning('*');
-
-  console.log(
-    `Successfully created platform accounting firm: ${platformCompany.display_name || platformCompany.legal_name}`,
-  );
-  return { id, ...rest };
-};
+} from './utils/db.js';
 
 const tableName = 'accounting_firms_meta';
 export async function up(knex: Knex): Promise<void> {
@@ -71,7 +37,6 @@ export async function up(knex: Knex): Promise<void> {
   }
 
   await createUpdateTimestampTrigger(knex, tableName);
-  // await createPlatformFirm(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

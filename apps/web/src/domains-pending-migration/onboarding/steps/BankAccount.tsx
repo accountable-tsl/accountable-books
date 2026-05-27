@@ -1,22 +1,18 @@
+import type { BankTransactionImportOptions } from '@/domains-pending-migration/bankConnection/manualUpload/types';
+import type { OnboardingStatus } from '@/modules/company/companies';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ConnectBankAccount from '@/domains-pending-migration/bankConnection/connectViaFeed/ConnectBankAccount';
 import { BankTransactionImporter } from '@/domains-pending-migration/bankConnection/manualUpload/BankTransactionImporter';
-import type { BankTransactionImportOptions } from '@/domains-pending-migration/bankConnection/manualUpload/types';
-import { useCallback, useState } from 'react';
-import { useCompany } from '@/domains-pending-migration/company/store';
-import { toast } from 'sonner';
-import type { OnboardingStatus } from '@/domains-pending-migration/company/types';
 import { useSession } from '@session';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 
-export const BankAccount = ({
-  onBankAccountComplete,
-}: {
+export const BankAccount = ({}: {
   onBankAccountComplete?: (status: OnboardingStatus) => void;
 }) => {
-  const { tenantRoutes } = useSession();
-  const { companyId, companyType } = useCompany();
+  const { tenantRoutes, companyType } = useSession();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState(() => {
@@ -58,8 +54,8 @@ export const BankAccount = ({
 
   if (bankConnectionOrUploadFailed) {
     return (
-      <div className="h-full flex-1 flex items-center justify-center">
-        <div className="flex flex-col gap-4 items-center justify-center">
+      <div className="flex h-full flex-1 items-center justify-center">
+        <div className="flex flex-col items-center justify-center gap-4">
           <p>Bank connection or upload failed. Please try again.</p>
           <div className="space-x-3">
             <Button
@@ -83,14 +79,14 @@ export const BankAccount = ({
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
-        className="h-full mx-auto w-full p-4 overflow-hidden relative"
+        className="relative mx-auto h-full w-full overflow-hidden p-4"
       >
-        <TabsList className="grid grid-cols-2 bg-transparent border flex-shrink-0 max-w-3xl w-full mx-auto">
+        <TabsList className="mx-auto grid w-full max-w-3xl shrink-0 grid-cols-2 border bg-transparent">
           <TabsTrigger value="connect">Connect Bank Account</TabsTrigger>
           <TabsTrigger value="upload">Manually Add Bank Account</TabsTrigger>
         </TabsList>
 
-        <div className="flex-1 min-h-0 overflow-auto scrollbar-thin-2px">
+        <div className="scrollbar-thin-2px min-h-0 flex-1 overflow-auto">
           {activeTab === 'connect' && (
             <TabsContent value="connect">
               <ConnectBankAccount
@@ -101,22 +97,22 @@ export const BankAccount = ({
           )}
 
           {activeTab === 'upload' && (
-            <TabsContent value="upload" className="flex-1 min-h-0">
+            <TabsContent value="upload" className="min-h-0 flex-1">
               <BankTransactionImporter
                 options={bankTxImporterOptions}
                 onImportSuccess={navigateToDashboard}
               />
-              <div className="flex items-center justify-center text-center h-full lg:hidden p-8">
+              <div className="flex h-full items-center justify-center p-8 text-center lg:hidden">
                 To access this page, please view on a larger screen or device
               </div>
             </TabsContent>
           )}
         </div>
         <div
-          className="absolute bottom-0 left-1/2 transform -translate-x-1/2"
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 transform"
           onClick={navigateToDashboard}
         >
-          <span className="text-md hover:underline cursor-pointer">
+          <span className="text-md cursor-pointer hover:underline">
             Skip for now
           </span>
         </div>

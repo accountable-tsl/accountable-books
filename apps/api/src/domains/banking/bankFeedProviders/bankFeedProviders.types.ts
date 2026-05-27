@@ -1,9 +1,9 @@
-import {
-  createCamelCaseSchema,
-  type SnakeToCamelCaseObject,
-} from '../../../shared/utils/formatting.utils.js';
-import { dbBaseFields } from '../../../core/types/core.js';
 import z from 'zod';
+
+import { dbBaseFields } from '../../../core/types/core.js';
+import { createCamelCaseSchema } from '../../../shared/utils/formatting.utils.js';
+
+import type { SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 
 export const bankFeedProviderStatus = z.enum([
   'active',

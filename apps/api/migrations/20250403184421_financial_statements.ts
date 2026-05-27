@@ -1,16 +1,18 @@
 import type { Knex } from 'knex';
+import z from 'zod';
+
+import { isDev } from '../config/env-loader.ts';
+import { financialStatementIds } from './data/ids.ts';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { financialStatementIds } from './data/ids';
-import { isDev } from '../config/env-loader';
-import z from 'zod';
+} from './utils/db.ts';
 
+// Schema only used for type inference
 const financialStatement = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   key: z.string(),
   us_gaap_label: z.string(),
   ifrs_label: z.string(),

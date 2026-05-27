@@ -1,20 +1,19 @@
 import axios from 'axios';
-import {
-  BankingProvider,
-  TransactionSyncStrategy,
-  type ProviderError,
-  type ProviderAccount,
-  type TransactionSyncResult,
-  type ProviderTransaction,
-  type ConnectionDetails,
-} from '../types/base.js';
+
 import { ENV } from '../../../config/env.js';
-import { mapMonoAccountType } from '../utils/mappings.js';
-import {
-  findOrCreateBankMapping,
-  type FindOrCreateBankMappingResponse,
-} from '../utils/resolveBank.js';
 import { logger } from '../../../shared/utils/logger.js';
+import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
+import { mapMonoAccountType } from '../utils/mappings.js';
+import { findOrCreateBankMapping } from '../utils/resolveBank.js';
+
+import type {
+  ConnectionDetails,
+  ProviderAccount,
+  ProviderError,
+  ProviderTransaction,
+  TransactionSyncResult,
+} from '../types/base.js';
+import type { FindOrCreateBankMappingResponse } from '../utils/resolveBank.js';
 
 export class MonoProvider extends BankingProvider {
   readonly key = 'mono';

@@ -1,31 +1,32 @@
-import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import type { Knex } from 'knex';
-import {
-  resolveFiltersToIds,
-  deleteDemoData,
-  loadDemoCompanies,
-  getCompanyIdMap,
-  getCompanyId,
-  getFilteredCompanyIds,
-  getDemoCompanies,
-  clearCompanyCache,
-  loadAccountTypes,
-  getAccountTypeByKey,
-  getAccountTypeMap,
-  clearAccountTypesCache,
-  loadBanks,
-  getBankMap,
-  clearBanksCache,
-  loadDemoUsers,
-  getDemoUserByEmail,
-  getDemoUserMap,
-  clearDemoUsersCache,
-  clearAllCaches,
-} from './utils.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
 import {
   DEMO_COMPANIES,
   US_DEMO_COMPANIES,
 } from '../config/002_companies/companies.data.js';
+import {
+  clearAccountTypesCache,
+  clearAllCaches,
+  clearBanksCache,
+  clearCompanyCache,
+  clearDemoUsersCache,
+  deleteDemoData,
+  getAccountTypeByKey,
+  getAccountTypeMap,
+  getBankMap,
+  getCompanyId,
+  getCompanyIdMap,
+  getDemoCompanies,
+  getDemoUserByEmail,
+  getDemoUserMap,
+  getFilteredCompanyIds,
+  loadAccountTypes,
+  loadBanks,
+  loadDemoCompanies,
+  loadDemoUsers,
+  resolveFiltersToIds,
+} from './utils.js';
 
 // Mock transaction and query builders
 let mockTransaction: any;
@@ -43,9 +44,9 @@ const mockQueryBuilder = {
 };
 
 const createMockCompanies = () => [
-  { id: 'company-1', short_code: 'bizDemoUS', is_demo_company: true },
-  { id: 'company-2', short_code: 'firmDemoUS', is_demo_company: true },
-  { id: 'company-3', short_code: 'indDemoUS', is_demo_company: true },
+  { id: 'company-1', short_code: 'bizDemoUS', workspace_class: 'demo' },
+  { id: 'company-2', short_code: 'firmDemoUS', workspace_class: 'demo' },
+  { id: 'company-3', short_code: 'indDemoUS', workspace_class: 'demo' },
 ];
 
 const createMockAccountTypes = () => [
@@ -255,8 +256,8 @@ describe('deleteDemoData', () => {
       'companies.id',
     );
     expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-      'companies.is_demo_company',
-      true,
+      'companies.workspace_class',
+      'demo',
     );
     expect(mockQueryBuilder.delete).toHaveBeenCalled();
   });

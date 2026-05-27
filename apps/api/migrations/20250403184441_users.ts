@@ -1,12 +1,13 @@
-import type { Knex } from 'knex';
 import crypto from 'crypto';
+import type { Knex } from 'knex';
 import bcrypt from 'bcrypt';
+
+import { ENV, isProd } from '../config/env-loader.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { ENV, isProd } from '../config/env-loader';
+} from './utils/db.js';
 
 export async function createUser({
   user: input,
@@ -18,8 +19,9 @@ export async function createUser({
     password: string;
     firstname: string;
     lastname?: string | null;
-    is_demo_user?: boolean;
-    onboarding_state?: any;
+    // is_demo_user?: boolean;
+    user_type?: 'regular' | 'demo' | 'system';
+    onboarding_state?: Record<string, unknown> | null;
     avatar_url?: string;
     email_verified_at: Date;
   };
@@ -154,6 +156,7 @@ export const seedSystemUser = async (knex: Knex) => {
         firstname: 'System',
         lastname: 'User',
         email: systemUserEmail,
+        user_type: 'system',
         password: await bcrypt.hash('system', 12),
         email_verified_at: new Date(),
         onboarding_state: completeOnbState,
@@ -191,7 +194,12 @@ export async function up(knex: Knex): Promise<void> {
     // .references("id")
     // .inTable("companies"); // Added foreign key after migrating companies talbe
 
-    table.boolean('is_demo_user').defaultTo(false);
+    // table.boolean('is_demo_user').defaultTo(false);
+    table
+      .string('user_type')
+      .checkIn(['demo', 'system', 'regular'])
+      .notNullable()
+      .defaultTo('regular');
 
     addStandardColumns(knex, table);
   });

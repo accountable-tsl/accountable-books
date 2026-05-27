@@ -1,0 +1,7 @@
+from pydantic import BaseModel, constr
+from typing import Literal
+
+class AiEffectJobStarted(BaseModel):
+    type: Literal["job.started"]
+    jobId: constr(min_length=1)
+    label: constr(min_length=1)

@@ -1,10 +1,4 @@
-// import crypto from "crypto";
 import type { ConnectionResponse } from './types';
-
-const generateId = () =>
-  typeof window !== 'undefined' && window.crypto?.randomUUID
-    ? window.crypto.randomUUID()
-    : Math.random().toString(36).substring(2, 10); // fallback
 
 export const sampleConnections: ConnectionResponse[] = [
   // Connected (existing account)

@@ -1,19 +1,66 @@
 import express from 'express';
-import { createMulter } from './objects.utils.js';
+
+import { checkCompanyId } from '../../core/middlewares/companies.middleware.js';
+import { verifyAccessToken } from '../../features/auth/auth.middleware.js';
 import {
-  deleteObjectController,
-  uploadObjectController,
+  createUploadIntentController,
+  deleteCompanyLogoController,
+  finalizeUploadIntentController,
+  getPrivateFileDownloadUrlController,
+  getTxnFilesController,
+  uploadTxnFilesController,
 } from './objects.controller.js';
+import {
+  requireCompanyLogoMutationAccess,
+  requireFinalizeUploadIntentAccess,
+  requireUploadIntentAccess,
+} from './objects.middleware.js';
 
 const router = express.Router({ mergeParams: true });
-const upload = createMulter();
 
 router.post(
-  '/:objectType/upload',
-  upload.single('file'),
-  uploadObjectController,
+  '/:companyId/files/upload-intents',
+  verifyAccessToken,
+  checkCompanyId,
+  requireUploadIntentAccess,
+  createUploadIntentController,
 );
 
-router.delete('/:objectType/delete', deleteObjectController);
+router.post(
+  '/:companyId/files/finalize',
+  verifyAccessToken,
+  checkCompanyId,
+  requireFinalizeUploadIntentAccess,
+  finalizeUploadIntentController,
+);
+
+router.get(
+  '/:companyId/files/url/download',
+  verifyAccessToken,
+  checkCompanyId,
+  getPrivateFileDownloadUrlController,
+);
+
+router.delete(
+  '/:companyId/company-logo',
+  verifyAccessToken,
+  checkCompanyId,
+  requireCompanyLogoMutationAccess,
+  deleteCompanyLogoController,
+);
+
+router.post(
+  '/:companyId/objects/txn-files',
+  verifyAccessToken,
+  checkCompanyId,
+  uploadTxnFilesController,
+);
+
+router.post(
+  '/:companyId/objects/get-txn-files',
+  verifyAccessToken,
+  checkCompanyId,
+  getTxnFilesController,
+);
 
 export default router;

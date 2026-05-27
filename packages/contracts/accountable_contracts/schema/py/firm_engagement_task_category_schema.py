@@ -1,0 +1,7 @@
+from enum import Enum
+
+class FirmEngagementTaskCategorySchema(str, Enum):
+    CATEGORIZATION = "categorization"
+    JOURNALS = "journals"
+    REVIEW = "review"
+    CLIENT_ACTION = "client_action"

@@ -1,0 +1,9 @@
+from pydantic import BaseModel, constr
+from typing import Literal, Optional
+
+class AiChatAssistantDeltaEvent(BaseModel):
+    type: Literal["assistant.delta"]
+    messageId: constr(min_length=1)
+    delta: str
+    capabilityId: constr(min_length=1)
+    domain: Optional[constr(min_length=1)] = None

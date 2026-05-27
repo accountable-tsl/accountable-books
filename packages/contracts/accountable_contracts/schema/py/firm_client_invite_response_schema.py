@@ -1,0 +1,16 @@
+from pydantic import BaseModel
+from typing import Optional
+from enum import Enum
+from datetime import datetime
+from uuid import UUID
+
+class StatusEnum(str, Enum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+
+class FirmClientInviteResponseSchema(BaseModel):
+    invitationId: UUID
+    status: StatusEnum
+    expiresAt: Optional[datetime] = None
+    clientCompanyId: Optional[UUID] = None

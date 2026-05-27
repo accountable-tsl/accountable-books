@@ -1,11 +1,13 @@
+import './MultiSelectDropdown.scss';
+
 import { useEffect, useRef, useState } from 'react';
-import {
+import { Check, ChevronDown, Search, X } from 'lucide-react';
+
+import type {
   GroupableOption,
   MultiSelectOption,
   MultiSelectProps,
 } from '../../shared/types/core';
-import './MultiSelectDropdown.scss';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
 
 export default function MultiSelectDropdown({
   options,
@@ -316,9 +318,7 @@ export default function MultiSelectDropdown({
                         return (
                           <div
                             key={option.value}
-                            className={`msd-menu-list__item
-                        ${isSelected ? 'msd-menu-list__item--selected' : ''}
-                        ${option.disabled ? 'msd-menu-list__item--disabled' : ''}`}
+                            className={`msd-menu-list__item ${isSelected ? 'msd-menu-list__item--selected' : ''} ${option.disabled ? 'msd-menu-list__item--disabled' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleItemClick(option.value, option.disabled);
@@ -333,9 +333,7 @@ export default function MultiSelectDropdown({
                             ) : (
                               <>
                                 <div
-                                  className={`msd-menu-option
-                              ${isSelected ? 'msd-option-selected' : ''}
-                            `}
+                                  className={`msd-menu-option ${isSelected ? 'msd-option-selected' : ''} `}
                                 >
                                   {isSelected && (
                                     <Check
@@ -357,9 +355,7 @@ export default function MultiSelectDropdown({
                   return (
                     <div
                       key={item.value}
-                      className={`msd-menu-list__item
-                      ${isSelected ? 'msd-menu-list__item--selected' : ''}
-                      ${item.disabled ? 'msd-menu-list__item--disabled' : ''}`}
+                      className={`msd-menu-list__item ${isSelected ? 'msd-menu-list__item--selected' : ''} ${item.disabled ? 'msd-menu-list__item--disabled' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleItemClick(item.value, item.disabled);
@@ -374,9 +370,7 @@ export default function MultiSelectDropdown({
                       ) : (
                         <>
                           <div
-                            className={`msd-menu-option
-                            ${isSelected ? 'msd-option-selected' : ''}
-                          `}
+                            className={`msd-menu-option ${isSelected ? 'msd-option-selected' : ''} `}
                           >
                             {isSelected && (
                               <Check size={14} className="msd-option-icon" />
@@ -390,7 +384,7 @@ export default function MultiSelectDropdown({
                 }
               })
             ) : (
-              <div className="px-3 py-2 text-sm text-muted-foreground text-center">
+              <div className="text-muted-foreground px-3 py-2 text-center text-sm">
                 {noOptionsMessage}
               </div>
             )}

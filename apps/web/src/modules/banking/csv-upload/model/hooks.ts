@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type BankTransactionBatchInsert } from './types';
+
 import { uploadBankTransactions } from '../api';
+import { type BankTransactionBatchInsert } from './types';
 
 const genQueryKey = (companyId: string) => ['bank-transactions', companyId];
 const invalidateQueries = (queryClient: any, companyId: string) => {

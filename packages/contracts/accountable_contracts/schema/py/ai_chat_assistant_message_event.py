@@ -1,0 +1,23 @@
+from pydantic import BaseModel, conint, constr
+from typing import Literal, Optional
+from enum import Enum
+
+class MessageRoleEnum(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+class AiChatAssistantMessageEvent(BaseModel):
+    class Message(BaseModel):
+        class MessageMeta(BaseModel):
+            domain: Optional[constr(min_length=1)] = None
+            capabilityId: Optional[constr(min_length=1)] = None
+            proposalId: Optional[constr(min_length=1)] = None
+        id: Optional[constr(min_length=1)] = None
+        role: MessageRoleEnum
+        text: constr(min_length=1, max_length=20000)
+        timestamp: Optional[conint(ge=0)] = None
+        meta: Optional[MessageMeta] = None
+    type: Literal["assistant.message"]
+    message: Message
+    capabilityId: constr(min_length=1)
+    domain: Optional[constr(min_length=1)] = None

@@ -1,9 +1,14 @@
 import type { Knex } from 'knex';
-import { DemoFilter } from '../shared/config.js';
+
+import {
+  createDemoUsers,
+  deleteDemoUsers,
+} from '../config/001_users/users.fn.js';
 import {
   createDemoCompaniesAndUsers,
   deleteDemoCompanies,
 } from '../config/002_companies/companies.fn.js';
+import { createDemoCoa, deleteDemoCoa } from '../config/003_coa/coa.fn.js';
 import {
   createDemoContacts,
   deleteDemoContacts,
@@ -17,10 +22,15 @@ import {
   deleteDemoBankAccounts,
 } from '../config/015_bank_accounts/bank-accounts.fn.js';
 import {
-  createDemoUsers,
-  deleteDemoUsers,
-} from '../config/001_users/users.fn.js';
-import { createDemoCoa, deleteDemoCoa } from '../config/003_coa/coa.fn.js';
+  createDemoBankTransactions,
+  deleteDemoBankTransactions,
+} from '../config/016_bank_transactions/bank-transactions.fn.js';
+import {
+  createDemoJournals,
+  deleteDemoJournals,
+} from '../config/020_journals/journals.fn.js';
+
+import type { DemoFilter } from '../shared/config.js';
 
 export type SeedStep = {
   name: string;
@@ -66,5 +76,19 @@ export const SEED_STEPS: SeedStep[] = [
     order: 6,
     createFn: createDemoBankAccounts,
     deleteFn: deleteDemoBankAccounts,
+  },
+  {
+    name: 'bank-transactions',
+    order: 7,
+    // Depends on bank accounts + contacts existing
+    createFn: createDemoBankTransactions,
+    deleteFn: deleteDemoBankTransactions,
+  },
+  {
+    name: 'journals',
+    order: 8,
+    // Depends on COA + contacts + projects existing
+    createFn: createDemoJournals,
+    deleteFn: deleteDemoJournals,
   },
 ];

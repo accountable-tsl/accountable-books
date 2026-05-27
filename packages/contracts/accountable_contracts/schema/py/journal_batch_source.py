@@ -1,0 +1,5 @@
+from enum import Enum
+
+class JournalBatchSource(str, Enum):
+    ONE_OFF = "one_off"
+    GENERATED_FROM_TEMPLATE = "generated_from_template"

@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 
-const createEnumIfNotExists = (typeName: string, values: string[]) => {
+export const createEnumIfNotExists = (typeName: string, values: string[]) => {
   const formattedValues = values.map((v) => `'${v}'`).join(', ');
   return `
     DO $$
@@ -36,45 +36,44 @@ export async function up(knex: Knex): Promise<void> {
     createEnumIfNotExists('reporting_framework', ['ifrs', 'us_gaap']),
   );
   await knex.raw(createEnumIfNotExists('debit_credit', ['debit', 'credit']));
-  await knex.raw(
-    createEnumIfNotExists('bank_transaction_source', [
-      'file_import',
-      'bank_feed',
-      'manual_entry',
-    ]),
-  );
+  // await knex.raw(
+  //   createEnumIfNotExists('bank_transaction_source', [
+  //     'file_import',
+  //     'bank_feed',
+  //     'manual_entry',
+  //   ]),
+  // );
   await knex.raw(
     createEnumIfNotExists('coa_source', ['user', 'template', 'system']),
   );
-  await knex.raw(
-    createEnumIfNotExists('categorization_status', [
-      'uncategorized',
-      'suggested',
-      'reviewed',
-    ]),
-  );
-  await knex.raw(
-    createEnumIfNotExists('transaction_source', [
-      'bank_transaction',
-      'manual_journal',
-      'system',
-    ]),
-  );
+  // await knex.raw(
+  //   createEnumIfNotExists('categorization_status', [
+  //     'uncategorized',
+  //     'proposed',
+  //     'accepted',
+  //     'rejected',
+  //     'posted',
+  //   ]),
+  // );
+  // await knex.raw(
+  //   createEnumIfNotExists('transaction_source', [
+  //     'bank_transaction',
+  //     'manual_journal',
+  //     'system',
+  //   ]),
+  // );
   await knex.raw(
     createEnumIfNotExists('journal_status', ['draft', 'posted', 'voided']),
   );
-  await knex.raw(
-    createEnumIfNotExists('journal_reversal_reason', [
-      'auto_reversal',
-      'voided',
-    ]),
-  );
+
   await knex.raw(
     createEnumIfNotExists('recurrence_frequency', [
       'daily',
       'weekly',
       'monthly',
+      'quarterly',
       'yearly',
+      'custom',
     ]),
   );
   await knex.raw(
@@ -88,8 +87,14 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists('contact_type', [
       'customer',
-      'supplier',
+      'vendor',
       'employee',
+      'contractor',
+      'director',
+      'owner',
+      'government',
+      'internal',
+      'banker',
       'other',
     ]),
   );
@@ -125,9 +130,28 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     createEnumIfNotExists('contact_status', ['active', 'inactive']),
   );
+
+  await knex.raw(
+    createEnumIfNotExists('txn_categorization_source', [
+      'rule',
+      'ml',
+      'ml_heuristic',
+      'manual',
+    ]),
+  );
+
+  await knex.raw(
+    createEnumIfNotExists('categorization_line_split_type', [
+      'amount',
+      'percentage',
+      'remainder',
+    ]),
+  );
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP TYPE IF EXISTS categorization_line_split_type`);
+  await knex.raw(`DROP TYPE IF EXISTS txn_categorization_source`);
   await knex.raw(`DROP TYPE IF EXISTS contact_status`);
   await knex.raw(`DROP TYPE IF EXISTS role_scope`);
   await knex.raw(`DROP TYPE IF EXISTS token_type`);
@@ -136,12 +160,11 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP TYPE IF EXISTS contact_type`);
   await knex.raw(`DROP TYPE IF EXISTS recurring_journal_status`);
   await knex.raw(`DROP TYPE IF EXISTS recurrence_frequency`);
-  await knex.raw(`DROP TYPE IF EXISTS journal_reversal_reason`);
   await knex.raw(`DROP TYPE IF EXISTS journal_status`);
-  await knex.raw(`DROP TYPE IF EXISTS transaction_source`);
-  await knex.raw(`DROP TYPE IF EXISTS categorization_status`);
+  // await knex.raw(`DROP TYPE IF EXISTS transaction_source`);
+  // await knex.raw(`DROP TYPE IF EXISTS categorization_status`);
   await knex.raw(`DROP TYPE IF EXISTS coa_source`);
-  await knex.raw(`DROP TYPE IF EXISTS bank_transaction_source`);
+  // await knex.raw(`DROP TYPE IF EXISTS bank_transaction_source`);
   await knex.raw(`DROP TYPE IF EXISTS debit_credit`);
   await knex.raw(`DROP TYPE IF EXISTS reporting_framework`);
   await knex.raw(`DROP TYPE IF EXISTS fs_key`);

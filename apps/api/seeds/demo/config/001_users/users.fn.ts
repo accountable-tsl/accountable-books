@@ -1,8 +1,9 @@
 import type { Knex } from 'knex';
-import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { faker } from '@faker-js/faker';
-import { DemoFilter } from '../../shared/config.js';
-import { createUser } from '../../../../migrations/20250403184441_users.ts';
+
+import { createUser } from '../../../../migrations/20250403184441_users.js';
+import { type DemoFilter } from '../../shared/config.js';
+import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 
 export const createDemoUsers = async (
   trx: Knex.Transaction,
@@ -51,7 +52,7 @@ export const createDemoUsers = async (
       user: {
         ...user,
         avatar_url: faker.image.avatar(),
-        is_demo_user: true,
+        user_type: 'demo',
         email_verified_at: new Date(),
       },
       trx,
@@ -71,7 +72,7 @@ export const deleteDemoUsers = async (
 
   if (!filters) {
     // No filters = delete all demo users
-    await trx('users').where('is_demo_user', true).delete();
+    await trx('users').where('user_type', 'demo').delete();
     console.log('Deleted all demo users');
     return;
   }
@@ -100,7 +101,7 @@ export const deleteDemoUsers = async (
   if (userEmailsToDelete.length > 0) {
     await trx('users')
       .whereIn('email', userEmailsToDelete)
-      .where('is_demo_user', true)
+      .where('user_type', 'demo')
       .delete();
     console.log(`Deleted ${userEmailsToDelete.length} demo users`);
   } else {

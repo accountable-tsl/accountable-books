@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import {
-  getProvidersForCountry,
   getProviderSelectionStrategy,
+  getProvidersForCountry,
   getSupportedCountries,
 } from '../providers/utils/utils';
 

@@ -120,8 +120,8 @@ await ensurePartitionsForDates('bank_transactions', [
 
 ```typescript
 import {
-  scheduleSmartPartitionMaintenance,
   scheduleDefaultPartitionDraining,
+  scheduleSmartPartitionMaintenance,
 } from '../jobs/queues/partition-maintenance.queue.js';
 
 // Schedule maintenance (done automatically on startup)
@@ -192,8 +192,10 @@ This script:
    - Background worker setup
 
 3. **Initialize Scheduled Jobs**:
+
    ```typescript
    import { initializePartitionMaintenanceSchedule } from '../shared/services/partitionManagement.service.js';
+
    await initializePartitionMaintenanceSchedule();
    ```
 

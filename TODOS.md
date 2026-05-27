@@ -1,142 +1,97 @@
-# 🚀 14-DAY LAUNCH PLAN
+## 🔧 EXISTING ISSUES TO FIX
 
-Launch `2025-29-09`
+### CRITICAL (Must Fix Before Launch)
 
-## 📅 WEEK 1: Core Transaction Flow
-
-### Day 1: CSV Template & Upload Setup
-
-- [x] Create standardized CSV template for bank transactions (similar to chart of accounts approach)
-- [x] Write clear upload instructions in Google Sheets
-- [x] Add template download link to upload UI
-- [x] Test existing CSV upload flow with standardized format
-- [x] Verify transactions save correctly to `bank_transactions` table
-
-### Day 2: Plaid Transaction Sync
-
-- [ ] Implement actual transaction fetching in `transaction-sync.worker.ts`
-- [ ] Connect to Plaid API's `/transactions/get` endpoint
-- [ ] Handle pagination and date ranges
-- [ ] Store fetched transactions in database
-- [ ] Add sync status tracking
-
-### Day 3-4: Transaction Categorization UI (CatEngine) - Part 1
-
-- [ ] Analyze database schema for transaction states (uncategorized, predicted, posted)
-- [ ] Create database VIEW or query to unify transactions from multiple sources:
-  - `bank_transactions` (uncategorized)
-  - `predictions` table (predicted but needs review/below threshold)
-  - `ledger_transactions`/`journal_entries` (already posted)
-- [ ] Build transaction list component with unified data source
-- [ ] Display: date, description, amount, account, current category, status
-- [ ] Add basic filtering by status (uncategorized, predicted, posted)
-
-### Day 5: Transaction Categorization UI (CatEngine) - Part 2
-
-- [ ] Add category dropdown with chart of accounts integration
-- [ ] Implement bulk categorization (select multiple transactions)
-- [ ] Add "reviewed" status toggle and confidence scoring display
-- [ ] Show categorization explanation/reasoning field
-- [ ] Save category changes and update transaction status
-
-### Day 6: Review Workflow & Auto-Post Logic
-
-- [ ] Add "needs review" filter to transaction list
-- [ ] Create review approval interface for predicted transactions
-- [ ] Implement auto-post threshold logic (high confidence predictions)
-- [ ] Add notes/explanation display for categorizations
-- [ ] Implement "approve all" and "post to ledger" bulk actions
-- [ ] Track who reviewed what and when (audit trail)
-
-### Day 7: P&L Calculation Engine
-
-- [ ] Create service to calculate P&L from transactions
-- [ ] Group by income/expense categories
-- [ ] Handle date range filtering
-- [ ] Calculate totals and net profit/loss
-- [ ] Add monthly/quarterly/annual views
-
-## 📅 WEEK 2: Reports & Multi-tenancy
-
-### Day 8: P&L Report UI
-
-- [ ] Build P&L report component
-- [ ] Display income, expenses, net profit sections
-- [ ] Add date range selector
-- [ ] Include drill-down to transaction details
-- [ ] Export to PDF functionality
-
-### Day 9: Balance Sheet Logic
-
-- [ ] Calculate assets, liabilities, equity from chart of accounts
-- [ ] Handle account balances as of specific dates
-- [ ] Ensure accounting equation (Assets = Liabilities + Equity)
-- [ ] Add comparative periods (previous month/year)
-
-### Day 10: Balance Sheet UI & Export
-
-- [ ] Build Balance Sheet report component
-- [ ] Display assets, liabilities, equity sections
-- [ ] Add PDF export functionality
-- [ ] Include simple notes section for assumptions
-- [ ] Add print-friendly styling
-
-### Day 11: Minimal Dashboard
-
-- [ ] Replace placeholder dashboard with real metrics
-- [ ] Show: total income, expenses, net profit (current month)
-- [ ] Display account balances summary
-- [ ] Add recent transactions widget (last 10)
-- [ ] Include simple income/expense trend chart
-
-### Day 12: Client Invitation System
-
-- [ ] Build email invitation system for accounting firms
-- [ ] Create invitation email templates
-- [ ] Add client signup flow from invitation links
-- [ ] Handle firm-client relationship assignment
-- [ ] Test subdomain routing for firms
-
-### Day 13: Client Management UI
-
-- [ ] Add client switcher component for accounting firms
-- [ ] List all firm clients with basic info
-- [ ] Implement client selection/switching
-- [ ] Update navigation to show current client context
-- [ ] Fix subdomain resolution issues
-
-### Day 14: Staging Deployment & Testing
-
-- [ ] Deploy complete system to staging environment
-- [ ] Test complete user flow: signup → bank connection → transactions → reports
-- [ ] Invite 3-5 accounting firms to test manually
-- [ ] Document critical bugs and quick fixes
-- [ ] Prepare production deployment checklist
-
-## 🔧 EXISTING ISSUES TO FIX (During Sprint)
-
-### CRITICAL (Must Fix)
-
-- [x] Demo companies have null assigned firm ids
+- [ ] Noone should be able to mistakenly access the staging environment mistakenly
+- [ ] Make sure noone can access or make a request to a company they do not have access to (special case for support and admin)
 - [ ] URL resolves to null subdomain in frontend, should resolve to app
 - [ ] Backup database for postgres
 - [ ] Re-enable deployment protection (vercel) once we push to production
 - [ ] Wire enqueueGLBalance into every ledger-entry mutation path so GL snapshots refresh automatically.
-- FX Positions handling
+- [ ] Journals attachments end-to-end correctness: align `JournalBatchInput.files` contract with API expectations, upload via presigned URL, persist+attach on journal save, and view via signed download URL (no fabricated public URLs).
+- [ ] FX Positions handling
 - [x] UK Users (YE should be Apr 5) - Implemented automatic fiscal year-end defaults
-- Make sure we are not allowing 30 Feb, 31 Sep etc on company signup
-- CBN Exchange Rate up to date
+- [ ] Make sure we are not allowing 30 Feb, 31 Sep etc on company signup
+- [ ] CBN Exchange Rate up to date
+- [ ] Protect fly staging app from accidental destroy
+- [ ] Contact model refactoring: decide on contact_status vs is_active
+- [ ] Once we are ready to launch, versioning is important. Store/tag properly
+- [ ] Default to modified cash basis on company creation. Also add default settings
+- [ ] Consider removing input_checksum
+- [ ] Make sure generate pydantic in contracts cleans up the /py folder first before generating new stuff
+- [ ] Rate limiting
+- [ ] Contact Type in Add new contact dialog
+- [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
+- [ ] Privacy Policy, Terms of Use, GDPR,
+- [ ] We should (for now) verify firms manually before they are allowed to add clients
 
-### CAN DELAY (Post-Launch)
+### NEAR-TERM (Post-Launch, High Impact)
 
+- [ ] Recurring templates: in template view mode, add a “Generated journals” section (show latest N with date/status/reference, link to open journal, plus “View all” once we add an API filter by `recurring_template_id`).
+- [ ] AI inline autocomplete (code-completion-style): ghost suggestion while typing (e.g. journal title/description/line description), accept with `Tab`, and telemetry for impressions/accepts/dismissals, latency, and cost.
+- [ ] Company identity middleware migration: keep current `req.companyContext` rollout stable for now, then consolidate to `req.company.uuid/shortCode/identifier` across all company-scoped routes.
+- [ ] Split transactions in autosave mode (Cat Engine)
+- [ ] Advanced filters (Cat Engine)
+- [ ] Bulk actions (Cat Engine)
+- [ ] Trial balance (ensure accuracy + export)
+- [ ] P&L (v1)
+- [ ] Balance sheet (v1)
+- [ ] Client invite flow
+- [ ] Client dashboard (v1)
+- [ ] Firm dashboard (v1)
+- [ ] Implement monitoring (Grafana/Prometheus) and versioning
 - [ ] Request company timezone at onboarding
 - [ ] Individuals signing in from UK should have April 5 year end
-- [x] Plaid Webhook implementation
-- [ ] Implement monitoring - grafana, prometheus etc, and maybe versioning too
-- [ ] Add concurrency to deploy-staging.yml : { group: staging, cancel-in-progress: true }
+- [ ] Detect transfers between own accounts
+- [ ] Handling opening balances upon ingesting/connecting user's bank accounts + Opening / Conversion Balances
+- [ ] Strenghten exchange rate system and properly document exchange rate convention
+- [ ] Handling Monetary and FX Positions!!
+- [ ] View raw bank transactions, delete batches
+- [ ] Tracking user actions and trails across the app
 - [ ] Add all ISO 4217 currency codes to currencies table
-- Handling opening balances upon ingesting/connecting user's bank accounts + Opening / Conversion Balances
+- [ ] Add concurrency to deploy-staging.yml: { group: staging, cancel-in-progress: true }
+- [ ] When implementing payments, do not do stripe only. Make sure to have a fallback ready by default
+- [ ] Make sure we are not allowing users to add heavy files and where relevant necessary, don't load large or many files into memory
+- [ ] Agent that connects to the company's Slack or email to auto-generate journals from invoices, bills, etc., and add them here as drafts. Especially helpful for companies using accrual accounting.
+- [ ] AI Gateways with Reversible PII Redaction, Zero-Trust Access Controls for RAG
+
+### LATER (Future Versions / Nice-to-Have)
+
+- [ ] Notification to deactivate account if not used after 45 days of sign up
+- [ ] Consider unifying timezone stuff (UTC everywhere)
+- [ ] REVIEW CONSTRAINTS AND THEIR TEST e.g Projects check is not fully setup etc
+- [ ] Versioning account types
+- [ ] contact and contact type auto handling on insertion or cat of transactions
+- [ ] Add tag field to companies and bank transaction tables (array of strings)
+- [ ] Caching of company settings
+- [ ] is_trainable flag on ledger transactions
+- [ ] What's the limit of the infrastructure we launch on?
+- [ ] Admin, metrics and support dashboards for admin, metrics and support stuff
+- [ ] Firm manager dashboard (expanded metrics/time saved)
+- [ ] Client dashboard enhancements
+- [ ] Consider: Improve categorization UI and make it more gamified and interactable with human language
+- [ ] Consider refactoring Cat Engine intent manager to a Zustand store for more stable subscriptions and fewer re-renders
+- [ ] Consider adding a custom scrollbar (or table-only scrollbar) to cap thumb size for aesthetics
+- [ ] Collaborative mode for categorization (multi-bookkeeper)
+- [ ] Future feature: messaging and chat interactions
+- [ ] Invoice to auto journals
+- [ ] Auto generating depreciation journals etc
+- [ ] What if for personal finance, snapping and keeping receipts, people can get points
+- [ ] Consider adding chromatic or an alternative
+- [x] Plaid Webhook implementation
+- [ ] Storage cleanup plan: delete orphaned uploaded blobs not referenced in DB after X hours/days (journals/ledger/bank). Consider also an on-discard cleanup endpoint for better UX.
+- [ ] Tenant-scoped file dedupe: store checksum/hash, reuse same blob key for identical content within a company, and maintain many-to-many attachments.
+- [ ] Once we're ready for lang and doc work, consider Google's oss langextract
+
+### Firm clients — invite wizard & acquisition channels
+
+- [ ] **Bulk add:** CSV import of clients — validate rows against the same invite/company rules (or a batch DTO derived from contracts), return per-row errors; design `POST …/invite` for single vs batch up front.
+- [ ] **AI chat (v1):** add **one** client via firm chat — produce the same payload shape as manual invite (`FirmClientInviteRequest`), e.g. structured extraction + confirm or wizard handoff with prefilled fields.
+- [ ] Share one validation/parsing path for UI, CSV, and chat so nothing drifts from `firmClientInviteRequestSchema`.
 
 ---
 
-**Success Criteria**: By Day 14, users can signup, connect banks, categorize transactions, and generate basic P&L and Balance Sheet reports.
+Advisory locks, REGEX, Concurrency, Garbage Collection
+
+GENERAL:
+AI should be _infrastructure you don't see_. Results appear where you're already looking. Input happens from one consistent spot. The app itself is intelligent -- there's no "AI mode."

@@ -1,8 +1,9 @@
 import type { Knex } from 'knex';
+
 import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'gl_daily_balance_snapshots';
 
@@ -25,10 +26,10 @@ export async function up(knex: Knex): Promise<void> {
     table.date('day').notNullable();
 
     // all in reporting currency
-    table.decimal('opening_balance', 15, 3).notNullable().defaultTo(0);
-    table.decimal('day_debits', 15, 3).notNullable().defaultTo(0);
-    table.decimal('day_credits', 15, 3).notNullable().defaultTo(0);
-    table.decimal('closing_balance', 15, 3).notNullable().defaultTo(0);
+    table.decimal('opening_balance', 18, 3).notNullable().defaultTo(0);
+    table.decimal('day_debits', 18, 3).notNullable().defaultTo(0);
+    table.decimal('day_credits', 18, 3).notNullable().defaultTo(0);
+    table.decimal('closing_balance', 18, 3).notNullable().defaultTo(0);
 
     table.integer('transaction_count').notNullable().defaultTo(0);
 

@@ -1,25 +1,29 @@
 import type { Knex } from 'knex';
-import type { ApiResponse } from '../../core/types/api.types.js';
-import {
-  type AccFirmCamelResponse,
-  type AccFirmWithId,
-  type NewAccFirm,
-  newAccFirm,
-} from './firms.types.js';
+import z from 'zod';
+
+import { knexClient } from '../../db/knexClient.js';
+import { redis } from '../../lib/redis.js';
+import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { redis } from '../../lib/redis.js';
+import { isPlatformWorkspace } from '../companies/workspace-class.js';
+import { newAccFirm } from './firms.types.js';
 import {
   firmSlugRedisKey,
   isReservedSlug,
   isValidSlug,
 } from './firms.utils.js';
-import { snakeToCamel } from '../../shared/utils/formatting.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  AccFirmCamelResponse,
+  AccFirmWithId,
+  NewAccFirm,
+} from './firms.types.js';
 
 export const resolveFirm = async (
   trx: Knex.Transaction,
@@ -37,7 +41,7 @@ export const resolveFirm = async (
 
   const platformFirm = await trx('accounting_firms_meta as af')
     .join('companies as c', 'af.company_id', 'c.id')
-    .where('c.is_platform', true)
+    .where('c.workspace_class', 'platform')
     .select('af.id');
 
   if (!platformFirm || platformFirm.length > 1) {
@@ -53,9 +57,18 @@ export const createAccountingFirm = async (
   const validatedInput = newAccFirm.safeParse(input);
 
   if (!validatedInput.success) {
-    return errorResponse('Invalid input', validatedInput.error.flatten());
+    return errorResponse('Invalid input', z.flattenError(validatedInput.error));
   }
   const { data } = validatedInput;
+
+  if (data.slug) {
+    if (!isValidSlug(data.slug)) {
+      return errorResponse('Invalid slug format');
+    }
+    if (isReservedSlug(data.slug)) {
+      return errorResponse('Slug is reserved');
+    }
+  }
 
   try {
     const [newFirm] = await knexTrx('accounting_firms_meta')
@@ -178,7 +191,7 @@ export const updateFirm = async (
       });
     }
 
-    if (company.is_platform) {
+    if (isPlatformWorkspace(company.workspace_class)) {
       return errorResponse('Cannot update', null, {
         code: ErrorCode.FORBIDDEN,
       });

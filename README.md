@@ -2,7 +2,7 @@
 
 > **AI-native accounting platform for accounting firms**
 
-Accountable Books is the MVP of our AI-native accounting suite. We ingest bank data via **Plaid** (US) and **Mono** (Nigeria), auto-categorize transactions using **ML with explainability**, draft journals & financials, and provide human review workflows for exceptions.
+Accountable Books is the MVP an d wedge product for our AI-native accounting suite. We ingest bank data via **Plaid** (US) and **Mono** (Nigeria), auto-categorize transactions using **ML with explainability**, draft journals & financials, and provide human review workflows for exceptions.
 
 ## 🚀 Quick Start
 
@@ -158,7 +158,7 @@ PostgreSQL 17.5 with custom extensions:
 
 ## 🔧 Prerequisites
 
-- **Node.js** >= 20.0.0 < 24.4.0 (see `engines` in package.json)
+- **Node.js** >= 24.16.0 for local development (CI/Docker use 24.16.0)
 - **pnpm** >= 8.0.0
 - **Docker** & **Docker Compose**
 - **Make** (for development commands)

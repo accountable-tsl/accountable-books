@@ -1,9 +1,10 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'bank_account_opening_balances';
 export async function up(knex: Knex): Promise<void> {
@@ -22,7 +23,7 @@ export async function up(knex: Knex): Promise<void> {
       .comment(
         'Balance as of end of day (opening balance for transactions starting the next day)',
       );
-    table.decimal('amount', 15, 3).notNullable();
+    table.decimal('amount', 18, 3).notNullable();
 
     table
       .timestamp('coverage_start', { useTz: true })
@@ -92,7 +93,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP CONSTRAINT IF EXISTS ${tableName}_coverage_order_chk;`);
+  await knex.raw(
+    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS ${tableName}_coverage_order_chk;`,
+  );
   await knex.raw(`DROP INDEX IF EXISTS ${tableName}_history;`);
   await knex.raw(`DROP INDEX IF EXISTS ${tableName}_one_baseline;`);
   await dropUpdateTimestampTrigger(knex, tableName);

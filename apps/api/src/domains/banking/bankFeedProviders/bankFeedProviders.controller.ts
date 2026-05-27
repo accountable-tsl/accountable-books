@@ -1,7 +1,9 @@
 import { type Response } from 'express';
-import type { AuthRequest } from '../../../features/auth/auth.types.js';
+
 import { errorResponse } from '../../../shared/utils/response.utils.js';
 import { getBankFeedProviders } from './bankFeedProviders.model.js';
+
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
 import type { BankProviderKey } from './bankFeedProviders.types.js';
 
 export async function getBankFeedProvidersController(

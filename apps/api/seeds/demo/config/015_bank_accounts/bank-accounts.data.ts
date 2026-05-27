@@ -1,13 +1,14 @@
 import type { Knex } from 'knex';
-import {
-  COUNTRY_CODES,
-  COMPANY_TYPES,
+
+import { COMPANY_TYPES, COUNTRY_CODES } from '../../shared/config.js';
+import { getDemoCompanies } from '../../shared/utils.js';
+import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
+
+import type {
   DemoCompanyType,
   DemoCountryCode,
   DemoFilter,
 } from '../../shared/config.js';
-import { getDemoCompanies } from '../../shared/utils.js';
-import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 
 type BankAccountType =
   | 'other'
@@ -242,7 +243,7 @@ export const getRawBankAccountsForInsertion = async (
         shortCode: company.short_code,
         companyType: companyMapData.company.companyType,
       },
-      user: companyMapData.user,
+      user: { ...companyMapData.user, id: companyMapData.user.id || '' },
       country: companyMapData.country,
       currencyCode: companyMapData.currency.code,
       bankAccounts: getBankAccountsForCompanyType(

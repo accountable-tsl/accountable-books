@@ -47,7 +47,7 @@ fly deploy --config fly.staging.toml
 - **Region**: `iad` (Washington DC)
 - **Port**: `8080` (Fly.io standard)
 - **Resources**: 1 CPU, 1GB RAM
-- **Health Check**: `/health` endpoint
+- **Health Check**: `/health/ready` (readiness) and `/health/live` (liveness)
 
 ### `fly.production.toml` (Production)
 
@@ -97,7 +97,7 @@ These are set from `apps/api/.env.secrets.staging`:
 - `POSTMARK_API_KEY`
 - `SLACK_SIGNING_SECRET`
 - `SLACK_BOT_TOKEN`
-- `MIXPANEL_TOKEN`
+- `POSTHOG_API_KEY` (with `POSTHOG_ENABLED`, `TELEMETRY_ENABLED`)
 - `SENTRY_DSN`
 - `R2_TOKEN`
 - `R2_ACCESS_KEY_ID`
@@ -174,27 +174,26 @@ fly scale count 2 --app accountable-books-api-staging
 ### Staging
 
 - **API**: https://accountable-books-api-staging.fly.dev
-- **Health Check**: https://accountable-books-api-staging.fly.dev/health
+- **Health Check**: https://accountable-books-api-staging.fly.dev/health/ready
 - **Bull Board**: https://accountable-books-api-staging.fly.dev/admin/queues
 
 ### Production (Future)
 
 - **API**: https://accountable-books-api.fly.dev
-- **Health Check**: https://accountable-books-api.fly.dev/health
+- **Health Check**: https://accountable-books-api.fly.dev/health/ready
 - **Bull Board**: https://accountable-books-api.fly.dev/admin/queues
 
 ## 🔍 Monitoring & Debugging
 
 ### Health Checks
 
-The API exposes a `/health` endpoint that returns:
+The API exposes two health endpoints:
+
+- `GET /health/live` — always returns `{ "status": "alive" }` if the process is running; used for Fly liveness probes
+- `GET /health/ready` — checks Postgres and Redis connectivity; returns `{ "status": "ready", "checks": { "postgres": "ok", "redis": "ok" } }` or 503 if a dependency is down; used by the Fly load balancer
 
 ```json
-{
-  "ok": true,
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "version": "1.0.0"
-}
+{ "status": "ready", "checks": { "postgres": "ok", "redis": "ok" } }
 ```
 
 ### Logs
@@ -298,7 +297,7 @@ fly secrets set VARIABLE_NAME=value --app accountable-books-api-staging
 ```bash
 # Check database connectivity
 fly ssh console --app accountable-books-api-staging
-curl -s http://localhost:8080/health
+curl -s http://localhost:8080/health/ready
 
 # Verify DATABASE_URL secret
 fly secrets list --app accountable-books-api-staging

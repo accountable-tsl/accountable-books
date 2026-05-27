@@ -1,17 +1,19 @@
 import type { Knex } from 'knex';
-import {
-  newBankAccountCredentialInput,
-  type BankAccountCredential,
-  type NewBankAccountCredentialInput,
-} from './bankAccountCredentials.types.js';
+
+import { knexClient } from '../../../db/knexClient.js';
+import { decrypt, encrypt } from '../../../shared/utils/crypto.utils.js';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
-import { knexClient } from '../../../db/knexClient.js';
-import { decrypt, encrypt } from '../../../shared/utils/crypto.utils.js';
+import { newBankAccountCredentialInput } from './bankAccountCredentials.types.js';
+
 import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  BankAccountCredential,
+  NewBankAccountCredentialInput,
+} from './bankAccountCredentials.types.js';
 
 const getBankAccountCredentialAAD = ({
   providerId,

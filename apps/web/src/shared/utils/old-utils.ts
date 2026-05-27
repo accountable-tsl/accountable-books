@@ -1,9 +1,10 @@
-import { formatDistanceToNow } from 'date-fns';
-import dayjsLib, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import {
-  toTitleCase,
   formatAccountText,
+  toTitleCase,
 } from '@/shared/utils/formatting-utils';
+import { formatDistanceToNow } from 'date-fns';
+import dayjsLib from 'dayjs';
 
 export function sanitizeInput(value: string): string {
   return value
@@ -85,4 +86,4 @@ export function timeAgo(date: Date | number | string): string {
   return formatDistanceToNow(d, { addSuffix: true });
 }
 
-export { toTitleCase, formatAccountText };
+export { formatAccountText, toTitleCase };

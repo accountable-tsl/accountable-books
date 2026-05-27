@@ -12,7 +12,7 @@ export function CatEngineAdvFilter() {
       <PopoverTrigger asChild>
         <div>
           <ToggleButton
-            icon={<PanelLeftOpen className="w-4 h-4" />}
+            icon={<PanelLeftOpen className="h-4 w-4" />}
             tooltip="Advanced Filters"
             active={false}
             activeClasses="p-1.5"
@@ -22,8 +22,8 @@ export function CatEngineAdvFilter() {
       </PopoverTrigger>
       <PopoverContent align="start">
         <div className="min-w-64">
-          <h2 className="text-sm font-medium mb-2">Advanced Filters</h2>
-          <div className="text-xs text-muted-foreground">
+          <h2 className="mb-2 text-sm font-medium">Advanced Filters</h2>
+          <div className="text-muted-foreground text-xs">
             Coming soon: filter by amount range, confidence, contact, project,
             etc.
           </div>

@@ -1,18 +1,20 @@
 import type { Knex } from 'knex';
-import {
-  type AddNewTokenResponse,
-  type FetchTokenResponse,
-  type GetInvitedUserTokenInput,
-  type GetTokenInput,
-  newToken,
-  type NewToken,
-} from './tokens.types.js';
+
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { newToken } from './tokens.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  AddNewTokenResponse,
+  FetchTokenResponse,
+  GetInvitedUserTokenInput,
+  GetTokenInput,
+  NewToken,
+} from './tokens.types.js';
 
 export async function addNewToken(
   input: NewToken,

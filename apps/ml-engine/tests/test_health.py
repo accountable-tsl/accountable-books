@@ -1,9 +1,14 @@
 """Test health endpoints."""
 
-import pytest
+import os
+
 from fastapi.testclient import TestClient
 
-from main import app
+# Ensure required env vars are present before importing app
+os.environ.setdefault("BACKEND_URL", "http://localhost")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+
+from ml_engine.main import app
 
 client = TestClient(app)
 

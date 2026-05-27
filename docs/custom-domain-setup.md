@@ -36,7 +36,7 @@ TTL: 300 (or Auto)
 fly certs show api-staging.getaccountable.com --app accountable-books-api-staging
 
 # Test the endpoint
-curl -I https://api-staging.getaccountable.com/health
+curl -I https://api-staging.getaccountable.com/health/ready
 ```
 
 ## 🔧 Manual Configuration
@@ -90,7 +90,7 @@ The custom domain automatically sets these environment variables:
 
 ```bash
 # Test the health endpoint
-curl https://api-staging.getaccountable.com/health
+curl https://api-staging.getaccountable.com/health/ready
 ```
 
 Expected response:

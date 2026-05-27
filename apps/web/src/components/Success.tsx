@@ -38,13 +38,13 @@ export const Success: React.FC<SuccessProps> = ({
     <div className={cn('flex flex-col items-center gap-3', className)}>
       <div
         className={cn(
-          'rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center animate-scale-in border border-green-200 dark:border-green-800',
+          'animate-scale-in flex items-center justify-center rounded-full border border-green-200 bg-green-100 dark:border-green-800 dark:bg-green-900/30',
           sizeClasses[size],
         )}
       >
         <Check
           size={iconSizes[size]}
-          className="text-green-600 dark:text-green-400 animate-fade-in"
+          className="animate-fade-in text-green-600 dark:text-green-400"
           strokeWidth={3}
         />
       </div>
@@ -53,14 +53,14 @@ export const Success: React.FC<SuccessProps> = ({
         <div className="flex flex-col items-center">
           <p
             className={cn(
-              'text-green-700 dark:text-green-300 font-medium animate-fade-in',
+              'animate-fade-in font-medium text-green-700 dark:text-green-300',
               textSizes[size],
             )}
           >
             {text}
           </p>
           {description && (
-            <p className={cn('text-muted-foreground text-sm animate-fade-in')}>
+            <p className={cn('text-muted-foreground animate-fade-in text-sm')}>
               {description}
             </p>
           )}

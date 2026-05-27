@@ -1,6 +1,10 @@
 import type { Knex } from 'knex';
+import z from 'zod';
+
 import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
+import { getCountryByCode } from '../../../domains/countries/countries.model.js';
+import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
+import { redis } from '../../../lib/redis.js';
 import {
   errorResponse,
   successResponse,
@@ -8,17 +12,17 @@ import {
 import {
   bankFeedProviderInputCamel,
   updateProviderInput,
-  type BankFeedProviderInputCamel,
-  type BankFeedProviderStatus,
-  type BankFeedProviderWithCountries,
-  type BankProviderKey,
-  type RawBankFeedProviderResponse,
-  type UpdateProviderInput,
 } from './bankFeedProviders.types.js';
-import { redis } from '../../../lib/redis.js';
-import { refreshProviderRegistry } from '../../../integrations/banking/providers/registry.js';
-import z from 'zod';
-import { getCountryByCode } from '../../../domains/countries/countries.model.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  BankFeedProviderInputCamel,
+  BankFeedProviderStatus,
+  BankFeedProviderWithCountries,
+  BankProviderKey,
+  RawBankFeedProviderResponse,
+  UpdateProviderInput,
+} from './bankFeedProviders.types.js';
 
 const TTL = 60 * 60 * 1; // 1 hour
 export async function invalidateBankFeedProvidersCache(providerIds?: string[]) {

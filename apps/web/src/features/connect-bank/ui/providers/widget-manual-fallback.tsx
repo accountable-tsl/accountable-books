@@ -8,10 +8,10 @@ export function WidgetManualFallback({
   return (
     <div className="space-y-4 text-center">
       <div>
-        <h3 className="text-lg font-semibold mb-2">
+        <h3 className="mb-2 text-lg font-semibold">
           Opening Bank Connection...
         </h3>
-        <p className="text-muted-foreground text-sm mb-4">
+        <p className="text-muted-foreground mb-4 text-sm">
           The secure banking interface will open automatically. If it doesn't
           appear, click below.
         </p>
@@ -26,7 +26,7 @@ export function WidgetManualFallback({
         Open Bank Connection
       </Button>
 
-      <div className="text-xs text-muted-foreground">
+      <div className="text-muted-foreground text-xs">
         Your credentials are encrypted and secure
       </div>
     </div>

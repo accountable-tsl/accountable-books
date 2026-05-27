@@ -1,0 +1,55 @@
+from pydantic import BaseModel, Field, confloat, constr
+from typing import Any, Literal, Optional, Union
+from enum import Enum
+
+class Option2RiskEnum(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class Option0(BaseModel):
+    type: Literal["ui.navigate"]
+    to: constr(min_length=1)
+
+class Option1(BaseModel):
+    type: Literal["ui.highlight"]
+    selector: constr(min_length=1)
+    label: Optional[constr(min_length=1)] = None
+
+class Option2(BaseModel):
+    type: Literal["proposal.preview"]
+    proposalId: constr(min_length=1)
+    title: constr(min_length=1)
+    summary: constr(min_length=1)
+    risk: Option2RiskEnum = Field(default="medium")
+
+class Option3(BaseModel):
+    type: Literal["proposal.form"]
+    proposalId: constr(min_length=1)
+    formType: constr(min_length=1)
+    data: Any
+
+class Option4(BaseModel):
+    type: Literal["approval.request"]
+    approvalId: constr(min_length=1)
+    proposalId: Optional[constr(min_length=1)] = None
+    summary: constr(min_length=1)
+    risk: Option2RiskEnum = Field(default="high")
+
+class Option5(BaseModel):
+    type: Literal["job.started"]
+    jobId: constr(min_length=1)
+    label: constr(min_length=1)
+
+class Option6(BaseModel):
+    type: Literal["job.progress"]
+    jobId: constr(min_length=1)
+    pct: confloat(ge=0, le=100)
+    message: Optional[constr(min_length=1)] = None
+
+class Option7(BaseModel):
+    type: Literal["job.completed"]
+    jobId: constr(min_length=1)
+    resultSummary: constr(min_length=1)
+
+type AiEffect = Union[Option0, Option1, Option2, Option3, Option4, Option5, Option6, Option7]

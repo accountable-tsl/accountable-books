@@ -1,27 +1,30 @@
-import { useState } from 'react';
-import { useSession } from '@session';
-import { WelcomeStep } from '../ui/steps/welcome-step';
-import { CountrySelectStep } from '../ui/steps/country-select-step';
-import { ProviderSelectStep } from '../ui/steps/provider-select-step';
-import { ProviderWidget } from '../ui/provider-widget';
-import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import { useNavigate } from 'react-router';
+import type {
+  ConnectAccountsResponse,
+  CountryDisplay,
+} from '@/modules/banking/connections';
 import type {
   BankProvider,
   ProviderSelectionResult,
 } from '@/modules/banking/providers';
+import { useState } from 'react';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
+import { Button } from '@/components/ui/button';
 import {
   useBanking,
   useConnectAccounts,
   useCountrySelection,
   useCreateLinkToken,
-  type ConnectAccountsResponse,
-  type CountryDisplay,
 } from '@/modules/banking/connections';
+import { useSession } from '@session';
+import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+
+import { ProviderWidget } from '../ui/provider-widget';
+import { ClassifyAccountStep } from '../ui/steps/classify-account-step';
+import { CountrySelectStep } from '../ui/steps/country-select-step';
+import { ProviderSelectStep } from '../ui/steps/provider-select-step';
+import { WelcomeStep } from '../ui/steps/welcome-step';
 
 type FlowStep =
   | 'welcome'
@@ -266,14 +269,14 @@ export function BankConnectionFlow() {
         return selectedProvider && linkToken ? (
           <div className={stepWrapperClass}>
             {connectAccountsMutation.isPending ? (
-              <div className="text-center space-y-4">
+              <div className="space-y-4 text-center">
                 <div className="flex items-center justify-center">
-                  <div className="w-6 h-6 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <div className="border-primary mr-2 h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"></div>
                   <span className="text-lg font-semibold">
                     Connecting your accounts...
                   </span>
                 </div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   Please wait while we securely connect your bank accounts
                 </div>
               </div>
@@ -299,13 +302,13 @@ export function BankConnectionFlow() {
           </div>
         ) : (
           <div className={stepWrapperClass}>
-            <div className="text-center space-y-4">
+            <div className="space-y-4 text-center">
               <div className="text-lg font-semibold">
                 {createLinkTokenMutation.isPending
                   ? 'Creating connection...'
                   : 'Loading...'}
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 Please wait while we set up your connection
               </div>
             </div>
@@ -326,11 +329,11 @@ export function BankConnectionFlow() {
       case 'success':
         return (
           <div className={stepWrapperClass}>
-            <div className="text-center space-y-4">
+            <div className="space-y-4 text-center">
               <div className="text-lg font-semibold text-green-600">
                 Success!
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-muted-foreground text-sm">
                 Your bank account has been connected successfully. Transactions
                 will start syncing shortly.
               </div>
@@ -368,7 +371,7 @@ export function BankConnectionFlow() {
   }
 
   return (
-    <div className="min-h-0 h-full p-4 pb-12 flex flex-col items-center justify-center">
+    <div className="flex h-full min-h-0 flex-col items-center justify-center p-4 pb-12">
       {renderCurrentStep()}
     </div>
   );

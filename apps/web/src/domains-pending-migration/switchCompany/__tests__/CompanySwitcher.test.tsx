@@ -1,11 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { CompanySwitcher } from '../CompanySwitcher';
 import type {
-  AuthUserContext,
   AuthCompanyContext,
+  AuthUserContext,
   CurrentCompanyContext,
 } from '@/modules/auth';
+import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { CompanySwitcher } from '../CompanySwitcher';
 
 // Mock hooks
 const mockUseSession = vi.fn();

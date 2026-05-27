@@ -1,3 +1,6 @@
+import type { LoginForm } from '@/modules/auth';
+import { useState } from 'react';
+import { AuthHeader } from '@/components/AuthHeader';
 import { FormField } from '@/components/FormField';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,21 +11,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { authStore, getLogoutReason, loginForm } from '@/modules/auth';
+import { routes } from '@/shared/routes';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { useSession } from '@session';
+import { Eye, EyeOff } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Link, useSearchParams } from 'react-router';
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { Eye, EyeOff } from 'lucide-react';
-import { routes } from '@/shared/routes/routes';
-import { AuthHeader } from '@/components/AuthHeader';
 import { toast } from 'sonner';
-import { useSession } from '@session';
-import {
-  authStore,
-  getLogoutReason,
-  loginForm,
-  type LoginForm,
-} from '@/modules/auth';
+
 import { loginAndRedirect } from '../model/use-login-flow';
 
 export function Login() {
@@ -76,18 +73,18 @@ export function Login() {
   return (
     <div className="flex min-h-svh flex-col">
       <AuthHeader />
-      <div className="flex flex-1 w-full items-center justify-center p-6 md:p-10">
+      <div className="flex w-full flex-1 items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-sm">
           <div className="flex flex-col gap-6">
             {logoutReason === 'expired' && !alreadyLoggedIn && (
-              <div className="text-center rounded-lg border border-organge-300 bg-orange-100 p-2 md:p-3 text-xs text-orange-800 shadow-sm">
+              <div className="border-organge-300 rounded-lg border bg-orange-100 p-2 text-center text-xs text-orange-800 shadow-sm md:p-3">
                 <span className="block md:inline">
                   We logged you out to secure your account. Please login again
                 </span>
               </div>
             )}
             {alreadyLoggedIn && (
-              <div className="text-center rounded-lg border border-green-300 bg-green-50 p-2 md:p-3  text-sm text-green-800 shadow-sm">
+              <div className="rounded-lg border border-green-300 bg-green-50 p-2 text-center text-sm text-green-800 shadow-sm md:p-3">
                 <span className="block md:inline">
                   You're already logged in.
                 </span>{' '}
@@ -98,7 +95,7 @@ export function Login() {
                       : routes.onboarding.index.staticPath
                   }
                   replace
-                  className="underline font-medium"
+                  className="font-medium underline"
                 >
                   {hasAppAccess ? 'Go to dashboard' : 'Continue onboarding'}
                 </Link>
@@ -133,7 +130,7 @@ export function Login() {
                         required
                       />
                     </FormField>
-                    <div className="flex flex-col relative">
+                    <div className="relative flex flex-col">
                       <FormField
                         id="password"
                         label="Password"
@@ -155,7 +152,7 @@ export function Login() {
                           aria-label={
                             showPassword ? 'Hide password' : 'Show password'
                           }
-                          className="absolute right-2 top-1/3 bg-transparent text-foreground hover:bg-transparent"
+                          className="text-foreground absolute top-1/3 right-2 bg-transparent hover:bg-transparent"
                         >
                           {showPassword ? <EyeOff /> : <Eye />}
                         </Button>
@@ -163,13 +160,13 @@ export function Login() {
                       </FormField>
                       <Link
                         to={routes.auth.forgotPassword.staticPath}
-                        className="absolute -bottom-3.5 right-0 text-right text-sm underline-offset-4 hover:underline"
+                        className="absolute right-0 -bottom-3.5 text-right text-sm underline-offset-4 hover:underline"
                       >
                         Forgot your password?
                       </Link>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-3 mt-2">
+                  <div className="mt-2 flex flex-col gap-3">
                     <Button
                       type="submit"
                       className="w-full"

@@ -1,10 +1,10 @@
-import { DataTable } from '@/components/data-table/data-table';
-import { getAccountColumns } from '@/components/data-table/fake/columns';
 import type { Account } from '@/components/data-table/fake/seed';
-import { useDataTable } from '@/components/data-table/use-data-table';
-import coaData from '@/components/data-table/fake/coa.json';
-import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
 import type { DataTableExtras } from '@/components/data-table/types/data-table';
+import { DataTable } from '@/components/data-table/data-table';
+import { DataTableToolbar } from '@/components/data-table/data-table-toolbar';
+import coaData from '@/components/data-table/fake/coa.json';
+import { getAccountColumns } from '@/components/data-table/fake/columns';
+import { useDataTable } from '@/components/data-table/use-data-table';
 
 export function Table() {
   const accounts = coaData as Account[];

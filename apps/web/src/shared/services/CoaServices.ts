@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const backendUrl = import.meta.env.VITE_BACKEND_URL;
+import api from '@/lib/axios';
 
 type FetchCoaParams = {
   companyId: string | number;
@@ -17,7 +15,7 @@ export const fetchCoa = async ({
   sortBy,
   sortOrder,
 }: FetchCoaParams) => {
-  const response = await axios.get(`${backendUrl}/api/${companyId}/coa`, {
+  const response = await api.get(`/api/${companyId}/coa`, {
     params: { page, limit, sortBy, sortOrder },
   });
   return response.data;

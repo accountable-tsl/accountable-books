@@ -1,10 +1,11 @@
-import { describe, expect, test } from 'vitest';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
+import { describe, expect, test } from 'vitest';
+
 import {
+  dedupeByNormalizedKey,
   normalizeName,
   uuidV5ForCompanyName,
   uuidV5ForCompanyProject,
-  dedupeByNormalizedKey,
 } from './id.js';
 
 describe('normalizeName', () => {

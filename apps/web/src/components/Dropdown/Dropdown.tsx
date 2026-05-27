@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+
 import './Dropdown.scss';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCaretDown } from '@fortawesome/free-solid-svg-icons';
+
+import { useEffect, useRef, useState } from 'react';
 
 type Option = {
   value: string;
@@ -62,7 +63,7 @@ export default function Dropdown({
         onClick={() => setIsOpen(!isOpen)}
       >
         {selectedOption.label}
-        <FontAwesomeIcon icon={faCaretDown} className="dropdown-select__icon" />
+        <ChevronDown className="dropdown-select__icon" />
       </div>
 
       {isOpen && (

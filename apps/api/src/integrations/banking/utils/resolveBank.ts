@@ -1,12 +1,15 @@
-import type { NewBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
-import type { ProviderInstitution } from '../types/base.js';
-import { isProd, ENV } from '../../../config/env.js';
 import type { Knex } from 'knex';
+
+import { ENV, isProd } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { getBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.model.js';
+import { getCountryFromCode } from '../../../domains/countries/countries.utils.js';
+import { getSystemUser } from '../../../domains/users/users.model.js';
 import { logger } from '../../../shared/utils/logger.js';
-import { getCountry } from '../../../domains/countries/countries.utils.js';
+
+import type { NewBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
 import type { NewBank } from '../../../domains/banking/banks/banks.types.js';
+import type { ProviderInstitution } from '../types/base.js';
 
 // --- CONFIGURATION CONSTANTS ---
 const BANK_KEY_MAX_LENGTH = 100;
@@ -31,14 +34,7 @@ function generateBankKey(name: string, countryCode: string): string {
 }
 
 async function getSystemUserId(txn: Knex.Transaction): Promise<string> {
-  const email = isProd ? ENV.ADMIN_EMAIL : ENV.TEST_ADMIN_EMAIL;
-
-  if (!email) {
-    throw new Error('System admin email is not configured.');
-  }
-  const row = await txn('users').where({ email }).first('id');
-  if (!row?.id) throw new Error(`System user not found for ${email}`);
-  return row.id;
+  return (await getSystemUser({ trx: txn })).id;
 }
 
 async function findExistingBank({
@@ -201,7 +197,7 @@ export async function findOrCreateBankMapping(params: {
     }
     const resolvedProviderId = provider.id;
     const resolvedUserId = userId || (await getSystemUserId(txn));
-    const country = await getCountry(countryCode);
+    const country = await getCountryFromCode(countryCode);
     const countryId = country.id;
 
     // Find or create the bank record.

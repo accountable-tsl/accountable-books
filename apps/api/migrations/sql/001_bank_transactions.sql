@@ -7,11 +7,13 @@ CREATE TABLE public.bank_transactions (
     txn_at                  TIMESTAMPTZ NOT NULL,
     payee                   TEXT,
     contact_id              UUID,
+    contact_type_snapshot   contact_type,
+    contact_name            TEXT,
     reference               TEXT,
     description             TEXT,
     additional_notes        TEXT,
-    amount                  NUMERIC(15, 3) NOT NULL,
-    absolute_amount         NUMERIC(15, 3) NOT NULL GENERATED ALWAYS AS (abs(amount)) STORED,
+    amount                  NUMERIC(18, 3) NOT NULL,
+    absolute_amount         NUMERIC(18, 3) NOT NULL GENERATED ALWAYS AS (abs(amount)) STORED,
     system_exchange_rate    NUMERIC(32, 10) NOT NULL,
     -- Different from regular accounting convention, this just mirrors user bank statement
     -- transaction_side        debit_credit GENERATED ALWAYS AS (
@@ -21,12 +23,15 @@ CREATE TABLE public.bank_transactions (
     --         ELSE NULL::debit_credit
     --     END
     -- ) STORED,
-    categorization_status   categorization_status NOT NULL DEFAULT 'uncategorized',
+    -- categorization_status   categorization_status NOT NULL DEFAULT 'uncategorized',
     bank_account_id         UUID NOT NULL,
+    bank_account_name       TEXT,
+    bank_name               TEXT,
     bank_transaction_batch_id  UUID,
     ledger_transaction_id   UUID,
     external_id             TEXT,
     raw_data                JSONB,
+    source                  TEXT,
     created_by_id           UUID NOT NULL,
     updated_by_id           UUID,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -35,7 +40,12 @@ CREATE TABLE public.bank_transactions (
     deleted_at              TIMESTAMPTZ,
     search_text TEXT GENERATED ALWAYS AS (
     trim(both ' ' from lower(
-        coalesce(payee, '') || ' ' || coalesce(description, '') || ' ' || coalesce(reference, '')
+        coalesce(payee, '') || ' ' ||
+        coalesce(description, '') || ' ' ||
+        coalesce(reference, '') || ' ' ||
+        coalesce(contact_name, '') || ' ' ||
+        coalesce(bank_account_name, '') || ' ' ||
+        coalesce(bank_name, '')
     ))
     ) STORED,
     CONSTRAINT system_exchange_rate_chk CHECK (system_exchange_rate > 0),
@@ -49,9 +59,9 @@ CREATE TABLE public.bank_transactions (
 ) PARTITION BY RANGE (date);
 
 -- Partitioned indexes on the parent
-CREATE INDEX IF NOT EXISTS bt_live_status_date_idx
-  ON bank_transactions (is_deleted, categorization_status, date DESC)
-  INCLUDE (amount, payee);
+-- CREATE INDEX IF NOT EXISTS bt_live_status_date_idx
+--   ON bank_transactions (is_deleted, categorization_status, date DESC)
+--   INCLUDE (amount, payee);
 
 CREATE INDEX IF NOT EXISTS bt_live_account_date_idx
   ON bank_transactions (is_deleted, bank_account_id, date DESC)
@@ -120,13 +130,13 @@ BEGIN
     RETURN;
   END IF;
 
-  -- BTREEs - Create indexes with exact same structure as parent
-  BEGIN
-    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, date DESC) INCLUDE (amount, payee)', idx_live_status, leaf);
-    PERFORM safe_attach_partition_index('bt_live_status_date_idx', idx_live_status);
-  EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
-  END;
+  -- -- BTREEs - Create indexes with exact same structure as parent
+  -- BEGIN
+  --   EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, date DESC) INCLUDE (amount, payee)', idx_live_status, leaf);
+  --   PERFORM safe_attach_partition_index('bt_live_status_date_idx', idx_live_status);
+  -- EXCEPTION WHEN OTHERS THEN
+  --   RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
+  -- END;
 
   BEGIN
     EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, bank_account_id, date DESC) INCLUDE (amount, payee)', idx_live_acct, leaf);
@@ -174,12 +184,12 @@ BEGIN
     RETURN;
   END IF;
 
-  BEGIN
-    EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, date DESC) INCLUDE (amount, payee)', idx_live_status, leaf);
-    PERFORM safe_attach_partition_index('bt_live_status_date_idx', idx_live_status);
-  EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
-  END;
+  -- BEGIN
+  --   EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, categorization_status, date DESC) INCLUDE (amount, payee)', idx_live_status, leaf);
+  --   PERFORM safe_attach_partition_index('bt_live_status_date_idx', idx_live_status);
+  -- EXCEPTION WHEN OTHERS THEN
+  --   RAISE NOTICE 'Failed to create/attach index %: %', idx_live_status, SQLERRM;
+  -- END;
 
   BEGIN
     EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %s (is_deleted, bank_account_id, date DESC) INCLUDE (amount, payee)', idx_live_acct, leaf);
@@ -215,30 +225,13 @@ CREATE TABLE IF NOT EXISTS bank_transactions_before_2024
   PARTITION OF bank_transactions
   FOR VALUES FROM ('1970-01-01') TO ('2024-01-01');
 
--- Current year parent (sub-partitioned) + its year-default LEAF, so the year can accept rows now
-DO $$
-DECLARE y int := EXTRACT(YEAR FROM CURRENT_DATE);
-BEGIN
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
-    PARTITION OF bank_transactions
-    FOR VALUES FROM (%L) TO (%L)
-    PARTITION BY RANGE (date)
-  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
-
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
-    PARTITION OF public.bank_transactions_%s DEFAULT
-  $sql$, y, y);
-END$$;
-
--- Global DEFAULT partition (for any out-of-window dates)
+-- Global DEFAULT partition (safety net — must exist before year partitions so
+-- that rows landing outside the rolling window are never rejected)
 CREATE TABLE IF NOT EXISTS bank_transactions_default
   PARTITION OF bank_transactions DEFAULT;
 
--- Ensure indexes exist on the known leaves and are attached
+-- Ensure leaf indexes exist & are attached for the historical partition
 SELECT ensure_bt_leaf_indexes_before_2024();
-SELECT ensure_bt_leaf_indexes_for_year(EXTRACT(YEAR FROM CURRENT_DATE)::int);
 
 -- Monthly helper (dormant for now; used when you flip to monthly later)
 CREATE OR REPLACE FUNCTION ensure_month_partition(d date)
@@ -276,17 +269,25 @@ BEGIN
     RETURN;
   END IF;
 
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
-    PARTITION OF bank_transactions
-    FOR VALUES FROM (%L) TO (%L)
-    PARTITION BY RANGE (date)
-  $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+  BEGIN
+    EXECUTE format($sql$
+      CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
+      PARTITION OF bank_transactions
+      FOR VALUES FROM (%L) TO (%L)
+      PARTITION BY RANGE (date)
+    $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'ensure_year_partition(%): year table failed: %', y, SQLERRM;
+  END;
 
-  EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
-    PARTITION OF public.bank_transactions_%s DEFAULT
-  $sql$, y, y);
+  BEGIN
+    EXECUTE format($sql$
+      CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
+      PARTITION OF public.bank_transactions_%s DEFAULT
+    $sql$, y, y);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'ensure_year_partition(%): default table failed: %', y, SQLERRM;
+  END;
 
   PERFORM ensure_bt_leaf_indexes_for_year(y);
 END$$;
@@ -302,6 +303,9 @@ BEGIN
     PERFORM ensure_year_partition(y);
   END LOOP;
 END$$;
+
+-- Create rolling window of year partitions (current year ± 2) with leaf indexes
+SELECT create_bank_transactions_partitions();
 
 -- Before-insert trigger (simplified - no dynamic partition creation)
 CREATE OR REPLACE FUNCTION bt_ensure_partition_before_insert()
@@ -341,15 +345,15 @@ BEGIN
 
     WITH moved AS (
       INSERT INTO bank_transactions (
-        id, date, payee, reference, description, additional_comments,
-        amount, system_exchange_rate, categorization_status,
+        id, date, payee, reference, description, additional_notes,
+        amount, system_exchange_rate,
         bank_account_id, bank_transaction_batch_id, ledger_transaction_id,
         external_id, raw_data, created_by_id, updated_by_id,
         created_at, updated_at, is_deleted, deleted_at
       )
       SELECT
-        id, date, payee, reference, description, additional_comments,
-        amount, system_exchange_rate, categorization_status,
+        id, date, payee, reference, description, additional_notes,
+        amount, system_exchange_rate,
         bank_account_id, bank_transaction_batch_id, ledger_transaction_id,
         external_id, raw_data, created_by_id, updated_by_id,
         created_at, updated_at, is_deleted, deleted_at
@@ -392,14 +396,15 @@ BEGIN
   IF (NEW.is_deleted IS DISTINCT FROM OLD.is_deleted)
      OR (NEW.deleted_at IS DISTINCT FROM OLD.deleted_at)
      OR (NEW.updated_by_id IS DISTINCT FROM OLD.updated_by_id)
-     OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
+    --  OR (NEW.categorization_status IS DISTINCT FROM OLD.categorization_status)
      OR (NEW.system_exchange_rate IS DISTINCT FROM OLD.system_exchange_rate)
+     OR (NEW.ledger_transaction_id IS DISTINCT FROM OLD.ledger_transaction_id)
   THEN
     RETURN NEW;
   END IF;
 
   IF ROW(NEW.*) IS DISTINCT FROM ROW(OLD.*) THEN
-    RAISE EXCEPTION 'Bank transactions are immutable. Only is_deleted, deleted_at, updated_by_id, categorization_status, system_exchange_rate may change.';
+    RAISE EXCEPTION 'Bank transactions are immutable. Only is_deleted, deleted_at, updated_by_id, system_exchange_rate, ledger_transaction_id may change.';
   END IF;
   RETURN NEW;
 END;
@@ -474,35 +479,35 @@ BEGIN
   END;
 END$$;
 
--- Composite FK from ledger_transactions → bank_transactions (id, date)
-DO $$
-BEGIN
-  BEGIN
-    ALTER TABLE ledger_transactions ALTER COLUMN bank_transaction_id   DROP NOT NULL;
-  EXCEPTION WHEN undefined_column THEN RAISE NOTICE 'ledger_transactions.bank_transaction_id missing, skipping';
-  END;
+-- -- Composite FK from ledger_transactions → bank_transactions (id, date)
+-- DO $$
+-- BEGIN
+--   BEGIN
+--     ALTER TABLE ledger_transactions ALTER COLUMN bank_transaction_id   DROP NOT NULL;
+--   EXCEPTION WHEN undefined_column THEN RAISE NOTICE 'ledger_transactions.bank_transaction_id missing, skipping';
+--   END;
 
-  BEGIN
-    ALTER TABLE ledger_transactions ALTER COLUMN bank_transaction_date DROP NOT NULL;
-  EXCEPTION WHEN undefined_column THEN RAISE NOTICE 'ledger_transactions.bank_transaction_date missing, skipping';
-  END;
+--   BEGIN
+--     ALTER TABLE ledger_transactions ALTER COLUMN bank_transaction_date DROP NOT NULL;
+--   EXCEPTION WHEN undefined_column THEN RAISE NOTICE 'ledger_transactions.bank_transaction_date missing, skipping';
+--   END;
 
-  BEGIN
-    ALTER TABLE ledger_transactions
-      ADD CONSTRAINT ledger_bt_pair_null_ck
-      CHECK (
-        (bank_transaction_id IS NULL AND bank_transaction_date IS NULL)
-        OR (bank_transaction_id IS NOT NULL AND bank_transaction_date IS NOT NULL)
-      );
-  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'ledger_bt_pair_null_ck exists, skipping';
-  END;
+--   BEGIN
+--     ALTER TABLE ledger_transactions
+--       ADD CONSTRAINT ledger_bt_pair_null_ck
+--       CHECK (
+--         (bank_transaction_id IS NULL AND bank_transaction_date IS NULL)
+--         OR (bank_transaction_id IS NOT NULL AND bank_transaction_date IS NOT NULL)
+--       );
+--   EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'ledger_bt_pair_null_ck exists, skipping';
+--   END;
 
-  BEGIN
-    ALTER TABLE ledger_transactions
-      ADD CONSTRAINT fk_ledger_transaction_to_bank_transaction
-      FOREIGN KEY (bank_transaction_id, bank_transaction_date)
-      REFERENCES bank_transactions (id, date)
-      ON DELETE SET NULL;
-  EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_transaction_to_bank_transaction exists, skipping';
-  END;
-END$$;
+--   BEGIN
+--     ALTER TABLE ledger_transactions
+--       ADD CONSTRAINT fk_ledger_transaction_to_bank_transaction
+--       FOREIGN KEY (bank_transaction_id, bank_transaction_date)
+--       REFERENCES bank_transactions (id, date)
+--       ON DELETE SET NULL;
+--   EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_ledger_transaction_to_bank_transaction exists, skipping';
+--   END;
+-- END$$;

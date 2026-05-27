@@ -1,8 +1,9 @@
 import type { Knex } from 'knex';
+
 import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
 
 const tableName = 'bank_account_daily_native_snapshots';
 
@@ -25,10 +26,10 @@ export async function up(knex: Knex): Promise<void> {
     table.date('day').notNullable();
 
     // all in native currency of the bank account
-    table.decimal('opening_balance', 15, 3).notNullable().defaultTo(0);
-    table.decimal('money_out', 15, 3).notNullable().defaultTo(0); // Total money out
-    table.decimal('money_in', 15, 3).notNullable().defaultTo(0); // Total money in
-    table.decimal('closing_balance', 15, 3).notNullable().defaultTo(0);
+    table.decimal('opening_balance', 18, 3).notNullable().defaultTo(0);
+    table.decimal('money_out', 18, 3).notNullable().defaultTo(0); // Total money out
+    table.decimal('money_in', 18, 3).notNullable().defaultTo(0); // Total money in
+    table.decimal('closing_balance', 18, 3).notNullable().defaultTo(0);
     table.integer('transaction_count').notNullable().defaultTo(0);
 
     table

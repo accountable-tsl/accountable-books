@@ -1,0 +1,11 @@
+# Cloudflare Pages configuration for web-payroll
+# This file helps Cloudflare Pages understand the build setup
+
+name = "web-payroll"
+compatibility_date = "2024-01-01"
+
+[env.production]
+# Production environment settings
+
+[env.preview]
+# Preview environment settings

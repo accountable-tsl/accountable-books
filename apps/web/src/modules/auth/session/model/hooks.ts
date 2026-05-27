@@ -1,7 +1,8 @@
 import { QueryClient, useQuery } from '@tanstack/react-query';
+
+import { setLogoutReason } from '../../credentials';
 import { fetchSession } from '../api';
 import { authStore } from './store';
-import { setLogoutReason } from '../../credentials';
 
 const queryClient = new QueryClient();
 export const clearSessionFn = (

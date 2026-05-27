@@ -1,25 +1,27 @@
 import type { Response } from 'express';
+
 import {
-  successResponse,
   errorResponse,
+  successResponse,
 } from '../../shared/utils/response.utils.js';
-import type { AuthRequest } from '../../features/auth/auth.types.js';
 import {
-  getTrialBalance,
-  recalculateGLBalance,
-  recalculateBankBalance,
-  recalculateAllGLBalances,
-  recalculateAllBankBalances,
-  getCurrentGLBalance,
-  getCurrentBankBalance,
-  getGLBalanceHistory,
-  getBankBalanceHistory,
-} from './balances.model.js';
-import {
-  getFiscalPeriods,
   closeFiscalPeriod,
+  getFiscalPeriods,
   reopenFiscalPeriod,
-} from '../reporting/fiscalCalendar/fiscalCalendar.service.js';
+} from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import {
+  getBankBalanceHistory,
+  getCurrentBankBalance,
+  getCurrentGLBalance,
+  getGLBalanceHistory,
+  getTrialBalance,
+  recalculateAllBankBalances,
+  recalculateAllGLBalances,
+  recalculateBankBalance,
+  recalculateGLBalance,
+} from './balances.model.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 /**
  * Balance management controller
@@ -34,7 +36,7 @@ export async function recalculateGLBalanceController(
   res: Response,
 ) {
   try {
-    const { coaId } = req.params;
+    const coaId = String(req.params.coaId);
     const companyId = req.company!.id;
     const { recalcFrom, recalcTo } = req.body;
 
@@ -65,7 +67,7 @@ export async function recalculateBankBalanceController(
 ) {
   try {
     const { id: companyId } = req.company!;
-    const { bankAccountId } = req.params;
+    const bankAccountId = String(req.params.bankAccountId);
     const { recalcFrom, recalcTo } = req.body;
 
     const result = await recalculateBankBalance({
@@ -157,7 +159,7 @@ export async function getCurrentGLBalanceController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { coaId } = req.params;
+    const coaId = String(req.params.coaId);
 
     const result = await getCurrentGLBalance({
       companyId,
@@ -183,7 +185,7 @@ export async function getCurrentBankBalanceController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { bankAccountId } = req.params;
+    const bankAccountId = String(req.params.bankAccountId);
 
     const result = await getCurrentBankBalance({
       companyId,
@@ -209,7 +211,7 @@ export async function getGLBalanceHistoryController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { coaId } = req.params;
+    const coaId = String(req.params.coaId);
     const { fromDate, toDate, limit = 30 } = req.query;
 
     const result = await getGLBalanceHistory({
@@ -238,7 +240,7 @@ export async function getBankBalanceHistoryController(
 ) {
   try {
     const companyId = req.company!.id;
-    const { bankAccountId } = req.params;
+    const bankAccountId = String(req.params.bankAccountId);
     const { fromDate, toDate, limit = 30 } = req.query;
 
     const result = await getBankBalanceHistory({

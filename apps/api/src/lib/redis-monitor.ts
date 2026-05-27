@@ -1,7 +1,7 @@
+import { getLogger } from '../shared/utils/logger.js';
 import { redis } from './redis.js';
-import pino from 'pino';
 
-const logger = pino();
+const logger = getLogger({ component: 'redis-monitor' });
 
 // Redis command monitoring statistics
 interface RedisStats {

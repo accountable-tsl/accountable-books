@@ -1,4 +1,5 @@
 import type { BankAccountType } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
+import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 
 export interface ProviderError {
   code: string;
@@ -107,6 +108,7 @@ export interface ProviderTransaction {
   currencyCode: string;
   pending: boolean;
   category?: string[];
+  additionalNotes?: string;
   rawData: Record<string, any>;
 }
 
@@ -134,7 +136,7 @@ export interface TransactionSyncResult {
 }
 
 export abstract class BankingProvider {
-  abstract readonly key: string;
+  abstract readonly key: BankProviderKey;
   abstract readonly name: string;
   abstract readonly transactionSyncStrategy: TransactionSyncStrategy;
 

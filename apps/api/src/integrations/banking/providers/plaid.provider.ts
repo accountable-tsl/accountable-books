@@ -1,27 +1,30 @@
-import {
-  Configuration,
-  PlaidApi,
-  PlaidEnvironments,
-  CountryCode,
-  Products,
-  type LinkTokenCreateRequest,
-  type AuthGetResponse,
-  type TransactionsSyncRequest,
-  type Transaction as PlaidTransaction,
+import type {
+  AuthGetResponse,
+  LinkTokenCreateRequest,
+  Transaction as PlaidTransaction,
+  TransactionsSyncRequest,
 } from 'plaid';
 import {
-  BankingProvider,
-  TransactionSyncStrategy,
-  type ProviderError,
-  type ProviderAccount,
-  type ProviderInstitution,
-  type TransactionSyncResult,
-  type ProviderTransaction,
-  type ConnectionDetails,
-} from '../types/base.js';
+  Configuration,
+  CountryCode,
+  PlaidApi,
+  PlaidEnvironments,
+  Products,
+} from 'plaid';
+
 import { ENV } from '../../../config/env.js';
+import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
+
+import type {
+  ConnectionDetails,
+  ProviderAccount,
+  ProviderError,
+  ProviderInstitution,
+  ProviderTransaction,
+  TransactionSyncResult,
+} from '../types/base.js';
 
 export class PlaidProvider extends BankingProvider {
   readonly key = 'plaid';
@@ -363,10 +366,7 @@ export class PlaidProvider extends BankingProvider {
       txnAt:
         txn.datetime || txn.date ? new Date(txn.datetime || txn.date) : null,
       merchantName: txn.merchant_name || undefined,
-      description:
-        (txn.merchant_name ?? '') +
-        txn.payment_channel +
-        (txn.original_description ?? ''),
+      description: txn.original_description ?? '',
       // According to plaid, for transactions:
       // -- Positive values when money moves out of the account;
       // -- Negative values when money moves in
@@ -382,6 +382,16 @@ export class PlaidProvider extends BankingProvider {
             txn.personal_finance_category.detailed,
           ].filter(Boolean)
         : [],
+      additionalNotes:
+        (txn.merchant_name ?? '') +
+        txn.payment_channel +
+        txn.personal_finance_category?.detailed +
+        (txn.location?.address ?? '') +
+        (txn.location?.city ?? '') +
+        (txn.location?.region ?? '') +
+        (txn.location?.postal_code ?? '') +
+        (txn.location?.country ?? '') +
+        (txn.location.country ? `country: ${txn.location.country}` : ''),
       rawData: txn,
     }));
   }

@@ -1,14 +1,18 @@
 import type { Request, Response } from 'express';
-import { connectAccountsService } from '../../integrations/banking/services/connectAccounts.service.js';
+
+import {
+  connectAccountsService,
+  scheduleTransactionSync,
+  transactionSyncService,
+} from '../../integrations/banking/index.js';
+import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import type { AuthRequest } from '../../features/auth/auth.types.js';
-import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
-import { transactionSyncQueue } from '../../jobs/queues/transaction-sync.queue.js';
-import { transactionSyncService } from '../../integrations/banking/services/transactionSync.service.js';
+
+import type { AuthRequest } from '../../features/auth/auth.types.js';
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {
@@ -202,8 +206,7 @@ export class BankingController {
       }
 
       // Queue sync job
-      const job = await transactionSyncQueue.add(
-        'sync-transactions',
+      const job = await scheduleTransactionSync(
         {
           credentialId,
           syncType: 'manual',
@@ -216,12 +219,13 @@ export class BankingController {
             type: 'exponential',
             delay: 2000,
           },
+          priority: 0,
         },
       );
 
       res.json(
         successResponse('Transaction sync queued successfully', {
-          jobId: job.id,
+          jobId: job?.id ?? 'disabled-job-id',
         }),
       );
     } catch (error: any) {
@@ -295,7 +299,7 @@ export class BankingController {
     try {
       const userId = String(req.user?.id);
       const companyId = String(req.user?.currentCompanyId);
-      const { credentialId } = req.params;
+      const credentialId = String(req.params.credentialId);
 
       if (!userId || !companyId) {
         return res

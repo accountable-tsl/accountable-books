@@ -1,16 +1,17 @@
 import type { Knex } from 'knex';
-import { DemoFilter, DEMO_CURRENCIES } from '../../shared/config.js';
+
+import { DEMO_CURRENCIES } from '../../shared/config.js';
 import {
   deleteDemoData,
   getAccountTypeByKey,
   getBankMap,
-  resolveFiltersToIds,
   getDemoUserMap,
+  resolveFiltersToIds,
 } from '../../shared/utils.js';
-import {
-  getRawBankAccountsForInsertion,
-  RawBankAccount,
-} from './bank-accounts.data.js';
+import { getRawBankAccountsForInsertion } from './bank-accounts.data.js';
+
+import type { DemoFilter } from '../../shared/config.js';
+import type { RawBankAccount } from './bank-accounts.data.js';
 
 /**
  * Create COA and bank account atomically following production pattern
@@ -179,7 +180,7 @@ export const deleteDemoBankAccounts = async (
   // Use the same filtering logic as deleteDemoData to ensure consistency
   const bankAccountsQuery = trx('bank_accounts')
     .join('companies', 'bank_accounts.company_id', 'companies.id')
-    .where('companies.is_demo_company', true);
+    .where('companies.workspace_class', 'demo');
 
   // Apply shortCode-based filtering (same as deleteDemoData does)
   if (filters) {

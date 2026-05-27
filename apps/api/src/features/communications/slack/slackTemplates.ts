@@ -1,4 +1,5 @@
 import type { KnownBlock } from '@slack/types';
+
 import type {
   AlertBlockParams,
   UserCallbackBlockParams,

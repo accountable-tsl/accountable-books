@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 /**
  * Configuration object for data table filtering and sorting options.
  *

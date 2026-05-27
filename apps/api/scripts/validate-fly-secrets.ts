@@ -15,14 +15,14 @@
  *   tsx scripts/validate-fly-secrets.ts staging
  *   tsx scripts/validate-fly-secrets.ts production
  */
-
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import type {
   Environment,
   EnvSchema,
   EnvVariableConfig,
-} from '@accountable-books/utils/env/types';
+} from '@accountable-books/utils/env';
+
 import { API_ENV_SCHEMA } from '../config/env-schema.js';
 
 const execAsync = promisify(exec);

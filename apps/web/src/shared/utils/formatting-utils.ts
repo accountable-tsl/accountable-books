@@ -1,8 +1,15 @@
 import type { Country } from '@/shared/types/core';
+import {
+  differenceInCalendarDays,
+  format,
+  isValid,
+  parse,
+  startOfDay,
+} from 'date-fns';
 import Decimal from 'decimal.js';
-import { getUserLocale } from './random-utils';
-import { format, parse, isValid } from 'date-fns';
 import z from 'zod';
+
+import { getUserLocale } from './random-utils';
 
 const DEFAULT_DATE_FORMAT = 'dd MMM yyyy';
 const possibleDateFormats = z.enum([
@@ -11,6 +18,7 @@ const possibleDateFormats = z.enum([
   'dd/MM/yyyy',
   'MM/dd/yyyy',
   'yyyy-MM-dd',
+  'MMM dd, yyyy',
 ]);
 type PossibleDateFormats = z.infer<typeof possibleDateFormats>;
 
@@ -62,6 +70,35 @@ export function safeFormatDate({
     console.warn(`Invalid format string: "${formatString}"`, e);
     return format(parsedDate, DEFAULT_DATE_FORMAT);
   }
+}
+
+export function formatRelativeDueDate(
+  isoDate: string,
+  now = new Date(),
+): string {
+  const trimmed = isoDate.trim();
+  let parsed = parse(trimmed, 'yyyy-MM-dd', now);
+  if (!isValid(parsed)) {
+    parsed = parse(trimmed, 'yyyy-M-d', now);
+  }
+  if (!isValid(parsed)) {
+    return `Due ${isoDate}`;
+  }
+
+  const dueDay = startOfDay(parsed);
+  const today = startOfDay(now);
+  const diff = differenceInCalendarDays(dueDay, today);
+
+  if (diff < -1) return `Due ${-diff} days ago`;
+  if (diff === -1) return 'Due yesterday';
+  if (diff === 0) return 'Due today';
+  if (diff === 1) return 'Due tomorrow';
+  if (diff <= 7) return `Due in ${diff} days`;
+
+  const sameYear = dueDay.getFullYear() === today.getFullYear();
+  return sameYear
+    ? `Due ${format(dueDay, 'MMM d')}`
+    : `Due ${format(dueDay, 'MMM d, yyyy')}`;
 }
 
 /**
@@ -359,4 +396,78 @@ export function formatAmountInMillions(
   options?: Parameters<typeof formatAmount>[1],
 ): string {
   return formatAmount(Number(amount) / 1_000_000, options);
+}
+
+/** Unit threshold above which we abbreviate (K, M, B, T). Below it we show the number in full. */
+export type CompactAmountUnit = 'thousand' | 'million' | 'billion' | 'trillion';
+
+const COMPACT_THRESHOLDS: Record<CompactAmountUnit, number> = {
+  thousand: 1e3,
+  million: 1e6,
+  billion: 1e9,
+  trillion: 1e12,
+};
+
+const COMPACT_SUFFIXES: Record<CompactAmountUnit, string> = {
+  thousand: 'K',
+  million: 'M',
+  billion: 'B',
+  trillion: 'T',
+};
+
+/**
+ * Format a number: in full (locale + decimals) below the given unit threshold,
+ * then abbreviate with suffix (K, M, B, T) at or above it.
+ * Pass the unit (e.g. fullUntil: 'billion') to control when we switch to abbreviated.
+ */
+export function formatAmountCompact(
+  val: number,
+  options: {
+    /** Show in full below this unit; abbreviate at or above it. Default "billion". */
+    fullUntil?: CompactAmountUnit;
+    locale?: string;
+    decimals?: number;
+  } = {},
+): string {
+  const { fullUntil = 'billion', locale = 'en-US', decimals = 2 } = options;
+  const abs = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  const threshold = COMPACT_THRESHOLDS[fullUntil];
+
+  if (abs < threshold) {
+    return `${sign}${abs.toLocaleString(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}`;
+  }
+
+  if (abs >= COMPACT_THRESHOLDS.trillion)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.trillion).toFixed(decimals)}${COMPACT_SUFFIXES.trillion}`;
+  if (abs >= COMPACT_THRESHOLDS.billion)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.billion).toFixed(decimals)}${COMPACT_SUFFIXES.billion}`;
+  if (abs >= COMPACT_THRESHOLDS.million)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.million).toFixed(decimals)}${COMPACT_SUFFIXES.million}`;
+  if (abs >= COMPACT_THRESHOLDS.thousand)
+    return `${sign}${(abs / COMPACT_THRESHOLDS.thousand).toFixed(decimals)}${COMPACT_SUFFIXES.thousand}`;
+
+  return `${sign}${abs.toLocaleString(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+}
+
+/**
+ * Two-letter initials for avatar fallbacks (company or person display name).
+ * With multiple words, uses the first character of the first and last word; otherwise up to two characters from the string.
+ */
+export function getAvatarInitials(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return '?';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = parts[0]?.[0] ?? '';
+    const b = parts[parts.length - 1]?.[0] ?? '';
+    return (a + b).toUpperCase();
+  }
+  return trimmed.slice(0, 2).toUpperCase();
 }

@@ -1,9 +1,11 @@
 import type { Knex } from 'knex';
+
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
+} from './utils/db.js';
+import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 
 const tableName = 'journal_batches';
 
@@ -11,11 +13,14 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
 
-    table.string('code').nullable();
-    table.integer('sequence_number').nullable(); //Raw sequence numnber (increment per company when creating journal. KISS)
-    table.timestamp('date', { useTz: true }).notNullable();
+    table.date('sequence_month').nullable(); // first day of month for sequencing
+    table.integer('sequence_number').nullable();
+
+    table.string('reference').nullable(); // User defined / null / JE-YYYYMM-NNNN (sequence bucket + sequence number) e.g JE-202601-0007
+
+    table.date('date').notNullable();
     table.string('title', 512).notNullable();
-    table.string('description').nullable();
+    table.text('description').nullable();
     table
       .uuid('contact_id')
       .nullable()
@@ -34,7 +39,13 @@ export async function up(knex: Knex): Promise<void> {
       .defaultTo('draft')
       .notNullable();
 
-    table.boolean('is_recurring').notNullable().defaultTo(false);
+    // table.boolean('is_recurring').notNullable().defaultTo(false);
+    table
+      .string('journal_source')
+      .checkIn(['one_off', 'generated_from_template'])
+      .defaultTo('one_off')
+      .notNullable();
+
     table
       .uuid('recurring_template_id')
       .nullable()
@@ -74,14 +85,27 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('SET NULL');
     table.timestamp('reversed_at', { useTz: true }).nullable();
-    table.specificType('reversal_reason', 'journal_reversal_reason').nullable();
+    table.text('reversal_reason').nullable();
+
+    table.date('auto_reversal_date').nullable();
+    table
+      .uuid('reversal_journal_id')
+      .nullable()
+      .references('id')
+      .inTable('journal_batches')
+      .onDelete('SET NULL');
+    table
+      .uuid('original_journal_id')
+      .nullable()
+      .references('id')
+      .inTable('journal_batches')
+      .onDelete('SET NULL');
+
+    table.timestamp('voided_at', { useTz: true }).nullable();
+
     table.string('note', 2048).nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
-
-    table.unique(['company_id', 'sequence_number'], {
-      indexName: 'journal_batch_company_id_sequence_number_unique',
-    });
 
     table.index(
       ['status', 'company_id'],
@@ -91,52 +115,81 @@ export async function up(knex: Knex): Promise<void> {
 
   await createUpdateTimestampTrigger(knex, tableName);
 
-  // Create function for sequence_number increment and code generation
+  // Additional indexes for manual journals
+  await knex.schema.alterTable(tableName, (table) => {
+    // List queries sorted by date
+    table.index(['company_id', 'date'], 'journal_batch_company_date_desc_idx');
+
+    // Filtered list queries (status + date)
+    table.index(
+      ['company_id', 'status', 'date'],
+      'journal_batch_company_status_date_desc_idx',
+    );
+  });
+
+  // Partial index for auto-reversal job
   await knex.raw(`
-    CREATE OR REPLACE FUNCTION set_journal_batch_sequence_number()
-    RETURNS TRIGGER AS $$
-    DECLARE
-      current_year INTEGER;
-      yearly_sequence INTEGER;
-    BEGIN
-      -- Get current year from creation time
-      current_year := EXTRACT(YEAR FROM NOW());
-      
-      -- Calculate sequence number for this year and company
-      yearly_sequence := (
-        SELECT COALESCE(MAX(sequence_number), 0) + 1
-        FROM journal_batches
-        WHERE company_id = NEW.company_id
-          AND EXTRACT(YEAR FROM created_at) = current_year
-      );
-      
-      -- Always set sequence_number (yearly reset per company)
-      NEW.sequence_number := yearly_sequence;
-      
-      -- Auto-generate code if not provided (but allow manual override)
-      IF NEW.code IS NULL THEN
-        NEW.code := 'JE-' || current_year || '-' || LPAD(yearly_sequence::text, 4, '0');
-      END IF;
-      
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
+    CREATE INDEX journal_batch_auto_reversal_idx
+      ON ${tableName} (company_id, auto_reversal_date)
+      WHERE auto_reversal_date IS NOT NULL
+        AND status = 'posted'
+        AND reversed_at IS NULL
+        AND reversal_journal_id IS NULL
+        AND is_deleted = false;
   `);
 
-  // Create trigger to set sequence_number and code before insert
+  // Unique posted sequence per company per month
   await knex.raw(`
-    CREATE TRIGGER trigger_set_journal_batch_sequence_number
-    BEFORE INSERT ON journal_batches
-    FOR EACH ROW
-    EXECUTE FUNCTION set_journal_batch_sequence_number();
+     CREATE UNIQUE INDEX journal_batch_company_month_seq_unique
+       ON ${tableName} (company_id, sequence_month, sequence_number)
+       WHERE reference IS NOT NULL
+         AND is_deleted = false;
+   `);
+
+  // Unique reference per company (so JE-YYYYMM-NNNN can't collide)
+  await knex.raw(`
+     CREATE UNIQUE INDEX journal_batch_company_reference_unique
+       ON ${tableName} (company_id, reference)
+       WHERE reference IS NOT NULL
+         AND is_deleted = false;
+   `);
+
+  // Partial unique index for recurring journal idempotency
+  await knex.raw(`
+    CREATE UNIQUE INDEX journal_batch_recurring_idempotency_idx
+      ON ${tableName} (recurring_template_id, date)
+      WHERE recurring_template_id IS NOT NULL
+        AND is_deleted = false;
   `);
+
+  await knex.raw(`
+    ALTER TABLE journal_batches
+    ADD CONSTRAINT journal_batches_sequence_month_first_day_chk
+    CHECK (
+      sequence_month IS NULL
+      OR sequence_month = date_trunc('month', sequence_month)::date
+    );
+  `);
+
+  await knex.raw(`
+    ALTER TABLE journal_batches
+    ADD CONSTRAINT journal_batches_source_template_chk
+    CHECK (
+      (journal_source = 'generated_from_template' AND recurring_template_id IS NOT NULL)
+      OR (journal_source = 'one_off' AND recurring_template_id IS NULL)
+    );
+  `);
+
+  await createTrgmIndexes(knex, tableName, [
+    'reference',
+    'title',
+    'description',
+    'note',
+  ]);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(
-    'DROP TRIGGER IF EXISTS trigger_set_journal_batch_sequence_number ON journal_batches;',
-  );
-  await knex.raw('DROP FUNCTION IF EXISTS set_journal_batch_sequence_number;');
+  await dropTrgmIndexes(knex, tableName);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

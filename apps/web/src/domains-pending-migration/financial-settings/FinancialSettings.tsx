@@ -1,12 +1,12 @@
+import { useMemo } from 'react';
+import { CenteredLoader } from '@/components/CenteredLoader';
+import ErrorPage from '@/components/ErrorPage';
 import { TooltipHelper } from '@/components/TooltipHelper';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Info } from 'lucide-react';
-import { useSession } from '@session';
-import { CenteredLoader } from '@/components/CenteredLoader';
-import ErrorPage from '@/components/ErrorPage';
-import { useMemo } from 'react';
 import { generateDateRange } from '@/shared/utils/date-utils';
+import { useSession } from '@session';
+import { Info } from 'lucide-react';
 
 const TOOLTIP = {
   baseCurrency:
@@ -20,9 +20,6 @@ const TOOLTIP = {
 
 export const FinancialSettings = () => {
   const { company, loading } = useSession();
-
-  if (loading) return <CenteredLoader />;
-  if (!company) return <ErrorPage type="default" />;
 
   const accountingBasis = useMemo(
     () =>
@@ -45,30 +42,35 @@ export const FinancialSettings = () => {
 
   const currency = useMemo(
     () => ({
-      code: company.reportingCurrencyCode,
-      name: company.reportingCurrencyName,
-      symbol: company.reportingCurrencySymbol,
+      code: company?.reportingCurrencyCode,
+      name: company?.reportingCurrencyName,
+      symbol: company?.reportingCurrencySymbol,
     }),
     [
-      company.reportingCurrencyCode,
-      company.reportingCurrencyName,
-      company.reportingCurrencySymbol,
+      company?.reportingCurrencyCode,
+      company?.reportingCurrencyName,
+      company?.reportingCurrencySymbol,
     ],
   );
 
   const { start: fyStart, end: fyEnd } = useMemo(
     () =>
-      generateDateRange({
-        endDay: company.yearEndDay,
-        endMonth: company.yearEndMonth,
-        distance: 1,
-        unit: 'years',
-      }),
-    [company.yearEndDay, company.yearEndMonth],
+      company
+        ? generateDateRange({
+            endDay: company.yearEndDay,
+            endMonth: company.yearEndMonth,
+            distance: 1,
+            unit: 'years',
+          })
+        : { start: null, end: null },
+    [company],
   );
 
+  if (loading) return <CenteredLoader />;
+  if (!company) return <ErrorPage type="default" />;
+
   return (
-    <div className="flex flex-col space-y-6 max-w-full overflow-clip">
+    <div className="flex max-w-full flex-col space-y-6 overflow-clip">
       <div className="pt-4">
         <div className="px-8">
           <h2 className="text-lg font-medium">Financial Settings</h2>
@@ -76,8 +78,8 @@ export const FinancialSettings = () => {
             This is your company's accounting configurations.
           </p>
         </div>
-        <div className="flex gap-2 items-center text-sm p-2 px-8 bg-muted">
-          <Info className="flex-shrink-0 w-4 h-4" />
+        <div className="bg-muted flex items-center gap-2 p-2 px-8 text-sm">
+          <Info className="h-4 w-4 shrink-0" />
           <p>
             These settings were configured during the initial setup of your
             account and cannot be changed.
@@ -85,8 +87,8 @@ export const FinancialSettings = () => {
         </div>
         <Separator />
       </div>
-      <div className="px-8 grid grid-cols-2 gap-8">
-        <div className="flex flex-col space-y-2 border p-3 rounded-md">
+      <div className="grid grid-cols-2 gap-8 px-8">
+        <div className="flex flex-col space-y-2 rounded-md border p-3">
           <div>
             <div className="flex items-center gap-1">
               <p className="font-medium">Base Currency</p>
@@ -97,7 +99,7 @@ export const FinancialSettings = () => {
             </p>
           </div>
           <Separator />
-          <div className="flex items-center gap-2 py-1 flex-1">
+          <div className="flex flex-1 items-center gap-2 py-1">
             <strong className="font-medium">{`${currency.code}`}</strong>
             <span className="text-muted-foreground">
               {` ${currency.name} ${currency.symbol ? `(${currency.symbol})` : ''} 🔒`}
@@ -105,7 +107,7 @@ export const FinancialSettings = () => {
           </div>
         </div>
 
-        <div className="flex flex-col space-y-2 border p-3 rounded-md">
+        <div className="flex flex-col space-y-2 rounded-md border p-3">
           <div>
             <div className="flex items-center gap-1">
               <p className="font-medium">Financial Year</p>
@@ -117,18 +119,18 @@ export const FinancialSettings = () => {
           </div>
           <Separator />
           <div className="flex items-center gap-2 py-1">
-            <div className="flex justify-between w-full min-h-0 h-full gap-4">
-              <div className="flex items-center gap-2 justify-between flex-1">
+            <div className="flex h-full min-h-0 w-full justify-between gap-4">
+              <div className="flex flex-1 items-center justify-between gap-2">
                 <p>Start Date</p>
                 <Badge>
-                  {fyStart.monthName} {fyStart.dayNumber}
+                  {fyStart?.monthName} {fyStart?.dayNumber}
                 </Badge>
               </div>
               <Separator orientation="vertical" />
-              <div className="flex items-center gap-2 justify-between flex-1">
+              <div className="flex flex-1 items-center justify-between gap-2">
                 <p>End Date</p>
                 <Badge>
-                  {fyEnd.monthName} {fyEnd.dayNumber}
+                  {fyEnd?.monthName} {fyEnd?.dayNumber}
                 </Badge>
               </div>
             </div>
@@ -136,7 +138,7 @@ export const FinancialSettings = () => {
         </div>
 
         <div>
-          <div className="flex flex-col space-y-2 border p-3 rounded-md">
+          <div className="flex flex-col space-y-2 rounded-md border p-3">
             <div>
               <div className="flex items-center gap-1">
                 <p className="font-medium">Accounting Basis</p>
@@ -150,7 +152,7 @@ export const FinancialSettings = () => {
               </p>
             </div>
             <Separator />
-            <div className="flex items-center gap-2 py-1 flex-1">
+            <div className="flex flex-1 items-center gap-2 py-1">
               <p className="font-medium">{accountingBasis || '-'}</p>
             </div>
           </div>
@@ -159,7 +161,7 @@ export const FinancialSettings = () => {
         {/* if not platform, show this */}
         {assignedFirm && (
           <div>
-            <div className="flex flex-col space-y-2 p-3 rounded-md">
+            <div className="flex flex-col space-y-2 rounded-md p-3">
               <div>
                 <div className="flex items-center gap-1">
                   <p className="font-medium">Accounting Firm</p>
@@ -169,7 +171,7 @@ export const FinancialSettings = () => {
                 </p>
               </div>
               <Separator />
-              <div className="flex items-center gap-2 py-1 flex-1">
+              <div className="flex flex-1 items-center gap-2 py-1">
                 <p className="font-medium">{assignedFirm}</p>
               </div>
             </div>

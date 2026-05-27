@@ -1,0 +1,20 @@
+from pydantic import BaseModel, constr
+from typing import Optional
+from enum import Enum
+from datetime import datetime
+
+class StatusEnum(str, Enum):
+    PAID = "paid"
+    OPEN = "open"
+    VOID = "void"
+    UNCOLLECTIBLE = "uncollectible"
+
+class BillingInvoiceSummarySchema(BaseModel):
+    id: constr(min_length=1, max_length=64)
+    number: constr(min_length=1, max_length=64)
+    amount: float
+    displayAmount: Optional[constr(min_length=1, max_length=64)] = None
+    currencyCode: constr(min_length=3, max_length=3)
+    currencySymbol: Optional[Optional[constr(min_length=1, max_length=8)]] = None
+    status: StatusEnum
+    issuedAt: datetime

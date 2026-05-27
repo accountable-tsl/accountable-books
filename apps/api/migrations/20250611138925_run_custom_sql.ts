@@ -1,7 +1,7 @@
-import type { Knex } from 'knex';
-import path from 'path';
 import fs from 'fs/promises';
+import path from 'path';
 import { fileURLToPath } from 'url';
+import type { Knex } from 'knex';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,8 +9,13 @@ const __dirname = path.dirname(__filename);
 const sqlDir = path.join(__dirname, 'sql');
 console.log('SQL Dir:', sqlDir); // Verify path
 
+// Files that have their own dedicated migrations and should be excluded
+const EXCLUDED_FILES = [''];
+
 export async function up(knex: Knex): Promise<void> {
-  const files = (await fs.readdir(sqlDir)).filter((f) => f.endsWith('.sql'));
+  const files = (await fs.readdir(sqlDir))
+    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => !EXCLUDED_FILES.includes(f));
   const sorted = files.sort();
 
   for (const file of sorted) {
@@ -21,7 +26,9 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  const files = (await fs.readdir(sqlDir)).filter((f) => f.endsWith('.sql'));
+  const files = (await fs.readdir(sqlDir))
+    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => !EXCLUDED_FILES.includes(f));
   const sorted = files.sort().reverse(); // reverse order for safe teardown
 
   for (const file of sorted) {
@@ -57,9 +64,6 @@ export async function down(knex: Knex): Promise<void> {
     'schedule_ledger_entries_partition_cron',
     'guard_ledger_entries_update',
     'prevent_ledger_entries_delete',
-
-    // Platform functions
-    'prevent_platform_flag_update',
 
     // Utility functions (may be created by multiple migrations)
     'update_timestamp',

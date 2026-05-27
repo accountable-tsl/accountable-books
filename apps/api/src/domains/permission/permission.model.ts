@@ -1,10 +1,11 @@
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import {
   AppError,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 export async function getPermissionsForRole(
   roleId: string,

@@ -1,17 +1,19 @@
 import type { Knex } from 'knex';
+
+import { addNewProjects } from '../../../../src/domains/projects/projects.model.js';
 import {
   deleteDemoData,
   getDemoCompanies,
   getDemoUserMap,
 } from '../../shared/utils.js';
 import {
-  getRawProjectsForInsertion,
   generateDemoProjectsMap,
-  type CompanyProjectsMap,
+  getRawProjectsForInsertion,
 } from './projects.data.js';
 import { demoProjectsByCompanyMap } from './projects.state.js';
+
 import type { DemoFilter } from '../../shared/config.js';
-import { addNewProjects } from '../../../../src/domains/projects/projects.model.js';
+import type { CompanyProjectsMap } from './projects.data.js';
 
 /**
  * Assign contact IDs to projects using database query
@@ -113,7 +115,7 @@ export const createDemoProjects = async (
     );
 
     // Create projects
-    const userId = getUserId(user.email);
+    const userId = getUserId(user.email ?? '');
     const res = await addNewProjects({
       input: withContacts,
       trx,

@@ -1,7 +1,8 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
 import type { Knex } from 'knex';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { createDemoUsers, deleteDemoUsers } from './users.fn.js';
-import { DEMO_USERS, US_USER, NG_USER } from './users.data.js';
 
 // Mock the createUser function from the migration file
 vi.mock('../../../../migrations/20250403184441_users.ts', () => ({
@@ -25,7 +26,7 @@ describe('Users Data', () => {
       lastname: 'Doe',
       email: 'demo.us@example.com',
       password: 'StrongDemoPass!',
-      is_demo_user: true,
+      user_type: 'demo',
     });
   });
 
@@ -35,7 +36,7 @@ describe('Users Data', () => {
       lastname: 'Doe',
       email: 'demo.ng@example.com',
       password: 'StrongDemoPass!',
-      is_demo_user: true,
+      user_type: 'demo',
     });
   });
 
@@ -138,14 +139,14 @@ describe('createDemoUsers', () => {
     expect(mockCreateUser).toHaveBeenCalledWith({
       user: expect.objectContaining({
         email: 'demo.us@example.com',
-        is_demo_user: true,
+        user_type: 'demo',
       }),
       trx: mockTransaction,
     });
     expect(mockCreateUser).toHaveBeenCalledWith({
       user: expect.objectContaining({
         email: 'demo.ng@example.com',
-        is_demo_user: true,
+        user_type: 'demo',
       }),
       trx: mockTransaction,
     });
@@ -227,7 +228,7 @@ describe('deleteDemoUsers', () => {
     // When no filters provided, should delete all demo users
     await deleteDemoUsers(transaction);
 
-    expect(mockWhere).toHaveBeenCalledWith('is_demo_user', true);
+    expect(mockWhere).toHaveBeenCalledWith('user_type', 'demo');
     expect(mockDelete).toHaveBeenCalled();
   });
 

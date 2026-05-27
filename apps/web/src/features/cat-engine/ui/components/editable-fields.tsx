@@ -1,0 +1,236 @@
+import type { GroupedTransaction } from '@/modules/accounting/categorization';
+import { useEffect, useState } from 'react';
+import { DatePicker } from '@/components/date-picker/date-picker';
+import { useLedgerIntentUpdaterV2 as useLedgerIntentUpdater } from '@/modules/accounting/categorization';
+import { toYMD } from '@/shared/utils/date-utils';
+
+import { resolveEditableEntryId } from '../utils/resolve-editable-entry';
+
+// For String
+export function EditableTextCell({
+  value = '',
+  onCommit,
+  placeholder,
+  markDirty,
+  txn,
+  field,
+  onCommitted,
+  disabled = false,
+}: {
+  value?: string;
+  placeholder?: string;
+  onCommit?: (value: string) => void;
+  markDirty: () => void;
+  txn: GroupedTransaction;
+  field: 'description' | 'reference';
+  onCommitted?: () => void;
+  disabled?: boolean;
+}) {
+  const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const commitIfDirty = () => {
+    if (localValue !== value) {
+      if (onCommit) {
+        onCommit(localValue);
+      } else {
+        const entryId = resolveEditableEntryId(txn, addEntry, getEntriesUI());
+        if (!entryId) return;
+        updateEntry(entryId, {
+          [field as 'description' | 'reference']: localValue || null,
+        });
+        onCommitted?.();
+      }
+    }
+  };
+
+  const handleChange = (value: string | undefined) => {
+    if (value !== localValue) {
+      setLocalValue(value || ''); // UI only
+      markDirty();
+    }
+  };
+
+  if (disabled) {
+    return (
+      <div
+        className="w-full cursor-not-allowed p-1 pl-0 opacity-60"
+        title={value || placeholder}
+      >
+        {value || placeholder || ''}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex" title={value}>
+      <input
+        type="text"
+        placeholder={placeholder || ''}
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)} // UI only
+        onBlur={commitIfDirty} // intent
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur(); // forces commit
+          }
+        }}
+        className="w-full p-1 pl-0 focus-within:border-1 focus-within:pl-1 focus-within:text-blue-500"
+      />
+    </div>
+  );
+}
+
+// For FS Date
+export function EditableDateCell({
+  value,
+  onCommit,
+  markDirty,
+  txn,
+  onCommitted,
+  disabled = false,
+}: {
+  value?: Date;
+  onCommit?: (date: Date | undefined) => void;
+  markDirty: () => void;
+  txn: GroupedTransaction;
+  onCommitted?: () => void;
+  disabled?: boolean;
+}) {
+  const { updateEntry, addEntry, getEntriesUI } = useLedgerIntentUpdater(txn);
+  const [localDate, setLocalDate] = useState<Date | undefined>(value);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setLocalDate(value);
+  }, [value]);
+
+  const commitIfDirty = () => {
+    if (localDate?.getTime() !== value?.getTime()) {
+      if (onCommit) {
+        onCommit(localDate);
+      } else {
+        const entryId = resolveEditableEntryId(txn, addEntry, getEntriesUI());
+        if (!entryId) return;
+        updateEntry(entryId, { fs_date: toYMD(localDate!) });
+        onCommitted?.();
+      }
+    } else {
+      setLocalDate(value); // revert if invalid/no change
+    }
+  };
+
+  const handleChange = (value: Date | undefined) => {
+    if (!value) return;
+    setLocalDate(value); // UI only
+    markDirty();
+  };
+
+  if (disabled) {
+    return (
+      <div
+        className="cursor-not-allowed p-1 pl-0 opacity-60"
+        title={value?.toLocaleDateString()}
+      >
+        {value ? value.toLocaleDateString() : ''}
+      </div>
+    );
+  }
+
+  return (
+    <DatePicker
+      showLabel={false}
+      value={localDate}
+      onChange={(date) => handleChange(date)} // UI only
+      classNames={{
+        wrapper: 'contents',
+        trigger:
+          'border-0 rounded-none shadow-none focus-visible:border-0 focus-visible:ring-0 !pl-0 bg-transparent dark:bg-transparent dark:text-muted-foreground dark:hover:bg-transparent',
+      }}
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) commitIfDirty(); // commit when popover closes
+        setOpen(isOpen);
+      }}
+    />
+  );
+}
+
+// For Numbers (e.g., Exchange Rate)
+export function EditableNumberCell({
+  value = '',
+  onCommit,
+  markDirty,
+  placeholder,
+  decimals = 4,
+  min,
+  max,
+  disabled = false,
+}: {
+  value?: string | number;
+  onCommit: (value: string) => void;
+  markDirty: () => void;
+  placeholder?: string;
+  decimals?: number;
+  min?: number;
+  max?: number;
+  disabled?: boolean;
+}) {
+  const [localValue, setLocalValue] = useState(value?.toString() || '');
+
+  useEffect(() => {
+    setLocalValue(value?.toString() || '');
+  }, [value]);
+
+  const commitIfDirty = () => {
+    const numValue = parseFloat(localValue);
+    if (!isNaN(numValue) && numValue !== Number(value)) {
+      const clamped = Math.min(
+        Math.max(numValue, min ?? numValue),
+        max ?? numValue,
+      );
+      onCommit?.(clamped.toFixed(decimals));
+    } else {
+      setLocalValue(value?.toString() || ''); // revert
+    }
+  };
+
+  const handleChange = (value: string | undefined) => {
+    if (value !== localValue) {
+      setLocalValue(value || '');
+      markDirty();
+    }
+  };
+
+  if (disabled) {
+    return (
+      <div
+        className="w-full cursor-not-allowed p-1 text-right opacity-60"
+        title={localValue || placeholder}
+      >
+        {localValue || placeholder || ''}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex" title={localValue}>
+      <input
+        type="text"
+        inputMode="decimal"
+        placeholder={placeholder || ''}
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)} // UI only
+        onBlur={commitIfDirty} // commit intent
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur(); // forces commit
+        }}
+        className="w-full p-1 text-right focus-within:border-1 focus-within:text-blue-500"
+      />
+    </div>
+  );
+}

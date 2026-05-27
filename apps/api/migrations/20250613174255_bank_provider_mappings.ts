@@ -1,13 +1,14 @@
 import type { Knex } from 'knex';
+import axios from 'axios';
+
+import { ENV } from '../config/env-loader.js';
+import { adminUser } from './20250403184441_users.js';
+import { countryMap } from './20250404021752_banks.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db';
-import { adminUser } from './20250403184441_users';
-import { ENV } from '../config/env-loader';
-import axios from 'axios';
-import { countryMap } from './20250404021752_banks';
+} from './utils/db.js';
 
 interface MonoInstitution {
   id: string;
@@ -89,9 +90,15 @@ async function syncMonoInstitutionsToMappingsNG(
   ]);
 
   // Create lookup maps
-  const banksByLocalCode = new Map<string, any>();
-  const banksBySecondaryRef = new Map<string, any>();
-  let otherFI: any = null;
+  interface BankRow {
+    id: string;
+    local_code: string | null;
+    secondary_reference: string | null;
+    key: string;
+  }
+  const banksByLocalCode = new Map<string, BankRow>();
+  const banksBySecondaryRef = new Map<string, BankRow>();
+  let otherFI: BankRow | null = null;
 
   for (const b of allBanks) {
     if (b.local_code) banksByLocalCode.set(b.local_code, b);
@@ -103,15 +110,20 @@ async function syncMonoInstitutionsToMappingsNG(
 
   let created = 0,
     updated = 0;
-  const skipped = 0;
   // Process institutions in batches
   const BATCH_SIZE = parseInt(ENV.MONO_SYNC_BATCH_SIZE ?? '50', 10) || 50;
   for (let i = 0; i < monoNG.length; i += BATCH_SIZE) {
     const batch = monoNG.slice(i, i + BATCH_SIZE);
 
+    interface MappingRow {
+      bank_id: string;
+      provider_bank_id: string;
+      provider_bank_name: string;
+      raw_provider_data: Record<string, unknown>;
+    }
     const processInTransaction = async (trx: Knex | Knex.Transaction) => {
-      const toInsert: any[] = [];
-      const toUpdate: any[] = [];
+      const toInsert: MappingRow[] = [];
+      const toUpdate: MappingRow[] = [];
 
       for (const inst of batch) {
         // Simplified bank lookup

@@ -1,0 +1,121 @@
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useClientDashboardOverview } from '@/modules/company/client-dashboard';
+
+import { ACTION_CENTER_ID, CARD_HEADER_CLASS } from '../constants';
+
+export function DashboardRightRail() {
+  const { data: overview } = useClientDashboardOverview();
+  const hasConnectedBank = overview?.hasConnectedBank ?? false;
+  const actionTasks = overview?.actionCenterTasks ?? [];
+  const complianceAlerts = overview?.complianceAlerts ?? [];
+  const quickActions = overview?.quickActions ?? [];
+
+  return (
+    <div
+      id={ACTION_CENTER_ID}
+      className="flex min-w-0 flex-col gap-4 lg:w-[320px] lg:shrink-0 xl:w-[380px]"
+    >
+      <div className="bg-background border-border/50 flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
+        <div className={cn(CARD_HEADER_CLASS, 'text-sm md:px-5')}>
+          <p className="text-foreground min-w-0 truncate font-semibold">
+            Action Center
+          </p>
+        </div>
+        <div className="flex flex-col">
+          {!hasConnectedBank || actionTasks.length === 0 ? (
+            <div className="p-4 md:px-5">
+              <p className="text-muted-foreground text-sm">
+                No actions needed from you right now.
+              </p>
+            </div>
+          ) : (
+            actionTasks.map((task) => (
+              <div
+                key={task.id}
+                className="border-border/50 hover:bg-muted/30 group flex min-w-0 flex-col gap-3 border-b p-4 text-sm transition-colors last:border-0 sm:flex-row sm:items-center sm:justify-between md:px-5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="group-hover:text-primary font-medium transition-colors">
+                    {task.title}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Due: <span className="text-foreground">{task.due}</span> ·{' '}
+                    <span className="text-destructive/80 font-medium">
+                      {task.impact}
+                    </span>
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full shrink-0 font-medium shadow-sm transition-transform active:scale-95 sm:w-auto"
+                  onClick={() => {}}
+                >
+                  {task.ctaLabel}
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="bg-background border-border/50 flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
+        <div className={cn(CARD_HEADER_CLASS, 'text-sm md:px-5')}>
+          <p className="text-foreground min-w-0 truncate font-semibold">
+            Deadlines
+          </p>
+        </div>
+        <div className="flex flex-col">
+          {!hasConnectedBank || complianceAlerts.length === 0 ? (
+            <div className="p-4 md:px-5">
+              <p className="text-muted-foreground text-xs">
+                No upcoming deadlines.
+              </p>
+            </div>
+          ) : (
+            complianceAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="text-muted-foreground border-border/50 hover:bg-muted/30 flex min-w-0 flex-wrap items-center justify-between gap-2 border-b p-4 text-xs transition-colors last:border-0 sm:flex-nowrap md:px-5"
+              >
+                <span className="text-foreground/80 font-medium">
+                  {alert.title}
+                  {alert.due != null && ` · ${alert.due}`}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="bg-background border-border/50 flex min-w-0 flex-col overflow-hidden rounded-xl border shadow-sm">
+        <div className={cn(CARD_HEADER_CLASS, 'text-sm md:px-5')}>
+          <p className="text-foreground min-w-0 truncate font-semibold">
+            Quick actions
+          </p>
+        </div>
+        <div className="flex flex-col">
+          {quickActions.map((action) => (
+            <div
+              key={action.label}
+              className="border-border/50 hover:bg-muted/30 flex min-w-0 items-center justify-between gap-2 border-b p-3 transition-colors last:border-0 md:px-5"
+            >
+              <span className="min-w-0 text-sm font-medium">
+                {action.label}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 font-medium"
+                onClick={() => {}}
+              >
+                Go
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import {
   getBankAccountsForCompany,
   getMinimalBankAccountDetails,
   updateBankAccounts,
 } from '../api';
+
 import type { UpdateBankAccount } from './types';
 
 // Reusable invalidation function

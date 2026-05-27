@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
+
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import {
   errorResponse,
   successResponse,
@@ -13,6 +13,9 @@ import {
   type FinancialStatementDTO,
   type ParentAccountElementDTO,
 } from './account.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+
 // import { redis } from '../../lib/redis.js';
 // import { invalidateCoaInMemoryCache } from './account.registry.js';
 
@@ -105,6 +108,7 @@ async function fetchAccountTypes(
       'at.label',
       'at.description',
       'at.report_code as reportCode',
+      'at.accrual_targets as accrualTargets',
 
       'ae.id as elementId',
       'ae.key as elementKey',
@@ -136,6 +140,7 @@ async function fetchAccountTypes(
         description: r.description,
         reportCode: r.reportCode,
         elementKey: r.elementKey,
+        accrualTargets: r.accrualTargets,
       }) satisfies AccountTypeDTO,
   );
 

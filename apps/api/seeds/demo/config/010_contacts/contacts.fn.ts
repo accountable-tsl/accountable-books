@@ -1,12 +1,14 @@
 import type { Knex } from 'knex';
+
 import { deleteDemoData, getDemoUserMap } from '../../shared/utils.js';
 import {
-  getRawContactsForInsertion,
   generateDemoContactsMap,
-  type CompanyContactsMap,
+  getRawContactsForInsertion,
 } from './contacts.data.js';
 import { demoContactsByCompanyMap } from './contacts.state.js';
+
 import type { DemoFilter } from '../../shared/config.js';
+import type { CompanyContactsMap } from './contacts.data.js';
 
 /**
  * Create demo contacts in the database

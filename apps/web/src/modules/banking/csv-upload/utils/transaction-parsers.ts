@@ -1,9 +1,9 @@
-import {
-  type BankTransactionInsert,
-  type ParsedBankTxn,
-  rawRowSchema,
-  type TransformResult,
+import type {
+  BankTransactionInsert,
+  ParsedBankTxn,
+  TransformResult,
 } from '@/modules/banking/csv-upload/model/types';
+import { rawRowSchema } from '@/modules/banking/csv-upload/model/types';
 import { debitCredit } from '@/shared/types/core';
 import {
   parseDateString,

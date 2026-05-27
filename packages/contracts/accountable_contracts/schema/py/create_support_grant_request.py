@@ -1,0 +1,14 @@
+from pydantic import BaseModel, constr
+from enum import Enum
+from datetime import datetime
+from uuid import UUID
+
+class SupportAccessLevelEnum(str, Enum):
+    READ_ONLY = "read_only"
+    COMPANY_PROFILE_WRITE = "company_profile_write"
+
+class CreateSupportGrantRequest(BaseModel):
+    supportUserId: UUID
+    supportAccessLevel: SupportAccessLevelEnum
+    expiresAt: datetime
+    reason: constr(min_length=1, max_length=500)

@@ -18,14 +18,14 @@ export const PasswordStrengthMeter: React.FC<Props> = ({
 
   return (
     <div className={`${className?.root || ''} w-full`}>
-      <div className={`h-1 w-full bg-border rounded ${className?.bar || ''}`}>
+      <div className={`bg-border h-1 w-full rounded ${className?.bar || ''}`}>
         <div
           className={`h-1 ${levels[score]} rounded transition-all ${className?.bar || ''}`}
           style={{ width: `${(score + 1) * 20}%` }}
         />
       </div>
       <p
-        className={`text-xs text-muted-foreground mt-1 ${className?.label || ''}`}
+        className={`text-muted-foreground mt-1 text-xs ${className?.label || ''}`}
       >
         {labels[score]}
       </p>

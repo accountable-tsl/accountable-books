@@ -1,34 +1,38 @@
-import {
-  errorResponse,
-  successResponse,
-} from '../../../shared/utils/response.utils.js';
-import { knexClient } from '../../../db/knexClient.js';
-import type { ApiResponse } from '../../../core/types/api.types.js';
-import {
-  bankAccountWithConnectionInput,
-  type BankAccountWithConnectionInput,
-  type BankAccountWithMeta,
-  type CompanyBankingSnapshot,
-  type ManualBankAccountInput,
-  manualBankAccountInputCamel,
-  newBankAccountInput,
-  type NewBankAccountInput,
-  updateBankAccount,
-  type UpdateBankAccount,
-} from './bankAccounts.types.js';
-import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import type { Knex } from 'knex';
-import { getAccountTypeByKey } from '../../account/account.registry.js';
+import z from 'zod';
+
+import { knexClient } from '../../../db/knexClient.js';
 import {
   getCurrency,
   getCurrencyById,
 } from '../../../domains/currencies/currencies.utils.js';
-import logger from '../../../shared/utils/logger.js';
-import z from 'zod';
-import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
-import { setBankOpeningBalance } from '../../balances/openingBalance/openingBalance.service.js';
-import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
 import { toYMD } from '../../../shared/utils/date.utils.js';
+import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
+import logger from '../../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
+import {
+  errorResponse,
+  successResponse,
+} from '../../../shared/utils/response.utils.js';
+import { getAccountTypeByKey } from '../../account/account.registry.js';
+import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
+import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
+import {
+  bankAccountWithConnectionInput,
+  manualBankAccountInputCamel,
+  newBankAccountInput,
+  updateBankAccount,
+} from './bankAccounts.types.js';
+
+import type { ApiResponse } from '../../../core/types/api.types.js';
+import type {
+  BankAccountWithConnectionInput,
+  BankAccountWithMeta,
+  CompanyBankingSnapshot,
+  ManualBankAccountInput,
+  NewBankAccountInput,
+  UpdateBankAccount,
+} from './bankAccounts.types.js';
 
 const BANK_ACCOUNT_FIELDS = [
   // Bank Account Core Fields
@@ -206,59 +210,45 @@ export const getBankAccountsWithDetails = async (
       return errorResponse('Invalid company ID');
     }
 
-    const query = db('bank_accounts as ba')
-      .select(BANK_ACCOUNT_FIELDS)
-      .select({
-        lastSyncAt: db.raw('COALESCE(ba.last_sync_at, ba.updated_at)'),
-        mask: db.raw(
-          'RIGHT(COALESCE(ba.account_number_mask, ba.account_number), 4)',
-        ),
-        statementBalance: db.raw('COALESCE(bab.native_balance, 0)'),
-        ledgerBalance: db.raw('COALESCE(glb.reporting_currency_balance, 0)'),
-        uncategorizedTxCount: db.raw(`
-          (SELECT COUNT(*)::int 
-           FROM bank_transactions bt 
-           WHERE bt.bank_account_id = ba.id 
-             AND bt.is_deleted = false 
-             AND bt.categorization_status = 'uncategorized')
-        `),
-        needsReviewTxCount: db.raw(`
-          (SELECT COUNT(*)::int 
-           FROM bank_transactions bt 
-           WHERE bt.bank_account_id = ba.id 
-             AND bt.is_deleted = false 
-             AND bt.categorization_status = 'suggested')
-        `),
-        latestExchangeRate: db.raw(`
-          CASE 
-            WHEN ba.currency_id = c.reporting_currency_id THEN '1'
-            ELSE (
-              SELECT er.rate::text 
-              FROM exchange_rates er
-              WHERE er.from_currency_id = ba.currency_id
-                AND er.to_currency_id = c.reporting_currency_id
-                AND er.date <= CURRENT_DATE
-              ORDER BY er.date DESC
-              LIMIT 1
-            )
-          END
-        `),
-      })
-      .where('ba.company_id', companyUUID)
-      .andWhere('ba.is_deleted', false)
-      .join('banks as b', 'ba.bank_id', 'b.id')
-      .join('currencies as cur', 'ba.currency_id', 'cur.id')
-      .join('companies as c', 'ba.company_id', 'c.id')
-      .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
-      .join('coa', 'ba.coa_id', 'coa.id')
-      .leftJoin('account_types as at', 'coa.account_type_id', 'at.id')
-      .leftJoin('bank_feed_providers as p', 'ba.provider_id', 'p.id')
-      .leftJoin(
-        'bank_account_current_native_balances as bab',
-        'bab.bank_account_id',
-        'ba.id',
-      )
-      .leftJoin('gl_current_balances as glb', 'glb.coa_id', 'ba.coa_id');
+    // Query the comprehensive view instead of complex joins
+    const query = db('bank_accounts_metrics_view as bam')
+      .select([
+        'bam.id as id',
+        'bam.display_name as displayName',
+        'bam.account_type as accountType',
+        'bam.coa_id as coaId',
+        'bam.currency_id as currencyId',
+        'bam.bank_id as bankId',
+        'bam.company_id as companyId',
+        'bam.business_or_personal as businessOrPersonal',
+        'bam.bank_name as bankName',
+        'bam.bank_logo as bankLogo',
+        'bam.currency_name as currencyName',
+        'bam.currency_symbol as currencySymbol',
+        'bam.currency_code as currencyCode',
+        'bam.reporting_currency_id as reportingCurrencyId',
+        'bam.reporting_currency_name as reportingCurrencyName',
+        'bam.reporting_currency_symbol as reportingCurrencySymbol',
+        'bam.reporting_currency_code as reportingCurrencyCode',
+        'bam.coa_name as coaName',
+        'bam.coa_code as coaCode',
+        'bam.coa_type_label as coaTypeLabel',
+        'bam.coa_type_key as coaTypeKey',
+        'bam.bank_connection_status as bankConnectionStatus',
+        'bam.provider_bank_account_id as providerBankAccountId',
+        'bam.provider_key as providerKey',
+        'bam.provider_name as providerName',
+        'bam.provider_logo as providerLogo',
+        'bam.connection_credential_id as connectionCredentialId',
+        'bam.last_sync_at as lastSyncAt',
+        'bam.mask as mask',
+        db.raw('bam.statement_balance_native::text as "statementBalance"'),
+        db.raw('bam.ledger_balance_reporting::text as "ledgerBalance"'),
+        'bam.uncategorized_count as uncategorizedTxCount',
+        'bam.needs_review_count as needsReviewTxCount',
+        db.raw('bam.latest_exchange_rate::text as "latestExchangeRate"'),
+      ])
+      .where('bam.company_id', companyUUID);
 
     const result = await query;
 

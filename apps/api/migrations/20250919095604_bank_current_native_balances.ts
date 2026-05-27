@@ -23,7 +23,7 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
-    table.decimal('native_balance', 15, 3).notNullable().defaultTo(0);
+    table.decimal('native_balance', 18, 3).notNullable().defaultTo(0);
 
     table.primary(['company_id', 'bank_account_id']);
   });

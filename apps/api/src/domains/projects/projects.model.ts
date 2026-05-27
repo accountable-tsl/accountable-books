@@ -1,23 +1,24 @@
 import type { Knex } from 'knex';
-import {
-  getProjectsParams,
-  type GetProjectsParams,
-  newProjectInput,
-  type NewProjectInput,
-  type ProjectResponse,
-} from './projects.types.js';
+import z from 'zod';
+
+import { knexClient } from '../../db/knexClient.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import {
   createHybridSearch,
   defineSearchableColumns,
 } from '../../shared/utils/search.utils.js';
-import z from 'zod';
+import { getProjectsParams, newProjectInput } from './projects.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  GetProjectsParams,
+  NewProjectInput,
+  ProjectResponse,
+} from './projects.types.js';
 
 export async function getProjects(
   input: GetProjectsParams,

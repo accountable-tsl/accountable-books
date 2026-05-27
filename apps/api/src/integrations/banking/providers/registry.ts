@@ -1,7 +1,8 @@
-import { BankingProvider } from '../types/base.js';
-import { PlaidProvider } from './plaid.provider.js';
-import { MonoProvider } from './mono.provider.js';
 import { getBankFeedProviders } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.model.js';
+import { BankingProvider } from '../types/base.js';
+import { MonoProvider } from './mono.provider.js';
+import { PlaidProvider } from './plaid.provider.js';
+
 import type {
   BankFeedProviderWithCountries,
   BankProviderKey,

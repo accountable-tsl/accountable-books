@@ -1,0 +1,10 @@
+from pydantic import BaseModel
+from typing import Literal
+from datetime import datetime
+from uuid import UUID
+
+class InviteTeamMemberResponseSentSchema(BaseModel):
+    status: Literal["sent"]
+    inviteId: UUID
+    email: str
+    createdAt: datetime

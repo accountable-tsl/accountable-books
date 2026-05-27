@@ -1,110 +1,147 @@
 import type { Knex } from 'knex';
+import { normalizeTimezoneId } from '@accountable-books/utils/timezone';
+import z from 'zod';
+
+import { NODE_ENV } from '../../config/env.js';
+import { knexClient } from '../../db/knexClient.js';
 import {
-  companyType,
-  type FetchCompaniesOptions,
-  fieldToColumnMap,
-  type GetCompanyResponse,
-  type NewCompany,
-  newCompany,
-  newCompanyInput,
-  type NewCompanyInput,
-  type UpdateCompanySchema,
-  updateCompanySchema,
-} from './companies.types.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
+  type AuthUserContext,
+  type DecodedToken,
+} from '../../features/auth/auth.types.js';
+import {
+  buildAuthContext,
+  generateAuthTokens,
+} from '../../features/auth/auth.utils.js';
+import { markCompanyOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
+import { redis } from '../../lib/redis.js';
+import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
 import {
   isValidUUID,
   snakeToCamel,
 } from '../../shared/utils/formatting.utils.js';
+import { logger } from '../../shared/utils/logger.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
   ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import generateSecureShortCode, {
-  shortCodelooksWeird,
-} from '../../shared/utils/crypto.utils.js';
-import { knexClient } from '../../db/knexClient.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import { updateFirm } from '../accountingFirms/firms.model.js';
+import { writeCompanyProfileUpdatedAudit } from './companies.audit.js';
 import {
-  type AuthUserContext,
-  type DecodedToken,
-} from '../../features/auth/auth.types.js';
+  companyType,
+  fieldToColumnMap,
+  getCompanyResponse,
+  newCompanyInput,
+  updateCompanySchema,
+} from './companies.types.js';
+import { companyNullableStringsEqual } from './companies.utils.js';
 import {
-  createInitialCompanyOnboardingState,
-  markCompanyOnboardingStepComplete,
-} from '../../features/onboarding/onboarding.utils.js';
-import {
-  logger,
-  logError,
-  logDatabaseOperation,
-  logTiming,
-} from '../../shared/utils/logger.js';
-import { getCurrency } from '../currencies/currencies.utils.js';
-import { getCountry } from '../countries/countries.utils.js';
-import { enqueueFiscalCalendarGeneration } from '../../jobs/queues/fiscal-calendar.queue.js';
-import {
-  buildAuthContext,
-  generateAuthTokens,
-} from '../../features/auth/auth.utils.js';
-import { redis } from '../../lib/redis.js';
-import { countryToTimezone } from '../../core/timezones/countryTimezones.js';
+  ensureCompanyBilling,
+  ensureCompanyFirmAssignment,
+  ensureCompanySettings,
+  insertCompanyRecord,
+  runWorkspaceProvisioningSideEffects,
+} from './company-provisioning.service.js';
+import { isDemoWorkspace, isPlatformWorkspace } from './workspace-class.js';
 
-/**
- * Generates a unique short code for a company with collision handling
- *
- * @param trx - Database transaction
- * @param providedShortCode - Optional specific short code to use
- * @param operationLogger - Logger instance for this operation
- * @returns Object with generated short code and attempt count
- */
-async function generateUniqueShortCode(
-  trx: Knex.Transaction,
-  providedShortCode: string | undefined,
-  operationLogger: any,
-): Promise<{ shortCode: string; attempts: number }> {
-  let shortCode: string;
-  let exists = false;
-  let attempts = 0;
-  const maxAttempts = 5;
+import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  AuditActorInput,
+  AuditContextInput,
+} from '../audit/audit.types.js';
+import type {
+  FetchCompaniesOptions,
+  GetCompanyResponse,
+  NewCompany,
+  NewCompanyInput,
+  UpdateCompanySchema,
+} from './companies.types.js';
 
-  do {
-    shortCode = providedShortCode || generateSecureShortCode();
-
-    // If no provided short code, check if generated code looks weird
-    if (!providedShortCode && shortCodelooksWeird(shortCode, 4)) {
-      attempts++;
-      continue; // Skip the database check, just generate another
-    }
-
-    exists = !!(await trx('companies')
-      .where({ short_code: shortCode })
-      .first());
-    attempts++;
-
-    // If we provided a specific short_code and it exists, fail immediately
-    if (providedShortCode && exists) {
-      operationLogger.warn(
-        { providedShortCode },
-        'Provided short code already exists',
-      );
-      throw new AppError(
-        'Provided short code already exists',
-        { shortCode: providedShortCode },
-        true,
-      );
-    }
-  } while (exists && attempts < maxAttempts);
-
-  if (exists) {
-    const error = `Unable to generate unique short code after ${maxAttempts} attempts`;
-    operationLogger.error({ attempts: maxAttempts }, error);
-    throw new AppError(error, { attempts: maxAttempts }, true);
+function companyAuditValuesEqual(a: unknown, b: unknown): boolean {
+  if (
+    typeof a === 'string' ||
+    typeof b === 'string' ||
+    a == null ||
+    b == null
+  ) {
+    return companyNullableStringsEqual(a, b);
   }
 
-  return { shortCode, attempts };
+  return a === b;
+}
+
+function toAuditValue(value: unknown): unknown | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? null : trimmed;
+  }
+  return value;
+}
+
+/**
+ * Map a flat SQL row (plus camelCase keys) to the public company DTO.
+ * Strips internal `*VerifiedAt` columns into nested `verification`.
+ * Uses getCompanyResponse.safeParse so responses match the contract (instead of casting).
+ *
+ * On failure: throws AppError — fetchCompanies should surface this (see catch block).
+ */
+function mapQueryRowToGetCompanyResponse(
+  row: Record<string, unknown>,
+): GetCompanyResponse {
+  const {
+    legalNameVerifiedAt,
+    addressVerifiedAt,
+    registrationNumberVerifiedAt,
+    taxIdVerifiedAt,
+    ...rest
+  } = row;
+
+  // DB: `companies_tz_chk` uses pg_timezone_names. Wire DTO: `companyResponse.defaultTimezone`
+  // is validated with Intl (see @accountable-books/contracts). `normalizeTimezoneId` maps
+  // aliases to canonical zone ids before safeParse so rows stay compatible with both.
+  const defaultTimezone =
+    normalizeTimezoneId(
+      typeof rest.defaultTimezone === 'string' ? rest.defaultTimezone : null,
+    ) ?? 'Etc/UTC';
+
+  const candidate = {
+    ...rest,
+    isDemoCompany: isDemoWorkspace(
+      typeof rest.workspaceClass === 'string' ? rest.workspaceClass : null,
+    ),
+    isPlatform: isPlatformWorkspace(
+      typeof rest.workspaceClass === 'string' ? rest.workspaceClass : null,
+    ),
+    assignedFirmIsPlatform: isPlatformWorkspace(
+      typeof rest.assignedFirmWorkspaceClass === 'string'
+        ? rest.assignedFirmWorkspaceClass
+        : null,
+    ),
+    defaultTimezone,
+    verification: {
+      legalName: { verifiedAt: legalNameVerifiedAt },
+      address: { verifiedAt: addressVerifiedAt },
+      registrationNumber: { verifiedAt: registrationNumberVerifiedAt },
+      taxId: { verifiedAt: taxIdVerifiedAt },
+    },
+  };
+
+  const parsed = getCompanyResponse.safeParse(candidate);
+  if (!parsed.success) {
+    logger.error(
+      { issues: z.flattenError(parsed.error), keys: Object.keys(candidate) },
+      'Company row failed getCompanyResponse validation',
+    );
+    throw new AppError(
+      'Invalid company data shape',
+      parsed.error.flatten(),
+      true,
+    );
+  }
+  return parsed.data;
 }
 
 /**
@@ -148,7 +185,6 @@ export const createCompany = async (
   companyLogger.info('Starting company creation');
 
   // Input validation and sanitization
-  // const snakeInput = camelToSnake(input);
   const validateInput = newCompanyInput.safeParse(input);
 
   if (!validateInput.success) {
@@ -162,202 +198,72 @@ export const createCompany = async (
     return errorResponse(validationError, validateInput.error.flatten());
   }
 
-  if (!input.created_by_id) {
+  if (!validateInput.data.created_by_id) {
     const userIdError = 'User ID is required for company creation';
     companyLogger.warn(userIdError);
     return errorResponse(userIdError);
   }
 
-  const {
-    slug,
-    reporting_currency_id,
-    reporting_currency_code,
-    country_code,
-    country_id,
-    ...rest
-  } = validateInput.data;
-
-  const countryId = country_id
-    ? country_id
-    : country_code && (await getCountry(country_code)).id;
-
-  const reportingCurrencyId = reporting_currency_id
-    ? reporting_currency_id
-    : reporting_currency_code &&
-      (await getCurrency(reporting_currency_code)).id;
-
-  const timezone = country_code ? countryToTimezone[country_code] : undefined;
-  // Sanitize company names (trim and basic cleaning)
-  const sanitizedData = {
-    ...rest,
-    legal_name: rest.legal_name.trim(),
-    display_name: rest.display_name?.trim() || rest.legal_name.trim(),
-    reporting_currency_id: reportingCurrencyId,
-    country_id: countryId,
-    ...(timezone ? { default_timezone: timezone } : {}),
-  };
-
-  const { assigned_firm_id } = sanitizedData;
-
   // Execute company creation within the provided transaction
   try {
-    // Verify user exists and has permission
-    logDatabaseOperation('SELECT', 'users', { userId: input.created_by_id });
-    const userExists = await trx('users')
-      .where({ id: input.created_by_id })
-      .first();
+    const createdById = validateInput.data.created_by_id;
+    const creator = await trx('users')
+      .where({ id: createdById })
+      .first<{ id: string; email: string }>(['id', 'email']);
 
-    if (!userExists) {
-      const authError = `Non-existent user attempting to create company`;
-      companyLogger.warn({ userId: input.created_by_id }, authError);
+    if (!creator?.id || !creator.email) {
       throw new AppError(
         'Unauthorized',
-        `${authError}: ${sanitizedData.legal_name} with userId: ${input.created_by_id}`,
+        `Non-existent user attempting to create company: ${validateInput.data.legal_name} with userId: ${createdById}`,
         true,
       );
     }
 
-    companyLogger.debug(
-      { userId: userExists.id },
-      'User authorization verified',
-    );
-
-    // Resolve firm assignment
-    let firmId = assigned_firm_id || null;
-    if (!firmId) {
-      logDatabaseOperation('SELECT', 'accounting_firms_meta', {
-        isPlatform: true,
-      });
-      const [firm] = await trx('accounting_firms_meta as af')
-        .join('companies as c', 'af.company_id', 'c.id')
-        .where('c.is_platform', true)
-        .select('af.company_id as id');
-
-      firmId = firm?.id;
-      if (!firmId) {
-        const firmError = 'No platform firm available for company assignment';
-        companyLogger.error(firmError);
-        throw new AppError('Company must be assigned to a firm');
-      }
-      companyLogger.debug({ firmId }, 'Assigned to platform firm');
-    } else {
-      companyLogger.debug({ firmId }, 'Using provided firm assignment');
-    }
-
-    // Generate unique short code with collision handling
-    const { shortCode, attempts } = await generateUniqueShortCode(
+    const company = await insertCompanyRecord({
       trx,
-      input.short_code,
-      companyLogger,
-    );
-    companyLogger.debug(
-      { shortCode, attempts },
-      'Short code generated successfully',
-    );
-
-    // Prepare company data with defaults
-    const onboardingState =
-      sanitizedData.onboarding_state ||
-      createInitialCompanyOnboardingState(sanitizedData.type);
-
-    // Determine fiscal year-end defaults based on country and company type
-    // UK individuals: April 5 (tax year end)
-    // All others: December 31
-    let defaultYearEndMonth = 12;
-    let defaultYearEndDay = 31;
-
-    if (country_code === 'GB' && sanitizedData.type === 'individual') {
-      defaultYearEndMonth = 4;
-      defaultYearEndDay = 5;
-      companyLogger.debug(
-        { countryCode: country_code, companyType: sanitizedData.type },
-        'Using UK individual fiscal year-end (April 5)',
-      );
-    }
-
-    const companyData = {
-      ...sanitizedData,
-      ...(sanitizedData.id ? { id: sanitizedData.id } : {}),
-      ...(sanitizedData.is_demo_company
-        ? { is_demo_company: sanitizedData.is_demo_company }
-        : {}),
-      legal_name: sanitizedData.legal_name,
-      display_name: sanitizedData.display_name,
-      short_code: shortCode,
-      year_end_day: sanitizedData.year_end_day || defaultYearEndDay,
-      year_end_month: sanitizedData.year_end_month || defaultYearEndMonth,
-      reporting_framework: sanitizedData.reporting_framework || 'ifrs',
-      created_by_id: userExists.id,
-      last_updated_by_id: userExists.id,
-      accounting_basis:
-        sanitizedData.accounting_basis ??
-        (sanitizedData.type === 'individual'
-          ? 'modified_cash_basis'
-          : 'modified_accrual_basis'),
-      is_demo_company: sanitizedData.is_demo_company || false,
-      industry:
-        sanitizedData.industry || sanitizedData.type === 'accounting_firm'
-          ? 'professional_services'
-          : null,
-      onboarding_state: onboardingState,
-    };
-
-    // Insert company record
-    logDatabaseOperation('INSERT', 'companies', {
-      legalName: sanitizedData.legal_name,
-      shortCode,
+      company: validateInput.data,
     });
-    const [company] = await trx('companies').insert(companyData).returning('*');
-
-    if (!company?.id) {
-      const insertError =
-        'Failed to create company record - no company returned';
-      companyLogger.error(insertError);
-      throw new AppError(insertError);
-    }
 
     companyLogger.info(
       { companyId: company.id },
       'Company record created successfully',
     );
 
-    // Create firm assignment
-    logDatabaseOperation('INSERT', 'client_firm_assignments', {
-      clientCompanyId: company.id,
-      firmId,
+    const assignment = await ensureCompanyFirmAssignment({
+      trx,
+      companyId: company.id,
+      actorUserId: creator.id,
+      strategy: validateInput.data.assigned_firm_id ? 'explicit' : 'auto',
+      assignedFirmId: validateInput.data.assigned_firm_id,
     });
-    const firmAssignment = await trx('client_firm_assignments').insert({
-      client_company_id: company.id,
-      accounting_firm_company_id: firmId,
-      created_by_id: userExists.id,
-      updated_by_id: userExists.id,
-    });
-
-    if (!firmAssignment) {
-      const assignmentError = 'Failed to assign company to firm';
-      companyLogger.error({ companyId: company.id, firmId }, assignmentError);
-      throw new AppError(assignmentError);
-    }
 
     companyLogger.info(
-      { companyId: company.id, firmId },
+      { companyId: company.id, firmId: assignment.assignedFirmId },
       'Company assigned to firm successfully',
     );
 
-    // Enqueue fiscal calendar generation (very fast, ~10ms)
-    // Don't fail company creation if calendar generation fails
-    try {
-      await enqueueFiscalCalendarGeneration({
-        type: 'generate-calendar',
+    if (validateInput.data.type !== 'accounting_firm') {
+      await ensureCompanyBilling({
+        trx,
         companyId: company.id,
-        yearsBack: 2,
-        yearsForward: 10,
-        triggeredBy: 'company_creation',
-        userId: userExists.id,
+        billingEmail: creator.email,
+      });
+
+      companyLogger.info(
+        { companyId: company.id },
+        'Billing account and ownership provisioned',
+      );
+    }
+
+    try {
+      await ensureCompanySettings({
+        trx,
+        companyId: company.id,
+        userId: creator.id,
       });
       companyLogger.info(
         { companyId: company.id },
-        'Fiscal calendar generation job enqueued',
+        'Default company settings initialized',
       );
     } catch (error) {
       companyLogger.error(
@@ -365,27 +271,29 @@ export const createCompany = async (
           companyId: company.id,
           error: error instanceof Error ? error : new Error(String(error)),
         },
-        'Failed to enqueue fiscal calendar generation (non-critical)',
+        'Failed to initialize company settings (non-critical)',
       );
-      // Non-critical: Calendar can be generated manually later if needed
     }
 
-    // Validate and return company data
-    const companyDataValidation = newCompany.safeParse(company);
-    const finalCompanyData = companyDataValidation.success
-      ? companyDataValidation.data
-      : company;
-
-    logTiming('createCompany', startTime, {
+    await runWorkspaceProvisioningSideEffects({
       companyId: company.id,
-      operationId,
+      userId: creator.id,
+      mode: 'normal',
+    });
+
+    logFlowStep({
+      flow: 'company',
+      step: 'create_company',
+      status: 'ok',
+      durationMs: Date.now() - startTime,
+      companyId: company.id,
     });
 
     companyLogger.info(
       { companyId: company.id },
       'Company creation completed successfully',
     );
-    return successResponse('Company created successfully', finalCompanyData);
+    return successResponse('Company created successfully', company);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error';
@@ -397,15 +305,9 @@ export const createCompany = async (
       `Company creation failed: ${errorMessage}`,
     );
 
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      operation: 'createCompany',
-      legalName: sanitizedData.legal_name,
-      operationId,
-    });
-
     return errorResponse(
       'Unable to create company',
-      process.env.NODE_ENV === 'production' ? undefined : error,
+      NODE_ENV === 'production' ? undefined : error,
     );
   }
 };
@@ -487,8 +389,8 @@ const companyFields = [
   'companies.display_name as displayName',
   'companies.address as address',
   'companies.type as companyType',
-  'companies.logo_url as companyLogo',
-  'companies.logo_key as companyLogoKey',
+  'company_logo_file.url as companyLogo',
+  'company_logo_file.key as companyLogoKey',
   'companies.description as description',
   'companies.website as website',
   'companies.industry as industry',
@@ -501,6 +403,13 @@ const companyFields = [
   'companies.country_id as countryId',
   'companies.created_by_id as createdById',
   'companies.created_at as createdAt',
+  'companies.workspace_class as workspaceClass',
+
+  'companies.default_timezone as defaultTimezone',
+  'companies.legal_name_verified_at as legalNameVerifiedAt',
+  'companies.registration_number_verified_at as registrationNumberVerifiedAt',
+  'companies.tax_id_verified_at as taxIdVerifiedAt',
+  'companies.address_verified_at as addressVerifiedAt',
 
   'countries.code as countryCode',
   'countries.name as countryName',
@@ -511,7 +420,6 @@ const companyFields = [
   'companies.reporting_framework as reportingFramework',
   'companies.accounting_basis as accountingBasis',
   'companies.onboarding_state as onboardingState',
-  'companies.is_demo_company as isDemoCompany',
 
   'companies.reporting_currency_id as reportingCurrencyId',
   'currencies.code as reportingCurrencyCode',
@@ -522,9 +430,8 @@ const companyFields = [
   'companies.assigned_firm_id as assignedFirmId',
   'accounting_firms_meta.slug as assignedFirmSlug',
   'firm_meta.display_name as assignedFirmName',
-  'firm_meta.is_platform as assignedFirmIsPlatform',
-  'firm_meta.logo_url as assignedFirmLogo',
-  'firm_meta.logo_key as assignedFirmLogoKey',
+  'firm_meta.workspace_class as assignedFirmWorkspaceClass',
+  'firm_logo_file.url as assignedFirmLogo',
 ];
 
 /**
@@ -540,14 +447,21 @@ const companyFields = [
  *
  * @returns An ApiResponse containing the retrieved companies.
  */
-export const fetchCompanies = async ({
-  identifiers,
-  filters,
-}: FetchCompaniesOptions = {}): Promise<ApiResponse<GetCompanyResponse[]>> => {
+export const fetchCompanies = async (
+  { identifiers, filters }: FetchCompaniesOptions = {},
+  db: Knex | Knex.Transaction = knexClient,
+): Promise<ApiResponse<GetCompanyResponse[]>> => {
   try {
-    const query = knexClient('companies')
+    const query = db('companies')
       .select(companyFields)
       .leftJoin('countries', 'companies.country_id', 'countries.id')
+      .leftJoin('files as company_logo_file', function joinCompanyLogoFile() {
+        this.on('companies.logo_file_id', '=', 'company_logo_file.id').andOn(
+          'company_logo_file.is_deleted',
+          '=',
+          db.raw('false'),
+        );
+      })
       .leftJoin(
         'currencies',
         'companies.reporting_currency_id',
@@ -562,22 +476,20 @@ export const fetchCompanies = async ({
         'companies as firm_meta',
         'accounting_firms_meta.company_id',
         'firm_meta.id',
-      ); // Get actual firm details from companies table (since firms are also companies)
+      )
+      .leftJoin('files as firm_logo_file', function joinFirmLogoFile() {
+        this.on('firm_meta.logo_file_id', '=', 'firm_logo_file.id').andOn(
+          'firm_logo_file.is_deleted',
+          '=',
+          db.raw('false'),
+        );
+      }); // Get actual firm details from companies table (since firms are also companies)
 
     if (identifiers?.length) {
       const companyIds = [];
 
       for (const identifier of identifiers) {
-        const companyId = await getCompanyUUID(identifier);
-        if (!companyId) {
-          return errorResponse(
-            `Invalid company identifier: ${identifier}`,
-            undefined,
-            {
-              code: ErrorCode.INVALID_CREDENTIALS,
-            },
-          );
-        }
+        const companyId = await getCompanyUUID(identifier, db);
 
         companyIds.push(companyId);
       }
@@ -621,9 +533,12 @@ export const fetchCompanies = async ({
       }
 
       if (typeof filters?.isDemoCompany !== 'undefined') {
-        query.where('companies.is_demo_company', filters.isDemoCompany);
+        query.where(
+          'companies.workspace_class',
+          filters.isDemoCompany ? 'demo' : 'customer',
+        );
       } else {
-        query.where('companies.is_demo_company', false); // Exclude demo companies by default
+        query.whereNot('companies.workspace_class', 'demo'); // Exclude demo companies by default
       }
     }
 
@@ -635,7 +550,8 @@ export const fetchCompanies = async ({
       );
     }
 
-    const data = snakeToCamel(result);
+    const camelRows = snakeToCamel(result) as Record<string, unknown>[];
+    const data = camelRows.map((row) => mapQueryRowToGetCompanyResponse(row));
 
     return successResponse<GetCompanyResponse[]>(
       identifiers?.length === 1
@@ -643,10 +559,18 @@ export const fetchCompanies = async ({
         : filters
           ? `Successfully retrieved filtered companies`
           : `Successfully retrieved all companies`,
-      data as GetCompanyResponse[],
+      data,
     );
-  } catch (error: any) {
-    return errorResponse('An unexpected error occured', error?.message);
+  } catch (error: unknown) {
+    if (error instanceof AppError) {
+      return errorResponse(error.message, error.details, {
+        code: error.code,
+        report: error.shouldReport,
+      });
+    }
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occured';
+    return errorResponse('An unexpected error occured', message);
   }
 };
 
@@ -665,10 +589,13 @@ export const getCompaniesByIds = async (
 
 export const getSingleCompany = async (
   id: string,
+  db?: Knex | Knex.Transaction,
 ): Promise<ApiResponse<GetCompanyResponse>> => {
-  const res = await fetchCompanies({ identifiers: [id] });
+  const res = await fetchCompanies({ identifiers: [id] }, db);
   if (!res.success || !res.data || res.data.length === 0) {
-    return errorResponse(res.message, null);
+    return errorResponse(res.message, res.error, {
+      code: res.code as ErrorCode | undefined,
+    });
   }
 
   return successResponse<GetCompanyResponse>(
@@ -682,34 +609,152 @@ export const updateCompany = async (
   payload: UpdateCompanySchema,
   userId: string,
   trx?: Knex.Transaction,
-): Promise<ApiResponse<GetCompanyResponse | null>> => {
+  options?: {
+    audit?: {
+      actor: AuditActorInput;
+      context?: AuditContextInput;
+    };
+  },
+): Promise<ApiResponse<GetCompanyResponse>> => {
   try {
     const validInput = updateCompanySchema.safeParse(payload);
     if (!validInput.success) {
-      return errorResponse(`Invalid input: ${validInput.error.message}`);
+      return errorResponse('Invalid input', validInput.error.flatten(), {
+        code: ErrorCode.INVALID_INPUT,
+      });
     }
 
     const dbUpdates: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(payload)) {
+    for (const [key, value] of Object.entries(validInput.data)) {
       if (value === undefined) continue;
-      const column = fieldToColumnMap[key as keyof GetCompanyResponse];
-      if (column)
-        dbUpdates[column] =
-          value === null || (typeof value === 'string' && value.trim() === '')
-            ? null
-            : value;
+      const column = fieldToColumnMap[key as keyof typeof fieldToColumnMap];
+      if (column) dbUpdates[column] = value;
     }
 
-    const fn = async (knex: Knex.Transaction) => {
+    const fn = async (
+      knex: Knex.Transaction,
+    ): Promise<ApiResponse<GetCompanyResponse>> => {
       const companyId = await getCompanyUUID(identifier, knex);
-      if (!companyId) {
-        return errorResponse(
+      const auditChanges: Record<
+        string,
+        { previous: unknown | null; next: unknown | null }
+      > = {};
+      const clearedVerification: string[] = [];
+
+      // Verified-field locks: there is intentionally no platform bypass in this
+      // general update flow. Any future override should use a dedicated internal
+      // path with explicit authorization and audit logging.
+      //
+      // Address is intentionally omitted: address_verified_at is informational
+      // only, and PATCH may always update address.
+      const existing = await knex('companies')
+        .select(
+          'type',
+          'address',
+          'legal_name',
+          'registration_number',
+          'tax_id',
+          'display_name',
+          'description',
+          'website',
+          'industry',
+          'team_size',
+          'revenue',
+          'year_end_day',
+          'year_end_month',
+          'country_id',
+          'reporting_currency_id',
+          'reporting_framework',
+          'accounting_basis',
+          'assigned_firm_id',
+          'default_timezone',
+          'address_verified_at',
+          'legal_name_verified_at',
+          'registration_number_verified_at',
+          'tax_id_verified_at',
+        )
+        .where('id', companyId)
+        .first();
+
+      if (!existing)
+        return errorResponse<GetCompanyResponse>(
           `Invalid company identifier: ${identifier}`,
           undefined,
           {
             code: ErrorCode.NOT_FOUND,
           },
         );
+
+      const p = validInput.data;
+      if (
+        existing.legal_name_verified_at != null &&
+        p.legalName !== undefined &&
+        !companyNullableStringsEqual(p.legalName, existing.legal_name)
+      ) {
+        return errorResponse(
+          'Legal name is verified and cannot be changed',
+          undefined,
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+      if (
+        existing.registration_number_verified_at != null &&
+        p.companyRegistrationNumber !== undefined &&
+        !companyNullableStringsEqual(
+          p.companyRegistrationNumber,
+          existing.registration_number,
+        )
+      ) {
+        return errorResponse(
+          'Registration number is verified and cannot be changed',
+          undefined,
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+      if (
+        existing.tax_id_verified_at != null &&
+        p.companyTaxId !== undefined &&
+        !companyNullableStringsEqual(p.companyTaxId, existing.tax_id)
+      ) {
+        return errorResponse(
+          'Tax ID is verified and cannot be changed',
+          undefined,
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+
+      const didChangeAddress =
+        p.address !== undefined &&
+        !companyNullableStringsEqual(p.address, existing.address);
+      if (didChangeAddress) {
+        dbUpdates.address_verified_at = null;
+        if (existing.address_verified_at != null) {
+          clearedVerification.push('address');
+        }
+      }
+
+      for (const [field, nextValue] of Object.entries(validInput.data)) {
+        if (
+          nextValue === undefined ||
+          field === 'slug' ||
+          field === 'firmType'
+        ) {
+          continue;
+        }
+
+        const column = fieldToColumnMap[field as keyof typeof fieldToColumnMap];
+        if (!column) continue;
+
+        const previousValue = existing[column];
+        const resolvedNextValue =
+          dbUpdates[column] !== undefined ? dbUpdates[column] : nextValue;
+
+        if (!companyAuditValuesEqual(previousValue, resolvedNextValue)) {
+          auditChanges[field] = {
+            previous: toAuditValue(previousValue),
+            next: toAuditValue(resolvedNextValue),
+          };
+        }
       }
 
       const baseRequiredFields = [
@@ -722,72 +767,133 @@ export const updateCompany = async (
         'country_id',
         'reporting_currency_id',
       ] as const;
+      const shouldUpdateFirm =
+        existing.type === 'accounting_firm' &&
+        (p.slug !== undefined || p.firmType !== undefined);
+      const existingFirmMeta = shouldUpdateFirm
+        ? await knex('accounting_firms_meta')
+            .select('slug', 'firm_type')
+            .where('company_id', companyId)
+            .first()
+        : null;
 
-      const [updatedRow] = await knex('companies')
-        .update({ ...dbUpdates, last_updated_by_id: userId })
-        .where('id', companyId)
-        .returning([...baseRequiredFields, 'onboarding_state', 'id']);
+      let didUpdateCompanyRow = false;
 
-      if (!updatedRow) {
-        return errorResponse('Error updating company details');
+      if (Object.keys(dbUpdates).length > 0) {
+        const [updatedRow] = await knex('companies')
+          .update({ ...dbUpdates, last_updated_by_id: userId })
+          .where('id', companyId)
+          .returning([...baseRequiredFields, 'onboarding_state', 'id']);
+
+        if (!updatedRow) {
+          return errorResponse<GetCompanyResponse>(
+            'Error updating company details',
+          );
+        }
+        didUpdateCompanyRow = true;
+
+        // Query beyond this point should not break the transaction
+
+        try {
+          const bankAccounts = await knex('bank_accounts')
+            .where('company_id', companyId)
+            .first();
+
+          // check if all the required field are filled from the db response
+          const missingBaseFields = baseRequiredFields.filter(
+            (field) => updatedRow[field as keyof typeof updatedRow] == null,
+          );
+
+          let finalOnboardingObject;
+
+          if (missingBaseFields.length === 0) {
+            const currentOnbStatus = updatedRow.onboarding_state;
+            finalOnboardingObject = markCompanyOnboardingStepComplete(
+              currentOnbStatus,
+              'company_details_confirmed',
+            );
+          }
+
+          if (bankAccounts?.id) {
+            finalOnboardingObject = markCompanyOnboardingStepComplete(
+              finalOnboardingObject,
+              'first_bank_account_added',
+            );
+          }
+
+          if (finalOnboardingObject) {
+            await knex('companies')
+              .where('id', companyId)
+              .update({ onboarding_state: finalOnboardingObject });
+          }
+        } catch (error) {
+          errorResponse('Error updating onboarding state:', error);
+        }
+      }
+
+      if (shouldUpdateFirm) {
+        if (
+          p.slug !== undefined &&
+          !companyAuditValuesEqual(existingFirmMeta?.slug, p.slug)
+        ) {
+          auditChanges.slug = {
+            previous: toAuditValue(existingFirmMeta?.slug),
+            next: toAuditValue(p.slug),
+          };
+        }
+
+        if (
+          p.firmType !== undefined &&
+          !companyAuditValuesEqual(existingFirmMeta?.firm_type, p.firmType)
+        ) {
+          auditChanges.firmType = {
+            previous: toAuditValue(existingFirmMeta?.firm_type),
+            next: toAuditValue(p.firmType),
+          };
+        }
+
+        const firmResult = await updateFirm(knex, companyId, {
+          slug: p.slug,
+          firm_type: p.firmType,
+        });
+
+        if (!firmResult.success) {
+          return errorResponse(firmResult.message, firmResult.error, {
+            code: firmResult.code as ErrorCode | undefined,
+          });
+        }
       }
 
       if (
-        updatedRow.type === 'accounting_firm' &&
-        (validInput.data.slug || validInput.data.firmType)
+        options?.audit?.actor &&
+        (Object.keys(auditChanges).length > 0 || clearedVerification.length > 0)
       ) {
-        await updateFirm(knex, companyId, {
-          slug: validInput.data.slug,
-          firm_type: validInput.data.firmType,
+        await writeCompanyProfileUpdatedAudit({
+          companyId,
+          entityId: companyId,
+          actor: options.audit.actor,
+          context: options.audit.context,
+          trx: knex,
+          payload: {
+            changedFields: auditChanges,
+            clearedVerification,
+          },
         });
       }
 
-      // Query beyond this point should not break the transaction
-
-      try {
-        const bankAccounts = await knex('bank_accounts')
-          .where('company_id', companyId)
-          .first();
-
-        // check if all the required field are filled from the db response
-        const missingBaseFields = baseRequiredFields.filter(
-          (field) => updatedRow[field as keyof typeof updatedRow] == null,
-        );
-
-        let finalOnboardingObject;
-
-        if (missingBaseFields.length === 0) {
-          const currentOnbStatus = updatedRow.onboarding_state;
-          finalOnboardingObject = markCompanyOnboardingStepComplete(
-            currentOnbStatus,
-            'company_details_confirmed',
-          );
-        }
-
-        if (bankAccounts?.id) {
-          finalOnboardingObject = markCompanyOnboardingStepComplete(
-            finalOnboardingObject,
-            'first_bank_account_added',
-          );
-        }
-
-        if (finalOnboardingObject) {
-          await knex('companies')
-            .where('id', companyId)
-            .update({ onboarding_state: finalOnboardingObject });
-        }
-      } catch (error) {
-        errorResponse('Error updating onboarding state:', error);
+      const refreshedCompany = await getSingleCompany(companyId, knex);
+      if (!refreshedCompany.success || !refreshedCompany.data) {
+        return errorResponse(refreshedCompany.message, refreshedCompany.error, {
+          code: refreshedCompany.code as ErrorCode | undefined,
+        });
       }
 
-      if (Object.keys(dbUpdates).length === 0) {
-        return successResponse(
-          'Nothing to update – no valid fields supplied',
-          null,
-        );
-      }
-
-      return successResponse('Successfully updated company details', null);
+      return successResponse(
+        !didUpdateCompanyRow && !shouldUpdateFirm
+          ? 'Nothing to update – no valid fields supplied'
+          : 'Successfully updated company details',
+        refreshedCompany.data,
+      );
     };
 
     const result = trx

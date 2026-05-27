@@ -1,12 +1,13 @@
 import type { Knex } from 'knex';
+
+import { isDev } from '../config/env-loader.js';
+import { accountElementIds, financialStatementIds } from './data/ids.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
   preventUpdateOrDelete,
-} from './utils/db';
-import { accountElementIds, financialStatementIds } from './data/ids';
-import { isDev } from '../config/env-loader';
+} from './utils/db.js';
 
 const parentAccountElements = [
   {

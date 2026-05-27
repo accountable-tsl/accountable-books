@@ -1,17 +1,13 @@
 import type { Knex } from 'knex';
-import {
-  addStandardColumns,
-  createUpdateTimestampTrigger,
-  dropUpdateTimestampTrigger,
-} from './utils/db';
-import { adminUser } from './20250403184441_users';
+
+import { adminUser } from './20250403184441_users.js';
+import { countryMap } from './20250404021752_banks.js';
 import {
   MONO_COUNTRIES,
   PLAID_COUNTRIES,
   SEED_BANK_FEED_PROVIDERS,
   STRIPE_COUNTRIES,
-} from './data/feed_providers';
-import { countryMap } from './20250404021752_banks';
+} from './data/feed_providers.js';
 
 function mapProviderToCountry(
   providerKey: string,
@@ -38,7 +34,17 @@ function mapProviderToCountry(
   });
 }
 
-export const FEED_PROVIDERS_BY_KEY = new Map<string, any & { id: string }>();
+interface FeedProvider {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  status: string;
+  priority: number;
+}
+export const FEED_PROVIDERS_BY_KEY = new Map<string, FeedProvider>();
 
 const getProvidersData = (adminUserId: string) =>
   SEED_BANK_FEED_PROVIDERS.map((p) => {

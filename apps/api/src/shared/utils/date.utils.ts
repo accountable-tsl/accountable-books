@@ -171,3 +171,35 @@ export function addMonthsToYMD(ymd: string, n: number): string {
     ),
   );
 }
+
+type Unit = 'days' | 'hours' | 'minutes' | 'seconds' | 'ms';
+
+export function dateDiff({
+  from,
+  to,
+  unit,
+  abs = false,
+  tz = 'keep',
+}: {
+  from: string | Date;
+  to: string | Date;
+  unit: Unit;
+  abs?: boolean;
+  tz?: 'keep' | 'start' | 'end'; // start/end of day
+}): number {
+  const d1 = toDate(from, tz);
+  const d2 = toDate(to, tz);
+  let ms = d1.getTime() - d2.getTime();
+  if (abs) {
+    ms = Math.abs(ms);
+  }
+
+  const div: Record<Unit, number> = {
+    days: 86400000,
+    hours: 3600000,
+    minutes: 60000,
+    seconds: 1000,
+    ms: 1,
+  };
+  return ms / div[unit];
+}

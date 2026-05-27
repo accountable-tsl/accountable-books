@@ -1,0 +1,5 @@
+from enum import Enum
+
+class ReportingFramework(str, Enum):
+    IFRS = "ifrs"
+    US_GAAP = "us_gaap"

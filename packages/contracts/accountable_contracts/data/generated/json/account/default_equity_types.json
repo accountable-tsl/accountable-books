@@ -1,0 +1,51 @@
+[
+  {
+    "id": "39a0bb4a-fae3-4eab-bdac-fcf2794476a5",
+    "key": "eq_contributed_capital",
+    "label": "Contributed Capital",
+    "account_element_id": "519a3026-906a-4490-8ce2-14ba2e035575",
+    "description": "Share capital, premium, APIC, other direct contributions from owners",
+    "report_code": "BS.EQU.CAP.CAP",
+    "default_monetary": false,
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "8f84a613-1b9b-412b-a29e-168e542b7467",
+    "key": "eq_retained_earnings",
+    "label": "Retained Earnings",
+    "account_element_id": "c66f707c-8394-4574-a4f8-91e1765466b9",
+    "description": "Accumulated net income retained in the business after dividends are paid",
+    "report_code": "BS.EQU.RES.RET",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "f1ee9996-005d-4b7d-804d-9c61437f9f82",
+    "key": "eq_oci",
+    "label": "Other Comprehensive Income (AOCI)",
+    "account_element_id": "c66f707c-8394-4574-a4f8-91e1765466b9",
+    "description": "Accumulated Other Comprehensive Income (FVOCI, FX translation adjustments etc.)",
+    "report_code": "BS.EQU.RES.OCI",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": false,
+    "is_postable_control": false
+  },
+  {
+    "id": "230cef7a-ed92-4eef-b76b-2b7cbfa43d6c",
+    "key": "eq_other",
+    "label": "Other Components of Equity",
+    "account_element_id": "6ab44386-dd1b-4e8e-b2cc-f497dc93b9ac",
+    "description": "Equity components that do not fall under contributed capital, retained earnings, or OCI",
+    "report_code": "BS.EQU.OTH.OTH",
+    "label_role": "mechanical",
+    "trainable": false,
+    "is_contra": false,
+    "is_postable_control": false
+  }
+]

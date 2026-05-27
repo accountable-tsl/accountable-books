@@ -1,7 +1,9 @@
 import { type Response } from 'express';
-import type { AuthRequest } from '../../../features/auth/auth.types.js';
+
 import { errorResponse } from '../../../shared/utils/response.utils.js';
 import { getAllBanks, getBankByCountry, getSingleBank } from './banks.model.js';
+
+import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
 export async function getAllBanksController(req: AuthRequest, res: Response) {
   try {
@@ -20,13 +22,13 @@ export async function getAllBanksController(req: AuthRequest, res: Response) {
 
 export async function getBankByIdController(req: AuthRequest, res: Response) {
   if (!req.user) return res.status(401).json(errorResponse('Unauthorized'));
-  const { id } = req.params;
+  const id = String(req.params.id);
   return handleBankLookup(res, id);
 }
 
 export async function getBankByKeyController(req: AuthRequest, res: Response) {
   if (!req.user) return res.status(401).json(errorResponse('Unauthorized'));
-  const { key } = req.params;
+  const key = String(req.params.key);
   return handleBankLookup(res, key);
 }
 

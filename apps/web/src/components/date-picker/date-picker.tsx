@@ -1,5 +1,4 @@
 import { forwardRef, useMemo, useState } from 'react';
-import { ChevronDownIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -8,8 +7,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { safeFormatDate } from '@/shared/utils/formatting-utils';
 import { cn } from '@/lib/utils';
+import { safeFormatDate } from '@/shared/utils/formatting-utils';
+import { ChevronDownIcon } from 'lucide-react';
 
 export interface DatePickerProps {
   value?: Date;
@@ -27,6 +27,11 @@ export interface DatePickerProps {
     | 'link';
   classNames?: { wrapper?: string; trigger?: string; label?: string };
   calendarDisabled?: (date: Date) => boolean;
+
+  open?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+
+  align?: 'start' | 'center' | 'end';
 }
 
 export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
@@ -41,11 +46,19 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
       buttonVariant = 'outline',
       classNames = {},
       calendarDisabled = false,
+
+      open: controlledOpen,
+      onOpenChange: controlledOnOpenChange,
+
+      align = 'start',
     },
     ref,
   ) => {
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
     const [internalDate, setInternalDate] = useState<Date | undefined>(value);
+
+    const open = controlledOpen ?? internalOpen;
+    const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
     const formattedDate = useMemo(
       () =>
@@ -86,7 +99,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
               <ChevronDownIcon />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+          <PopoverContent className="w-auto overflow-hidden p-0" align={align}>
             <Calendar
               mode="single"
               selected={value ?? internalDate}

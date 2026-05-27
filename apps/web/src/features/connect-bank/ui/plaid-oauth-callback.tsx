@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { usePlaidLink } from 'react-plaid-link';
-import { useNavigate } from 'react-router';
-import { plaidOAuthStorage } from '../utils/oauth-storage';
-import { useConnectAccounts } from '@/modules/banking/connections';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { Button } from '@/components/ui/button';
+import { useConnectAccounts } from '@/modules/banking/connections';
+import { usePlaidLink } from 'react-plaid-link';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+
+import { plaidOAuthStorage } from '../utils/oauth-storage';
 
 interface OAuthState {
   linkToken: string;
@@ -115,7 +116,7 @@ export function PlaidOAuthCallback() {
         },
       );
     },
-    [oauthState, connectAccountsMutation, navigate],
+    [oauthState, connectAccountsMutation, navigate, isConnecting],
   );
 
   // Handle Plaid Link exit (user cancelled or error)
@@ -204,9 +205,9 @@ export function PlaidOAuthCallback() {
   // Show error state
   if (hasError) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center space-y-4">
-          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-4 text-center">
+          <div className="mb-4 text-6xl text-red-600">⚠️</div>
           <h1 className="text-2xl font-semibold text-gray-900">
             Connection Failed
           </h1>
@@ -240,11 +241,11 @@ export function PlaidOAuthCallback() {
   // Show loading state while waiting for OAuth state or Plaid Link to be ready
   if (!oauthState || !ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="space-y-4 text-center">
           <CenteredLoader />
           <div className="max-w-sm">
-            <h2 className="text-xl font-semibold mb-2">
+            <h2 className="mb-2 text-xl font-semibold">
               Completing Bank Connection
             </h2>
             <p className="text-muted-foreground text-sm">
@@ -259,11 +260,11 @@ export function PlaidOAuthCallback() {
   // Show connecting state during account connection process
   if (isConnecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="space-y-4 text-center">
+          <div className="border-primary mx-auto h-12 w-12 animate-spin rounded-full border-b-2"></div>
           <div className="max-w-sm">
-            <h2 className="text-xl font-semibold mb-2">Connecting Account</h2>
+            <h2 className="mb-2 text-xl font-semibold">Connecting Account</h2>
             <p className="text-muted-foreground text-sm">
               Saving your bank account details securely...
             </p>
@@ -275,9 +276,9 @@ export function PlaidOAuthCallback() {
 
   // This should not be reached in normal flow, but provides fallback
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <div className="animate-pulse h-12 w-12 bg-gray-200 rounded-full mx-auto"></div>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="space-y-4 text-center">
+        <div className="mx-auto h-12 w-12 animate-pulse rounded-full bg-gray-200"></div>
         <p className="text-muted-foreground">Initializing bank connection...</p>
       </div>
     </div>

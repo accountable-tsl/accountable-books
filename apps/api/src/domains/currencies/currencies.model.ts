@@ -1,13 +1,14 @@
 import { knexClient } from '../../db/knexClient.js';
-import type { ApiResponse } from '../../core/types/api.types.js';
 import { redis } from '../../lib/redis.js';
+import { isValidUUID } from '../../shared/utils/formatting.utils.js';
 import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { isValidUUID } from '../../shared/utils/formatting.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
 import { type CurrencyRes } from './currencies.types.js';
+
+import type { ApiResponse } from '../../core/types/api.types.js';
 
 const currenciesCacheKey = generateCacheKey('currencies', 'all');
 const CACHE_TTL = 60 * 60 * 24; // 24 hours

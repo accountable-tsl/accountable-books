@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { matchPath, useLocation, useNavigate } from 'react-router';
-import { buildCanonicalUrl, flatRoutes } from '@/shared/routes/utils';
 import { useSession } from '@session';
-import { routes } from '@/shared/routes/routes';
+import { matchPath, useLocation, useNavigate } from 'react-router';
+
+import { buildCanonicalUrl, flatRoutes } from './registry';
+import { routes } from './routes';
 
 export function useRoutePath<T extends Record<string, any>>(
   route: { buildPath: (params?: T) => string },

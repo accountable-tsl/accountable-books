@@ -1,126 +1,71 @@
-import { startEmailWorker } from './email.worker.js';
-import { startTransactionSyncWorker } from './transaction-sync.worker.js';
-import { startPartitionMaintenanceWorker } from './partition-maintenance.worker.js';
-import { startBalanceRecalcWorker } from './balance-recalc.worker.js';
-import { startFiscalCalendarWorker } from './fiscal-calendar.worker.js';
 import type { Worker } from 'bullmq';
 
-export interface WorkerConfig {
-  email: {
-    concurrency: number;
-  };
-  transactionSync: {
-    concurrency: number;
-  };
-  partitionMaintenance: {
-    concurrency: number;
-  };
-  balanceRecalc: {
-    concurrency: number;
-  };
-  fiscalCalendar: {
-    concurrency: number;
-  };
-}
+import { getLogger } from '../../shared/utils/logger.js';
+import { WORKER_REGISTRY } from '../registry.js';
 
-// Default worker configuration
-const DEFAULT_WORKER_CONFIG: WorkerConfig = {
-  email: {
-    concurrency: Number(process.env.EMAIL_WORKER_CONCURRENCY) || 5,
-  },
-  transactionSync: {
-    concurrency: Number(process.env.TRANSACTION_SYNC_CONCURRENCY) || 3,
-  },
-  partitionMaintenance: {
-    concurrency: Number(process.env.PARTITION_MAINTENANCE_CONCURRENCY) || 1,
-  },
-  balanceRecalc: {
-    concurrency: Number(process.env.BALANCE_RECALC_CONCURRENCY) || 5,
-  },
-  fiscalCalendar: {
-    concurrency: Number(process.env.FISCAL_CALENDAR_CONCURRENCY) || 3,
-  },
-};
+type WorkerEntry = { worker: Worker; teardown?: () => Promise<void> };
 
 // Active workers tracking
-const activeWorkers: Map<string, Worker> = new Map();
+const activeWorkers: Map<string, WorkerEntry> = new Map();
+const logger = getLogger({
+  component: 'worker-registry',
+  processSource: 'worker',
+});
 
 /**
  * Start all configured workers
- * @param config Optional worker configuration override
  * @returns Array of started workers
  */
-export async function startAllWorkers(
-  config: Partial<WorkerConfig> = {},
-): Promise<Worker[]> {
-  const workerConfig = { ...DEFAULT_WORKER_CONFIG, ...config };
+export async function startAllWorkers(): Promise<Worker[]> {
   const workers: Worker[] = [];
 
-  // Start email worker
-  try {
-    const emailWorker = startEmailWorker();
-    activeWorkers.set('email', emailWorker);
-    workers.push(emailWorker);
-    console.log('📧 Email worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start email worker:', error);
-    throw error;
+  logger.info(
+    { workerCount: WORKER_REGISTRY.length },
+    'Starting registered workers',
+  );
+
+  for (const definition of WORKER_REGISTRY) {
+    const {
+      name,
+      factory,
+      config,
+      critical = false,
+      label,
+      icon = '🔧',
+    } = definition;
+
+    try {
+      logger.info({ workerName: name, icon }, 'Starting worker');
+
+      let worker: Worker;
+      if (config) {
+        // Concurrency logic: Env var > Default value
+        const concurrency =
+          Number(process.env[config.envVar]) || config.defaultValue;
+        worker = factory(concurrency);
+      } else {
+        worker = factory();
+      }
+
+      activeWorkers.set(name, { worker, teardown: definition.teardown });
+      workers.push(worker);
+      logger.info({ workerName: name, label }, 'Worker started successfully');
+    } catch (error) {
+      logger.error({ workerName: name, error }, 'Failed to start worker');
+      if (critical) {
+        throw error;
+      }
+      logger.warn({ workerName: name }, 'Continuing without worker');
+    }
   }
 
-  // Start transaction sync worker
-  try {
-    const syncWorker = startTransactionSyncWorker(
-      workerConfig.transactionSync.concurrency,
-    );
-    activeWorkers.set('transactionSync', syncWorker);
-    workers.push(syncWorker);
-    console.log('💳 Transaction sync worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start transaction sync worker:', error);
-    throw error;
-    // Throw, this is mission critical
-  }
-
-  // Start partition maintenance worker
-  try {
-    const partitionWorker = startPartitionMaintenanceWorker();
-    activeWorkers.set('partitionMaintenance', partitionWorker);
-    workers.push(partitionWorker);
-    console.log('🗂️ Partition maintenance worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start partition maintenance worker:', error);
-    // Don't throw for partition maintenance as it's not critical for MVP
-  }
-
-  // Start balance recalculation worker (always enabled - core functionality)
-  try {
-    console.log('⚖️  Starting balance recalculation worker...');
-    const balanceWorker = startBalanceRecalcWorker();
-    activeWorkers.set('balanceRecalc', balanceWorker);
-    workers.push(balanceWorker);
-    console.log('✅ Balance recalculation worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start balance recalculation worker:', error);
-    // Balance recalc is core functionality, so throw the error
-    throw error;
-  }
-
-  // Start fiscal calendar worker (core functionality for period management)
-  try {
-    console.log('📅 Starting fiscal calendar worker...');
-    const fiscalCalendarWorker = startFiscalCalendarWorker(
-      workerConfig.fiscalCalendar.concurrency,
-    );
-    activeWorkers.set('fiscalCalendar', fiscalCalendarWorker);
-    workers.push(fiscalCalendarWorker);
-    console.log('✅ Fiscal calendar worker started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start fiscal calendar worker:', error);
-    // Fiscal calendar is core functionality, so throw the error
-    throw error;
-  }
-
-  console.log(`✅ Started ${workers.length} workers successfully`);
+  logger.info(
+    {
+      startedCount: workers.length,
+      workerCount: WORKER_REGISTRY.length,
+    },
+    'Worker startup finished',
+  );
   return workers;
 }
 
@@ -128,23 +73,24 @@ export async function startAllWorkers(
  * Stop all active workers gracefully
  */
 export async function stopAllWorkers(): Promise<void> {
-  console.log('🛑 Stopping all workers...');
+  logger.info('Stopping all workers');
 
   const stopPromises = Array.from(activeWorkers.entries()).map(
-    async ([name, worker]) => {
+    async ([name, { worker, teardown }]) => {
       try {
-        console.log(`⏹️  Stopping ${name} worker...`);
+        logger.info({ workerName: name }, 'Stopping worker');
         await worker.close();
-        console.log(`✅ ${name} worker stopped`);
+        if (teardown) await teardown();
+        logger.info({ workerName: name }, 'Worker stopped');
       } catch (error) {
-        console.error(`❌ Error stopping ${name} worker:`, error);
+        logger.error({ workerName: name, error }, 'Error stopping worker');
       }
     },
   );
 
   await Promise.all(stopPromises);
   activeWorkers.clear();
-  console.log('✅ All workers stopped');
+  logger.info('All workers stopped');
 }
 
 /**
@@ -153,7 +99,7 @@ export async function stopAllWorkers(): Promise<void> {
 export function getWorkersStatus() {
   const status: Record<string, any> = {};
 
-  activeWorkers.forEach((worker, name) => {
+  activeWorkers.forEach(({ worker }, name) => {
     status[name] = {
       isRunning: worker.isRunning(),
       isPaused: worker.isPaused(),
@@ -171,33 +117,5 @@ export function getWorkersStatus() {
  * Get a specific worker by name
  */
 export function getWorker(name: string): Worker | undefined {
-  return activeWorkers.get(name);
+  return activeWorkers.get(name)?.worker;
 }
-
-// Graceful shutdown handlers
-process.on('SIGTERM', async () => {
-  console.log('🔄 SIGTERM received, shutting down workers...');
-  await stopAllWorkers();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('🔄 SIGINT received, shutting down workers...');
-  await stopAllWorkers();
-  process.exit(0);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit immediately, log and continue
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('🚨 Uncaught Exception:', error);
-  // For uncaught exceptions, we should exit after cleanup
-  stopAllWorkers().finally(() => {
-    process.exit(1);
-  });
-});

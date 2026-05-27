@@ -1,9 +1,28 @@
+import dayjs from 'dayjs';
 import jwt from 'jsonwebtoken';
+
+import { knexClient } from '../../db/knexClient.js';
 import {
-  buildAuthContext,
-  generateAuthTokens,
-  JWT_CONFIG,
-} from './auth.utils.js';
+  addNewToken,
+  getUserToken,
+} from '../../domains/tokens/tokens.model.js';
+import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
+import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
+import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
+import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
+import { redis } from '../../lib/redis.js';
+import {
+  comparePassword,
+  compareToken,
+  generateRandomToken,
+  hashToken,
+} from '../../shared/utils/crypto.utils.js';
+import { getCompanyShortCode } from '../../shared/utils/random.utils.js';
+import {
+  ErrorCode,
+  errorResponse,
+  successResponse,
+} from '../../shared/utils/response.utils.js';
 import {
   type AuthCompanyContext,
   type AuthUserContext,
@@ -11,30 +30,13 @@ import {
   type ResendVerificationEmailInput,
   type VerifyEmailInput,
 } from './auth.types.js';
-import { knexClient } from '../../db/knexClient.js';
 import {
-  ErrorCode,
-  errorResponse,
-  successResponse,
-} from '../../shared/utils/response.utils.js';
-import {
-  comparePassword,
-  compareToken,
-  generateRandomToken,
-  hashToken,
-} from '../../shared/utils/crypto.utils.js';
+  buildAuthContext,
+  generateAuthTokens,
+  JWT_CONFIG,
+} from './auth.utils.js';
+
 import type { ApiResponse } from '../../core/types/api.types.js';
-import { redis } from '../../lib/redis.js';
-import dayjs from 'dayjs';
-import { buildEmailServiceUrl } from '../../features/communications/email/email.utils.js';
-import { sendVerificationEmail } from '../../features/communications/email/email.service.js';
-import { type UserOnboardingState } from '../../features/onboarding/onboarding.types.js';
-import {
-  addNewToken,
-  getUserToken,
-} from '../../domains/tokens/tokens.model.js';
-import { markUserOnboardingStepComplete } from '../../features/onboarding/onboarding.utils.js';
-import { getCompanyShortCode } from '../../shared/utils/random.utils.js';
 
 export async function loginService(
   email: string,

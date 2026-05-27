@@ -1,13 +1,17 @@
+import type { Knex } from 'knex';
+
 import { fetchExchangeRate } from './exchangeRates.model.js';
 
 export async function determineExchangeRate({
   date,
   fromCurrencyId,
   toCurrencyId,
+  trx,
 }: {
   date: Date | string;
   fromCurrencyId: string;
   toCurrencyId: string;
+  trx?: Knex.Transaction;
 }): Promise<number | null> {
   try {
     if (fromCurrencyId === toCurrencyId) {
@@ -18,6 +22,7 @@ export async function determineExchangeRate({
       date,
       fromCurrencyId as string,
       toCurrencyId as string,
+      trx,
     );
 
     if (exr.success && exr.data?.rate) {
