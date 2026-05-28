@@ -115,11 +115,15 @@ jobs:
           ADMIN_FIRSTNAME: ${{ secrets.ADMIN_FIRSTNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           MONO_SECRET_KEY: ${{ secrets.MONO_SECRET_KEY }}
+          APP_ENC_KEY_ID: ${{ secrets.APP_ENC_KEY_ID }}
+          APP_ENC_KEYS: ${{ secrets.APP_ENC_KEYS }}
         run: |
           test -n "$ADMIN_EMAIL" || { echo "❌ Missing ADMIN_EMAIL secret"; exit 1; }
           test -n "$ADMIN_FIRSTNAME" || { echo "❌ Missing ADMIN_FIRSTNAME secret"; exit 1; }
           test -n "$ADMIN_PASSWORD" || { echo "❌ Missing ADMIN_PASSWORD secret"; exit 1; }
           test -n "$MONO_SECRET_KEY" || { echo "❌ Missing MONO_SECRET_KEY secret"; exit 1; }
+          test -n "$APP_ENC_KEY_ID" || { echo "❌ Missing APP_ENC_KEY_ID secret"; exit 1; }
+          test -n "$APP_ENC_KEYS" || { echo "❌ Missing APP_ENC_KEYS secret"; exit 1; }
 
       - name: Run database migrations
         env:
@@ -131,6 +135,8 @@ jobs:
           ADMIN_LASTNAME: ${{ secrets.ADMIN_LASTNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           MONO_SECRET_KEY: ${{ secrets.MONO_SECRET_KEY }}
+          APP_ENC_KEY_ID: ${{ secrets.APP_ENC_KEY_ID }}
+          APP_ENC_KEYS: ${{ secrets.APP_ENC_KEYS }}
         run: |
           echo "🔄 Running database migrations on staging..."
           pnpm -F @accountable-books/api run migrate:staging:remote
@@ -145,6 +151,8 @@ jobs:
           ADMIN_FIRSTNAME: ${{ secrets.ADMIN_FIRSTNAME }}
           ADMIN_LASTNAME: ${{ secrets.ADMIN_LASTNAME }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          APP_ENC_KEY_ID: ${{ secrets.APP_ENC_KEY_ID }}
+          APP_ENC_KEYS: ${{ secrets.APP_ENC_KEYS }}
         run: |
           echo "🔄 Bootstrapping application workspaces..."
           pnpm -F @accountable-books/api run bootstrap:staging:remote
