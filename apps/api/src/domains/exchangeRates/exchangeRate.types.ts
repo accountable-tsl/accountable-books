@@ -1,19 +1,25 @@
 import { z } from 'zod';
 
-import { dbBaseFields } from '../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 // exchange_rate
 export const newExchangeRate = z.object({
-  date: z.coerce.date(),
-  from_currency_id: z.uuid(),
-  to_currency_id: z.uuid(),
+  rate_date: z.coerce.date(),
+  base_currency_id: z.uuid(),
+  price_currency_id: z.uuid(),
   rate: z.number(),
+  source: z.enum(['seed', 'api', 'manual']),
+  provider: z.string().trim().min(1).nullish(),
+  provider_as_of: z.coerce.date().nullish(),
 });
 export const exchangeRateWithId = newExchangeRate.extend({
   id: z.uuid(),
 });
-export const exchangeRate = newExchangeRate.merge(dbBaseFields);
+export const exchangeRate = newExchangeRate.extend({
+  id: z.uuid(),
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+});
 
 export type ExchangeRateWithId = z.infer<typeof exchangeRateWithId>;
 export type NewExchangeRateInput = z.infer<typeof newExchangeRate>;

@@ -1,4 +1,4 @@
-CREATE TABLE public.ledger_entries (
+CREATE TABLE app.ledger_entries (
     id                      UUID NOT NULL DEFAULT uuid_generate_v7(),
     ledger_transaction_id   UUID NOT NULL,
     fs_date                 DATE NOT NULL,
@@ -84,7 +84,7 @@ BEGIN
     SELECT 1 FROM pg_class c
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE c.relname = child_idx
-    AND n.nspname = 'public'
+    AND n.nspname = 'app'
     AND c.relkind = 'i'
     AND NOT EXISTS (
       SELECT 1 FROM pg_inherits i
@@ -114,7 +114,7 @@ END$$;
 CREATE OR REPLACE FUNCTION ensure_le_leaf_indexes_for_year(y int)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-  leaf text := format('public.ledger_entries_%s_default', y);
+  leaf text := format('app.ledger_entries_%s_default', y);
 
   idx_live_status text := format('le_live_status_date_%s_def_idx', y);
   idx_live_coa    text := format('le_live_coa_date_%s_def_idx', y);
@@ -178,7 +178,7 @@ END$$;
 CREATE OR REPLACE FUNCTION ensure_le_leaf_indexes_before_2024()
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-  leaf text := 'public.ledger_entries_before_2024';
+  leaf text := 'app.ledger_entries_before_2024';
 
   idx_live_status text := 'le_live_status_date_before_2024_idx';
   idx_live_coa    text := 'le_live_coa_date_before_2024_idx';
@@ -264,15 +264,15 @@ BEGIN
   END IF;
 
   EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s
+    CREATE TABLE IF NOT EXISTS app.ledger_entries_%s
     PARTITION OF ledger_entries
     FOR VALUES FROM (%L) TO (%L)
     PARTITION BY RANGE (fs_date)
   $sql$, y, to_char(make_date(y,1,1),'YYYY-MM-DD'), to_char(make_date(y+1,1,1),'YYYY-MM-DD'));
 
   EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.ledger_entries_%s_%s
-    PARTITION OF public.ledger_entries_%s
+    CREATE TABLE IF NOT EXISTS app.ledger_entries_%s_%s
+    PARTITION OF app.ledger_entries_%s
     FOR VALUES FROM (%L) TO (%L)
   $sql$, y, to_char(start_date,'MM'), y, start_date, end_date);
 END$$;
@@ -287,7 +287,7 @@ BEGIN
 
   BEGIN
     EXECUTE format($sql$
-      CREATE TABLE IF NOT EXISTS public.ledger_entries_%s
+      CREATE TABLE IF NOT EXISTS app.ledger_entries_%s
       PARTITION OF ledger_entries
       FOR VALUES FROM (%L) TO (%L)
       PARTITION BY RANGE (fs_date)
@@ -298,8 +298,8 @@ BEGIN
 
   BEGIN
     EXECUTE format($sql$
-      CREATE TABLE IF NOT EXISTS public.ledger_entries_%s_default
-      PARTITION OF public.ledger_entries_%s DEFAULT
+      CREATE TABLE IF NOT EXISTS app.ledger_entries_%s_default
+      PARTITION OF app.ledger_entries_%s DEFAULT
     $sql$, y, y);
   EXCEPTION WHEN OTHERS THEN
     RAISE NOTICE 'ensure_ledger_year_partition(%): default table failed: %', y, SQLERRM;

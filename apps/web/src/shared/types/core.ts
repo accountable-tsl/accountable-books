@@ -28,6 +28,7 @@ export type CurrencyList = {
   code: string;
   name: string;
   symbol: string;
+  minorUnit: number;
 };
 
 export const debitCredit = z.enum(['debit', 'credit']);

@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 
-import { createEnumIfNotExists } from './20250403174454_002_enums.js';
 import {
   addStandardColumns,
   createUpdateTimestampTrigger,
@@ -9,22 +8,13 @@ import {
 
 const tableName = 'rules';
 export const RULES_TABLE = tableName;
+const RULE_SCOPE = ['global', 'region', 'country', 'subregion', 'company'];
 
 export async function up(knex: Knex): Promise<void> {
-  await knex.raw(
-    createEnumIfNotExists('rule_scope', [
-      'global',
-      'region',
-      'country',
-      'subregion',
-      'company',
-    ]),
-  );
-
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('name', 200).notNullable();
-    table.specificType('scope', 'rule_scope').notNullable();
+    table.string('scope').notNullable().checkIn(RULE_SCOPE);
     table.string('region_code', 32).nullable();
     table.string('country_code', 2).nullable().comment('ISO 3166-1 alpha-2');
     table.string('subregion_code', 32).nullable();

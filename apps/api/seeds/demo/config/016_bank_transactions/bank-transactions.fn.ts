@@ -3,6 +3,7 @@ import type { Knex } from 'knex';
 import { generateBatchFingerprint } from '../../../../src/domains/bankTransactions/bankTransactions.utils.js';
 import { determineExchangeRate } from '../../../../src/domains/exchangeRates/exchangeRates.utils.js';
 import { generateFingerprintSync } from '../../../../src/shared/index.js';
+import { toYMD } from '../../../../src/shared/utils/date.utils.js';
 import { type DemoFilter } from '../../shared/config.js';
 import {
   getDemoCompanies,
@@ -44,6 +45,44 @@ async function getCompanyUUID(
 /**
  * Helper: Generate external ID for transaction deduplication
  */
+const FX_PREFETCH_BATCH_SIZE = 10;
+
+async function prefetchExchangeRatesByDate(input: {
+  dates: Date[];
+  fromCurrencyId: string;
+  toCurrencyId: string;
+}) {
+  const uniqueDateKeys = Array.from(new Set(input.dates.map((date) => toYMD(date))));
+  const fxRates = new Map<string, number>();
+  const missingDates: string[] = [];
+
+  for (let i = 0; i < uniqueDateKeys.length; i += FX_PREFETCH_BATCH_SIZE) {
+    const batchDateKeys = uniqueDateKeys.slice(i, i + FX_PREFETCH_BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batchDateKeys.map(async (dateKey) => {
+        const rate = await determineExchangeRate({
+          date: dateKey,
+          fromCurrencyId: input.fromCurrencyId,
+          toCurrencyId: input.toCurrencyId,
+        });
+
+        return { dateKey, rate };
+      }),
+    );
+
+    batchResults.forEach(({ dateKey, rate }) => {
+      if (rate === null) {
+        missingDates.push(dateKey);
+        return;
+      }
+
+      fxRates.set(dateKey, Number(rate));
+    });
+  }
+
+  return { uniqueDateKeys, fxRates, missingDates };
+}
+
 function generateExternalId(input: {
   date: Date;
   amount: number;
@@ -260,40 +299,27 @@ export const createDemoBankTransactions = async (
       const sameCurrency = bankCurrencyId === reportingCurrencyId;
 
       // Collect unique transaction dates for exchange rate fetching
-      const uniqueDates = !sameCurrency
-        ? [...new Set(normalizedTxns.map((tx) => tx.date))]
-        : [];
-
       // Pre-fetch exchange rates if currencies differ
       const fxRates = new Map<string, number>();
-      if (uniqueDates.length > 0) {
+      let uniqueDateKeys: string[] = [];
+      if (!sameCurrency) {
+        const prefetched = await prefetchExchangeRatesByDate({
+          dates: normalizedTxns.map((tx) => tx.date),
+          fromCurrencyId: bankCurrencyId,
+          toCurrencyId: reportingCurrencyId,
+        });
+        uniqueDateKeys = prefetched.uniqueDateKeys;
+        prefetched.fxRates.forEach((rate, dateKey) => {
+          fxRates.set(dateKey, rate);
+        });
+
         console.log(
-          `    💱 Fetching exchange rates for ${uniqueDates.length} unique dates...`,
+          `    💱 Fetching exchange rates for ${uniqueDateKeys.length} unique dates...`,
         );
-        const ratePromises = uniqueDates.map(async (date) => {
-          const rate = await determineExchangeRate({
-            date,
-            fromCurrencyId: bankCurrencyId,
-            toCurrencyId: reportingCurrencyId,
-          });
-          return { date, rate };
-        });
 
-        const rates = await Promise.all(ratePromises);
-
-        // Build rate map and check for missing rates
-        const missingDates: string[] = [];
-        rates.forEach(({ date, rate }) => {
-          if (rate === null) {
-            missingDates.push(date.toISOString());
-          } else {
-            fxRates.set(date.toISOString(), Number(rate));
-          }
-        });
-
-        if (missingDates.length > 0) {
+        if (prefetched.missingDates.length > 0) {
           throw new Error(
-            `Missing exchange rates for dates: ${missingDates.join(', ')}`,
+            `Missing exchange rates for dates: ${prefetched.missingDates.join(', ')}`,
           );
         }
         console.log(`    ✅ Exchange rates fetched`);
@@ -301,9 +327,9 @@ export const createDemoBankTransactions = async (
 
       // Prepare transactions for insertion
       const preparedTransactions = normalizedTxns.map((tx) => {
-        const rate = sameCurrency ? 1 : fxRates.get(tx.date.toISOString());
+        const rate = sameCurrency ? 1 : fxRates.get(toYMD(tx.date));
 
-        if (!rate) {
+        if (rate == null) {
           throw new Error(`Missing exchange rate for ${tx.date}`);
         }
 

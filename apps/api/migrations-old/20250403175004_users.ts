@@ -7,7 +7,7 @@ import {
   addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-} from './utils/db.js';
+} from '../migrations/utils/db.js';
 
 export async function createUser({
   user: input,

@@ -1,5 +1,15 @@
 import type { Knex } from 'knex';
 
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier}"`;
+}
+
+function quoteQualifiedName(tableName: string, schemaName?: string): string {
+  return schemaName
+    ? `${quoteIdentifier(schemaName)}.${quoteIdentifier(tableName)}`
+    : quoteIdentifier(tableName);
+}
+
 export function addStandardColumns(knex: Knex, table: Knex.CreateTableBuilder) {
   table
     .timestamp('created_at', { useTz: true })
@@ -15,11 +25,32 @@ export function addStandardColumns(knex: Knex, table: Knex.CreateTableBuilder) {
   table.timestamp('deleted_at', { useTz: true }).nullable();
 }
 
+export function addUserAuditColumns(
+  table: Knex.CreateTableBuilder,
+  options?: {
+    includeDeletedBy?: boolean;
+  },
+) {
+  const includeDeletedBy = options?.includeDeletedBy ?? true;
+
+  const createdBy = table.uuid('created_by_id').notNullable();
+  createdBy.references('id').inTable('users').onDelete('RESTRICT');
+
+  const updatedBy = table.uuid('updated_by_id').nullable();
+  updatedBy.references('id').inTable('users').onDelete('SET NULL');
+
+  if (includeDeletedBy) {
+    const deletedBy = table.uuid('deleted_by_id').nullable();
+    deletedBy.references('id').inTable('users').onDelete('SET NULL');
+  }
+}
+
 export async function createUpdateTimestampTrigger(
   knex: Knex,
   tableName: string,
+  schemaName?: string,
 ) {
-  const quoted = `"${tableName}"`;
+  const quoted = quoteQualifiedName(tableName, schemaName);
   await knex.raw(`
     CREATE OR REPLACE FUNCTION update_timestamp()
     RETURNS TRIGGER AS $$
@@ -42,16 +73,21 @@ export async function createUpdateTimestampTrigger(
 export async function dropUpdateTimestampTrigger(
   knex: Knex,
   tableName: string,
+  schemaName?: string,
 ) {
-  const quoted = `"${tableName}"`;
+  const quoted = quoteQualifiedName(tableName, schemaName);
 
   await knex.raw(
     `DROP TRIGGER IF EXISTS update_${tableName}_timestamp ON ${quoted};`,
   );
 }
 
-export async function preventUpdateOrDelete(knex: Knex, tableName: string) {
-  const quoted = `"${tableName}"`;
+export async function preventUpdateOrDelete(
+  knex: Knex,
+  tableName: string,
+  schemaName?: string,
+) {
+  const quoted = quoteQualifiedName(tableName, schemaName);
   await knex.raw(`
     CREATE OR REPLACE FUNCTION prevent_update_or_delete()
     RETURNS TRIGGER AS $$

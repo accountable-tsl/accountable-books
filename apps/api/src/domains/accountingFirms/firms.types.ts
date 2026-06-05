@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { dbBaseFields } from '../../core/types/core.js';
+import { dbBaseFields, dbUserAuditFields } from '../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 export const firmType = z.enum([
@@ -19,9 +19,15 @@ export const newAccFirmInput = z.object({
 export const newAccFirm = newAccFirmInput.extend({
   company_id: z.uuid(),
   slug: z.string().max(20),
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
+  deleted_by_id: z.uuid().nullish(),
 });
 
-export const accFirm = newAccFirm.merge(dbBaseFields).omit({ id: true });
+export const accFirm = newAccFirm
+  .merge(dbUserAuditFields)
+  .merge(dbBaseFields)
+  .omit({ id: true });
 
 export type NewAccFirmInput = z.infer<typeof newAccFirmInput>;
 export type NewAccFirm = z.infer<typeof newAccFirm>;

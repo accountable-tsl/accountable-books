@@ -1,13 +1,13 @@
 -- Enums & extensions are already created 
 
 -- Create table
-CREATE TABLE public.bank_transactions (
+CREATE TABLE app.bank_transactions (
     id                      UUID NOT NULL DEFAULT uuid_generate_v7(),
     date                    DATE NOT NULL,
     txn_at                  TIMESTAMPTZ NOT NULL,
     payee                   TEXT,
     contact_id              UUID,
-    contact_type_snapshot   contact_type,
+    contact_type_snapshot   TEXT,
     contact_name            TEXT,
     reference               TEXT,
     description             TEXT,
@@ -87,7 +87,7 @@ BEGIN
     SELECT 1 FROM pg_class c
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE c.relname = child_idx
-    AND n.nspname = 'public'
+    AND n.nspname = 'app'
     AND c.relkind = 'i'
     AND NOT EXISTS (
       SELECT 1 FROM pg_inherits i
@@ -117,7 +117,7 @@ END$$;
 CREATE OR REPLACE FUNCTION ensure_bt_leaf_indexes_for_year(y int)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-  leaf text := format('public.bank_transactions_%s_default', y);
+  leaf text := format('app.bank_transactions_%s_default', y);
   idx_live_status text := format('bt_live_status_date_%s_def_idx', y);
   idx_live_acct   text := format('bt_live_account_date_%s_def_idx', y);
   idx_batch       text := format('bank_transaction_batch_%s_def_idx', y);
@@ -171,7 +171,7 @@ END$$;
 CREATE OR REPLACE FUNCTION ensure_bt_leaf_indexes_before_2024()
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
-  leaf text := 'public.bank_transactions_before_2024';
+  leaf text := 'app.bank_transactions_before_2024';
   idx_live_status text := 'bt_live_status_date_before_2024_idx';
   idx_live_acct   text := 'bt_live_account_date_before_2024_idx';
   idx_batch       text := 'bank_transaction_batch_before_2024_idx';
@@ -247,7 +247,7 @@ BEGIN
 
   -- Ensure year parent exists (it already has a year-default leaf)
   EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
+    CREATE TABLE IF NOT EXISTS app.bank_transactions_%s
     PARTITION OF bank_transactions
     FOR VALUES FROM (%L) TO (%L)
     PARTITION BY RANGE (date)
@@ -255,8 +255,8 @@ BEGIN
 
   -- Create the month LEAF under the year parent
   EXECUTE format($sql$
-    CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_%s
-    PARTITION OF public.bank_transactions_%s
+    CREATE TABLE IF NOT EXISTS app.bank_transactions_%s_%s
+    PARTITION OF app.bank_transactions_%s
     FOR VALUES FROM (%L) TO (%L)
   $sql$, y, to_char(start_date,'MM'), y, start_date, end_date);
 END$$;
@@ -271,7 +271,7 @@ BEGIN
 
   BEGIN
     EXECUTE format($sql$
-      CREATE TABLE IF NOT EXISTS public.bank_transactions_%s
+      CREATE TABLE IF NOT EXISTS app.bank_transactions_%s
       PARTITION OF bank_transactions
       FOR VALUES FROM (%L) TO (%L)
       PARTITION BY RANGE (date)
@@ -282,8 +282,8 @@ BEGIN
 
   BEGIN
     EXECUTE format($sql$
-      CREATE TABLE IF NOT EXISTS public.bank_transactions_%s_default
-      PARTITION OF public.bank_transactions_%s DEFAULT
+      CREATE TABLE IF NOT EXISTS app.bank_transactions_%s_default
+      PARTITION OF app.bank_transactions_%s DEFAULT
     $sql$, y, y);
   EXCEPTION WHEN OTHERS THEN
     RAISE NOTICE 'ensure_year_partition(%): default table failed: %', y, SQLERRM;

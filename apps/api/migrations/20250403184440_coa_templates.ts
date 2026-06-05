@@ -1,110 +1,108 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import type { Knex } from 'knex';
-import csv from 'csv-parser';
 
 import {
-  addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
-  preventUpdateOrDelete,
 } from './utils/db.js';
 
-type NewCoaTemplateInput = {
-  template_name: string;
-  name: string;
-  account_type_id: string;
-  is_active: boolean;
-  locked: boolean;
-  code?: string | null | undefined;
-  description?: string | null | undefined;
-};
+/**
+ * COA templates are platform-owned chart-of-accounts blueprints. Each row
+ * represents one account line within a named template and points to a canonical
+ * account type; company-specific COA rows are created from these templates at
+ * provisioning time.
+ *
+ * Stable rows are loaded by the platform bootstrap `coa-templates` phase,
+ * not in migrations.
+ */
 
-const addNewCoaTemplates = async (knex: Knex, input: NewCoaTemplateInput[]) => {
-  const insertedRecords = await knex.transaction(async (trx) => {
-    const inserted = await trx('coa_templates').insert(input).returning('*');
-    return inserted;
-  });
-
-  if (!insertedRecords || insertedRecords.length === 0) {
-    throw new Error('Failed to insert any coa template records');
-  }
-
-  return {
-    message: `coa template(s) with ${insertedRecords.length} records entered successfully`,
-    firstFive: insertedRecords.slice(0, 5),
-  };
-};
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+const schemaName = 'app';
 const tableName = 'coa_templates';
 
-const seedCoaTemplates = async function seed(knex: Knex): Promise<void> {
-  const coaFilePath = path.join(__dirname, 'data/seed_coa_templates_v0.csv');
-  const seedCoaData: NewCoaTemplateInput[] = [];
-
-  // Read and parse CSV
-  await new Promise<void>((resolve, reject) => {
-    fs.createReadStream(coaFilePath)
-      .pipe(csv())
-      .on('data', (data: Record<string, string>) => {
-        if (data.template_name && data.name && data.account_type_id) {
-          try {
-            seedCoaData.push({
-              template_name: data.template_name.toLowerCase().trim(),
-              name: data.name.trim(),
-              code: data.code?.trim() || null,
-              description: data.description?.trim() || null,
-              account_type_id: data.account_type_id,
-              is_active: true,
-              locked: data.locked?.toLowerCase() === 'true',
-            });
-          } catch (e) {
-            console.warn(`Invalid row skipped: ${JSON.stringify(data)}`, e);
-          }
-        }
-      })
-      .on('error', (error) => reject(error))
-      .on('end', resolve);
-  });
-
-  // Insert with transaction
-  await addNewCoaTemplates(knex, seedCoaData);
-};
-
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema.createTable(tableName, (table) => {
+  await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('template_name', 256).notNullable();
     table.string('name', 256).notNullable();
     table.string('code', 256).nullable();
     table.string('description', 512).nullable();
-    table.boolean('is_active').defaultTo(true);
-    table.boolean('locked').defaultTo(false);
+    table.boolean('is_active').notNullable().defaultTo(true);
+    table.boolean('locked').notNullable().defaultTo(false);
 
     table
       .uuid('account_type_id')
       .notNullable()
       .references('id')
-      .inTable('account_types')
+      .inTable(`${schemaName}.account_types`)
       .onDelete('RESTRICT');
 
-    addStandardColumns(knex, table);
+    table
+      .timestamp('created_at', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
+    table
+      .timestamp('updated_at', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
 
-    table.unique(['template_name', 'name', 'code'], {
-      indexName: 'coa_template_name_code_unique',
-    });
+    table.index(['account_type_id'], 'coa_templates_account_type_id_idx');
+    table.index(
+      ['is_active', 'template_name'],
+      'coa_templates_active_name_idx',
+    );
   });
 
-  await createUpdateTimestampTrigger(knex, tableName);
-  await preventUpdateOrDelete(knex, tableName);
-  await seedCoaTemplates(knex);
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."${tableName}"
+    ADD CONSTRAINT coa_templates_template_name_format_chk
+    CHECK (
+      template_name = lower(btrim(template_name))
+      AND template_name ~ '^(ind|biz|acc):[a-z][a-z0-9_]*:(basic|adv|pro):(code|nocode|none):v[1-9][0-9]*$'
+    )
+  `);
+
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."${tableName}"
+    ADD CONSTRAINT coa_templates_name_trimmed_chk
+    CHECK (name = btrim(name) AND char_length(name) >= 2)
+  `);
+
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."${tableName}"
+    ADD CONSTRAINT coa_templates_code_trimmed_chk
+    CHECK (
+      code IS NULL
+      OR (code = btrim(code) AND char_length(code) >= 1)
+    )
+  `);
+
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."${tableName}"
+    ADD CONSTRAINT coa_templates_description_trimmed_chk
+    CHECK (
+      description IS NULL
+      OR (description = btrim(description) AND char_length(description) >= 2)
+    )
+  `);
+
+  await knex.raw(`
+    CREATE UNIQUE INDEX coa_templates_template_name_name_code_unique
+    ON "${schemaName}"."${tableName}" (
+      template_name,
+      lower(name),
+      COALESCE(code, '')
+    )
+  `);
+
+  await knex.raw(`
+    CREATE UNIQUE INDEX coa_templates_template_name_code_unique
+    ON "${schemaName}"."${tableName}" (template_name, code)
+    WHERE code IS NOT NULL
+  `);
+
+  await createUpdateTimestampTrigger(knex, tableName, schemaName);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTableIfExists(tableName);
+  await dropUpdateTimestampTrigger(knex, tableName, schemaName);
+  await knex.schema.withSchema(schemaName).dropTableIfExists(tableName);
 }

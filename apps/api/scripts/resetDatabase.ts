@@ -26,32 +26,32 @@ BEGIN
   -- Drop all views (excluding extension-owned views)
   FOR r IN (
     SELECT table_name FROM information_schema.views 
-    WHERE table_schema = 'public' 
+    WHERE table_schema = 'app' 
     AND table_name NOT IN ('pg_stat_statements_info', 'pg_stat_statements')
   ) LOOP
-    EXECUTE 'DROP VIEW IF EXISTS public.' || quote_ident(r.table_name) || ' CASCADE';
+    EXECUTE 'DROP VIEW IF EXISTS app.' || quote_ident(r.table_name) || ' CASCADE';
   END LOOP;
 
   -- Drop all materialized views
-  FOR r IN (SELECT matviewname FROM pg_matviews WHERE schemaname = 'public') LOOP
-    EXECUTE 'DROP MATERIALIZED VIEW IF EXISTS public.' || quote_ident(r.matviewname) || ' CASCADE';
+  FOR r IN (SELECT matviewname FROM pg_matviews WHERE schemaname = 'app') LOOP
+    EXECUTE 'DROP MATERIALIZED VIEW IF EXISTS app.' || quote_ident(r.matviewname) || ' CASCADE';
   END LOOP;
 
   -- Drop all tables
-  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
-    EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE';
+  FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'app') LOOP
+    EXECUTE 'DROP TABLE IF EXISTS app.' || quote_ident(r.tablename) || ' CASCADE';
   END LOOP;
 
   -- Drop all sequences
-  FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public') LOOP
-    EXECUTE 'DROP SEQUENCE IF EXISTS public.' || quote_ident(r.sequence_name) || ' CASCADE';
+  FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'app') LOOP
+    EXECUTE 'DROP SEQUENCE IF EXISTS app.' || quote_ident(r.sequence_name) || ' CASCADE';
   END LOOP;
 
-  -- Drop all types (including enums)
+  -- Drop all types (enums and domains)
   FOR r IN (SELECT t.typname FROM pg_type t
             LEFT JOIN pg_namespace n ON n.oid = t.typnamespace
-            WHERE n.nspname = 'public' AND t.typtype = 'e') LOOP
-    EXECUTE 'DROP TYPE IF EXISTS public.' || quote_ident(r.typname) || ' CASCADE';
+            WHERE n.nspname = 'app' AND t.typtype IN ('e', 'd')) LOOP
+    EXECUTE 'DROP TYPE IF EXISTS app.' || quote_ident(r.typname) || ' CASCADE';
   END LOOP;
 END $$;
   `);

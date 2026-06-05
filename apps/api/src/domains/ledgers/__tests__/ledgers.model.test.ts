@@ -490,10 +490,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Create exchange rate for EUR to USD (within transaction)
       await trx('exchange_rates').insert({
-        date: '2025-01-15',
-        from_currency_id: eurCurrency.id,
-        to_currency_id: testCurrencyId,
+        rate_date: '2025-01-15',
+        base_currency_id: eurCurrency.id,
+        price_currency_id: testCurrencyId,
         rate: 1.1, // System rate: 1 EUR = 1.10 USD
+        source: 'manual',
       });
 
       const data: NewLedgerTransactionData = {
@@ -1005,10 +1006,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Mock exchange rate (15000 NGN to 1 USD) (within transaction)
       await trx('exchange_rates').insert({
-        from_currency_id: ngnCurrency.id,
-        to_currency_id: testCurrencyId,
-        date: '2025-01-15',
+        base_currency_id: ngnCurrency.id,
+        price_currency_id: testCurrencyId,
+        rate_date: '2025-01-15',
         rate: 15000,
+        source: 'manual',
       });
 
       const data: NewLedgerTransactionData = {
@@ -1068,10 +1070,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Create exchange rate (within transaction)
       await trx('exchange_rates').insert({
-        from_currency_id: eurCurrency.id,
-        to_currency_id: testCurrencyId,
-        date: '2025-01-15',
+        base_currency_id: eurCurrency.id,
+        price_currency_id: testCurrencyId,
+        rate_date: '2025-01-15',
         rate: 1.1,
+        source: 'manual',
       });
 
       const data: NewLedgerTransactionData = {

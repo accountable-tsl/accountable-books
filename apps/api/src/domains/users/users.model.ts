@@ -203,7 +203,7 @@ export async function getUserDetails(
   try {
     const user = await knexClient('users')
       .select('*')
-      .where({ id: userId })
+      .where({ id: userId, is_deleted: false })
       .first();
 
     if (!user) {
@@ -250,7 +250,7 @@ export async function getSystemUser({
     const knex = trx || knexClient;
     pool = await knex('users')
       .select(['id', 'email'])
-      .where({ user_type: 'system' })
+      .where({ user_type: 'system', is_deleted: false })
       .limit(POOL_SIZE);
 
     if (pool.length === 0) {
@@ -306,7 +306,7 @@ export async function isSystemUser(
     .where((b) => {
       b.where('id', identifier).orWhere('email', identifier);
     })
-    .andWhere('user_type', 'system')
+    .andWhere({ user_type: 'system', is_deleted: false })
     .first();
 
   return !!user;

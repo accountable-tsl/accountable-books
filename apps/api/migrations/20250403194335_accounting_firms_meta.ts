@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 
 import {
   addStandardColumns,
+  addUserAuditColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db.js';
@@ -19,6 +20,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('slug', 20).unique().nullable();
     table.string('firm_type', 50).nullable(); //freelancer, ca / cpa, tax preparer, international
 
+    addUserAuditColumns(table);
     addStandardColumns(knex, table);
   });
 

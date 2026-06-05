@@ -20,7 +20,7 @@ import {
   getFullAccountMeta,
 } from '../account/account.registry.js';
 import { invalidateCompanyContext } from '../categorization/index.js';
-import { DEFAULT_ACCOUNT_TYPE_IDS, mustHaveAccounts } from './coa.constants.js';
+import { MUST_HAVE_ACCOUNTS } from './coa.constants.js';
 import {
   coaUpdateInput,
   newCoa,
@@ -219,7 +219,25 @@ export const createDefaultAccounts = async ({
   userId: string;
   reportingCurrencyId: string;
 }): Promise<ApiResponse> => {
-  const defaultAccounts: NewCoa[] = mustHaveAccounts.map((acc) => {
+  const resolvedDefaultAccounts = await Promise.all(
+    MUST_HAVE_ACCOUNTS.map(async (account) => {
+      const accountType = await getAccountTypeByKey(account.account_type_key);
+
+      if (!accountType?.id) {
+        throw new AppError(
+          `Required account type not found: ${account.account_type_key}`,
+        );
+      }
+
+      const { account_type_key: _accountTypeKey, ...rest } = account;
+      return {
+        ...rest,
+        account_type_id: accountType.id,
+      };
+    }),
+  );
+
+  const defaultAccounts: NewCoa[] = resolvedDefaultAccounts.map((acc) => {
     return {
       ...acc,
       company_id: companyUUID,
@@ -229,13 +247,16 @@ export const createDefaultAccounts = async ({
       source: 'template',
     };
   });
+  const defaultAccountTypeIds = defaultAccounts.map(
+    (account) => account.account_type_id,
+  );
 
   const existingLockedAccounts = await trx('coa')
     .where({
       company_id: companyUUID,
       locked: true,
     })
-    .whereIn('account_type_id', Object.values(DEFAULT_ACCOUNT_TYPE_IDS))
+    .whereIn('account_type_id', defaultAccountTypeIds)
     .select('account_type_id');
 
   const existingAccountTypeIds = new Set(

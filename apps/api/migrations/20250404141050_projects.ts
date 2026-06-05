@@ -8,6 +8,13 @@ import {
 import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 
 const tableName = 'projects';
+const PROJECT_STATUSES = [
+  'in_draft',
+  'in_progress',
+  'on_hold',
+  'completed',
+  'cancelled',
+];
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
@@ -15,9 +22,10 @@ export async function up(knex: Knex): Promise<void> {
     table.string('code').nullable();
     table.string('description', 512).nullable();
     table
-      .specificType('status', 'project_status')
-      .defaultTo('in_draft')
-      .notNullable();
+      .string('status')
+      .notNullable()
+      .checkIn(PROJECT_STATUSES)
+      .defaultTo('in_draft');
 
     table.timestamp('start_date', { useTz: true }).nullable();
     table.timestamp('end_date', { useTz: true }).nullable();

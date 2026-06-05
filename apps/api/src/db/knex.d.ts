@@ -142,7 +142,7 @@ declare module 'knex/types/tables' {
       Partial<Omit<Country, 'id'>>
     >;
 
-    exchange_rate: Knex.CompositeTableType<
+    exchange_rates: Knex.CompositeTableType<
       ExchangeRate,
       NewExchangeRateInput,
       Partial<Omit<ExchangeRate, 'id'>>
@@ -214,7 +214,7 @@ declare module 'knex/types/tables' {
       Partial<Omit<Fuca, 'id'>>
     >;
 
-    roles_permissions: Knex.CompositeTableType<
+    role_permissions: Knex.CompositeTableType<
       RolePermission,
       RolePermission,
       Partial<RolePermission>

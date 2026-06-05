@@ -128,7 +128,7 @@ jobs:
       - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
-          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_MIGRATION_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
           ADMIN_ID: ${{ secrets.ADMIN_ID }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_FIRSTNAME: ${{ secrets.ADMIN_FIRSTNAME }}
@@ -145,7 +145,7 @@ jobs:
       - name: Bootstrap application workspaces
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
-          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_MIGRATION_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
           ADMIN_ID: ${{ secrets.ADMIN_ID }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_FIRSTNAME: ${{ secrets.ADMIN_FIRSTNAME }}
@@ -344,7 +344,7 @@ jobs:
       - name: Apply demo data
         env:
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
-          DATABASE_URL_NOPOOL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
+          DATABASE_MIGRATION_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
         run: |
           echo "🌱 Seeding demo data..."
           pnpm -F @accountable-books/api run demo:apply:staging:remote

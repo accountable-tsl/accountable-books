@@ -6,52 +6,20 @@ import {
 } from '../../shared/utils/response.utils.js';
 import { type Company } from '../companies/companies.types.js';
 import { selectBestCoaTemplate } from './coa-template-selector.service.js';
-import { loadCoaTemplate, newCoaTemplate } from './coa-template.type.js';
+import { loadCoaTemplate } from './coa-template.type.js';
 import { createDefaultAccounts } from './coa.model.js';
 import { type NewCoa } from './coa.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   LoadCoaTemplateInput,
-  NewCoaTemplateInput,
   SelectBestCoa,
 } from './coa-template.type.js';
 
-export const addNewCoaTemplates = async (
-  knex: Knex,
-  input: NewCoaTemplateInput[],
-): Promise<ApiResponse> => {
-  const validatedInput = newCoaTemplate
-    .array()
-    .nonempty('At least one template required')
-    .safeParse(input);
-  if (!validatedInput.success) {
-    return errorResponse(
-      'Invalid input provided',
-      validatedInput.error.flatten(),
-    );
-  }
-
-  try {
-    const insertedRecords = await knex.transaction(async (trx) => {
-      const inserted = await trx('coa_templates')
-        .insert(validatedInput.data)
-        .returning('*');
-      return inserted;
-    });
-
-    if (!insertedRecords || insertedRecords.length === 0) {
-      return errorResponse('Failed to insert any coa template records');
-    }
-
-    return successResponse(
-      `coa template(s) with ${insertedRecords.length} records entered successfully`,
-      insertedRecords,
-    );
-  } catch (error) {
-    return errorResponse('Error inserting coa template(s)', error);
-  }
-};
+type CoaTemplateAccountLine = Pick<
+  NewCoa,
+  'code' | 'name' | 'description' | 'account_type_id' | 'locked'
+>;
 
 export const loadCoaTemplateForCompany = async (
   knex: Knex,
@@ -99,7 +67,7 @@ export const loadCoaTemplateForCompany = async (
     }
 
     // Check if template is valid and select valid template
-    const validTemplate: NewCoa[] = await knex('coa_templates')
+    const validTemplate: CoaTemplateAccountLine[] = await knex('coa_templates')
       .where('is_active', true)
       .where('template_name', chosenTemplate)
       .select('code', 'name', 'description', 'account_type_id', 'locked');

@@ -106,15 +106,15 @@ export const API_ENV_SCHEMA: EnvSchema = {
   },
 
   DATABASE_URL: {
-    description: 'Complete PostgreSQL connection string',
+    description: 'Runtime PostgreSQL connection string',
     type: 'secret',
     local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
-  DATABASE_URL_NOPOOL: {
-    description: 'Complete PostgreSQL connection string',
+  DATABASE_MIGRATION_URL: {
+    description: 'Direct PostgreSQL connection string for migrations',
     type: 'secret',
-    local: '',
+    local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
   // ============================================================================
@@ -508,6 +508,61 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'secret',
     required: false,
     local: 'secret',
+  },
+
+  // ============================================================================
+  // FX RATE PROVIDERS
+  // ============================================================================
+  FX_PROVIDER_ORDER: {
+    description:
+      'Comma-separated FX provider chain order. Allowed: openexchangerates, exchangerate_api, fixer',
+    type: 'string',
+    required: false,
+    local: 'openexchangerates,exchangerate_api,fixer',
+    staging: 'openexchangerates,exchangerate_api,fixer',
+    production: 'openexchangerates,exchangerate_api,fixer',
+    default: 'openexchangerates,exchangerate_api,fixer',
+  },
+
+  FX_LOOKBACK_DAYS: {
+    description: 'Maximum fallback days to look back for exchange rates',
+    type: 'number',
+    required: false,
+    local: '5',
+    staging: '5',
+    production: '5',
+    default: '5',
+  },
+
+  FX_HTTP_TIMEOUT_MS: {
+    description: 'HTTP timeout in milliseconds for provider FX requests',
+    type: 'number',
+    required: false,
+    local: '5000',
+    staging: '5000',
+    production: '5000',
+    default: '5000',
+  },
+
+  OPENEXCHANGERATES_APP_ID: {
+    description: 'Open Exchange Rates App ID',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  EXCHANGERATE_API_KEY: {
+    description: 'ExchangeRate-API key',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  FIXER_API_KEY: {
+    description: 'Fixer API access key',
+    type: 'secret',
+    required: false,
+    local: '',
   },
 
   // ============================================================================

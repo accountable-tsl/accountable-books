@@ -1,13 +1,16 @@
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
 import {
+  type CountryRow,
   type CountryRes,
   type GetCountriesOptions,
+  toCountryRes,
 } from './countries.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
@@ -57,31 +60,31 @@ export async function getCountries({
         return successResponse('Countries fetched from cache', parsed);
       }
     }
-    const countries = await knexClient('countries')
-      .select(
-        'id',
-        'code',
-        'name',
-        'phone_code as phoneCode',
-        'flag',
-        'continent',
-      )
-      .where('is_deleted', false)
-      .orderBy('name', 'asc');
+    const countries = (await knexClient('countries')
+      .select('id', 'code', 'name', 'phone_code', 'flag', 'continent')
+      .orderBy('name', 'asc')) as CountryRow[];
+
+    const normalizedCountries: CountryRes[] = countries.map(toCountryRes);
+
+    if (normalizedCountries.length === 0) {
+      return errorResponse('No countries found', undefined, {
+        code: ErrorCode.NOT_FOUND,
+      });
+    }
 
     await redis.set(
       countriesCacheKey,
-      JSON.stringify(countries),
+      JSON.stringify(normalizedCountries),
       'EX',
       CACHE_TTL,
     );
 
-    countryIndex = buildCountryIndex(countries);
+    countryIndex = buildCountryIndex(normalizedCountries);
     countryIndexBuiltAt = Date.now();
 
     return successResponse(
-      `${countries.length} countries fetched successfully`,
-      countries,
+      `${normalizedCountries.length} countries fetched successfully`,
+      normalizedCountries,
     );
   } catch (error: unknown) {
     return errorResponse('Error fetching country list', error);

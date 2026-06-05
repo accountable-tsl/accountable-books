@@ -50,8 +50,13 @@ export async function loginService(
   }>
 > {
   try {
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Look up user by email
-    const user = await knexClient('users').select('*').where({ email }).first();
+    const user = await knexClient('users')
+      .select('*')
+      .where({ email: normalizedEmail, is_deleted: false })
+      .first();
     if (!user) {
       // If no user found, fail with invalid credentials error
       return errorResponse('Email or password is incorrect', undefined, {

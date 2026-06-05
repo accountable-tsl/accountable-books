@@ -15,7 +15,7 @@ export const newUser = z.object({
   email: zEmail(),
   password: z.string().min(8).nullable(),
 
-  phone_number: z.string().max(50).nullish(),
+  phone_number: z.string().max(32).nullish(),
   avatar_url: z.string().nullish(),
   avatar_key: z.string().nullish(),
 

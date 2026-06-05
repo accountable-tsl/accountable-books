@@ -581,6 +581,8 @@ export async function ensureAccountingFirmMeta({
         company_id: companyId,
         slug: meta.slug,
         firm_type: meta.firm_type,
+        created_by_id: actorUserId,
+        updated_by_id: actorUserId,
       })
       .returning(['company_id', 'slug']);
 
@@ -627,6 +629,7 @@ export async function ensureAccountingFirmMeta({
     .update({
       slug: meta.slug,
       firm_type: meta.firm_type ?? null,
+      updated_by_id: actorUserId,
     })
     .returning(['company_id', 'slug']);
 

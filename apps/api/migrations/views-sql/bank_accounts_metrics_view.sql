@@ -53,14 +53,14 @@ balance_stats AS (
 ),
 exchange_rates_latest AS (
   -- Get latest exchange rates for all currency pairs (optimized to avoid duplicate subqueries)
-  SELECT DISTINCT ON (er.from_currency_id, er.to_currency_id)
-    er.from_currency_id,
-    er.to_currency_id,
+  SELECT DISTINCT ON (er.base_currency_id, er.price_currency_id)
+    er.base_currency_id,
+    er.price_currency_id,
     er.rate,
-    er.date
+    er.rate_date
   FROM exchange_rates er
-  WHERE er.date <= CURRENT_DATE
-  ORDER BY er.from_currency_id, er.to_currency_id, er.date DESC
+  WHERE er.rate_date <= CURRENT_DATE
+  ORDER BY er.base_currency_id, er.price_currency_id, er.rate_date DESC
 )
 SELECT 
   -- Bank Account Core Fields
@@ -160,6 +160,6 @@ LEFT JOIN account_types at ON coa.account_type_id = at.id
 LEFT JOIN bank_feed_providers p ON ba.provider_id = p.id
 LEFT JOIN transaction_stats ts ON ts.bank_account_id = ba.id
 LEFT JOIN balance_stats bs ON bs.bank_account_id = ba.id
-LEFT JOIN exchange_rates_latest erl ON erl.from_currency_id = ba.currency_id
-  AND erl.to_currency_id = c.reporting_currency_id
+LEFT JOIN exchange_rates_latest erl ON erl.base_currency_id = ba.currency_id
+  AND erl.price_currency_id = c.reporting_currency_id
 WHERE ba.is_deleted = false;

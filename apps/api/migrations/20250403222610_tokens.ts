@@ -1,7 +1,5 @@
 import type { Knex } from 'knex';
 
-import { seedAdminUser, seedSystemUser } from './20250403184441_users.js';
-
 const tableName = 'tokens';
 export async function up(knex: Knex): Promise<void> {
   // TODO: Background job to delete old expired tokens
@@ -64,9 +62,6 @@ export async function up(knex: Knex): Promise<void> {
   ON tokens (token_type, invitation_id)
   WHERE invitation_id IS NOT NULL AND consumed_at IS NULL
 `);
-
-  await seedAdminUser(knex);
-  await seedSystemUser(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

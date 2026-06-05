@@ -88,7 +88,7 @@ These are set from `apps/api/.env.secrets.staging`:
 
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
-- `DATABASE_URL_NOPOOL`
+- `DATABASE_MIGRATION_URL`
 - `REDIS_URL`
 - `REDIS_PASSWORD`
 - `CSRF_SECRET`

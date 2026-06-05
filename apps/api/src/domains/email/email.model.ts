@@ -34,7 +34,10 @@ export async function checkEmail(
       return errorResponse('Invalid email format', isValidEmailFormat.error);
     }
 
-    const user = await knex('users').where({ email }).first();
+    const normalizedEmail = email!.trim().toLowerCase();
+    const user = await knex('users')
+      .where({ email: normalizedEmail, is_deleted: false })
+      .first();
 
     const messages = purpose
       ? purposes[purpose]
@@ -46,10 +49,13 @@ export async function checkEmail(
     const message = user ? messages.ifExists : messages.ifNotExists;
 
     if (user && purpose === 'signup') {
-      return errorResponse(message, email);
+      return errorResponse(message, normalizedEmail);
     }
 
-    return successResponse(message, purpose === 'signup' ? email : null);
+    return successResponse(
+      message,
+      purpose === 'signup' ? normalizedEmail : null,
+    );
   } catch (error) {
     return errorResponse('Error verifying email', error);
   }

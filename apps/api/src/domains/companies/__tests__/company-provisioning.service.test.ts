@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getTestDb } from '../../../../config/test-db.js';
 import { getTestUserId, US_USER_EMAIL } from '../../../../test/helpers.js';
 import { resolveWorkspaceBillingContext } from '../../billing/resolver/ownership-resolver.service.js';
-import { mustHaveAccounts } from '../../chart-of-accounts/coa.constants.js';
+import { MUST_HAVE_ACCOUNTS } from '../../chart-of-accounts/coa.constants.js';
 import { createCompany } from '../companies.model.js';
 import {
   ensureAccountingFirmMeta,
@@ -258,7 +258,7 @@ describe('company-provisioning.service', () => {
     expect(secondCoa.skipped).toBe(true);
     expect(firstRole.action).toBe('created');
     expect(secondRole.action).toBe('no change');
-    expect(Number(coaCount?.count ?? 0)).toBe(mustHaveAccounts.length);
+    expect(Number(coaCount?.count ?? 0)).toBe(MUST_HAVE_ACCOUNTS.length);
     expect(Number(settingsCount?.count ?? 0)).toBeGreaterThan(0);
     expect(Number(roleCount?.count ?? 0)).toBe(1);
   });

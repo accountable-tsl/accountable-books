@@ -8,6 +8,10 @@ import {
 
 const tableName = 'companies';
 const WORKSPACE_CLASSES = ['customer', 'demo', 'platform', 'partner'];
+const COMPANY_TYPES = ['business', 'accounting_firm', 'individual'];
+const REPORTING_FRAMEWORKS = ['ifrs', 'us_gaap'];
+const ACCOUNTING_BASES = ['modified_cash_basis', 'modified_accrual_basis'];
+
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
@@ -15,7 +19,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('display_name', 256).nullable();
     table.string('short_code', 11).unique().notNullable();
     table.string('address', 512).nullable();
-    table.specificType('type', 'company_type').notNullable();
+    table.string('type').notNullable().checkIn(COMPANY_TYPES);
     table.string('description', 2000).nullable();
     table.string('website', 256).nullable();
     table.string('industry', 256).nullable();
@@ -23,8 +27,11 @@ export async function up(knex: Knex): Promise<void> {
     table.string('revenue', 256).nullable();
     table.integer('year_end_day').notNullable();
     table.integer('year_end_month').notNullable();
-    table.specificType('accounting_basis', 'accounting_basis').notNullable();
-    table.specificType('reporting_framework', 'reporting_framework').nullable();
+    table.string('accounting_basis').notNullable().checkIn(ACCOUNTING_BASES);
+    table
+      .string('reporting_framework')
+      .nullable()
+      .checkIn(REPORTING_FRAMEWORKS);
     table.string('registration_number').nullable();
     table.string('tax_id').nullable();
     table.jsonb('onboarding_state').nullable();

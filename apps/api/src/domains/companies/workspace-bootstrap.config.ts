@@ -12,9 +12,10 @@ export const PLATFORM_WORKSPACE_SHORT_CODE =
   ENV.PLATFORM_COMPANY_SHORT_CODE ?? 'accX';
 
 export const PLATFORM_WORKSPACE_SLUG = 'app';
-export const SYSTEM_USER_EMAIL = 'system@getaccountable.com';
-
-export const SYSTEM_USER_ID = '4324386b-1481-46f4-a63a-1d3ed515c2df';
+export {
+  SYSTEM_USER_EMAIL,
+  SYSTEM_USER_ID,
+} from '../../bootstrap/phases/users.bootstrap.js';
 
 export const VEYRA_NG_PARTNER_SLUG = 'veyra-ng';
 export const VEYRA_US_PARTNER_SLUG = 'veyra-us';

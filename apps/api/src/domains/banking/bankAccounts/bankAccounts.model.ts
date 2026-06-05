@@ -125,9 +125,9 @@ const BANK_ACCOUNT_FIELDS = [
 //         ),
 //         latestExchangeRate: db.raw(
 //           `(SELECT er.rate FROM exchange_rates er
-//             WHERE er.from_currency_id = ba.currency_id
-//               AND er.to_currency_id = c.reporting_currency_id
-//             ORDER BY er.date DESC
+//             WHERE er.base_currency_id = ba.currency_id
+//               AND er.price_currency_id = c.reporting_currency_id
+//             ORDER BY er.rate_date DESC
 //             LIMIT 1)`,
 //         ),
 //       })
