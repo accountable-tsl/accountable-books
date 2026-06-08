@@ -1878,7 +1878,7 @@
     "official_name": "Abbey Mortgage Bank Plc",
     "local_code": "070010",
     "local_code_type": "nip_code",
-    "secondary_reference": "404",
+    "alternate_identifier": "404",
     "website": "https://www.abbeymortgagebank.com/"
   },
   {
@@ -1888,7 +1888,7 @@
     "key": "ng_above_only_mfb",
     "local_code": "090260",
     "local_code_type": "nip_code",
-    "secondary_reference": "51204"
+    "alternate_identifier": "51204"
   },
   {
     "id": "0834def0-ca20-4113-8ae6-19d734854438",
@@ -1897,7 +1897,7 @@
     "key": "ng_abulesoro_mfb",
     "local_code": "090545",
     "local_code_type": "nip_code",
-    "secondary_reference": "51312"
+    "alternate_identifier": "51312"
   },
   {
     "id": "d796c021-e4e4-497e-8fad-c312f38ca023",
@@ -1909,7 +1909,7 @@
     "swift_code": "ABNGNGLA",
     "local_code": "000014",
     "local_code_type": "nip_code",
-    "secondary_reference": "044",
+    "alternate_identifier": "044",
     "website": "https://www.accessbank.com"
   },
   {
@@ -1919,7 +1919,7 @@
     "key": "ng_accion_mfb",
     "local_code": "090134",
     "local_code_type": "nip_code",
-    "secondary_reference": "602"
+    "alternate_identifier": "602"
   },
   {
     "id": "20e4ab91-cafb-45cf-b30d-1d5825b3d03b",
@@ -1928,7 +1928,7 @@
     "key": "ng_aella_mfb",
     "local_code": "090614",
     "local_code_type": "nip_code",
-    "secondary_reference": "50315"
+    "alternate_identifier": "50315"
   },
   {
     "id": "329f65a7-89fd-4bc1-b727-db591b910130",
@@ -1937,7 +1937,7 @@
     "key": "ng_ag_mtg_bank",
     "local_code": "100028",
     "local_code_type": "nip_code",
-    "secondary_reference": "90077"
+    "alternate_identifier": "90077"
   },
   {
     "id": "4bc752d9-eb87-47a8-aa91-c95a0bf5d921",
@@ -1946,7 +1946,7 @@
     "key": "ng_ahmadu_bello_mfb",
     "local_code": "090197",
     "local_code_type": "nip_code",
-    "secondary_reference": "50036"
+    "alternate_identifier": "50036"
   },
   {
     "id": "0ed8705e-20d5-460e-8845-586ba1d79dde",
@@ -1963,7 +1963,7 @@
     "key": "ng_aku_mfb",
     "local_code": "090531",
     "local_code_type": "nip_code",
-    "secondary_reference": "51336"
+    "alternate_identifier": "51336"
   },
   {
     "id": "6e022011-0483-4fe8-b357-74a7ed910864",
@@ -1981,7 +1981,7 @@
     "key": "ng_alat_by_wema",
     "local_code": "000017",
     "local_code_type": "nip_code",
-    "secondary_reference": "035A"
+    "alternate_identifier": "035A"
   },
   {
     "id": "87493884-f24a-4965-8888-563817add745",
@@ -1990,7 +1990,7 @@
     "key": "ng_alternative_bank",
     "local_code": "000037",
     "local_code_type": "nip_code",
-    "secondary_reference": "000304"
+    "alternate_identifier": "000304"
   },
   {
     "id": "4458197b-dc02-4730-9621-3942d9f55934",
@@ -1999,7 +1999,7 @@
     "key": "ng_amju_unique_mfb",
     "local_code": "090180",
     "local_code_type": "nip_code",
-    "secondary_reference": "50926"
+    "alternate_identifier": "50926"
   },
   {
     "id": "38a92335-2d90-4a89-a176-22624dbc38ff",
@@ -2008,7 +2008,7 @@
     "key": "ng_aramoko_mfb",
     "local_code": "090307",
     "local_code_type": "nip_code",
-    "secondary_reference": "50083"
+    "alternate_identifier": "50083"
   },
   {
     "id": "2a29cb74-ca54-4805-ac55-01d8c6c7b5eb",
@@ -2019,7 +2019,7 @@
     "official_name": "Aso Savings And Loans Plc",
     "local_code": "090001",
     "local_code_type": "nip_code",
-    "secondary_reference": "401"
+    "alternate_identifier": "401"
   },
   {
     "id": "053a1e91-dd50-4515-99db-53c0244c913c",
@@ -2028,7 +2028,7 @@
     "key": "ng_assets_mfb",
     "local_code": "090473",
     "local_code_type": "nip_code",
-    "secondary_reference": "50092"
+    "alternate_identifier": "50092"
   },
   {
     "id": "731f77ad-7c3b-4ff3-86bd-c61b01062f2b",
@@ -2037,7 +2037,7 @@
     "key": "ng_astrapolaris_mfb_ltd",
     "local_code": "090172",
     "local_code_type": "nip_code",
-    "secondary_reference": "MFB50094"
+    "alternate_identifier": "MFB50094"
   },
   {
     "id": "3a440524-8665-4478-beda-acef9ac5df9a",
@@ -2054,7 +2054,7 @@
     "key": "ng_aztec_mfb",
     "local_code": "090540",
     "local_code_type": "nip_code",
-    "secondary_reference": "51337"
+    "alternate_identifier": "51337"
   },
   {
     "id": "eacbca31-9dd5-41ee-b23d-2330e7c37cdd",
@@ -2063,7 +2063,7 @@
     "key": "ng_bainescredit_mfb",
     "local_code": "090188",
     "local_code_type": "nip_code",
-    "secondary_reference": "51229"
+    "alternate_identifier": "51229"
   },
   {
     "id": "c7a73ac7-2fca-408c-b2a0-44eff6b11054",
@@ -2072,7 +2072,7 @@
     "key": "ng_banc_corp_mfb",
     "local_code": "090581",
     "local_code_type": "nip_code",
-    "secondary_reference": "50117"
+    "alternate_identifier": "50117"
   },
   {
     "id": "c4ac7a58-32e9-448f-81a5-7ec9e6786d48",
@@ -2081,7 +2081,7 @@
     "key": "ng_bankit_mfb",
     "local_code": "090275",
     "local_code_type": "nip_code",
-    "secondary_reference": "50572"
+    "alternate_identifier": "50572"
   },
   {
     "id": "9af20430-df10-48d1-b1bd-60be4b3d94d0",
@@ -2090,7 +2090,7 @@
     "key": "ng_bankly_mfb",
     "local_code": "090529",
     "local_code_type": "nip_code",
-    "secondary_reference": "51341"
+    "alternate_identifier": "51341"
   },
   {
     "id": "40990c62-d727-4fb4-abae-8f0080cf3009",
@@ -2099,7 +2099,7 @@
     "key": "ng_baobab_mfb",
     "local_code": "090136",
     "local_code_type": "nip_code",
-    "secondary_reference": "MFB50992"
+    "alternate_identifier": "MFB50992"
   },
   {
     "id": "9c7285a6-e102-4250-b262-a3a75e1cab26",
@@ -2108,7 +2108,7 @@
     "key": "ng_benysta_mfb",
     "local_code": "090413",
     "local_code_type": "nip_code",
-    "secondary_reference": "51267"
+    "alternate_identifier": "51267"
   },
   {
     "id": "f74f77d7-9f26-4212-a563-af19af0e6263",
@@ -2117,7 +2117,7 @@
     "key": "ng_beststar_mfb",
     "local_code": "090615",
     "local_code_type": "nip_code",
-    "secondary_reference": "50123"
+    "alternate_identifier": "50123"
   },
   {
     "id": "5e0299a7-4069-46e6-a65a-e564e0b68895",
@@ -2126,7 +2126,7 @@
     "key": "ng_bosak_mfb",
     "local_code": "090176",
     "local_code_type": "nip_code",
-    "secondary_reference": "650"
+    "alternate_identifier": "650"
   },
   {
     "id": "2b7fac38-e33c-4853-839c-b4241721727a",
@@ -2135,7 +2135,7 @@
     "key": "ng_bowen_mfb",
     "local_code": "090148",
     "local_code_type": "nip_code",
-    "secondary_reference": "50931"
+    "alternate_identifier": "50931"
   },
   {
     "id": "56f6415e-d3ec-40de-91ab-2d1e77636331",
@@ -2144,7 +2144,7 @@
     "key": "ng_branch_intl_fc",
     "local_code": "050006",
     "local_code_type": "nip_code",
-    "secondary_reference": "FC40163"
+    "alternate_identifier": "FC40163"
   },
   {
     "id": "7bbeb183-15ef-4ce0-bbed-20392864a537",
@@ -2153,7 +2153,7 @@
     "key": "ng_carbon",
     "local_code": "100026",
     "local_code_type": "nip_code",
-    "secondary_reference": "565"
+    "alternate_identifier": "565"
   },
   {
     "id": "d9cf99bb-77b0-47ac-a346-0f4c3b5d5f70",
@@ -2162,7 +2162,7 @@
     "key": "ng_cashconnect_mfb",
     "local_code": "090360",
     "local_code_type": "nip_code",
-    "secondary_reference": "865"
+    "alternate_identifier": "865"
   },
   {
     "id": "a3e8a634-66c6-4f1e-8a20-fb5ba0b07759",
@@ -2172,7 +2172,7 @@
     "key": "ng_cemcs_mfb",
     "local_code": "090154",
     "local_code_type": "nip_code",
-    "secondary_reference": "50823"
+    "alternate_identifier": "50823"
   },
   {
     "id": "5ceac12d-bd8d-48c8-83b1-a93ba8f5c848",
@@ -2181,7 +2181,7 @@
     "key": "ng_chanelle_mfb",
     "local_code": "090365",
     "local_code_type": "nip_code",
-    "secondary_reference": "50171"
+    "alternate_identifier": "50171"
   },
   {
     "id": "a8217bec-9074-4f07-a71d-b987fa55bb6b",
@@ -2190,7 +2190,7 @@
     "key": "ng_chikum_mfb",
     "local_code": "090141",
     "local_code_type": "nip_code",
-    "secondary_reference": "312"
+    "alternate_identifier": "312"
   },
   {
     "id": "90488504-6bb9-491b-9184-c39c346c6570",
@@ -2200,7 +2200,7 @@
     "key": "ng_citibank_nigeria",
     "local_code": "000009",
     "local_code_type": "nip_code",
-    "secondary_reference": "023"
+    "alternate_identifier": "023"
   },
   {
     "id": "f001c17e-ee87-4b2a-bff1-0651ddcdcd5c",
@@ -2209,7 +2209,7 @@
     "key": "ng_consumer_mfb",
     "local_code": "090130",
     "local_code_type": "nip_code",
-    "secondary_reference": "50910"
+    "alternate_identifier": "50910"
   },
   {
     "id": "6edf3837-f897-46b9-a834-13093d6ca91c",
@@ -2218,7 +2218,7 @@
     "key": "ng_corestep_mfb",
     "local_code": "090365",
     "local_code_type": "nip_code",
-    "secondary_reference": "50204"
+    "alternate_identifier": "50204"
   },
   {
     "id": "df38f169-1045-4114-ae30-b4d8d4b19f67",
@@ -2227,7 +2227,7 @@
     "key": "ng_coronation_merch_bank",
     "local_code": "060001",
     "local_code_type": "nip_code",
-    "secondary_reference": "559"
+    "alternate_identifier": "559"
   },
   {
     "id": "af49e396-8601-4f21-9446-9652db0b7fb9",
@@ -2236,7 +2236,7 @@
     "key": "ng_county_finance_ltd",
     "local_code": "050001",
     "local_code_type": "nip_code",
-    "secondary_reference": "FC40128"
+    "alternate_identifier": "FC40128"
   },
   {
     "id": "7ef2a78b-c9ad-47da-b054-f3eaea6c9833",
@@ -2245,7 +2245,7 @@
     "key": "ng_crescent_mfb",
     "local_code": "090526",
     "local_code_type": "nip_code",
-    "secondary_reference": "51297"
+    "alternate_identifier": "51297"
   },
   {
     "id": "5d541026-a77b-4937-b218-3c58a54f74fd",
@@ -2262,7 +2262,7 @@
     "key": "ng_crutech_mfb",
     "local_code": "090414",
     "local_code_type": "nip_code",
-    "secondary_reference": "50216"
+    "alternate_identifier": "50216"
   },
   {
     "id": "1d75f57e-a5f3-4550-9e24-106da2e243a1",
@@ -2271,7 +2271,7 @@
     "key": "ng_dot_mfb",
     "local_code": "090470",
     "local_code_type": "nip_code",
-    "secondary_reference": "50162"
+    "alternate_identifier": "50162"
   },
   {
     "id": "42b2d4ec-6a03-4ce1-9f47-cb3ab890e056",
@@ -2280,7 +2280,7 @@
     "key": "ng_ebsu_mfb",
     "local_code": "090427",
     "local_code_type": "nip_code",
-    "secondary_reference": "50922"
+    "alternate_identifier": "50922"
   },
   {
     "id": "cdecba8b-bb63-42c6-a277-97ceffe0e0f3",
@@ -2292,7 +2292,7 @@
     "swift_code": "ECOCNGLA",
     "local_code": "000010",
     "local_code_type": "nip_code",
-    "secondary_reference": "050"
+    "alternate_identifier": "050"
   },
   {
     "id": "be9a6b04-fe23-4272-a0f4-fd4690946b21",
@@ -2301,7 +2301,7 @@
     "key": "ng_ekimogun_mfb",
     "local_code": "090552",
     "local_code_type": "nip_code",
-    "secondary_reference": "50263"
+    "alternate_identifier": "50263"
   },
   {
     "id": "c2db8282-c8f5-47bf-b443-e4ec0ef16a9a",
@@ -2310,7 +2310,7 @@
     "key": "ng_ekondo_mfb",
     "local_code": "090097",
     "local_code_type": "nip_code",
-    "secondary_reference": "098"
+    "alternate_identifier": "098"
   },
   {
     "id": "b705d5e8-34ac-4b2c-935c-a1526df9087b",
@@ -2319,7 +2319,7 @@
     "key": "ng_eyowo",
     "local_code": "090328",
     "local_code_type": "nip_code",
-    "secondary_reference": "50126"
+    "alternate_identifier": "50126"
   },
   {
     "id": "b3bdf3fe-7ddf-4c9d-84a8-ff96e99ddd79",
@@ -2328,7 +2328,7 @@
     "key": "ng_fairmoney_mfb",
     "local_code": "090551",
     "local_code_type": "nip_code",
-    "secondary_reference": "51318"
+    "alternate_identifier": "51318"
   },
   {
     "id": "e868b8f7-5de8-474e-8b0f-5c0feb0492d1",
@@ -2337,7 +2337,7 @@
     "key": "ng_fedeth_mfb",
     "local_code": "090482",
     "local_code_type": "nip_code",
-    "secondary_reference": "50298"
+    "alternate_identifier": "50298"
   },
   {
     "id": "170b9cc0-0c7e-4ce7-a33a-6be0098f14ba",
@@ -2349,7 +2349,7 @@
     "swift_code": "FIDTNGLA",
     "local_code": "000007",
     "local_code_type": "nip_code",
-    "secondary_reference": "070",
+    "alternate_identifier": "070",
     "website": "https://www.fidelitybank.com"
   },
   {
@@ -2359,7 +2359,7 @@
     "key": "ng_firmus_mfb",
     "local_code": "090366",
     "local_code_type": "nip_code",
-    "secondary_reference": "51314"
+    "alternate_identifier": "51314"
   },
   {
     "id": "b23d7297-6bed-410e-83f3-bc9dc6bed623",
@@ -2371,7 +2371,7 @@
     "swift_code": "FBNINGLA",
     "local_code": "000016",
     "local_code_type": "nip_code",
-    "secondary_reference": "011",
+    "alternate_identifier": "011",
     "website": "https://www.firstbankofnigeria.com"
   },
   {
@@ -2384,7 +2384,7 @@
     "swift_code": "FCMBNGLA",
     "local_code": "000003",
     "local_code_type": "nip_code",
-    "secondary_reference": "214",
+    "alternate_identifier": "214",
     "website": "https://www.firstbank.com"
   },
   {
@@ -2402,7 +2402,7 @@
     "key": "ng_firstmidas_mfb",
     "local_code": "090575",
     "local_code_type": "nip_code",
-    "secondary_reference": "51333"
+    "alternate_identifier": "51333"
   },
   {
     "id": "3923623e-188e-4bf8-90dc-b5803b06e4b5",
@@ -2411,7 +2411,7 @@
     "key": "ng_fsdh_merchant_bank",
     "local_code": "400001",
     "local_code_type": "nip_code",
-    "secondary_reference": "501"
+    "alternate_identifier": "501"
   },
   {
     "id": "43ddf26a-8be5-4abe-a105-62a242c71315",
@@ -2420,7 +2420,7 @@
     "key": "ng_futminna_mfb",
     "local_code": "090438",
     "local_code_type": "nip_code",
-    "secondary_reference": "832"
+    "alternate_identifier": "832"
   },
   {
     "id": "71f6af13-e95f-41c5-9204-9ae2d8346fde",
@@ -2429,7 +2429,7 @@
     "key": "ng_gateway_mtg_bank",
     "local_code": "070009",
     "local_code_type": "nip_code",
-    "secondary_reference": "812"
+    "alternate_identifier": "812"
   },
   {
     "id": "bb46750c-4a65-4777-ab9d-1aa5de9c8815",
@@ -2440,7 +2440,7 @@
     "swift_code": "GLOUNGLA",
     "local_code": "000027",
     "local_code_type": "nip_code",
-    "secondary_reference": "103",
+    "alternate_identifier": "103",
     "website": "https://www.globusbank.com"
   },
   {
@@ -2466,7 +2466,7 @@
     "key": "ng_goodnews_mfb",
     "local_code": "090495",
     "local_code_type": "nip_code",
-    "secondary_reference": "50739"
+    "alternate_identifier": "50739"
   },
   {
     "id": "707ce684-b38b-4958-a0aa-8607d7b643f8",
@@ -2476,7 +2476,7 @@
     "key": "ng_greenwich_merch_bank",
     "local_code": "060004",
     "local_code_type": "nip_code",
-    "secondary_reference": "562"
+    "alternate_identifier": "562"
   },
   {
     "id": "c455c18b-b3d3-482d-b499-7709fb5b164f",
@@ -2485,7 +2485,7 @@
     "key": "ng_grooming_mfb",
     "local_code": "090195",
     "local_code_type": "nip_code",
-    "secondary_reference": "51276"
+    "alternate_identifier": "51276"
   },
   {
     "id": "2a876794-de37-43a5-8df1-7f4b3d1fae03",
@@ -2494,7 +2494,7 @@
     "key": "ng_gti_mfb",
     "local_code": "090385",
     "local_code_type": "nip_code",
-    "secondary_reference": "50368"
+    "alternate_identifier": "50368"
   },
   {
     "id": "107fc5de-91d3-415d-9f3f-d683b22b06bc",
@@ -2506,7 +2506,7 @@
     "swift_code": "GTBINGLA",
     "local_code": "000013",
     "local_code_type": "nip_code",
-    "secondary_reference": "058",
+    "alternate_identifier": "058",
     "website": "https://www.gtbank.com"
   },
   {
@@ -2516,7 +2516,7 @@
     "key": "ng_hackman_mfb",
     "local_code": "090147",
     "local_code_type": "nip_code",
-    "secondary_reference": "51251"
+    "alternate_identifier": "51251"
   },
   {
     "id": "5ae5e16d-46ac-42ca-aa3c-ceb02f596742",
@@ -2525,7 +2525,7 @@
     "key": "ng_hasal_mfb",
     "local_code": "090121",
     "local_code_type": "nip_code",
-    "secondary_reference": "50383"
+    "alternate_identifier": "50383"
   },
   {
     "id": "fa057744-19dc-49ed-9386-cf0e855d3dbd",
@@ -2542,7 +2542,7 @@
     "key": "ng_ibank_mfb",
     "local_code": "090115",
     "local_code_type": "nip_code",
-    "secondary_reference": "51211"
+    "alternate_identifier": "51211"
   },
   {
     "id": "80fed801-ffb1-412d-8f3b-27df95d2a4a0",
@@ -2551,7 +2551,7 @@
     "key": "ng_ibile_mfb",
     "local_code": "090118",
     "local_code_type": "nip_code",
-    "secondary_reference": "51244"
+    "alternate_identifier": "51244"
   },
   {
     "id": "e64fe07d-ca0c-4920-a866-10d6a232e284",
@@ -2560,7 +2560,7 @@
     "key": "ng_ikoyi_osun_mfb",
     "local_code": "090536",
     "local_code_type": "nip_code",
-    "secondary_reference": "50439"
+    "alternate_identifier": "50439"
   },
   {
     "id": "fc85f7aa-1bcf-436c-953a-f2f7a84c3303",
@@ -2569,7 +2569,7 @@
     "key": "ng_ilaro_poly_mfb",
     "local_code": "090571",
     "local_code_type": "nip_code",
-    "secondary_reference": "50442"
+    "alternate_identifier": "50442"
   },
   {
     "id": "3182bb8c-2703-4b60-a44c-45976c0675a1",
@@ -2578,7 +2578,7 @@
     "key": "ng_imowo_mfb",
     "local_code": "090417",
     "local_code_type": "nip_code",
-    "secondary_reference": "50453"
+    "alternate_identifier": "50453"
   },
   {
     "id": "a1090343-9ad7-40ed-abe3-dccc19bee80d",
@@ -2587,7 +2587,7 @@
     "key": "ng_imperial_homes_mgt_bank",
     "local_code": "100024",
     "local_code_type": "nip_code",
-    "secondary_reference": "415"
+    "alternate_identifier": "415"
   },
   {
     "id": "9f159d39-5fcd-41fd-9561-62fe84370638",
@@ -2596,7 +2596,7 @@
     "key": "ng_infinity_mfb",
     "local_code": "090157",
     "local_code_type": "nip_code",
-    "secondary_reference": "50457"
+    "alternate_identifier": "50457"
   },
   {
     "id": "bd7f4d96-cd31-4595-8e46-56df065d3862",
@@ -2615,7 +2615,7 @@
     "swift_code": "JAIZNGLA",
     "local_code": "000006",
     "local_code_type": "nip_code",
-    "secondary_reference": "301"
+    "alternate_identifier": "301"
   },
   {
     "id": "cb12148b-f293-484a-9c77-474a3a32a99d",
@@ -2624,7 +2624,7 @@
     "key": "ng_kadpoly_mfb",
     "local_code": "090320",
     "local_code_type": "nip_code",
-    "secondary_reference": "50502"
+    "alternate_identifier": "50502"
   },
   {
     "id": "31b5a366-34ff-439f-b060-96451c2bd3f9",
@@ -2633,7 +2633,7 @@
     "key": "ng_kano_poly_mfb",
     "local_code": "090592",
     "local_code_type": "nip_code",
-    "secondary_reference": "51308"
+    "alternate_identifier": "51308"
   },
   {
     "id": "2017937b-d7e7-4dee-8f21-6ef6d5e84f82",
@@ -2645,7 +2645,7 @@
     "swift_code": "KEYTNGLA",
     "local_code": "000002",
     "local_code_type": "nip_code",
-    "secondary_reference": "082",
+    "alternate_identifier": "082",
     "website": "https://www.keystonebank.com"
   },
   {
@@ -2655,7 +2655,7 @@
     "key": "ng_kolomoni_mfb",
     "local_code": "090480",
     "local_code_type": "nip_code",
-    "secondary_reference": "899"
+    "alternate_identifier": "899"
   },
   {
     "id": "81f3b8b0-66a1-472b-a8b1-025a1e7e06a6",
@@ -2672,7 +2672,7 @@
     "key": "ng_kredi_money_mfb_ltd",
     "local_code": "090380",
     "local_code_type": "nip_code",
-    "secondary_reference": "50200"
+    "alternate_identifier": "50200"
   },
   {
     "id": "9831f582-db5a-4705-ab10-2a54fd8a2b8c",
@@ -2682,7 +2682,7 @@
     "key": "ng_kuda_bank",
     "local_code": "090267",
     "local_code_type": "nip_code",
-    "secondary_reference": "50211"
+    "alternate_identifier": "50211"
   },
   {
     "id": "2a7abc89-6c4c-4254-bb16-d9998e852174",
@@ -2691,7 +2691,7 @@
     "key": "ng_lagos_building_inv_coy",
     "local_code": "070012",
     "local_code_type": "nip_code",
-    "secondary_reference": "90052"
+    "alternate_identifier": "90052"
   },
   {
     "id": "46293939-e0c8-48fd-adce-7ebc2798c188",
@@ -2708,7 +2708,7 @@
     "key": "ng_links_mfb",
     "local_code": "090435",
     "local_code_type": "nip_code",
-    "secondary_reference": "50549"
+    "alternate_identifier": "50549"
   },
   {
     "id": "625a020b-ca6f-4e77-b2fb-266361ed3365",
@@ -2717,7 +2717,7 @@
     "key": "ng_living_trust_mtg_bank",
     "local_code": "070007",
     "local_code_type": "nip_code",
-    "secondary_reference": "031"
+    "alternate_identifier": "031"
   },
   {
     "id": "ab2b3b5c-8d44-4b04-9818-7fae0a9d6e66",
@@ -2726,7 +2726,7 @@
     "key": "ng_loma_mfb",
     "local_code": "090620",
     "local_code_type": "nip_code",
-    "secondary_reference": "50491"
+    "alternate_identifier": "50491"
   },
   {
     "id": "dcb9591b-6391-4399-9351-c5524b96127b",
@@ -2736,7 +2736,7 @@
     "key": "ng_lotus_bank",
     "local_code": "000029",
     "local_code_type": "nip_code",
-    "secondary_reference": "303"
+    "alternate_identifier": "303"
   },
   {
     "id": "f345b777-9245-4624-b458-e9f29fc5b058",
@@ -2753,7 +2753,7 @@
     "key": "ng_mayfair_mfb",
     "local_code": "090321",
     "local_code_type": "nip_code",
-    "secondary_reference": "50563"
+    "alternate_identifier": "50563"
   },
   {
     "id": "4a6ac95d-f680-4448-b400-e70f882b3123",
@@ -2762,7 +2762,7 @@
     "key": "ng_mint_mfb",
     "local_code": "090281",
     "local_code_type": "nip_code",
-    "secondary_reference": "50304"
+    "alternate_identifier": "50304"
   },
   {
     "id": "53506b51-7c26-4b84-9d83-82bcfdbe049c",
@@ -2771,7 +2771,7 @@
     "key": "ng_money_master_psb",
     "local_code": "120005",
     "local_code_type": "nip_code",
-    "secondary_reference": "946"
+    "alternate_identifier": "946"
   },
   {
     "id": "a194a4fa-26d9-457d-9402-242aa3f19d5d",
@@ -2781,7 +2781,7 @@
     "key": "ng_moniepoint",
     "local_code": "090405",
     "local_code_type": "nip_code",
-    "secondary_reference": "50515"
+    "alternate_identifier": "50515"
   },
   {
     "id": "db129bf5-b6ad-413c-9974-d67d371d397c",
@@ -2806,7 +2806,7 @@
     "key": "ng_nigerian_navy_mfb",
     "local_code": "090263",
     "local_code_type": "nip_code",
-    "secondary_reference": "51142"
+    "alternate_identifier": "51142"
   },
   {
     "id": "29cc33f8-d45e-46a5-b6d4-208d540d1ded",
@@ -2815,7 +2815,7 @@
     "key": "ng_nova_bank",
     "local_code": "060003",
     "local_code_type": "nip_code",
-    "secondary_reference": "561"
+    "alternate_identifier": "561"
   },
   {
     "id": "a5007ece-f9a2-4c3b-bed9-3784e88227a6",
@@ -2825,7 +2825,7 @@
     "official_name": "NPF Microfinance Bank Plc",
     "local_code": "070001",
     "local_code_type": "nip_code",
-    "secondary_reference": "50629"
+    "alternate_identifier": "50629"
   },
   {
     "id": "1c2e24ca-8b2b-4502-87ee-6e2051998612",
@@ -2834,7 +2834,7 @@
     "key": "ng_nsgb_mfb",
     "local_code": "090491",
     "local_code_type": "nip_code",
-    "secondary_reference": "51261"
+    "alternate_identifier": "51261"
   },
   {
     "id": "c5a25a08-a8da-4a8d-a92a-59547e15ce4e",
@@ -2843,7 +2843,7 @@
     "key": "ng_oluchukwu_mfb",
     "local_code": "090471",
     "local_code_type": "nip_code",
-    "secondary_reference": "50697"
+    "alternate_identifier": "50697"
   },
   {
     "id": "7bd4fe41-c0d0-44be-b426-eb2529ff87e0",
@@ -2853,7 +2853,7 @@
     "key": "ng_opay",
     "local_code": "100004",
     "local_code_type": "nip_code",
-    "secondary_reference": "999992"
+    "alternate_identifier": "999992"
   },
   {
     "id": "28a9c4a3-0348-4584-aeb4-4faca60d2ec6",
@@ -2862,7 +2862,7 @@
     "key": "ng_optimus_bank_ltd",
     "local_code": "000036",
     "local_code_type": "nip_code",
-    "secondary_reference": "107"
+    "alternate_identifier": "107"
   },
   {
     "id": "7f597730-e285-4828-979a-a5263ab655d2",
@@ -2872,7 +2872,7 @@
     "key": "ng_paga",
     "local_code": "100002",
     "local_code_type": "nip_code",
-    "secondary_reference": "327"
+    "alternate_identifier": "327"
   },
   {
     "id": "a92e2608-f26e-4058-baf7-5e49a9ff38f9",
@@ -2882,7 +2882,7 @@
     "key": "ng_palmpay",
     "local_code": "100033",
     "local_code_type": "nip_code",
-    "secondary_reference": "999991"
+    "alternate_identifier": "999991"
   },
   {
     "id": "d222b1c9-0c25-4c02-9f4b-7aeee5fa4162",
@@ -2891,7 +2891,7 @@
     "key": "ng_parallex_bank",
     "local_code": "000030",
     "local_code_type": "nip_code",
-    "secondary_reference": "104"
+    "alternate_identifier": "104"
   },
   {
     "id": "04e34ddc-b478-45c7-b294-a084d3e2d49d",
@@ -2900,7 +2900,7 @@
     "key": "ng_parkway_readycash",
     "local_code": "100003",
     "local_code_type": "nip_code",
-    "secondary_reference": "311"
+    "alternate_identifier": "311"
   },
   {
     "id": "5c1db9f7-c979-40e7-9ed5-0ad9581a269f",
@@ -2917,7 +2917,7 @@
     "key": "ng_peace_mfb",
     "local_code": "090402",
     "local_code_type": "nip_code",
-    "secondary_reference": "50743"
+    "alternate_identifier": "50743"
   },
   {
     "id": "f5e3ef5a-9920-4fc2-bfd2-cdce3d43ca54",
@@ -2926,7 +2926,7 @@
     "key": "ng_pecantrust_mfb",
     "local_code": "090137",
     "local_code_type": "nip_code",
-    "secondary_reference": "51226"
+    "alternate_identifier": "51226"
   },
   {
     "id": "0bbbc815-2609-42d2-8c27-31b6e1698c8b",
@@ -2935,7 +2935,7 @@
     "key": "ng_personal_trust_mfb",
     "local_code": "090135",
     "local_code_type": "nip_code",
-    "secondary_reference": "51146"
+    "alternate_identifier": "51146"
   },
   {
     "id": "522041e1-4925-4902-a288-0c19a12499e7",
@@ -2944,7 +2944,7 @@
     "key": "ng_petra_mfb",
     "local_code": "090165",
     "local_code_type": "nip_code",
-    "secondary_reference": "50746"
+    "alternate_identifier": "50746"
   },
   {
     "id": "9926d432-424a-4c04-b3a5-15df85268c91",
@@ -2953,7 +2953,7 @@
     "key": "ng_platinum_mtg_bank",
     "local_code": "070013",
     "local_code_type": "nip_code",
-    "secondary_reference": "268"
+    "alternate_identifier": "268"
   },
   {
     "id": "ee339814-5e7f-4408-93b7-588049e0ce30",
@@ -2965,7 +2965,7 @@
     "swift_code": "PRDTNGLA",
     "local_code": "000008",
     "local_code_type": "nip_code",
-    "secondary_reference": "076"
+    "alternate_identifier": "076"
   },
   {
     "id": "db39d8b4-61ae-481a-92ac-926929a70b25",
@@ -2974,7 +2974,7 @@
     "key": "ng_polyunwana_mfb",
     "local_code": "090296",
     "local_code_type": "nip_code",
-    "secondary_reference": "50864"
+    "alternate_identifier": "50864"
   },
   {
     "id": "180bb4b8-a530-4fd3-ad75-176d6fbb9a5f",
@@ -2983,7 +2983,7 @@
     "key": "ng_premiumtrust_bank",
     "local_code": "000031",
     "local_code_type": "nip_code",
-    "secondary_reference": "105"
+    "alternate_identifier": "105"
   },
   {
     "id": "cf63a4af-084b-4496-a4b8-b09d9bd42937",
@@ -2992,7 +2992,7 @@
     "key": "ng_prospa_capital_mfb",
     "local_code": "090495",
     "local_code_type": "nip_code",
-    "secondary_reference": "50739"
+    "alternate_identifier": "50739"
   },
   {
     "id": "7732e7be-4216-4511-9126-1cdef3d41bee",
@@ -3003,7 +3003,7 @@
     "swift_code": "UMPLNGLA",
     "local_code": "000023",
     "local_code_type": "nip_code",
-    "secondary_reference": "101",
+    "alternate_identifier": "101",
     "website": "https://www.providusbank.com"
   },
   {
@@ -3013,7 +3013,7 @@
     "key": "ng_quickfund_mfb",
     "local_code": "090261",
     "local_code_type": "nip_code",
-    "secondary_reference": "51293"
+    "alternate_identifier": "51293"
   },
   {
     "id": "1311dc61-1f9d-40e9-b23f-a5dae84661be",
@@ -3022,7 +3022,7 @@
     "key": "ng_rand_merch_bank",
     "local_code": "000024",
     "local_code_type": "nip_code",
-    "secondary_reference": "502"
+    "alternate_identifier": "502"
   },
   {
     "id": "e07fdff2-b261-4356-9f70-748a2fb16ca4",
@@ -3039,7 +3039,7 @@
     "key": "ng_refuge_mtg_bank",
     "local_code": "070011",
     "local_code_type": "nip_code",
-    "secondary_reference": "90067"
+    "alternate_identifier": "90067"
   },
   {
     "id": "ef30caa9-8493-4d5a-a29f-7c74f555da9d",
@@ -3048,7 +3048,7 @@
     "key": "ng_rehoboth_mfb",
     "local_code": "090463",
     "local_code_type": "nip_code",
-    "secondary_reference": "50761"
+    "alternate_identifier": "50761"
   },
   {
     "id": "aa265bac-0654-4506-b092-941282f10c60",
@@ -3057,7 +3057,7 @@
     "key": "ng_rephidim_mfb",
     "local_code": "090322",
     "local_code_type": "nip_code",
-    "secondary_reference": "50994"
+    "alternate_identifier": "50994"
   },
   {
     "id": "33589211-17e8-4e3e-9924-ba1fdc1ac865",
@@ -3066,7 +3066,7 @@
     "key": "ng_rigo_mfb",
     "local_code": "090433",
     "local_code_type": "nip_code",
-    "secondary_reference": "51286"
+    "alternate_identifier": "51286"
   },
   {
     "id": "c05ce944-2c31-4933-ba53-057675d6fdae",
@@ -3075,7 +3075,7 @@
     "key": "ng_rockshield_mfb",
     "local_code": "090547",
     "local_code_type": "nip_code",
-    "secondary_reference": "50767"
+    "alternate_identifier": "50767"
   },
   {
     "id": "62c8108e-9e39-46a3-927a-949cb3d1d2bd",
@@ -3084,7 +3084,7 @@
     "key": "ng_rubies_mfb",
     "local_code": "090175",
     "local_code_type": "nip_code",
-    "secondary_reference": "125"
+    "alternate_identifier": "125"
   },
   {
     "id": "0397b550-ce71-4267-8c03-ce3951283c9f",
@@ -3093,7 +3093,7 @@
     "key": "ng_safe_haven_mfb",
     "local_code": "090286",
     "local_code_type": "nip_code",
-    "secondary_reference": "51113"
+    "alternate_identifier": "51113"
   },
   {
     "id": "12e6bff2-eebc-431d-9171-0e526f1f3eff",
@@ -3102,7 +3102,7 @@
     "key": "ng_sage_grey_finance_ltd",
     "local_code": "050003",
     "local_code_type": "nip_code",
-    "secondary_reference": "40165"
+    "alternate_identifier": "40165"
   },
   {
     "id": "edb9df85-28bb-4b9b-a05e-54954861924a",
@@ -3111,7 +3111,7 @@
     "key": "ng_shield_mfb",
     "local_code": "090559",
     "local_code_type": "nip_code",
-    "secondary_reference": "50582"
+    "alternate_identifier": "50582"
   },
   {
     "id": "0b809e65-6af8-466f-89a2-a6af1d7b62dc",
@@ -3120,7 +3120,7 @@
     "key": "ng_signature_bank_ltd",
     "local_code": "000034",
     "local_code_type": "nip_code",
-    "secondary_reference": "106"
+    "alternate_identifier": "106"
   },
   {
     "id": "17526d85-2546-4c35-8a70-1e2d59e8d158",
@@ -3129,7 +3129,7 @@
     "key": "ng_solid_allianze_mfb",
     "local_code": "090506",
     "local_code_type": "nip_code",
-    "secondary_reference": "51062"
+    "alternate_identifier": "51062"
   },
   {
     "id": "e71b207a-68e2-44fe-968e-7ab4683afad2",
@@ -3138,7 +3138,7 @@
     "key": "ng_solid_rock_mfb",
     "local_code": "090524",
     "local_code_type": "nip_code",
-    "secondary_reference": "50800"
+    "alternate_identifier": "50800"
   },
   {
     "id": "2bf40b82-573a-44c3-aa7d-6cb68cdedd3a",
@@ -3148,7 +3148,7 @@
     "key": "ng_sparkle_mfb",
     "local_code": "090325",
     "local_code_type": "nip_code",
-    "secondary_reference": "51310"
+    "alternate_identifier": "51310"
   },
   {
     "id": "bf642d46-4321-4b94-a7cb-316a9ef99968",
@@ -3160,7 +3160,7 @@
     "swift_code": "SBICNGLX",
     "local_code": "000012",
     "local_code_type": "nip_code",
-    "secondary_reference": "221",
+    "alternate_identifier": "221",
     "website": "https://www.stanbicibtc.com"
   },
   {
@@ -3173,7 +3173,7 @@
     "swift_code": "SCBLNGLA",
     "local_code": "000021",
     "local_code_type": "nip_code",
-    "secondary_reference": "068",
+    "alternate_identifier": "068",
     "website": "https://www.standardchartered.com"
   },
   {
@@ -3191,7 +3191,7 @@
     "key": "ng_stateside_mfb",
     "local_code": "090583",
     "local_code_type": "nip_code",
-    "secondary_reference": "50809"
+    "alternate_identifier": "50809"
   },
   {
     "id": "c527c951-2dd8-46fd-b10b-01e6d3c2190e",
@@ -3208,7 +3208,7 @@
     "key": "ng_stellas_mfb",
     "local_code": "090262",
     "local_code_type": "nip_code",
-    "secondary_reference": "51253"
+    "alternate_identifier": "51253"
   },
   {
     "id": "36df8d25-64c0-400e-9b76-d2ee890e01a9",
@@ -3220,7 +3220,7 @@
     "swift_code": "NAMENGLA",
     "local_code": "000001",
     "local_code_type": "nip_code",
-    "secondary_reference": "232",
+    "alternate_identifier": "232",
     "website": "https://www.sterlingbank.com"
   },
   {
@@ -3232,7 +3232,7 @@
     "swift_code": "SUTRNGLA",
     "local_code": "000022",
     "local_code_type": "nip_code",
-    "secondary_reference": "100",
+    "alternate_identifier": "100",
     "website": "https://www.suntrustbank.com"
   },
   {
@@ -3242,7 +3242,7 @@
     "key": "ng_supreme_mfb",
     "local_code": "090564",
     "local_code_type": "nip_code",
-    "secondary_reference": "50968"
+    "alternate_identifier": "50968"
   },
   {
     "id": "ec0ac08a-dba2-46ea-af0f-2b56112f0ee3",
@@ -3254,7 +3254,7 @@
     "swift_code": "TAJJNGLA",
     "local_code": "000026",
     "local_code_type": "nip_code",
-    "secondary_reference": "302"
+    "alternate_identifier": "302"
   },
   {
     "id": "67eaa878-0ee6-4fce-b62d-97dc0ceb4416",
@@ -3263,7 +3263,7 @@
     "key": "ng_tangerine_money",
     "local_code": "090426",
     "local_code_type": "nip_code",
-    "secondary_reference": "51269"
+    "alternate_identifier": "51269"
   },
   {
     "id": "ecb318bd-5b9c-4989-9103-259726f1b7ea",
@@ -3274,7 +3274,7 @@
     "swift_code": "TTRUNGLA",
     "local_code": "000025",
     "local_code_type": "nip_code",
-    "secondary_reference": "102",
+    "alternate_identifier": "102",
     "website": "https://www.titantrustbank.com"
   },
   {
@@ -3284,7 +3284,7 @@
     "key": "ng_u_c_mfb",
     "local_code": "090315",
     "local_code_type": "nip_code",
-    "secondary_reference": "50840"
+    "alternate_identifier": "50840"
   },
   {
     "id": "0c52863a-d3fd-443f-8604-309cf5e2658a",
@@ -3293,7 +3293,7 @@
     "key": "ng_uhuru_mfb",
     "local_code": "090517",
     "local_code_type": "nip_code",
-    "secondary_reference": "51322"
+    "alternate_identifier": "51322"
   },
   {
     "id": "bd438a40-d44b-4214-89be-4a0a4f3aae82",
@@ -3302,7 +3302,7 @@
     "key": "ng_unaab_mfb",
     "local_code": "090331",
     "local_code_type": "nip_code",
-    "secondary_reference": "50870"
+    "alternate_identifier": "50870"
   },
   {
     "id": "7660efd9-e812-4741-84c4-83f11b6c182f",
@@ -3311,7 +3311,7 @@
     "key": "ng_unical_mfb",
     "local_code": "090193",
     "local_code_type": "nip_code",
-    "secondary_reference": "50871"
+    "alternate_identifier": "50871"
   },
   {
     "id": "b75f0a81-eb9a-4b29-a8a7-beed1fb8497c",
@@ -3320,7 +3320,7 @@
     "key": "ng_unilag_mfb",
     "local_code": "090452",
     "local_code_type": "nip_code",
-    "secondary_reference": "51316"
+    "alternate_identifier": "51316"
   },
   {
     "id": "1230d59b-a599-421a-a5cc-1ced00df7f00",
@@ -3329,7 +3329,7 @@
     "key": "ng_unimaid_mfb",
     "local_code": "090464",
     "local_code_type": "nip_code",
-    "secondary_reference": "50875"
+    "alternate_identifier": "50875"
   },
   {
     "id": "dd3b638f-4989-4f6a-8d1c-12a660def9c9",
@@ -3341,7 +3341,7 @@
     "swift_code": "UBNIGNLA",
     "local_code": "000018",
     "local_code_type": "nip_code",
-    "secondary_reference": "032",
+    "alternate_identifier": "032",
     "website": "https://www.unionbank.com"
   },
   {
@@ -3354,7 +3354,7 @@
     "swift_code": "UNAFNGLA",
     "local_code": "000004",
     "local_code_type": "nip_code",
-    "secondary_reference": "033",
+    "alternate_identifier": "033",
     "website": "https://www.unitedbankforafrica.com"
   },
   {
@@ -3366,7 +3366,7 @@
     "swift_code": "ICITNGLA",
     "local_code": "000011",
     "local_code_type": "nip_code",
-    "secondary_reference": "215",
+    "alternate_identifier": "215",
     "website": "https://www.unitybank.com"
   },
   {
@@ -3376,7 +3376,7 @@
     "key": "ng_uzondu_mfb",
     "local_code": "090453",
     "local_code_type": "nip_code",
-    "secondary_reference": "50894"
+    "alternate_identifier": "50894"
   },
   {
     "id": "6b3b489c-249e-4b19-8e6f-0f3f7d7db4a0",
@@ -3385,7 +3385,7 @@
     "key": "ng_vfd_mfb",
     "local_code": "090110",
     "local_code_type": "nip_code",
-    "secondary_reference": "566"
+    "alternate_identifier": "566"
   },
   {
     "id": "009ce5e0-c1a1-477a-9c08-f81341e08994",
@@ -3394,7 +3394,7 @@
     "key": "ng_waya_mfb",
     "local_code": "090590",
     "local_code_type": "nip_code",
-    "secondary_reference": "51355"
+    "alternate_identifier": "51355"
   },
   {
     "id": "fbef3985-6edb-420f-9a4d-031184b35bf3",
@@ -3406,7 +3406,7 @@
     "swift_code": "WEMANGLA",
     "local_code": "000017",
     "local_code_type": "nip_code",
-    "secondary_reference": "035",
+    "alternate_identifier": "035",
     "website": "https://www.wemabank.com"
   },
   {
@@ -3416,7 +3416,7 @@
     "key": "ng_yes_mfb",
     "local_code": "090142",
     "local_code_type": "nip_code",
-    "secondary_reference": "594"
+    "alternate_identifier": "594"
   },
   {
     "id": "b161328a-de07-4640-85ec-51cf00a7cfd5",
@@ -3428,7 +3428,7 @@
     "swift_code": "ZEIBNGLA",
     "local_code": "000015",
     "local_code_type": "nip_code",
-    "secondary_reference": "057",
+    "alternate_identifier": "057",
     "website": "https://www.zenithbank.com"
   },
   {

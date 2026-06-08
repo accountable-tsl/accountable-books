@@ -104,7 +104,7 @@ SELECT
   
   -- Provider Details
   p.key as provider_key,
-  p.name as provider_name,
+  p.display_name as provider_name,
   p.logo_url as provider_logo,
   
   -- Sync Information

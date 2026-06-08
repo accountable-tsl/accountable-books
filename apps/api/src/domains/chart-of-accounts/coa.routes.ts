@@ -6,7 +6,9 @@ import {
   createCoaController,
   deleteCoaController,
   editCoaController,
+  executeCoaLifecycleController,
   getCoaController,
+  preflightCoaLifecycleController,
   unarchiveCoaController,
 } from './coa.controller.js';
 
@@ -21,6 +23,8 @@ router.post('/', createCoaController);
 router.patch('/edit', editCoaController);
 router.patch('/archive', archiveCoaController);
 router.patch('/unarchive', unarchiveCoaController);
+router.post('/lifecycle/preflight', preflightCoaLifecycleController);
+router.post('/lifecycle/execute', executeCoaLifecycleController);
 
 router.delete('/', deleteCoaController);
 

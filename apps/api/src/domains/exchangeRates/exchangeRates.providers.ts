@@ -77,12 +77,16 @@ function buildProviderPayloadError(
   return {
     status: 'error',
     provider,
-    category: classifyProviderFailure(new Error(errorText || `${provider} error`)),
+    category: classifyProviderFailure(
+      new Error(errorText || `${provider} error`),
+    ),
     error: payload,
   };
 }
 
-export function classifyProviderFailure(error: unknown): FxProviderFailureCategory {
+export function classifyProviderFailure(
+  error: unknown,
+): FxProviderFailureCategory {
   const networkCodes = new Set([
     'ECONNABORTED',
     'ECONNRESET',
@@ -93,7 +97,9 @@ export function classifyProviderFailure(error: unknown): FxProviderFailureCatego
 
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
-    const errorText = extractLowercaseErrorText(error.response?.data || error.message);
+    const errorText = extractLowercaseErrorText(
+      error.response?.data || error.message,
+    );
 
     const hasQuotaSignal =
       errorText.includes('quota') ||
@@ -103,7 +109,8 @@ export function classifyProviderFailure(error: unknown): FxProviderFailureCatego
       errorText.includes('quota-reached');
     if (hasQuotaSignal) return 'quota_exceeded';
 
-    if (status === 429 || errorText.includes('rate limit')) return 'rate_limited';
+    if (status === 429 || errorText.includes('rate limit'))
+      return 'rate_limited';
 
     const hasAuthSignal =
       status === 401 ||
@@ -119,7 +126,10 @@ export function classifyProviderFailure(error: unknown): FxProviderFailureCatego
       errorText.includes('unauthorized');
     if (hasAuthSignal) return 'auth_error';
 
-    if ((status !== undefined && status >= 500) || networkCodes.has(error.code || '')) {
+    if (
+      (status !== undefined && status >= 500) ||
+      networkCodes.has(error.code || '')
+    ) {
       return 'provider_down';
     }
 

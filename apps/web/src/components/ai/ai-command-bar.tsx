@@ -50,7 +50,6 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import Draggable from 'react-draggable';
 import { z } from 'zod';
-
 function domainLabelFallback(domain: string) {
   return domain.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
@@ -374,7 +373,6 @@ export function AiCommandBar() {
   }, [surfaceMode]);
 
   const handleFloatingDrag = (_e: unknown, data: { x: number; y: number }) => {
-    // Draggable is controlled (we pass `position`), so keep state in sync while dragging.
     setDragPositionX(data.x);
   };
 

@@ -18,13 +18,11 @@ export type BankProviderKey = z.infer<typeof bankProviderKey>;
 const bankFeedProviderInput = z.object({
   id: z.uuid().optional(),
   key: bankProviderKey,
-  name: z.string(),
+  display_name: z.string().trim().min(1).max(128),
   description: z.string().max(512).nullish(),
   website: z.url().nullish(),
   logo_url: z.url().nullish(),
   status: bankFeedProviderStatus.optional(),
-  priority: z.int().optional(),
-  external_id: z.string().nullish(),
   created_by_id: z.uuid().optional(),
   updated_by_id: z.uuid().nullish(),
   countries: z.array(z.string().length(2)),
@@ -64,12 +62,10 @@ export interface RawBankFeedProviderResponse {
   id: string;
   key: BankProviderKey;
   name: string;
-  description: string;
-  website: string;
-  logoUrl: string;
-  status: string;
-  priority: number;
-  externalId: string | null;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  status: BankFeedProviderStatus;
   countryId: string;
   countryCode: string;
 }
@@ -77,24 +73,20 @@ export type BankFeedProviderWithCountries = {
   id: string;
   key: BankProviderKey;
   name: string;
-  description: string;
-  website: string;
-  logoUrl: string;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
   status: BankFeedProviderStatus;
-  priority: number;
-  externalId: string;
   countries: Array<{ id: string; code: string }>;
 };
 
 export const updateProviderInput = z
   .object({
-    name: z.string(),
+    display_name: z.string().trim().min(1).max(128),
     description: z.string().max(512),
     website: z.url(),
     logo_url: z.url(),
     status: bankFeedProviderStatus,
-    priority: z.int(),
-    external_id: z.string(),
     new_countries: z.array(z.string().length(2)), // add new countries
     disable_countries: z.array(z.string().length(2)), // mark certain countries as inactive
   })

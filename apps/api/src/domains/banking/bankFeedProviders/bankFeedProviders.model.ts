@@ -61,7 +61,11 @@ export async function addBankFeedProvider({
   // both must succeed or both must fail
   const exec = async (trx: Knex.Transaction) => {
     const [provider] = await trx('bank_feed_providers')
-      .insert(providerData)
+      .insert({
+        ...providerData,
+        created_by_id: userId,
+        updated_by_id: userId,
+      })
       .onConflict('key')
       .ignore()
       .returning<{ id: string }[]>('id');
@@ -145,13 +149,11 @@ export async function getBankFeedProviders({
     const selectFields = [
       'p.id as id',
       'p.key as key',
-      'p.name as name',
+      'p.display_name as name',
       'p.description as description',
       'p.website as website',
       'p.logo_url as logoUrl',
       'p.status as status',
-      'p.priority as priority',
-      'p.external_id as externalId',
       'c.id as countryId',
       'c.code as countryCode',
     ];
@@ -167,8 +169,8 @@ export async function getBankFeedProviders({
       .innerJoin('countries as c', 'bpc.country_id', 'c.id')
       .whereIn('p.status', status)
       .where('bpc.active', true)
-      .orderByRaw('p.priority ASC NULLS LAST')
-      .orderBy('p.id', 'asc')
+      .orderBy('p.display_name', 'asc')
+      .orderBy('p.key', 'asc')
       .orderBy('c.id', 'asc');
 
     if (providerIds?.length) {
@@ -195,8 +197,6 @@ export async function getBankFeedProviders({
           website: row.website,
           logoUrl: row.logoUrl,
           status: row.status as BankFeedProviderStatus,
-          priority: row.priority,
-          externalId: row.externalId || '',
           countries: [],
         };
 

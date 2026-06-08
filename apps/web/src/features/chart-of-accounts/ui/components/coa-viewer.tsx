@@ -1,5 +1,8 @@
 import type {
   BlacklistedType,
+  CoaLifecycleOperation,
+  CoaLifecyclePreflightResponse,
+  CoaLifecycleResolution,
   CoaResponse,
   EditCoaRequest,
 } from '@/modules/accounting/chart-of-accounts';
@@ -19,9 +22,10 @@ import {
   ACCOUNT_TYPE_BLACKLIST,
   editCoaRequest,
   getChangedFields,
-  useArchiveCoa,
-  useDeleteCoa,
+  useChartOfAccountsQuery,
   useEditCoa,
+  useExecuteCoaLifecycle,
+  usePreflightCoaLifecycle,
   useUnarchiveCoa,
 } from '@/modules/accounting/chart-of-accounts';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
@@ -40,6 +44,8 @@ import {
 } from 'lucide-react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
+
+import { CoaLifecycleDialog } from './coa-lifecycle-dialog';
 
 // Constants
 const STYLES = {
@@ -65,16 +71,19 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
   onClose,
 }) => {
   const [editMode, setEditMode] = useState(false);
+  const [lifecyclePreflight, setLifecyclePreflight] =
+    useState<CoaLifecyclePreflightResponse | null>(null);
   const is1024 = useMediaQuery('(max-width: 1024px)');
 
   // Mutations
   const editCoaMutation = useEditCoa();
-  const archiveCoaMutation = useArchiveCoa();
   const unarchiveCoaMutation = useUnarchiveCoa();
-  const deleteCoaMutation = useDeleteCoa();
+  const preflightLifecycleMutation = usePreflightCoaLifecycle();
+  const executeLifecycleMutation = useExecuteCoaLifecycle();
 
   // Data
   const { data, isLoading } = useAccountMeta();
+  const { data: companyAccounts = [] } = useChartOfAccountsQuery({ companyId });
   const accountTypes = useMemo(
     () => data?.enrichedAccountTypes || [],
     [data?.enrichedAccountTypes],
@@ -169,20 +178,76 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
     [dirtyFields, account, editCoaMutation, companyId, onClose],
   );
 
+  const startLifecycle = useCallback(
+    (operation: CoaLifecycleOperation) => {
+      if (!account) return;
+      preflightLifecycleMutation.mutate(
+        { companyId, operation, accountIds: [account.id] },
+        {
+          onSuccess: (result) => {
+            if (!result.success || !result.data) {
+              toast.error(result.message);
+              return;
+            }
+            setLifecyclePreflight(result.data);
+          },
+          onError: () => toast.error('Unable to inspect account references'),
+        },
+      );
+    },
+    [account, companyId, preflightLifecycleMutation],
+  );
+
+  const executeLifecycle = useCallback(
+    ({
+      resolutions,
+      acknowledgeUnresolvedArchiveReferences,
+    }: {
+      resolutions: CoaLifecycleResolution[];
+      acknowledgeUnresolvedArchiveReferences: boolean;
+    }) => {
+      if (!account || !lifecyclePreflight) return;
+      executeLifecycleMutation.mutate(
+        {
+          companyId,
+          data: {
+            operation: lifecyclePreflight.operation,
+            accountIds: [account.id],
+            impactFingerprint: lifecyclePreflight.impactFingerprint,
+            resolutions,
+            acknowledgeUnresolvedArchiveReferences,
+          },
+        },
+        {
+          onSuccess: (result) => {
+            if (!result.success) {
+              toast.error(result.message);
+              return;
+            }
+            toast.success(
+              `Account ${
+                lifecyclePreflight.operation === 'archive'
+                  ? 'archived'
+                  : 'deleted'
+              } successfully`,
+            );
+            setLifecyclePreflight(null);
+            if (lifecyclePreflight.operation === 'delete') onClose?.();
+          },
+          onError: () => toast.error('Failed to update account'),
+        },
+      );
+    },
+    [account, companyId, executeLifecycleMutation, lifecyclePreflight, onClose],
+  );
+
   const handleArchive = useCallback(() => {
-    if (!account) return;
-    archiveCoaMutation.mutate(
-      { companyId, accountIds: [account.id] },
-      {
-        onSuccess: () => {
-          toast.success('Account archived successfully');
-        },
-        onError: () => {
-          toast.error('Failed to archive account');
-        },
-      },
-    );
-  }, [archiveCoaMutation, companyId, account]);
+    startLifecycle('archive');
+  }, [startLifecycle]);
+
+  const handleDelete = useCallback(() => {
+    startLifecycle('delete');
+  }, [startLifecycle]);
 
   const restoreArchived = useCallback(() => {
     if (!account) return;
@@ -198,22 +263,6 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
       },
     );
   }, [unarchiveCoaMutation, companyId, account]);
-
-  const handleDelete = useCallback(() => {
-    if (!account) return;
-    deleteCoaMutation.mutate(
-      { companyId, accountIds: [account.id] },
-      {
-        onSuccess: () => {
-          toast.success('Account deleted successfully');
-          onClose?.();
-        },
-        onError: () => {
-          toast.error('Failed to delete account');
-        },
-      },
-    );
-  }, [deleteCoaMutation, companyId, account, onClose]);
 
   if (!row || !account) {
     return (
@@ -391,196 +440,210 @@ export const CoaViewer: React.FC<CoaViewerProps> = ({
 
   if (!editMode) {
     return (
-      <div className={cn(wrapper)}>
-        <div className={titleSection}>
-          <div>Account Details</div>
-          <div className="flex gap-2">
-            {!account.isActive ? (
-              <Button onClick={restoreArchived} size="sm">
-                Restore
+      <>
+        <div className={cn(wrapper)}>
+          <div className={titleSection}>
+            <div>Account Details</div>
+            <div className="flex gap-2">
+              {!account.isActive ? (
+                <Button onClick={restoreArchived} size="sm">
+                  Restore
+                </Button>
+              ) : (
+                <Button
+                  onClick={onEditToggle}
+                  disabled={account.isLocked}
+                  size="sm"
+                >
+                  Edit
+                </Button>
+              )}
+              <Button variant="secondary" onClick={onClose} size="sm">
+                Close
               </Button>
-            ) : (
-              <Button
-                onClick={onEditToggle}
-                disabled={account.isLocked}
-                size="sm"
-              >
-                Edit
-              </Button>
+            </div>
+          </div>
+
+          {!account.isActive && (
+            <div className="flex items-center gap-1 px-4 pt-4 text-sm text-yellow-600">
+              <Info className="h-4 w-4" /> This account is archived or inactive
+            </div>
+          )}
+          <div
+            className={cn(
+              'py-6 text-sm',
+              is1024 ? 'py-4' : '',
+              !account.isActive ? 'pt-2 opacity-50' : '',
             )}
-            <Button variant="secondary" onClick={onClose} size="sm">
-              Close
-            </Button>
+          >
+            {/* Basic Info */}
+            <div className={sectionClass}>
+              <h3 className={sectionTitleClass}>Basic Info</h3>
+              <div className={cn(sectionGridClass, 'grid-cols-[1fr_2fr]')}>
+                <div className="min-w-0">
+                  <div className={itemTitleClass}>Account Code</div>
+                  <div className="flex items-center gap-1">
+                    <Binary className="text-muted-foreground h-4 w-4" />
+                    <span>
+                      {account.code || <span className="text-gray-400">—</span>}
+                    </span>
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className={itemTitleClass}>Account Name</div>
+                  <div className="line-clamp-2 text-ellipsis">
+                    {account.name}
+                  </div>
+                </div>
+                <div className="col-span-2 min-w-0">
+                  <div className={itemTitleClass}>Description</div>
+                  <div className="line-clamp-2 text-ellipsis">
+                    {account.description || (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className={is1024 ? 'my-2' : 'my-4'} />
+
+            {/* Classification */}
+            <div className={sectionClass}>
+              <h3 className={sectionTitleClass}>Classification</h3>
+
+              <div className={cn(sectionGridClass)}>
+                <div className="col-span-2 flex items-center gap-1">
+                  <Group className="text-muted-foreground h-4 w-4" />
+                  <span>{account.parentAccountElementLabel}</span>
+                </div>
+                <div className="min-w-0">
+                  <div className={itemTitleClass}>Account Type</div>
+                  <div className="flex items-center gap-1 truncate">
+                    <Box className="text-muted-foreground h-4 w-4" />
+                    <span>{account.accountTypeLabel}</span>
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className={itemTitleClass}>Account Element</div>
+                  <div className="flex items-center gap-1 truncate">
+                    <Binary className="text-muted-foreground h-4 w-4" />
+                    <span>{account.accountElementLabel}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className={is1024 ? 'my-2' : 'my-4'} />
+
+            {/* Currency */}
+            <div className={sectionClass}>
+              <h3 className={sectionTitleClass}>Currency</h3>
+
+              <div className={sectionGridClass}>
+                <div className="min-w-0">
+                  <div className={itemTitleClass}>Account Currency</div>
+                  <div className="flex items-center gap-1">
+                    <Coins className="text-muted-foreground h-4 w-4" />
+                    <span>
+                      {account.accountCurrencyCode} (
+                      {account.accountCurrencySymbol})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  <div className={itemTitleClass}>Reporting Currency</div>
+                  <div className="flex items-center gap-1">
+                    <Coins className="text-muted-foreground h-4 w-4" />
+                    <span>
+                      {account.reportingCurrencyCode} (
+                      {account.reportingCurrencySymbol})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className={is1024 ? 'my-2' : 'my-4'} />
+
+            {/* Status */}
+            <div className={sectionClass}>
+              <h3 className={sectionTitleClass}>Status</h3>
+              <div className="flex flex-wrap gap-2">
+                {account.isActive && (
+                  <Badge variant="default">
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> Active
+                  </Badge>
+                )}
+
+                {!account.isActive && (
+                  <Badge variant="secondary">
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> Inactive
+                  </Badge>
+                )}
+
+                {!account.isActive && (
+                  <Badge variant="outline">
+                    <Archive className="mr-1 h-4 w-4" /> Archived
+                  </Badge>
+                )}
+
+                {account.isLocked && (
+                  <Badge variant="destructive">
+                    <Lock className="mr-1 h-4 w-4" /> Locked
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            {(canDelete || canArchive) && (
+              <>
+                <Separator className={is1024 ? 'my-2' : 'my-4'} />
+
+                <div className={sectionClass}>
+                  <h3 className={cn(sectionTitleClass, 'text-destructive')}>
+                    Danger Zone
+                  </h3>
+                  <div className="flex gap-4">
+                    {canArchive && (
+                      <Button
+                        className="flex items-center gap-1"
+                        variant="outline"
+                        onClick={handleArchive}
+                      >
+                        <Archive className="h-4 w-4" />
+                        <span className="">Archive</span>
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        className="flex items-center gap-1"
+                        variant="destructive"
+                        onClick={handleDelete}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="">Delete Account</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
-
-        {!account.isActive && (
-          <div className="flex items-center gap-1 px-4 pt-4 text-sm text-yellow-600">
-            <Info className="h-4 w-4" /> This account is archived or inactive
-          </div>
-        )}
-        <div
-          className={cn(
-            'py-6 text-sm',
-            is1024 ? 'py-4' : '',
-            !account.isActive ? 'pt-2 opacity-50' : '',
-          )}
-        >
-          {/* Basic Info */}
-          <div className={sectionClass}>
-            <h3 className={sectionTitleClass}>Basic Info</h3>
-            <div className={cn(sectionGridClass, 'grid-cols-[1fr_2fr]')}>
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Account Code</div>
-                <div className="flex items-center gap-1">
-                  <Binary className="text-muted-foreground h-4 w-4" />
-                  <span>
-                    {account.code || <span className="text-gray-400">—</span>}
-                  </span>
-                </div>
-              </div>
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Account Name</div>
-                <div className="line-clamp-2 text-ellipsis">{account.name}</div>
-              </div>
-              <div className="col-span-2 min-w-0">
-                <div className={itemTitleClass}>Description</div>
-                <div className="line-clamp-2 text-ellipsis">
-                  {account.description || (
-                    <span className="text-gray-400">—</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator className={is1024 ? 'my-2' : 'my-4'} />
-
-          {/* Classification */}
-          <div className={sectionClass}>
-            <h3 className={sectionTitleClass}>Classification</h3>
-
-            <div className={cn(sectionGridClass)}>
-              <div className="col-span-2 flex items-center gap-1">
-                <Group className="text-muted-foreground h-4 w-4" />
-                <span>{account.parentAccountElementLabel}</span>
-              </div>
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Account Type</div>
-                <div className="flex items-center gap-1 truncate">
-                  <Box className="text-muted-foreground h-4 w-4" />
-                  <span>{account.accountTypeLabel}</span>
-                </div>
-              </div>
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Account Element</div>
-                <div className="flex items-center gap-1 truncate">
-                  <Binary className="text-muted-foreground h-4 w-4" />
-                  <span>{account.accountElementLabel}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator className={is1024 ? 'my-2' : 'my-4'} />
-
-          {/* Currency */}
-          <div className={sectionClass}>
-            <h3 className={sectionTitleClass}>Currency</h3>
-
-            <div className={sectionGridClass}>
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Account Currency</div>
-                <div className="flex items-center gap-1">
-                  <Coins className="text-muted-foreground h-4 w-4" />
-                  <span>
-                    {account.accountCurrencyCode} (
-                    {account.accountCurrencySymbol})
-                  </span>
-                </div>
-              </div>
-
-              <div className="min-w-0">
-                <div className={itemTitleClass}>Reporting Currency</div>
-                <div className="flex items-center gap-1">
-                  <Coins className="text-muted-foreground h-4 w-4" />
-                  <span>
-                    {account.reportingCurrencyCode} (
-                    {account.reportingCurrencySymbol})
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator className={is1024 ? 'my-2' : 'my-4'} />
-
-          {/* Status */}
-          <div className={sectionClass}>
-            <h3 className={sectionTitleClass}>Status</h3>
-            <div className="flex flex-wrap gap-2">
-              {account.isActive && (
-                <Badge variant="default">
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> Active
-                </Badge>
-              )}
-
-              {!account.isActive && (
-                <Badge variant="secondary">
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> Inactive
-                </Badge>
-              )}
-
-              {!account.isActive && (
-                <Badge variant="outline">
-                  <Archive className="mr-1 h-4 w-4" /> Archived
-                </Badge>
-              )}
-
-              {account.isLocked && (
-                <Badge variant="destructive">
-                  <Lock className="mr-1 h-4 w-4" /> Locked
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Danger Zone */}
-          {(canDelete || canArchive) && (
-            <>
-              <Separator className={is1024 ? 'my-2' : 'my-4'} />
-
-              <div className={sectionClass}>
-                <h3 className={cn(sectionTitleClass, 'text-destructive')}>
-                  Danger Zone
-                </h3>
-                <div className="flex gap-4">
-                  {canArchive && (
-                    <Button
-                      className="flex items-center gap-1"
-                      variant="outline"
-                      onClick={handleArchive}
-                    >
-                      <Archive className="h-4 w-4" />
-                      <span className="">Archive</span>
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button
-                      className="flex items-center gap-1"
-                      variant="destructive"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="">Delete Account</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+        <CoaLifecycleDialog
+          open={!!lifecyclePreflight}
+          preflight={lifecyclePreflight}
+          accounts={companyAccounts}
+          pending={executeLifecycleMutation.isPending}
+          onOpenChange={(open) => {
+            if (!open) setLifecyclePreflight(null);
+          }}
+          onConfirm={executeLifecycle}
+        />
+      </>
     );
   }
 };

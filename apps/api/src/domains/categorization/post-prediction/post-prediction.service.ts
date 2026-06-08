@@ -6,6 +6,7 @@ import { logger, toYMD } from '../../../shared/index.js';
 import {
   acquireAdvisoryXactLocks,
   lockKeyCategorizationTask,
+  lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
 import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
@@ -117,6 +118,7 @@ async function handleRulePrediction(
   const { event, ruleResult, runId, error, rulesLatencyMs, trx } = params;
 
   // Serialize candidate/prediction writes per task
+  await acquireAdvisoryXactLocks(trx, [lockKeyCompany(event.company_uuid)]);
   await acquireAdvisoryXactLocks(trx, [
     lockKeyCategorizationTask(event.categorization_task_id),
   ]);
@@ -657,6 +659,8 @@ async function processPredictionToCandidate({
   const bankTxnDate = enrichedTransaction.raw.date;
 
   const exec = async (txn: Knex.Transaction) => {
+    await acquireAdvisoryXactLocks(txn, [lockKeyCompany(companyUUID)]);
+
     // Serialize candidate writes per task to prevent race conditions
     // This ensures only one candidate is processed at a time for a given task
     // Critical for ML path where multiple jobs might be enqueued concurrently

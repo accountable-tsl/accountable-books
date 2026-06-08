@@ -6,6 +6,7 @@ import type { SnakeToCamelCaseObject } from '../../shared/index.js';
 
 export const auditEventEntityType = z.enum([
   'company',
+  'chart_of_account',
   'bank_transaction',
   'journal',
   'ai',

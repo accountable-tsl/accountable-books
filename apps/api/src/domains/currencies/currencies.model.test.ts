@@ -49,7 +49,9 @@ describe('currencies.model', () => {
         minorUnit: 2,
       },
     ]);
-    expect((result.data?.[0] as Record<string, unknown>).minor_unit).toBeUndefined();
+    expect(
+      (result.data?.[0] as Record<string, unknown>).minor_unit,
+    ).toBeUndefined();
     expect(redis.set).toHaveBeenCalledOnce();
   });
 

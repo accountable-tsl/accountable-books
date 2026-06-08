@@ -7,9 +7,10 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
-import { toCurrencyRes, type CurrencyRes, type CurrencyRow } from './currencies.types.js';
+import { toCurrencyRes } from './currencies.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
+import type { CurrencyRes, CurrencyRow } from './currencies.types.js';
 
 const currenciesCacheKey = generateCacheKey('currencies', 'all');
 const CACHE_TTL = 60 * 60 * 24; // 24 hours

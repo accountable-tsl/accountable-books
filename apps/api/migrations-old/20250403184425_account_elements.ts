@@ -1,7 +1,10 @@
 import type { Knex } from 'knex';
 
 import { isDev } from '../config/env-loader.js';
-import { accountElementIds, financialStatementIds } from '../migrations/data/ids.js';
+import {
+  accountElementIds,
+  financialStatementIds,
+} from '../migrations/data/ids.js';
 import {
   addStandardColumns,
   addUserAuditColumns,

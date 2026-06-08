@@ -52,8 +52,8 @@ export type BankTransactionInsert = z.infer<typeof bankTransactionInsertSchema>;
 const bankTransactionBatchInsertSchema = z.object({
   source: bankTransactionSource,
   bank_account_id: z.uuid(),
-  bank_transactions: z.array(bankTransactionInsertSchema),
-  metadata: z.any().nullish(),
+  bank_transactions: z.array(bankTransactionInsertSchema).min(1),
+  source_metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type BankTransactionBatchInsert = z.infer<
   typeof bankTransactionBatchInsertSchema

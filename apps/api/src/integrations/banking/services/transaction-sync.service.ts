@@ -760,7 +760,7 @@ export class TransactionSyncService {
         source: 'bank_feed',
         bank_account_id: acct.id,
         bank_transactions,
-        metadata: batchMeta ?? undefined,
+        source_metadata: batchMeta ?? undefined,
         provider_key: providerKey ?? undefined,
       });
     }

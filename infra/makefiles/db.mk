@@ -1,7 +1,7 @@
 # 🗄️ Complete Database Operations Suite
 # All database-related commands consolidated in one place for better DX
 
-.PHONY: db-up db-down db-logs db-migrate db-seed db-reset db-rollback db-wait db-shell
+.PHONY: db-up db-provision db-down db-logs db-migrate db-seed db-reset db-rollback db-wait db-shell
 .PHONY: db-staging-up db-staging-down db-staging-logs db-staging-migrate db-staging-rollback
 .PHONY: staging-up staging-down staging-logs staging-status staging-full-up staging-full-down
 .PHONY: staging-health deploy-staging-check deploy-production-check
@@ -13,6 +13,11 @@
 db-up: guard-nonprod ## Start database and redis for local development
 	@echo "$(GREEN)🐳 Starting database and redis...$(RESET)"
 	@docker compose -f docker-compose.dev.yml up -d --build db redis
+	@$(MAKE) db-provision
+
+db-provision: guard-nonprod ## Create or repair local development databases
+	@echo "$(GREEN)🛠️ Provisioning local databases...$(RESET)"
+	@docker compose -f docker-compose.dev.yml run --rm db-init
 
 db-down: guard-nonprod ## Stop database and redis for local development
 	@echo "$(YELLOW)🛑 Stopping database and redis...$(RESET)"

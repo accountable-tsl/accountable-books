@@ -6,6 +6,10 @@ import {
   deleteDemoBankAccounts,
 } from './bank-accounts.fn.js';
 
+vi.mock('../../../../src/domains/chart-of-accounts/coa.model.js', () => ({
+  createCoaAccount: vi.fn().mockResolvedValue({ id: 'coa-1' }),
+}));
+
 // Mock shared utilities - handle user/company lookups, account types, banks, and data deletion
 vi.mock('../../shared/utils.js', () => ({
   getDemoUserMap: vi.fn().mockResolvedValue(
@@ -14,11 +18,6 @@ vi.mock('../../shared/utils.js', () => ({
       ['bob@ng-demo.com', 'user-2'],
     ]),
   ),
-  getAccountTypeByKey: vi.fn().mockResolvedValue({
-    id: 'account-type-1',
-    key: 'ca_bank',
-    label: 'Bank Account',
-  }),
   getBankMap: vi.fn().mockResolvedValue(
     new Map([
       ['us_chase_bank', 'bank-1'],
@@ -125,7 +124,6 @@ vi.mock('../../shared/config.js', () => ({
 const createMockTransaction = (
   options: {
     existingBankAccounts?: boolean;
-    coaInsertFails?: boolean;
     bankAccountInsertFails?: boolean;
     bankAccountsToDelete?: Array<{ coa_id: string }>;
   } = {},
@@ -171,20 +169,6 @@ const createMockTransaction = (
         break;
 
       case 'coa':
-        // Configure COA insertion
-        if (options.coaInsertFails) {
-          queryBuilder.returning.mockResolvedValue([]);
-        } else {
-          queryBuilder.returning.mockResolvedValue([
-            {
-              id: 'coa-1',
-              name: 'Business Checking',
-              company_id: 'company-1',
-              account_type_id: 'account-type-1',
-            },
-          ]);
-        }
-
         // Configure COA deletion
         queryBuilder.delete.mockResolvedValue(1);
         break;
@@ -212,7 +196,10 @@ describe('createDemoBankAccounts', () => {
 
     // Should query for existing bank accounts and create new ones
     expect(mockTransaction).toHaveBeenCalledWith('bank_accounts');
-    expect(mockTransaction).toHaveBeenCalledWith('coa');
+    const { createCoaAccount } = await import(
+      '../../../../src/domains/chart-of-accounts/coa.model.js'
+    );
+    expect(createCoaAccount).toHaveBeenCalled();
     expect(Array.isArray(result)).toBe(true);
   });
 
@@ -221,9 +208,20 @@ describe('createDemoBankAccounts', () => {
 
     await createDemoBankAccounts(mockTransaction);
 
-    // Should create COA first
-    expect(mockTransaction).toHaveBeenCalledWith('coa');
-    // Then create bank account with COA reference
+    const { createCoaAccount } = await import(
+      '../../../../src/domains/chart-of-accounts/coa.model.js'
+    );
+    expect(createCoaAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trx: mockTransaction,
+        companyId: 'company-1',
+        userId: 'user-1',
+        input: expect.objectContaining({
+          name: 'Business Checking',
+          account_type_key: 'ca_bank',
+        }),
+      }),
+    );
     expect(mockTransaction).toHaveBeenCalledWith('bank_accounts');
   });
 
@@ -361,15 +359,18 @@ describe('createDemoBankAccounts', () => {
     );
   });
 
-  test('should handle missing account type error', async () => {
+  test('should propagate COA creation failures', async () => {
     const mockTransaction = createMockTransaction();
 
-    // Mock missing account type
-    const { getAccountTypeByKey } = await import('../../shared/utils.js');
-    (getAccountTypeByKey as any).mockResolvedValueOnce(null);
+    const { createCoaAccount } = await import(
+      '../../../../src/domains/chart-of-accounts/coa.model.js'
+    );
+    vi.mocked(createCoaAccount).mockRejectedValueOnce(
+      new Error('Failed to create chart of account'),
+    );
 
     await expect(createDemoBankAccounts(mockTransaction)).rejects.toThrow(
-      'Failed to fetch account type ca_bank for bank account',
+      'Failed to create chart of account',
     );
   });
 
@@ -423,9 +424,13 @@ describe('createDemoBankAccounts', () => {
   });
 
   test('should handle COA creation failure', async () => {
-    const mockTransaction = createMockTransaction({
-      coaInsertFails: true,
-    });
+    const mockTransaction = createMockTransaction();
+    const { createCoaAccount } = await import(
+      '../../../../src/domains/chart-of-accounts/coa.model.js'
+    );
+    vi.mocked(createCoaAccount).mockRejectedValueOnce(
+      new Error('Failed to create COA for bank account'),
+    );
 
     await expect(createDemoBankAccounts(mockTransaction)).rejects.toThrow(
       'Failed to create COA for bank account',

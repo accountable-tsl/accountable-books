@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { dbBaseFields } from '../../core/types/core.js';
 import { companyOnboardingState } from '../../features/onboarding/onboarding.types.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { firmSlug } from '../accountingFirms/firms.types.js';
 
 export {
   companyVerificationClaim,
@@ -90,8 +91,13 @@ export const newCompanyInput = z.object({
   year_end_day: z.coerce.number().optional(),
   year_end_month: z.coerce.number().optional(),
   created_by_id: z.uuid().optional(),
-  last_updated_by_id: z.uuid().nullish(),
+  updated_by_id: z.uuid().nullish(),
   address: trimmedNullishString(512),
+  address_line1: trimmedNullishString(512),
+  address_line2: trimmedNullishString(512),
+  city: trimmedNullishString(128),
+  state_region: trimmedNullishString(128),
+  postal_code: trimmedNullishString(64),
   logo_file_id: z.uuid().nullish(),
   description: trimmedNullishString(2000),
   website: trimmedNullishString(256),
@@ -106,11 +112,12 @@ export const newCompanyInput = z.object({
   tax_id: trimmedNullishString(256),
   default_timezone: trimmedOptionalTimezone,
   workspace_class: workspaceClass.prefault('customer').optional(),
-  slug: trimmedOptionalString(20),
+  slug: firmSlug.optional(),
   onboarding_state: companyOnboardingState.optional(),
 });
 
 export const updateCompanySchema = contractUpdateCompanySchema.extend({
+  slug: firmSlug.optional(),
   defaultTimezone: z.preprocess(
     (value) => {
       if (value === undefined || value === null) return undefined;
@@ -143,7 +150,7 @@ export const newCompany = newCompanyInput
     workspace_class: workspaceClass.prefault('customer'),
     conversion_date: z.date().nullish(),
   })
-  .omit({ slug: true });
+  .omit({ address: true, slug: true });
 
 export const company = z.object({
   ...newCompany.shape,
@@ -171,9 +178,13 @@ export const fieldToColumnMap: Partial<
   yearEndDay: 'year_end_day',
   yearEndMonth: 'year_end_month',
   countryId: 'country_id',
-  reportingCurrencyId: 'reporting_currency_id',
   displayName: 'display_name',
-  address: 'address',
+  address: 'address_line1',
+  addressLine1: 'address_line1',
+  addressLine2: 'address_line2',
+  city: 'city',
+  stateRegion: 'state_region',
+  postalCode: 'postal_code',
   description: 'description',
   website: 'website',
   industry: 'industry',

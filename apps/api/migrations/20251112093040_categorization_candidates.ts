@@ -98,6 +98,9 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(
     `CREATE INDEX idx_cat_prediction_lines_prediction ON ${PREDICTION_LINES_TABLE}(prediction_id);`,
   );
+  await knex.raw(
+    `CREATE INDEX idx_cat_prediction_lines_active_coa ON ${PREDICTION_LINES_TABLE}(coa_id) WHERE is_deleted = FALSE;`,
+  );
 
   await knex.raw(
     `CREATE INDEX idx_cat_predictions_bank_tx ON ${PREDICTIONS_TABLE}(bank_transaction_id, bank_transaction_date) WHERE is_deleted = FALSE;`,
@@ -250,6 +253,9 @@ export async function up(knex: Knex): Promise<void> {
     `CREATE INDEX idx_cat_candidate_lines_candidate ON ${CANDIDATE_LINES_TABLE}(candidate_id);`,
   );
   await knex.raw(
+    `CREATE INDEX idx_cat_candidate_lines_active_coa ON ${CANDIDATE_LINES_TABLE}(coa_id) WHERE is_deleted = FALSE;`,
+  );
+  await knex.raw(
     `CREATE INDEX idx_cat_candidate_lines_search_trgm ON ${CANDIDATE_LINES_TABLE} USING GIN ((CASE WHEN is_deleted = FALSE THEN search_text END) gin_trgm_ops);`,
   );
 
@@ -282,6 +288,7 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_constraint_candidate;`);
 
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_candidate;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_active_coa;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidate_lines_search_trgm;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_candidates_bank_tx;`);
   await dropUpdateTimestampTrigger(knex, CANDIDATE_LINES_TABLE);
@@ -293,6 +300,7 @@ export async function down(knex: Knex): Promise<void> {
   await knex.schema.dropTableIfExists(CANDIDATES_TABLE);
 
   await knex.raw(`DROP INDEX IF EXISTS idx_cat_prediction_lines_prediction;`);
+  await knex.raw(`DROP INDEX IF EXISTS idx_cat_prediction_lines_active_coa;`);
   await dropUpdateTimestampTrigger(knex, PREDICTION_LINES_TABLE);
   await knex.schema.dropTableIfExists(PREDICTION_LINES_TABLE);
 

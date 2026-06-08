@@ -391,7 +391,7 @@ describe('condition-checks', () => {
         [provider] = await trx('bank_feed_providers')
           .insert({
             key: 'plaid',
-            name: 'Plaid',
+            display_name: 'Plaid',
             created_by_id: testUserId,
           })
           .returning('*');
@@ -401,7 +401,7 @@ describe('condition-checks', () => {
           company_id: isolatedCompanyId,
           provider_id: provider!.id,
           encrypted_access_token: 'test-token',
-          connected_by: testUserId,
+          connected_by_id: testUserId,
         })
         .returning('*');
       const [revokedAccount] = await trx('bank_accounts')
@@ -439,7 +439,7 @@ describe('condition-checks', () => {
         .first();
       if (!provider) {
         [provider] = await trx('bank_feed_providers')
-          .insert({ key: 'plaid', name: 'Plaid', created_by_id: testUserId })
+          .insert({ key: 'plaid', display_name: 'Plaid', created_by_id: testUserId })
           .returning('*');
       }
       const [credential] = await trx('bank_account_credentials')
@@ -447,7 +447,7 @@ describe('condition-checks', () => {
           company_id: isolatedCompanyId,
           provider_id: provider!.id,
           encrypted_access_token: 'test-token-error',
-          connected_by: testUserId,
+          connected_by_id: testUserId,
         })
         .returning('*');
       const [errorAccount] = await trx('bank_accounts')

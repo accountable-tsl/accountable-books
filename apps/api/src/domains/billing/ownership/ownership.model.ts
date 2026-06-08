@@ -1,11 +1,11 @@
 import type { Knex } from 'knex';
 
+import { SYSTEM_USER_ID } from '../../companies/workspace-bootstrap.config.js';
 import {
   BILLING_COMMERCIAL_MODES,
   BILLING_SOFTWARE_PAYERS,
 } from '../billing.constants.js';
 import { assertAllowedOwnershipCombination } from './ownership.validation.js';
-import { SYSTEM_USER_ID } from '../../companies/workspace-bootstrap.config.js';
 
 import type {
   BillingCommercialMode,

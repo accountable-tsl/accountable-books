@@ -11,6 +11,10 @@ import { formatInTimeZone } from 'date-fns-tz';
 import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../shared/services/advisoryLocks.service.js';
 import { addDaysToYMD, isValidYMD } from '../../shared/utils/date.utils.js';
 import {
   getCompanyUUID,
@@ -589,6 +593,9 @@ export async function createRecurringTemplate({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const currencyId = data.currency_id ?? context.reportingCurrencyId;
       await validateContactId({
@@ -683,11 +690,15 @@ export async function updateRecurringTemplate({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const existing = await trx(TEMPLATES_TABLE)
         .where('id', templateId)
         .where('company_id', context.companyUUID)
         .where('is_deleted', false)
+        .forUpdate()
         .first();
 
       if (!existing) {
@@ -798,11 +809,15 @@ export async function updateRecurringTemplateStatus({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const template = await trx(TEMPLATES_TABLE)
         .where('id', templateId)
         .where('company_id', context.companyUUID)
         .where('is_deleted', false)
+        .forUpdate()
         .first();
 
       if (!template) {
@@ -818,6 +833,15 @@ export async function updateRecurringTemplateStatus({
       };
 
       if (nextStatus === 'active') {
+        const entries = await trx(ENTRIES_TABLE)
+          .where('template_id', template.id)
+          .select('coa_id');
+        await validateCoaIds({
+          trx,
+          companyUUID: context.companyUUID,
+          entries,
+        });
+
         if (template.status === 'paused' && template.next_run_date) {
           // Resume: keep existing next_run_date to retry the same due date.
           updateData.next_run_date = template.next_run_date;
@@ -976,6 +1000,9 @@ export async function runRecurringTemplateNow({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const template = await trx(TEMPLATES_TABLE)
         .where('id', templateId)
@@ -1089,19 +1116,35 @@ export async function processDueRecurringTemplates({
 
   while (processed < maxRuns) {
     const result = await knexClient.transaction(async (trx) => {
-      const template = await trx(TEMPLATES_TABLE)
+      const candidate = await trx(TEMPLATES_TABLE)
         .where('status', 'active')
         .where('is_deleted', false)
         .whereNotNull('next_run_date')
         .andWhere('next_run_date', '<=', trx.fn.now())
         .orderBy('next_run_date', 'asc')
         .limit(1)
+        .first<{ id: string; company_id: string }>('id', 'company_id');
+
+      if (!candidate) {
+        return { done: true } as const;
+      }
+
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(candidate.company_id),
+      ]);
+
+      const template = await trx(TEMPLATES_TABLE)
+        .where('id', candidate.id)
+        .where('status', 'active')
+        .where('is_deleted', false)
+        .whereNotNull('next_run_date')
+        .andWhere('next_run_date', '<=', trx.fn.now())
         .forUpdate()
         .skipLocked()
         .first();
 
       if (!template) {
-        return { done: true } as const;
+        return { done: false } as const;
       }
 
       const entries = await trx(ENTRIES_TABLE)

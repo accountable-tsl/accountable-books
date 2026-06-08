@@ -100,7 +100,7 @@ async function resolveAssignedFirmId(
   }
 
   const assignment = await db('client_firm_assignments')
-    .where({ client_company_id: company.id })
+    .where({ client_company_id: company.id, is_deleted: false })
     .select('accounting_firm_company_id')
     .first<{ accounting_firm_company_id: string }>();
 

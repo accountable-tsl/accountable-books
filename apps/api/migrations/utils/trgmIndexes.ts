@@ -1,10 +1,21 @@
 import type { Knex } from 'knex';
 
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier}"`;
+}
+
+function quoteQualifiedName(tableName: string, schemaName?: string): string {
+  return schemaName
+    ? `${quoteIdentifier(schemaName)}.${quoteIdentifier(tableName)}`
+    : quoteIdentifier(tableName);
+}
+
 export async function createTrgmIndexes(
   knex: Knex,
   tableName: string,
   columns: string[],
   searchFieldName: string = 'search_text',
+  schemaName?: string,
 ): Promise<void> {
   // Validate inputs
   if (!tableName || !columns || columns.length === 0) {
@@ -15,9 +26,10 @@ export async function createTrgmIndexes(
   const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
   if (
     !validColumnNameRegex.test(tableName) ||
-    !validColumnNameRegex.test(searchFieldName)
+    !validColumnNameRegex.test(searchFieldName) ||
+    (schemaName !== undefined && !validColumnNameRegex.test(schemaName))
   ) {
-    throw new Error('Invalid table or column name');
+    throw new Error('Invalid schema, table, or column name');
   }
 
   for (const column of columns) {
@@ -26,24 +38,23 @@ export async function createTrgmIndexes(
     }
   }
 
-  await knex.raw(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
-
   // Create search_text column if it doesn't exist
-  const searchTextColumnExists = await knex.schema.hasColumn(
+  const schema = schemaName ? knex.schema.withSchema(schemaName) : knex.schema;
+  const searchTextColumnExists = await schema.hasColumn(
     tableName,
     searchFieldName,
   );
   if (!searchTextColumnExists) {
     // Build the generated column expression
     const coalesceExpressions = columns
-      .map((col) => `coalesce(${col},'')`)
+      .map((column) => `COALESCE(${quoteIdentifier(column)}, '')`)
       .join("||' '||");
-    const generatedExpression = `trim(both ' ' from lower(${coalesceExpressions}))`;
+    const generatedExpression = `btrim(lower(${coalesceExpressions}))`;
 
     // Use raw SQL to create the generated column
     await knex.raw(`
-      ALTER TABLE ${tableName} 
-      ADD COLUMN ${searchFieldName} TEXT 
+      ALTER TABLE ${quoteQualifiedName(tableName, schemaName)}
+      ADD COLUMN ${quoteIdentifier(searchFieldName)} TEXT
       GENERATED ALWAYS AS (${generatedExpression}) STORED
     `);
   }
@@ -55,9 +66,9 @@ export async function createTrgmIndexes(
     baseIndexName.length > 63 ? baseIndexName.slice(0, 63) : baseIndexName;
 
   const sql = `
-    CREATE INDEX IF NOT EXISTS ${indexName}
-    ON ${tableName}
-    USING GIN (LOWER(${searchFieldName}) gin_trgm_ops)
+    CREATE INDEX IF NOT EXISTS ${quoteIdentifier(indexName)}
+    ON ${quoteQualifiedName(tableName, schemaName)}
+    USING GIN (${quoteIdentifier(searchFieldName)} gin_trgm_ops)
   `;
   await knex.raw(sql);
 }
@@ -66,6 +77,7 @@ export async function dropTrgmIndexes(
   knex: Knex,
   tableName: string,
   searchFieldName: string = 'search_text',
+  schemaName?: string,
 ): Promise<void> {
   // Validate inputs
   if (!tableName || !searchFieldName) {
@@ -76,14 +88,17 @@ export async function dropTrgmIndexes(
   const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
   if (
     !validColumnNameRegex.test(tableName) ||
-    !validColumnNameRegex.test(searchFieldName)
+    !validColumnNameRegex.test(searchFieldName) ||
+    (schemaName !== undefined && !validColumnNameRegex.test(schemaName))
   ) {
-    throw new Error('Invalid table or column name');
+    throw new Error('Invalid schema, table, or column name');
   }
 
   // Drop the trigram index on search_text
   const baseIndexName = `idx_${tableName}_${searchFieldName}_trgm`;
   const indexName =
     baseIndexName.length > 63 ? baseIndexName.slice(0, 63) : baseIndexName;
-  await knex.raw(`DROP INDEX IF EXISTS ${indexName}`);
+  await knex.raw(
+    `DROP INDEX IF EXISTS ${quoteQualifiedName(indexName, schemaName)}`,
+  );
 }

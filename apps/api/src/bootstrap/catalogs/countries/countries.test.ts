@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  COUNTRIES_CATALOG,
-  getCountryFromCatalogByCode,
-} from './countries.js';
+import { COUNTRIES_CATALOG, getCountryFromCatalogByCode } from './countries.js';
 
 describe('bootstrap country catalog', () => {
   it('contains valid alpha-2 entries with normalized metadata', () => {

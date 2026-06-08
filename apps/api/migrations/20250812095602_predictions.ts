@@ -47,6 +47,12 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await knex.raw(`
+    CREATE INDEX predictions_active_coa_idx
+    ON predictions(coa_id)
+    WHERE is_deleted = false;
+  `);
+
+  await knex.raw(`
     CREATE INDEX predictions_human_bank_tx_created_idx 
     ON predictions (bank_transaction_id, created_at DESC) 
     WHERE method = 'human';
@@ -75,6 +81,7 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP INDEX IF EXISTS predictions_active_coa_idx`);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

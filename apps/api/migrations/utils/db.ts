@@ -34,14 +34,14 @@ export function addUserAuditColumns(
   const includeDeletedBy = options?.includeDeletedBy ?? true;
 
   const createdBy = table.uuid('created_by_id').notNullable();
-  createdBy.references('id').inTable('users').onDelete('RESTRICT');
+  createdBy.references('id').inTable('app.users').onDelete('RESTRICT');
 
   const updatedBy = table.uuid('updated_by_id').nullable();
-  updatedBy.references('id').inTable('users').onDelete('SET NULL');
+  updatedBy.references('id').inTable('app.users').onDelete('SET NULL');
 
   if (includeDeletedBy) {
     const deletedBy = table.uuid('deleted_by_id').nullable();
-    deletedBy.references('id').inTable('users').onDelete('SET NULL');
+    deletedBy.references('id').inTable('app.users').onDelete('SET NULL');
   }
 }
 

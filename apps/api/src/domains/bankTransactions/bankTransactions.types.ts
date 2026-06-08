@@ -14,6 +14,10 @@ export const bankTransactionSource = z.enum([
   'manual_entry',
 ]);
 export type BankTransactionSource = z.infer<typeof bankTransactionSource>;
+export const bankTransactionBatchStatus = z.enum(['active', 'reversed']);
+export type BankTransactionBatchStatus = z.infer<
+  typeof bankTransactionBatchStatus
+>;
 
 // BANK TRANSACTIONS
 export const bankTransactionInput = z.object({
@@ -63,14 +67,15 @@ export type BankTransaction = z.infer<typeof bankTransaction>;
 export const bankTransactionBatchInput = z.object({
   source: bankTransactionSource,
   bank_account_id: z.uuid(),
-  bank_transactions: z.array(bankTransactionInput),
+  bank_transactions: z.array(bankTransactionInput).min(1),
   // fingerprint: z.string(),
   // opening_balance: z.number().optional(), // Balance before the first transaction
   // closing_balance: z.number().optional(), // Balance after the last transaction
-  metadata: z.any().nullish(),
+  source_metadata: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .default({}),
   provider_key: bankProviderKey.nullish(),
-  created_by_id: z.uuid().optional(),
-  updated_by_id: z.uuid().optional(),
 });
 export type BankTransactionBatchInput = z.infer<
   typeof bankTransactionBatchInput
@@ -82,26 +87,37 @@ export const bankTransactionBatchInputCamel = createCamelCaseSchema(
 export type BankTransactionBatchInputCamel =
   SnakeToCamelCaseObject<BankTransactionBatchInput>;
 
-export const newBankTransactionBatches = bankTransactionBatchInput
-  .omit({ bank_transactions: true })
-  .extend({
-    start_date: zDate,
-    end_date: zDate,
-    fingerprint: z.string(),
-    import_row_count: z.number(),
-    import_date: zDate.optional().default(new Date()),
-    // balance_before: z.number(),
-    // balance_after: z.number(),
-    source: bankTransactionSource,
-    created_by_id: z.uuid(),
-  });
+export const newBankTransactionBatches = z.object({
+  bank_account_id: z.uuid(),
+  start_date: zDate,
+  end_date: zDate,
+  source: bankTransactionSource,
+  fingerprint: z.string().trim().min(1).max(256),
+  import_row_count: z.number().int().positive(),
+  source_metadata: z.record(z.string(), z.unknown()).default({}),
+  status: bankTransactionBatchStatus.optional().default('active'),
+  created_by_id: z.uuid(),
+});
 export type NewBankTransactionBatches = z.infer<
   typeof newBankTransactionBatches
 >;
 
-export const bankTransactionBatches =
-  newBankTransactionBatches.merge(dbBaseFields);
+export const bankTransactionBatches = newBankTransactionBatches.extend({
+  id: z.uuid(),
+  status: bankTransactionBatchStatus,
+  reversed_by_id: z.uuid().nullish(),
+  reversed_at: z.date().nullish(),
+  reversal_reason: z.string().max(512).nullish(),
+  created_at: z.date(),
+});
 export type BankTransactionBatches = z.infer<typeof bankTransactionBatches>;
+
+export const reverseBankTransactionBatchInput = z.object({
+  reason: z.string().trim().min(1).max(512),
+});
+export type ReverseBankTransactionBatchInput = z.infer<
+  typeof reverseBankTransactionBatchInput
+>;
 
 // ADD NEW BANK TRANSACTIONS
 export type AddBankTransactionsResponse = {

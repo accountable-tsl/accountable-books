@@ -387,7 +387,12 @@ const companyFields = [
   'companies.short_code as id',
   'companies.legal_name as legalName',
   'companies.display_name as displayName',
-  'companies.address as address',
+  'companies.address_line1 as address',
+  'companies.address_line1 as addressLine1',
+  'companies.address_line2 as addressLine2',
+  'companies.city as city',
+  'companies.state_region as stateRegion',
+  'companies.postal_code as postalCode',
   'companies.type as companyType',
   'company_logo_file.url as companyLogo',
   'company_logo_file.key as companyLogoKey',
@@ -617,6 +622,18 @@ export const updateCompany = async (
   },
 ): Promise<ApiResponse<GetCompanyResponse>> => {
   try {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      Object.prototype.hasOwnProperty.call(payload, 'reportingCurrencyId')
+    ) {
+      return errorResponse(
+        'Reporting currency cannot be changed after company creation',
+        undefined,
+        { code: ErrorCode.OPERATION_NOT_ALLOWED },
+      );
+    }
+
     const validInput = updateCompanySchema.safeParse(payload);
     if (!validInput.success) {
       return errorResponse('Invalid input', validInput.error.flatten(), {
@@ -645,12 +662,16 @@ export const updateCompany = async (
       // general update flow. Any future override should use a dedicated internal
       // path with explicit authorization and audit logging.
       //
-      // Address is intentionally omitted: address_verified_at is informational
-      // only, and PATCH may always update address.
+      // Address verification is informational only; PATCH may update address
+      // fields, but doing so clears the verification timestamp.
       const existing = await knex('companies')
         .select(
           'type',
-          'address',
+          'address_line1',
+          'address_line2',
+          'city',
+          'state_region',
+          'postal_code',
           'legal_name',
           'registration_number',
           'tax_id',
@@ -724,8 +745,24 @@ export const updateCompany = async (
       }
 
       const didChangeAddress =
-        p.address !== undefined &&
-        !companyNullableStringsEqual(p.address, existing.address);
+        (p.address !== undefined &&
+          !companyNullableStringsEqual(p.address, existing.address_line1)) ||
+        (p.addressLine1 !== undefined &&
+          !companyNullableStringsEqual(
+            p.addressLine1,
+            existing.address_line1,
+          )) ||
+        (p.addressLine2 !== undefined &&
+          !companyNullableStringsEqual(
+            p.addressLine2,
+            existing.address_line2,
+          )) ||
+        (p.city !== undefined &&
+          !companyNullableStringsEqual(p.city, existing.city)) ||
+        (p.stateRegion !== undefined &&
+          !companyNullableStringsEqual(p.stateRegion, existing.state_region)) ||
+        (p.postalCode !== undefined &&
+          !companyNullableStringsEqual(p.postalCode, existing.postal_code));
       if (didChangeAddress) {
         dbUpdates.address_verified_at = null;
         if (existing.address_verified_at != null) {
@@ -781,7 +818,7 @@ export const updateCompany = async (
 
       if (Object.keys(dbUpdates).length > 0) {
         const [updatedRow] = await knex('companies')
-          .update({ ...dbUpdates, last_updated_by_id: userId })
+          .update({ ...dbUpdates, updated_by_id: userId })
           .where('id', companyId)
           .returning([...baseRequiredFields, 'onboarding_state', 'id']);
 

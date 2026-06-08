@@ -7,8 +7,7 @@ import {
 import { type Company } from '../companies/companies.types.js';
 import { selectBestCoaTemplate } from './coa-template-selector.service.js';
 import { loadCoaTemplate } from './coa-template.type.js';
-import { createDefaultAccounts } from './coa.model.js';
-import { type NewCoa } from './coa.types.js';
+import { createCoaAccounts, createDefaultAccounts } from './coa.model.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
@@ -16,13 +15,16 @@ import type {
   SelectBestCoa,
 } from './coa-template.type.js';
 
-type CoaTemplateAccountLine = Pick<
-  NewCoa,
-  'code' | 'name' | 'description' | 'account_type_id' | 'locked'
->;
+type CoaTemplateAccountLine = {
+  code: string | null;
+  name: string;
+  description: string | null;
+  account_type_key: string;
+  locked: boolean;
+};
 
 export const loadCoaTemplateForCompany = async (
-  knex: Knex,
+  knex: Knex.Transaction,
   input: LoadCoaTemplateInput,
 ): Promise<ApiResponse> => {
   // Validate Input
@@ -68,9 +70,20 @@ export const loadCoaTemplateForCompany = async (
 
     // Check if template is valid and select valid template
     const validTemplate: CoaTemplateAccountLine[] = await knex('coa_templates')
-      .where('is_active', true)
-      .where('template_name', chosenTemplate)
-      .select('code', 'name', 'description', 'account_type_id', 'locked');
+      .join(
+        'account_types',
+        'coa_templates.account_type_id',
+        'account_types.id',
+      )
+      .where('coa_templates.is_active', true)
+      .where('coa_templates.template_name', chosenTemplate)
+      .select(
+        'coa_templates.code',
+        'coa_templates.name',
+        'coa_templates.description',
+        'account_types.key as account_type_key',
+        'coa_templates.locked',
+      );
 
     if (!validTemplate || !validTemplate.length) {
       // No valid template could be found? Attempt to create default accounts
@@ -78,7 +91,6 @@ export const loadCoaTemplateForCompany = async (
         trx: knex,
         companyUUID: companyId,
         userId: input.created_by_id,
-        reportingCurrencyId: company.reporting_currency_id,
       });
 
       return successResponse(
@@ -87,29 +99,22 @@ export const loadCoaTemplateForCompany = async (
       );
     }
 
-    return knex.transaction(async (trx) => {
-      const templateToInsert: NewCoa[] = validTemplate.map((t) => {
-        return {
-          code: t.code,
-          name: t.name,
-          account_type_id: t.account_type_id,
-          description: t.description,
-          is_active: true,
-          currency_id: company.reporting_currency_id,
-          company_id: companyId,
-          created_by_id: input.created_by_id,
-          locked: t.locked,
-          source: 'template',
-        };
-      });
-
-      await trx('coa').insert(templateToInsert);
-
-      return successResponse(
-        `Coa template with ${validTemplate.length} lines inserted for ${company.display_name}`,
-        chosenTemplate,
-      );
+    await createCoaAccounts({
+      trx: knex,
+      companyId,
+      userId: input.created_by_id,
+      accounts: validTemplate.map((account) => ({
+        ...account,
+        is_active: true,
+        source: 'template',
+      })),
+      versionNote: 'coa_template_creation',
     });
+
+    return successResponse(
+      `Coa template with ${validTemplate.length} lines inserted for ${company.display_name}`,
+      chosenTemplate,
+    );
   } catch (error) {
     return errorResponse('Failed to load and insert coa template', error);
   }

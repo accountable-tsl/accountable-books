@@ -1,43 +1,30 @@
 import '../config/env-loader.js';
 
+import { resolveBootstrapPlan, runBootstrap } from '../src/bootstrap/index.js';
 import { knexClient } from '../src/db/knexClient.js';
-import {
-  bootstrapApplicationWorkspaces,
-  isPlatformWorkspaceBootstrapped,
-} from '../src/domains/companies/workspace-bootstrap.service.js';
+
+import type { BootstrapPhase } from '../src/bootstrap/index.js';
 
 const dryRun = process.argv.includes('--dry-run');
+const phases: BootstrapPhase[] = ['canonical-workspaces'];
 
 async function run(): Promise<void> {
   if (dryRun) {
-    const platformBootstrapped =
-      await isPlatformWorkspaceBootstrapped(knexClient);
-
     console.log(
-      platformBootstrapped
-        ? 'Workspace bootstrap status: platform workspace is present (dry-run only)'
-        : 'Workspace bootstrap status: platform workspace is missing (dry-run only)',
-    );
-    console.log(
-      'System firms are seeded via the same bootstrap command when run without --dry-run.',
+      `Workspace bootstrap plan: ${resolveBootstrapPlan({ phases }).join(', ')}`,
     );
     return;
   }
 
-  const result = await bootstrapApplicationWorkspaces(knexClient, {
-    sideEffectMode: 'skip_jobs',
-  });
+  const result = await runBootstrap(knexClient, { phases });
+  const workspaces = result.context.canonicalWorkspacesByKey;
 
-  console.log(
-    result.platform.action === 'provisioned'
-      ? 'Platform workspace bootstrapped successfully'
-      : 'Platform workspace reconciled',
-  );
-  console.log(`  platform_company: ${result.platform.companyId}`);
-  console.log(`  admin_user:       ${result.platform.adminUserId}`);
-  console.log(`  system_user:      ${result.platform.systemUserId}`);
-  for (const firm of result.systemFirms.results) {
-    console.log(`  ${firm.shortCode}: ${firm.action} (${firm.companyId})`);
+  console.log(`Workspace bootstrap completed: ${result.phases.join(', ')}`);
+  console.log(`  admin_user: ${result.context.canonicalWorkspaceAdminUserId}`);
+  for (const workspace of Object.values(workspaces ?? {})) {
+    console.log(
+      `  ${workspace.key}: ${workspace.action} (${workspace.id}, ${workspace.short_code})`,
+    );
   }
 }
 

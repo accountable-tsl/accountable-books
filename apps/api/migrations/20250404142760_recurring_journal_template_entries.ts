@@ -21,6 +21,8 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('recurring_journal_templates')
       .onDelete('CASCADE');
+
+    table.index(['coa_id'], 'recurring_journal_template_entries_coa_idx');
   });
 }
 

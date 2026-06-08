@@ -2,6 +2,9 @@ import type { ApiResponse } from '@/shared/types/core';
 import api from '@/lib/axios';
 
 import type {
+  CoaLifecycleExecuteInput,
+  CoaLifecycleOperation,
+  CoaLifecyclePreflightResponse,
   CoaResponse,
   CoaUpdateResponse,
   CreateCoa,
@@ -84,5 +87,30 @@ export const deleteCoa = async (
   const response = await api.delete(`/api/${companyId}/coa`, {
     data,
   });
+  return response.data;
+};
+
+export const preflightCoaLifecycle = async (
+  companyId: string,
+  operation: CoaLifecycleOperation,
+  accountIds: string[],
+): Promise<ApiResponse<CoaLifecyclePreflightResponse>> => {
+  const response = await api.post(`/api/${companyId}/coa/lifecycle/preflight`, {
+    operation,
+    accountIds,
+  });
+  return response.data;
+};
+
+export const executeCoaLifecycle = async (
+  companyId: string,
+  data: CoaLifecycleExecuteInput,
+): Promise<
+  ApiResponse<CoaUpdateResponse & { preflight: CoaLifecyclePreflightResponse }>
+> => {
+  const response = await api.post(
+    `/api/${companyId}/coa/lifecycle/execute`,
+    data,
+  );
   return response.data;
 };

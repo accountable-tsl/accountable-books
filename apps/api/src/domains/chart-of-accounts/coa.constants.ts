@@ -12,6 +12,12 @@ export type MustHaveAccount = Omit<
   account_type_key: MustHaveAccountTypeKey;
 };
 
+/**
+ * Fallback definitions for required account types.
+ *
+ * A company already satisfies a requirement when it has an active, locked,
+ * non-deleted COA with the matching account-type key; names are not identity.
+ */
 export const MUST_HAVE_ACCOUNTS: readonly MustHaveAccount[] = [
   {
     name: 'Trade Receivables',

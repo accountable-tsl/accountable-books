@@ -4,7 +4,7 @@ import type { Knex } from 'knex';
 import knex from 'knex';
 
 import knexConfig from '../knexfile.js';
-import { bootstrapApplicationWorkspaces } from '../src/domains/companies/workspace-bootstrap.service.js';
+import { runBootstrap } from '../src/bootstrap/index.js';
 
 let testKnex: Knex | null = null;
 
@@ -40,10 +40,8 @@ export async function setupTestDatabase(): Promise<void> {
       console.log('✓ Test database already up to date, skipping migrations');
     }
 
-    await bootstrapApplicationWorkspaces(testDb, {
-      sideEffectMode: 'skip_jobs',
-    });
-    console.log('✓ Test database workspace bootstrap completed successfully');
+    await runBootstrap(testDb);
+    console.log('✓ Test database bootstrap completed successfully');
   } catch (error) {
     throw new Error(`Test database setup failed: ${error}`);
   }

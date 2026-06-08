@@ -1,29 +1,33 @@
 import type { Knex } from 'knex';
-import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { generateChecksum, logger } from '../../shared/index.js';
 import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../shared/services/advisoryLocks.service.js';
+import {
   camelToSnake,
   getIdentifierType,
   removeNullsShallow,
 } from '../../shared/utils/formatting.utils.js';
-import { chunkArray, getCompanyUUID } from '../../shared/utils/random.utils.js';
+import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   AppError,
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import {
-  getAccountTypeByKey,
-  getFullAccountMeta,
-} from '../account/account.registry.js';
+import { getAccountTypeByKey } from '../account/account.registry.js';
 import { invalidateCompanyContext } from '../categorization/index.js';
+import {
+  inspectCoaLifecycleImpacts,
+  invalidateCoaDerivedData,
+} from './coa-lifecycle-impact.service.js';
 import { MUST_HAVE_ACCOUNTS } from './coa.constants.js';
 import {
   coaUpdateInput,
-  newCoa,
   newCoaInput,
   updateCoaAction,
 } from './coa.types.js';
@@ -38,8 +42,9 @@ import type {
   CoaValidationResponse,
   CoaValidationResult,
   CoaValidationStatus,
+  CoaLifecycleWarning,
   FetchCoaInput,
-  NewCoa,
+  NewCoaInput,
   NewCoaInputCamel,
   ResolvedCoaUpdateInput,
   SimpleCoaRecord,
@@ -68,6 +73,182 @@ async function invalidateAllCoaCaches({
   await invalidateCoaSnapshotCacheForML({ companyUUID });
 }
 
+export type CreateCoaAccountInput = Pick<
+  NewCoaInput,
+  | 'name'
+  | 'code'
+  | 'description'
+  | 'is_active'
+  | 'account_type_key'
+  | 'locked'
+  | 'source'
+>;
+
+export type CreateCoaAccountsResult = {
+  coaIds: string[];
+};
+
+/**
+ * Creates COA accounts as part of a wider domain transaction.
+ *
+ * The COA domain owns reporting-currency resolution, account-type resolution,
+ * persistence, version initialization, and cache invalidation.
+ */
+export async function createCoaAccounts({
+  trx,
+  companyId,
+  userId,
+  accounts,
+  versionNote = 'coa_creation',
+}: {
+  trx: Knex.Transaction;
+  companyId: string;
+  userId: string;
+  accounts: readonly CreateCoaAccountInput[];
+  versionNote?: string;
+}): Promise<CreateCoaAccountsResult> {
+  if (accounts.length === 0) {
+    throw new AppError(
+      'At least one chart of account is required',
+      undefined,
+      false,
+      ErrorCode.INVALID_INPUT,
+    );
+  }
+
+  const validated = newCoaInput.array().safeParse([...accounts]);
+  if (!validated.success) {
+    throw new AppError(
+      'Invalid chart of accounts input',
+      validated.error,
+      false,
+      ErrorCode.INVALID_INPUT,
+    );
+  }
+
+  const accountTypeKeys = [
+    ...new Set(validated.data.map((account) => account.account_type_key)),
+  ];
+  const [company, accountTypes] = await Promise.all([
+    trx('companies')
+      .select('id', 'reporting_currency_id')
+      .where(
+        getIdentifierType(companyId) === 'uuid'
+          ? { id: companyId }
+          : { short_code: companyId },
+      )
+      .first<{ id: string; reporting_currency_id: string | null }>(),
+    trx('account_types')
+      .select('id', 'key')
+      .whereIn('key', accountTypeKeys),
+  ]);
+
+  if (!company?.id || !company.reporting_currency_id) {
+    throw new AppError(
+      'Company or reporting currency not found',
+      undefined,
+      false,
+      ErrorCode.NOT_FOUND,
+    );
+  }
+
+  const accountTypeIdsByKey = new Map(
+    accountTypes.map((accountType) => [accountType.key, accountType.id]),
+  );
+  const missingAccountTypeKeys = accountTypeKeys.filter(
+    (key) => !accountTypeIdsByKey.has(key),
+  );
+  if (missingAccountTypeKeys.length > 0) {
+    throw new AppError(
+      `Account types not found: ${missingAccountTypeKeys.join(', ')}`,
+      undefined,
+      false,
+      ErrorCode.INVALID_INPUT,
+    );
+  }
+
+  const rows = validated.data.map((account) => {
+    const { account_type_key: accountTypeKey, ...coaInput } = account;
+    const accountTypeId = accountTypeIdsByKey.get(accountTypeKey);
+    if (!accountTypeId) {
+      throw new AppError(
+        `Account type not found: ${accountTypeKey}`,
+        undefined,
+        false,
+        ErrorCode.INVALID_INPUT,
+      );
+    }
+
+    return {
+      ...coaInput,
+      company_id: company.id,
+      currency_id: company.reporting_currency_id,
+      account_type_id: accountTypeId,
+      created_by_id: userId,
+      updated_by_id: userId,
+    };
+  });
+
+  const inserted = await trx('coa')
+    .insert(rows)
+    .returning<Coa[]>('*');
+
+  if (inserted.length !== rows.length) {
+    throw new AppError('Failed to create all chart of accounts');
+  }
+
+  const coaIds = inserted.map((coa) => coa.id);
+  await updateCoaVersions({
+    coaIds,
+    companyUUID: company.id,
+    userId,
+    notes: versionNote,
+    trx,
+  });
+
+  trx.on('commit', async () => {
+    try {
+      await invalidateAllCoaCaches({ companyUUID: company.id });
+    } catch (error) {
+      logger.error(
+        { error, companyId: company.id },
+        'Failed to invalidate COA caches after creation',
+      );
+    }
+  });
+
+  return { coaIds };
+}
+
+export async function createCoaAccount({
+  trx,
+  companyId,
+  userId,
+  input,
+  versionNote = 'coa_creation',
+}: {
+  trx: Knex.Transaction;
+  companyId: string;
+  userId: string;
+  input: CreateCoaAccountInput;
+  versionNote?: string;
+}): Promise<Pick<Coa, 'id'>> {
+  const { coaIds } = await createCoaAccounts({
+    trx,
+    companyId,
+    userId,
+    accounts: [input],
+    versionNote,
+  });
+
+  const [id] = coaIds;
+  if (!id) {
+    throw new AppError('Failed to create chart of account');
+  }
+
+  return { id };
+}
+
 /**
  * Validate input
  * Get the company's UUID
@@ -92,107 +273,22 @@ export const createCoa = async ({
   companyId: string;
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<{ coaIds: string[] } | null>> => {
-  // Validate input
   const snakeData = camelToSnake(data);
   const validate = newCoaInput.array().safeParse(snakeData);
   if (!validate.success) {
     return errorResponse('Invalid input', validate.error?.message);
   }
-  const coaRecords = validate.data;
-
   const query = async (tx: Knex.Transaction) => {
-    const errors: string[] = [];
-    const recordsToInsert: NewCoa[] = [];
-
-    // Get company details
-    const company = await tx('companies')
-      .select({
-        id: 'id',
-        reportingCurrencyId: 'reporting_currency_id',
-      })
-      .where(
-        getIdentifierType(companyId) === 'uuid'
-          ? { id: companyId }
-          : { short_code: companyId },
-      )
-      .first();
-
-    if (!company || !company.id || !company.reportingCurrencyId) {
-      return errorResponse('Company not found');
-    }
-
-    const { id: companyUUID, reportingCurrencyId } = company;
-
-    // Get the account type ids for all coa records, then build insert data
-    const accountMeta = await getFullAccountMeta();
-    const typeMap = accountMeta.accountTypesByKey;
-
-    // Validate all account types upfront
-    const missingTypes = coaRecords
-      .filter((record) => !typeMap.get(record.account_type_key))
-      .map((record) => record.account_type_key);
-
-    if (missingTypes.length > 0) {
-      return errorResponse('Invalid account types found', {
-        invalidTypes: [...new Set(missingTypes)],
-      });
-    }
-
-    // Build records to insert
-    for (const record of coaRecords) {
-      const type = typeMap.get(record.account_type_key);
-      if (!type || !type.id) {
-        errors.push(`Account type not found: ${record.account_type_key}`);
-        continue;
-      }
-
-      recordsToInsert.push({
-        name: record.name,
-        locked: record.locked ?? false,
-        source: record.source ?? 'user',
-        created_by_id: userId,
-        updated_by_id: userId,
-        company_id: companyUUID,
-        currency_id: reportingCurrencyId,
-        account_type_id: type.id,
-        version_seq: 1,
-        ...(record.code ? { code: record.code } : {}),
-        ...(record.description ? { description: record.description } : {}),
-      });
-    }
-
-    if (errors.length) {
-      return errorResponse('Failed to create chart of accounts', errors);
-    }
-
-    if (recordsToInsert.length === 0) {
-      return errorResponse('No valid records to insert');
-    }
-
-    // Batch and insert records, returning IDs
-    const batchedRecords = chunkArray(recordsToInsert, 500);
-    const allInsertedIds: string[] = [];
-
-    for (const batch of batchedRecords) {
-      const insertedRecords = await tx('coa').insert(batch).returning('*');
-
-      allInsertedIds.push(...insertedRecords.map((record) => record.id));
-    }
-
-    await updateCoaVersions({
-      coaIds: allInsertedIds,
-      companyUUID,
-      userId,
-      notes: 'coa_creation',
+    const { coaIds } = await createCoaAccounts({
       trx: tx,
+      companyId,
+      userId,
+      accounts: validate.data,
     });
 
-    // Invalidate caches after successful insert
-    await invalidateAllCoaCaches({ companyUUID });
-
     return successResponse(
-      `Successfully created ${allInsertedIds.length} account${allInsertedIds.length > 1 ? 's' : ''}`,
-      { coaIds: allInsertedIds },
+      `Successfully created ${coaIds.length} account${coaIds.length > 1 ? 's' : ''}`,
+      { coaIds },
     );
   };
 
@@ -212,90 +308,52 @@ export const createDefaultAccounts = async ({
   trx,
   companyUUID,
   userId,
-  reportingCurrencyId,
 }: {
-  trx: Knex | Knex.Transaction;
+  trx: Knex.Transaction;
   companyUUID: string;
   userId: string;
-  reportingCurrencyId: string;
-}): Promise<ApiResponse> => {
-  const resolvedDefaultAccounts = await Promise.all(
-    MUST_HAVE_ACCOUNTS.map(async (account) => {
-      const accountType = await getAccountTypeByKey(account.account_type_key);
-
-      if (!accountType?.id) {
-        throw new AppError(
-          `Required account type not found: ${account.account_type_key}`,
-        );
-      }
-
-      const { account_type_key: _accountTypeKey, ...rest } = account;
-      return {
-        ...rest,
-        account_type_id: accountType.id,
-      };
-    }),
-  );
-
-  const defaultAccounts: NewCoa[] = resolvedDefaultAccounts.map((acc) => {
-    return {
-      ...acc,
-      company_id: companyUUID,
-      created_by_id: userId,
-      currency_id: reportingCurrencyId,
-      locked: true,
-      source: 'template',
-    };
-  });
-  const defaultAccountTypeIds = defaultAccounts.map(
-    (account) => account.account_type_id,
-  );
-
+}): Promise<ApiResponse<string[] | null>> => {
   const existingLockedAccounts = await trx('coa')
+    .join('account_types', 'coa.account_type_id', 'account_types.id')
     .where({
-      company_id: companyUUID,
-      locked: true,
+      'coa.company_id': companyUUID,
+      'coa.locked': true,
+      'coa.is_active': true,
+      'coa.is_deleted': false,
     })
-    .whereIn('account_type_id', defaultAccountTypeIds)
-    .select('account_type_id');
+    .whereIn(
+      'account_types.key',
+      MUST_HAVE_ACCOUNTS.map((account) => account.account_type_key),
+    )
+    .select('account_types.key');
 
-  const existingAccountTypeIds = new Set(
-    existingLockedAccounts.map((acc) => acc.account_type_id),
+  const existingAccountTypeKeys = new Set(
+    existingLockedAccounts.map((account) => account.key),
   );
+  const accountsToCreate = MUST_HAVE_ACCOUNTS.filter(
+    (account) => !existingAccountTypeKeys.has(account.account_type_key),
+  ).map((account) => ({
+    ...account,
+    locked: true,
+    source: 'template' as const,
+  }));
 
-  const accountsToCreate = defaultAccounts.filter(
-    (acc) => !existingAccountTypeIds.has(acc.account_type_id),
-  );
-
-  if (!accountsToCreate.length)
+  if (accountsToCreate.length === 0) {
     return successResponse('No accounts to create', null);
-
-  const validatedAccounts = newCoa.array().safeParse(accountsToCreate);
-  if (!validatedAccounts.success) {
-    throw new AppError(
-      'Failed to validate default accounts',
-      z.flattenError(validatedAccounts.error),
-    );
-  }
-  let inserted;
-  if (validatedAccounts.success) {
-    inserted = await trx('coa').insert(validatedAccounts.data).returning('*');
-    const coaIds = inserted.map((acc) => acc.id);
-
-    await updateCoaVersions({
-      coaIds,
-      companyUUID,
-      userId,
-      notes: 'default_coa_creation',
-      trx: trx.isTransaction ? (trx as Knex.Transaction) : undefined,
-    });
   }
 
-  if (!inserted || inserted.length === 0) {
-    return errorResponse('Failed to insert default chart of accounts records');
-  }
-  await invalidateAllCoaCaches({ companyUUID });
-  return successResponse('Must-have accounts successfully inserted', inserted);
+  const { coaIds } = await createCoaAccounts({
+    trx,
+    companyId: companyUUID,
+    userId,
+    accounts: accountsToCreate,
+    versionNote: 'default_coa_creation',
+  });
+
+  return successResponse(
+    'Must-have accounts successfully inserted',
+    coaIds,
+  );
 };
 
 export const fetchCompanyCoa = async ({
@@ -355,6 +413,14 @@ export const fetchCompanyCoa = async ({
           tx.raw(
             `(EXISTS (SELECT 1 FROM ledger_entries WHERE coa_id = coa.id)) as "hasTransactions"`,
           ),
+          tx.raw(
+            `(EXISTS (
+              SELECT 1
+              FROM bank_accounts
+              WHERE bank_accounts.coa_id = coa.id
+                AND bank_accounts.is_deleted = false
+            )) as "isBankLinked"`,
+          ),
         ])
         .where('coa.company_id', companyId)
         .modify((qb) => {
@@ -390,7 +456,16 @@ export const fetchCompanyCoa = async ({
 
   const enhanceCoa = (coa: any) => ({
     ...coa,
-    canDelete: !coa.isLocked && !coa.hasTransactions && !coa.isDeleted,
+    canArchive:
+      !coa.isLocked &&
+      !coa.isBankLinked &&
+      coa.isActive &&
+      !coa.isDeleted,
+    canDelete:
+      !coa.isLocked &&
+      !coa.hasTransactions &&
+      !coa.isBankLinked &&
+      !coa.isDeleted,
   });
 
   const query = async (trx: Knex.Transaction, companyId: string) => {
@@ -564,8 +639,8 @@ export const deleteCoa = async ({
  * Bulk unarchive is permitted
  * Bulk data edit is not permitted
  * Locked accounts cannot be archived or deleted
- * For now, coa for bank accounts cannot be archived or deleted (identified by account type key 'ca_bank')
- * Account type cannot be changed for locked accounts, and coa for bank accounts
+ * COAs linked to active bank accounts cannot be archived or deleted.
+ * Account type cannot be changed for locked or bank-linked accounts.
  * Only editable fields are code, name, description, account type (conditionally)...
  * and is_active, is_deleted, for archiving and deleting as permitted by the above constraints...
  * and updated_by_id, updated_at, deleted_at for logging
@@ -584,11 +659,6 @@ const updateChartOfAccounts = async ({
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<UpdateCoaResponse>> => {
   const { companyId, updatedById, operation } = options;
-  // Get actual company UUID
-  const companyUUID = await getCompanyUUID(companyId, trx);
-  if (!companyUUID) {
-    return errorResponse('Invalid company ID');
-  }
 
   // Validate input
   const validatedInput = coaUpdateInput.array().safeParse(updates);
@@ -603,18 +673,40 @@ const updateChartOfAccounts = async ({
     return errorResponse('No data provided for updating chart of accounts');
   }
 
-  // Extract IDs for batch query
   const coaIds = validatedInput.data.map((item) => item.id);
-  const results: UpdateCoaResponse = {
-    updatedAccounts: [],
-    errors: [],
-  };
+  const duplicateIds = coaIds.filter(
+    (id, index) => coaIds.indexOf(id) !== index,
+  );
+  if (duplicateIds.length > 0) {
+    return coaUpdateRejectedResponse({
+      operation,
+      errors: [...new Set(duplicateIds)].map((id) => ({
+        id,
+        error: 'Duplicate account ID in request',
+      })),
+    });
+  }
 
   const executeWithTransaction = async (
     tx: Knex.Transaction,
-  ): Promise<UpdateCoaResponse> => {
-    // Fetch existing COA records with account type information
-    // Fetch existing COA records with account type information
+  ): Promise<
+    | {
+        rejected: true;
+        errors: UpdateCoaResponse['errors'];
+      }
+    | {
+        rejected: false;
+        companyUUID: string;
+      result: UpdateCoaResponse;
+      }
+  > => {
+    const companyUUID = await getCompanyUUID(companyId, tx);
+
+    // Lock order: company advisory lock, sorted COA rows, dependent rows,
+    // then the company row used by COA snapshot versioning.
+    await acquireAdvisoryXactLocks(tx, [lockKeyCompany(companyUUID)]);
+
+    const sortedCoaIds = [...coaIds].sort();
     const existingCoaRecords = await tx('coa')
       .select([
         'coa.id',
@@ -631,28 +723,31 @@ const updateChartOfAccounts = async ({
         tx.raw(
           `(EXISTS (SELECT 1 FROM ledger_entries WHERE coa_id = coa.id)) as "hasTransactions"`,
         ),
+        tx.raw(
+          `(EXISTS (
+            SELECT 1
+            FROM bank_accounts
+            WHERE bank_accounts.coa_id = coa.id
+              AND bank_accounts.is_deleted = false
+          )) as "isBankLinked"`,
+        ),
       ])
       .join('account_types as at', 'coa.account_type_id', 'at.id')
-      .whereIn('coa.id', coaIds)
-      .andWhere('coa.company_id', companyUUID);
+      .whereIn('coa.id', sortedCoaIds)
+      .andWhere('coa.company_id', companyUUID)
+      .orderBy('coa.id')
+      .forUpdate('coa');
 
-    if (existingCoaRecords.length !== coaIds.length) {
-      throw new Error(
-        'One or more COA records not found or do not belong to this company',
-      );
-    }
-
-    // Create lookup map for efficiency
     const accountMap = new Map<string, SimpleCoaRecord>();
     existingCoaRecords.forEach((acc) => accountMap.set(acc.id, acc));
 
-    // Validate and process each update
-    const validUpdates: Array<CoaUpdateInput> = [];
+    const errors: UpdateCoaResponse['errors'] = [];
+    const validUpdates: ResolvedCoaUpdateInput[] = [];
     for (const item of validatedInput.data) {
       const existing = accountMap.get(item.id);
 
       if (!existing) {
-        results.errors.push({
+        errors.push({
           id: item.id,
           error: 'Account not found or not in specified company',
         });
@@ -662,6 +757,13 @@ const updateChartOfAccounts = async ({
       const newAccountType = item.accountTypeKey
         ? await getAccountTypeByKey(item.accountTypeKey)
         : undefined;
+      if (item.accountTypeKey && !newAccountType) {
+        errors.push({
+          id: item.id,
+          error: `Account type not found: ${item.accountTypeKey}`,
+        });
+        continue;
+      }
 
       const { accountTypeKey, ...rest } = item;
       const resolvedItem: ResolvedCoaUpdateInput = {
@@ -676,61 +778,179 @@ const updateChartOfAccounts = async ({
         update: resolvedItem,
         existing,
         operation,
+        newAccountTypeKey: accountTypeKey,
       });
 
       if (!validation.isValid) {
-        results.errors.push({ id: item.id, error: validation.error });
+        errors.push({ id: item.id, error: validation.error });
         continue;
       }
 
-      validUpdates.push(item);
+      if (hasCoaChanges({ update: resolvedItem, existing, operation })) {
+        validUpdates.push(resolvedItem);
+      }
     }
 
-    // Perform bulk update if there are valid updates
-    const hasUpdates = validUpdates.length > 0;
+    const lifecycleInspection =
+      validUpdates.length > 0 &&
+      (operation === 'archive' || operation === 'delete')
+        ? await inspectCoaLifecycleImpacts({
+            trx: tx,
+            companyId: companyUUID,
+            coaIds: validUpdates.map((update) => update.id),
+          })
+        : undefined;
+    const warnings: CoaLifecycleWarning[] = [];
 
-    if (hasUpdates) {
+    if (lifecycleInspection) {
+      for (const update of validUpdates) {
+        const impact = lifecycleInspection.impactsByCoaId.get(update.id);
+        if (!impact) continue;
+
+        if (impact.bankAccounts > 0) {
+          errors.push({
+            id: update.id,
+            error: 'Bank-linked accounts cannot be archived or deleted',
+            impact,
+          });
+          continue;
+        }
+
+        const hasOperationalReferences =
+          impact.draftJournals > 0 ||
+          impact.recurringTemplates > 0 ||
+          impact.categorizationRules > 0;
+
+        if (operation === 'delete' && hasOperationalReferences) {
+          errors.push({
+            id: update.id,
+            error: 'Account has active operational references',
+            impact,
+          });
+        } else if (operation === 'archive' && hasOperationalReferences) {
+          warnings.push({ id: update.id, impact });
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      return { rejected: true, errors };
+    }
+
+    const invalidatedDerivedData =
+      lifecycleInspection && validUpdates.length > 0
+        ? await invalidateCoaDerivedData({
+            trx: tx,
+            inspection: lifecycleInspection,
+            userId: updatedById,
+          })
+        : undefined;
+
+    if (validUpdates.length > 0) {
       await performBulkUpdate({
         validUpdates,
         updatedById,
         operation,
         companyUUID,
-        trx,
+        trx: tx,
       });
-
-      results.updatedAccounts = validUpdates.map((u) => ({
-        id: u.id,
-        name: u.name,
-      }));
     }
 
-    return results;
+    return {
+      rejected: false,
+      companyUUID,
+      result: {
+        updatedAccounts: validUpdates.map((update) => ({
+          id: update.id,
+          ...(update.name !== undefined ? { name: update.name } : {}),
+        })),
+        errors: [],
+        ...(warnings.length > 0 ? { warnings } : {}),
+        ...(invalidatedDerivedData &&
+        (invalidatedDerivedData.predictions > 0 ||
+          invalidatedDerivedData.candidates > 0)
+          ? { invalidatedDerivedData }
+          : {}),
+      },
+    };
   };
 
   try {
-    const result = await (trx
+    const outcome = await (trx
       ? executeWithTransaction(trx)
       : knexClient.transaction(executeWithTransaction));
 
-    // Only invalidate caches after a successful, committed transaction we control
-    if (!trx && result.updatedAccounts.length > 0) {
-      await invalidateAllCoaCaches({ companyUUID });
+    if (outcome.rejected) {
+      return coaUpdateRejectedResponse({
+        operation,
+        errors: outcome.errors,
+      });
     }
 
-    return successResponse('Chart of accounts updated successfully', result);
+    // Only invalidate caches after a successful, committed transaction we control
+    if (!trx && outcome.result.updatedAccounts.length > 0) {
+      await invalidateAllCoaCaches({ companyUUID: outcome.companyUUID });
+    }
+
+    return successResponse(
+      'Chart of accounts updated successfully',
+      outcome.result,
+    );
   } catch (error) {
+    if (isAdvisoryLockContention(error)) {
+      return coaUpdateTemporarilyBlockedResponse({ operation });
+    }
     return errorResponse('Failed to update chart of accounts', error);
   }
 };
+
+function isAdvisoryLockContention(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.startsWith('Failed to acquire advisory lock:')
+  );
+}
+
+function coaUpdateTemporarilyBlockedResponse({
+  operation,
+}: {
+  operation: UpdateCoaAction;
+}): ApiResponse<UpdateCoaResponse> {
+  return errorResponse<UpdateCoaResponse>(
+    'Chart of accounts update temporarily blocked',
+    {
+      operation,
+      reason: 'concurrent_company_operation',
+      retryable: true,
+    },
+    { code: ErrorCode.CONFLICT },
+  );
+}
+
+function coaUpdateRejectedResponse({
+  operation,
+  errors,
+}: {
+  operation: UpdateCoaAction;
+  errors: UpdateCoaResponse['errors'];
+}): ApiResponse<UpdateCoaResponse> {
+  return errorResponse<UpdateCoaResponse>(
+    'Chart of accounts update rejected',
+    { operation, errors },
+    { code: ErrorCode.OPERATION_NOT_ALLOWED },
+  );
+}
 
 function validateUpdateRules({
   update,
   existing,
   operation,
+  newAccountTypeKey,
 }: {
-  update: CoaUpdateInput;
+  update: ResolvedCoaUpdateInput;
   existing: SimpleCoaRecord;
   operation: UpdateCoaAction;
+  newAccountTypeKey?: string;
 }): {
   isValid: boolean;
   error: string;
@@ -746,6 +966,13 @@ function validateUpdateRules({
     };
   }
 
+  if (existing.isDeleted && operation === 'unarchive') {
+    return {
+      isValid: false,
+      error: 'Deleted accounts cannot be unarchived',
+    };
+  }
+
   // Check if account has transactions for delete operation
   if (existing.hasTransactions && operation === 'delete') {
     return {
@@ -754,19 +981,7 @@ function validateUpdateRules({
     };
   }
 
-  // Check if bank account for archive/delete operations
-  if (
-    existing.accountTypeKey === 'ca_bank' &&
-    (operation === 'archive' || operation === 'delete')
-  ) {
-    return {
-      isValid: false,
-      error: 'Bank accounts cannot be archived or deleted',
-    };
-  }
-
   // Check account type change restrictions
-  const newAccountTypeKey = update?.accountTypeKey;
   const oldAccountTypeKey = existing?.accountTypeKey;
 
   if (newAccountTypeKey && newAccountTypeKey !== oldAccountTypeKey) {
@@ -776,10 +991,10 @@ function validateUpdateRules({
         error: 'Account type cannot be changed for locked accounts',
       };
     }
-    if (oldAccountTypeKey === 'ca_bank') {
+    if (existing.isBankLinked) {
       return {
         isValid: false,
-        error: 'Account type cannot be changed for bank accounts',
+        error: 'Account type cannot be changed for bank-linked accounts',
       };
     }
   }
@@ -787,6 +1002,31 @@ function validateUpdateRules({
   // TODO: Prevent change across account elements
 
   return { isValid: true, error: '' };
+}
+
+function hasCoaChanges({
+  update,
+  existing,
+  operation,
+}: {
+  update: ResolvedCoaUpdateInput;
+  existing: SimpleCoaRecord;
+  operation: UpdateCoaAction;
+}): boolean {
+  if (operation === 'archive') return existing.isActive;
+  if (operation === 'unarchive') return !existing.isActive;
+  if (operation === 'delete') return !existing.isDeleted;
+
+  return (
+    (update.code !== undefined && update.code !== existing.code) ||
+    (update.name !== undefined && update.name !== existing.name) ||
+    (update.description !== undefined &&
+      update.description !== existing.description) ||
+    (update.accountTypeId !== undefined &&
+      update.accountTypeId !== existing.accountTypeId) ||
+    (update.isActive !== undefined && update.isActive !== existing.isActive) ||
+    (update.isDeleted !== undefined && update.isDeleted !== existing.isDeleted)
+  );
 }
 
 async function performBulkUpdate({
@@ -800,53 +1040,40 @@ async function performBulkUpdate({
   updatedById: string;
   operation: UpdateCoaAction;
   companyUUID: string;
-  trx?: Knex.Transaction;
+  trx: Knex.Transaction;
 }): Promise<void> {
   const now = new Date();
 
-  const executeUpdate = async (tx: Knex.Transaction) => {
-    for (const u of validUpdates) {
-      const updateData: Partial<Coa> = {
-        updated_by_id: updatedById,
-        updated_at: now,
-      };
+  for (const update of validUpdates) {
+    const updateData: Partial<Coa> = {
+      updated_by_id: updatedById,
+      updated_at: now,
+    };
 
-      if (u?.code !== undefined) updateData.code = u.code;
-      if (u.description !== undefined) updateData.description = u.description;
-      if (u?.name !== undefined) updateData.name = u.name;
-      if (u.accountTypeId !== undefined)
-        updateData.account_type_id = u.accountTypeId;
-      if (u.isActive !== undefined) updateData.is_active = u.isActive;
-      if (u.isDeleted !== undefined) {
-        updateData.is_deleted = u.isDeleted;
-        if (u.isDeleted) {
-          updateData.is_active = false;
-          updateData.deleted_at = now;
-        }
-      }
-      if (operation === 'delete') {
-        await tx('coa').where({ id: u.id }).delete();
-      } else {
-        await tx('coa').where({ id: u.id }).update(updateData);
+    if (update.code !== undefined) updateData.code = update.code;
+    if (update.description !== undefined)
+      updateData.description = update.description;
+    if (update.name !== undefined) updateData.name = update.name;
+    if (update.accountTypeId !== undefined)
+      updateData.account_type_id = update.accountTypeId;
+    if (update.isActive !== undefined) updateData.is_active = update.isActive;
+    if (update.isDeleted !== undefined) {
+      updateData.is_deleted = update.isDeleted;
+      if (update.isDeleted) {
+        updateData.is_active = false;
+        updateData.deleted_at = now;
       }
     }
-
-    // After updates, upsert coa versions
-    const coaIds: string[] = validUpdates.map((u) => u.id);
-    await updateCoaVersions({
-      coaIds,
-      companyUUID,
-      userId: updatedById,
-      notes: `coa_${operation}_operation`,
-      trx: tx,
-    });
-  };
-
-  if (trx) {
-    await executeUpdate(trx);
-  } else {
-    await knexClient.transaction(executeUpdate);
+    await trx('coa').where({ id: update.id }).update(updateData);
   }
+
+  await updateCoaVersions({
+    coaIds: validUpdates.map((update) => update.id),
+    companyUUID,
+    userId: updatedById,
+    notes: `coa_${operation}_operation`,
+    trx,
+  });
 }
 
 export async function updateCoaVersions({
@@ -862,24 +1089,34 @@ export async function updateCoaVersions({
   userId: string;
   trx?: Knex.Transaction;
 }): Promise<void> {
-  // Upsert coa versions
-  const coaVersionIds = await upsertCoaVersions({
-    coaIds,
-    companyUUID,
-    trx,
-  });
+  const execute = async (tx: Knex.Transaction) => {
+    // Serialize snapshot mutations per company so sequence and checksum agree.
+    const company = await tx('companies')
+      .where({ id: companyUUID })
+      .forUpdate()
+      .first<{ id: string }>('id');
+    if (!company) {
+      throw new Error('Company not found for COA versioning');
+    }
 
-  // Upsert coa snapshot version
-  const snapshotResult = await upsertCoaSnapshotVersions({
-    coaVersionIds: coaVersionIds,
-    companyUUID,
-    notes,
-    userId,
-    trx,
-  });
+    await upsertCoaVersions({
+      coaIds,
+      companyUUID,
+      trx: tx,
+    });
 
-  // When running inside a caller-provided transaction, invalidate after commit
-  if (trx && snapshotResult.oldSnapshotVersion !== undefined) {
+    return upsertCoaSnapshotVersions({
+      companyUUID,
+      notes,
+      userId,
+      trx: tx,
+    });
+  };
+
+  if (trx) {
+    const snapshotResult = await execute(trx);
+    if (snapshotResult.oldSnapshotVersion === undefined) return;
+
     trx.on('commit', async () => {
       try {
         await invalidateCoaSnapshotCacheForML({ companyUUID });
@@ -890,7 +1127,11 @@ export async function updateCoaVersions({
         );
       }
     });
+    return;
   }
+
+  await knexClient.transaction(execute);
+  await invalidateCoaSnapshotCacheForML({ companyUUID });
 }
 
 async function upsertCoaVersions({
@@ -900,182 +1141,170 @@ async function upsertCoaVersions({
 }: {
   coaIds: string[];
   companyUUID: string;
-  trx?: Knex.Transaction;
-}) {
-  const exec = async (tx: Knex.Transaction): Promise<string[]> => {
-    const coaRecords = await tx('coa')
-      .whereIn('id', coaIds)
-      .andWhere('company_id', companyUUID)
-      .select('*');
+  trx: Knex.Transaction;
+}): Promise<void> {
+  const coaRecords = await trx('coa')
+    .whereIn('id', coaIds)
+    .andWhere('company_id', companyUUID)
+    .select('*');
 
-    if (coaRecords.length === 0) {
-      throw new Error('No COA records found for versioning');
-    }
+  if (coaRecords.length === 0) {
+    throw new Error('No COA records found for versioning');
+  }
 
-    if (coaRecords.length !== coaIds.length) {
-      throw new Error('Some COA records not found for versioning');
-    }
+  if (coaRecords.length !== coaIds.length) {
+    throw new Error('Some COA records not found for versioning');
+  }
 
-    const existingVersions = await tx('coa_versions')
-      .whereIn('coa_id', coaIds)
-      .andWhere('effective_to', null)
-      .select('*');
+  const existingVersions = await trx('coa_versions')
+    .whereIn('coa_id', coaIds)
+    .andWhere('effective_to', null)
+    .select('*');
 
-    const existingVersionMap = new Map(
-      existingVersions.map((ev) => [ev.coa_id, ev]),
-    );
+  const existingVersionMap = new Map(
+    existingVersions.map((ev) => [ev.coa_id, ev]),
+  );
 
-    // For each coa record, check if existing version exists
-    // If exists, set effective_to of existing version to now
-    // Find difference between coa records and existing versions and build changeset
-    // Insert new versions for all coa records
-    // If existing, bump each version_seq by 1
+  // For each coa record, check if existing version exists
+  // If exists, set effective_to of existing version to now
+  // Find difference between coa records and existing versions and build changeset
+  // Insert new versions for all coa records
+  // If existing, bump each version_seq by 1
 
-    // Close existing versions and prepare new versions
-    const newVersions = [];
-    const now = new Date();
-    const fieldsToCompare = [
-      'code',
-      'name',
-      'description',
-      'is_active',
-      'locked',
-      'source',
-      'account_type_id',
-      'currency_id',
-      'is_deleted',
-    ];
+  // Close existing versions and prepare new versions
+  const newVersions = [];
+  const now = new Date();
+  const fieldsToCompare = [
+    'code',
+    'name',
+    'description',
+    'is_active',
+    'locked',
+    'source',
+    'account_type_id',
+    'currency_id',
+    'is_deleted',
+  ];
 
-    for (const r of coaRecords) {
-      const existingVersion = existingVersionMap.get(r.id);
-      let changeset: Record<string, any> | null = null;
-      if (existingVersion) {
-        // Close existing version
-        await tx('coa_versions')
-          .where({ id: existingVersion.id })
-          .update({ effective_to: r.updated_at });
+  for (const r of coaRecords) {
+    const existingVersion = existingVersionMap.get(r.id);
+    let changeset: Record<string, any> | null = null;
+    if (existingVersion) {
+      // Close existing version
+      await trx('coa_versions')
+        .where({ id: existingVersion.id })
+        .update({ effective_to: r.updated_at });
 
-        changeset = {};
-        // Build changeset by comparing old vs new values
-        for (const field of fieldsToCompare) {
-          if (r[field] !== existingVersion[field]) {
-            changeset[field] = { from: existingVersion[field], to: r[field] };
-          }
+      changeset = {};
+      // Build changeset by comparing old vs new values
+      for (const field of fieldsToCompare) {
+        if (r[field] !== existingVersion[field]) {
+          changeset[field] = { from: existingVersion[field], to: r[field] };
         }
       }
-
-      // Prepare new version record
-      const { id, ...coaData } = r;
-      const newVersion = {
-        ...coaData,
-        coa_id: id,
-        version_seq: existingVersion
-          ? Number(existingVersion.version_seq) + 1
-          : 1,
-        effective_from: existingVersion ? coaData.updated_at : now,
-        effective_to: null,
-        changeset,
-      };
-
-      newVersions.push(newVersion);
-
-      // Update coa record's version_seq
-      await tx('coa')
-        .where({ id })
-        .update({ version_seq: newVersion.version_seq });
     }
 
-    const inserted = await tx('coa_versions')
-      .insert(newVersions)
-      .returning<{ id: string }[]>('id');
+    // Prepare new version record
+    const { id, ...coaData } = r;
+    const newVersion = {
+      ...coaData,
+      coa_id: id,
+      version_seq: existingVersion
+        ? Number(existingVersion.version_seq) + 1
+        : 1,
+      effective_from: existingVersion ? coaData.updated_at : now,
+      effective_to: null,
+      changeset,
+    };
 
-    return inserted.map((v) => v.id);
-  };
+    newVersions.push(newVersion);
 
-  if (trx) {
-    return await exec(trx);
-  } else {
-    return await knexClient.transaction(exec);
+    // Update coa record's version_seq
+    await trx('coa')
+      .where({ id })
+      .update({ version_seq: newVersion.version_seq });
   }
+
+  await trx('coa_versions').insert(newVersions);
 }
 
 async function upsertCoaSnapshotVersions({
-  coaVersionIds,
   companyUUID,
   notes,
   userId,
   trx,
 }: {
-  coaVersionIds: string[];
   companyUUID: string;
   notes?: string;
   userId: string;
-  trx?: Knex.Transaction;
+  trx: Knex.Transaction;
 }): Promise<{ oldSnapshotVersion?: string | bigint }> {
-  const checksum = generateChecksum(coaVersionIds, { sortArrays: true });
+  // A snapshot checksum represents the complete current COA state.
+  const currentVersions = await trx('coa_versions')
+    .where({ company_id: companyUUID })
+    .whereNull('effective_to')
+    .select<{ id: string }[]>('id');
 
-  const exec = async (tx: Knex.Transaction) => {
-    // Create or update snapshot version
-    const existing = await tx('coa_snapshot_versions')
-      .where({ company_id: companyUUID })
-      .first<CoaSnapshotVersion>();
+  if (currentVersions.length === 0) {
+    throw new Error('No current COA versions found for snapshot');
+  }
 
-    const now = new Date().toISOString();
-    const updateData: Record<string, any> = {
-      ...(notes ? { notes } : {}),
-    };
+  const checksum = await generateChecksum(
+    currentVersions.map((version) => version.id),
+    { sortArrays: true },
+  );
 
-    if (existing) {
-      const metadata = existing.metadata || {};
-      const checksumHistory = Array.isArray(metadata.checksum_history)
-        ? metadata.checksum_history
-        : [];
-      const newChecksumHistory = [
-        { date_added: now, checksum },
-        ...checksumHistory,
-      ].slice(0, 50); // Keep only latest 50 entries
+  // Create or update snapshot version
+  const existing = await trx('coa_snapshot_versions')
+    .where({ company_id: companyUUID })
+    .first<CoaSnapshotVersion>();
 
-      await tx('coa_snapshot_versions')
-        .where({ company_id: companyUUID, is_deleted: false })
-        .update({
-          ...updateData,
-          snapshot_version: BigInt(existing.snapshot_version) + BigInt(1),
-          checksum,
-          metadata: {
-            ...metadata,
-            checksum_history: newChecksumHistory,
-            last_updated: now, // Track last update
-          },
-          updated_by_id: userId,
-        });
-
-      // Return old version to invalidate after transaction commits
-      return { oldSnapshotVersion: existing.snapshot_version };
-    } else {
-      await tx('coa_snapshot_versions').insert({
-        company_id: companyUUID,
-        snapshot_version: BigInt(1),
-        checksum,
-        ...updateData,
-        metadata: {
-          checksum_history: [{ date_added: now, checksum }],
-          created_at: now, // Track creation
-        },
-        created_by_id: userId,
-        updated_by_id: userId,
-      });
-      return { oldSnapshotVersion: undefined };
-    }
+  const now = new Date().toISOString();
+  const updateData: Record<string, any> = {
+    ...(notes ? { notes } : {}),
   };
 
-  if (trx) {
-    return await exec(trx);
-  } else {
-    const result = await knexClient.transaction(exec);
-    // Invalidate cache after transaction commits
-    await invalidateCoaSnapshotCacheForML({ companyUUID });
-    return result;
+  if (existing) {
+    const metadata = existing.metadata || {};
+    const checksumHistory = Array.isArray(metadata.checksum_history)
+      ? metadata.checksum_history
+      : [];
+    const newChecksumHistory = [
+      { date_added: now, checksum },
+      ...checksumHistory,
+    ].slice(0, 50); // Keep only latest 50 entries
+
+    await trx('coa_snapshot_versions')
+      .where({ company_id: companyUUID, is_deleted: false })
+      .update({
+        ...updateData,
+        snapshot_version: BigInt(existing.snapshot_version) + BigInt(1),
+        checksum,
+        metadata: {
+          ...metadata,
+          checksum_history: newChecksumHistory,
+          last_updated: now, // Track last update
+        },
+        updated_by_id: userId,
+      });
+
+    // Return old version to invalidate after transaction commits
+    return { oldSnapshotVersion: existing.snapshot_version };
   }
+
+  await trx('coa_snapshot_versions').insert({
+    company_id: companyUUID,
+    snapshot_version: BigInt(1),
+    checksum,
+    ...updateData,
+    metadata: {
+      checksum_history: [{ date_added: now, checksum }],
+      created_at: now, // Track creation
+    },
+    created_by_id: userId,
+    updated_by_id: userId,
+  });
+  return { oldSnapshotVersion: undefined };
 }
 
 /**

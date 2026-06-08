@@ -181,7 +181,7 @@ export async function syncMonoInstitutionsToMappingsNG(
     const [allBanks, existingMappings] = await Promise.all([
       knex('banks')
         .where({ country_id: nigeria.id })
-        .select('id', 'local_code', 'secondary_reference', 'key'),
+        .select('id', 'local_code', 'alternate_identifier', 'key'),
 
       knex('bank_provider_mappings')
         .where({ provider_id: provider.id })
@@ -203,8 +203,8 @@ export async function syncMonoInstitutionsToMappingsNG(
       if (bank.local_code) {
         banksByLocalCode.set(bank.local_code, bank);
       }
-      if (bank.secondary_reference) {
-        banksBySecondaryRef.set(bank.secondary_reference, bank);
+      if (bank.alternate_identifier) {
+        banksBySecondaryRef.set(bank.alternate_identifier, bank);
       }
       if (bank.key === 'ng_other_financial_institution') {
         otherFinancialInstitutionBank = bank;
@@ -419,8 +419,7 @@ export async function getBankProviderMapping(
       query.andWhere((builder) => {
         builder
           .where('bpm.provider_bank_name', 'ILIKE', `%${search}%`)
-          .orWhere('b.display_name', 'ILIKE', `%${search}%`)
-          .orWhere('b.official_name', 'ILIKE', `%${search}%`)
+          .orWhere('b.search_text', 'ILIKE', `%${search.toLowerCase()}%`)
           .orWhereRaw('bpm.raw_provider_data::text ILIKE ?', [`%${search}%`]);
       });
     }
@@ -433,7 +432,7 @@ export async function getBankProviderMapping(
       bankOfficialName: 'b.official_name',
       providerId: 'bpm.provider_id',
       providerKey: 'bfp.key',
-      providerName: 'bfp.name',
+      providerName: 'bfp.display_name',
       providerStatus: 'bfp.status',
       providerBankId: 'bpm.provider_bank_id',
       providerAlternateId: 'bpm.provider_alternate_id',

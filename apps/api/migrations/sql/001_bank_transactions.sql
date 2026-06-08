@@ -439,10 +439,10 @@ BEGIN
   END;
 
   BEGIN
-    ALTER TABLE bank_transactions
+    ALTER TABLE app.bank_transactions
       ADD CONSTRAINT fk_bank_transaction_batch
-      FOREIGN KEY (bank_transaction_batch_id) REFERENCES bank_transaction_batches (id)
-      ON DELETE SET NULL;
+      FOREIGN KEY (bank_transaction_batch_id) REFERENCES app.bank_transaction_batches (id)
+      ON DELETE RESTRICT;
   EXCEPTION WHEN duplicate_object THEN RAISE NOTICE 'fk_bank_transaction_batch exists, skipping';
   END;
 

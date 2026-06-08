@@ -28,9 +28,13 @@ class UpdateCompanyPayload(BaseModel):
     yearEndDay: Optional[confloat(ge=1, le=31)] = None
     yearEndMonth: Optional[confloat(ge=1, le=12)] = None
     countryId: Optional[UUID] = None
-    reportingCurrencyId: Optional[UUID] = None
     displayName: Optional[Any] = None
     address: Optional[Any] = None
+    addressLine1: Optional[Any] = None
+    addressLine2: Optional[Any] = None
+    city: Optional[Any] = None
+    stateRegion: Optional[Any] = None
+    postalCode: Optional[Any] = None
     description: Optional[Any] = None
     website: Optional[Any] = None
     industry: Optional[Any] = None

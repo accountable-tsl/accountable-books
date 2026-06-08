@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ENV } from '../../config/env.js';
+import { ErrorCode } from '../../shared/utils/response.utils.js';
+import { fetchExchangeRate } from './exchangeRates.model.js';
+
+import type { FxProvider } from './exchangeRates.providers.js';
+
 const { mockResolveFxProviderChain, mockFxLoggerWarn } = vi.hoisted(() => ({
   mockResolveFxProviderChain: vi.fn(),
   mockFxLoggerWarn: vi.fn(),
@@ -20,12 +26,6 @@ vi.mock('../../shared/utils/logger.js', () => ({
     warn: mockFxLoggerWarn,
   }),
 }));
-
-import { ENV } from '../../config/env.js';
-import { ErrorCode } from '../../shared/utils/response.utils.js';
-import { fetchExchangeRate } from './exchangeRates.model.js';
-
-import type { FxProvider } from './exchangeRates.providers.js';
 
 type CurrencyRow = { id: string; code: string };
 type ExchangeRateRow = {
@@ -64,7 +64,9 @@ function createFakeKnex(seed?: {
       const rows = [...state[tableName]];
       return rows.filter((row) =>
         whereParts.every((criteria) =>
-          Object.entries(criteria).every(([key, value]) => (row as any)[key] === value),
+          Object.entries(criteria).every(
+            ([key, value]) => (row as any)[key] === value,
+          ),
         ),
       );
     }
@@ -150,12 +152,15 @@ describe('fetchExchangeRate regression', () => {
   });
 
   it('uses yesterday as first candidate when requested date is today UTC', async () => {
-    const provider = createProvider('openexchangerates', async ({ targetDate }) => ({
-      status: 'found',
-      provider: 'openexchangerates',
-      rate: 1.25,
-      providerAsOf: targetDate,
-    }));
+    const provider = createProvider(
+      'openexchangerates',
+      async ({ targetDate }) => ({
+        status: 'found',
+        provider: 'openexchangerates',
+        rate: 1.25,
+        providerAsOf: targetDate,
+      }),
+    );
     mockResolveFxProviderChain.mockReturnValue([provider]);
 
     const { knex, state } = createFakeKnex({
@@ -165,7 +170,12 @@ describe('fetchExchangeRate regression', () => {
       ],
     });
 
-    const result = await fetchExchangeRate('2026-06-02', 'from-id', 'to-id', knex);
+    const result = await fetchExchangeRate(
+      '2026-06-02',
+      'from-id',
+      'to-id',
+      knex,
+    );
 
     expect(result.success).toBe(true);
     expect(provider.fetchHistoricalRate).toHaveBeenCalledTimes(1);
@@ -198,7 +208,12 @@ describe('fetchExchangeRate regression', () => {
       ],
     });
 
-    const result = await fetchExchangeRate('2026-05-31', 'from-id', 'to-id', knex);
+    const result = await fetchExchangeRate(
+      '2026-05-31',
+      'from-id',
+      'to-id',
+      knex,
+    );
 
     expect(result.success).toBe(true);
     expect(result.data?.rate).toBe(0.91);
@@ -209,12 +224,15 @@ describe('fetchExchangeRate regression', () => {
     const primary = createProvider('openexchangerates', async () => ({
       status: 'no_data',
     }));
-    const secondary = createProvider('exchangerate_api', async ({ targetDate }) => ({
-      status: 'found',
-      provider: 'exchangerate_api',
-      rate: 812.42,
-      providerAsOf: targetDate,
-    }));
+    const secondary = createProvider(
+      'exchangerate_api',
+      async ({ targetDate }) => ({
+        status: 'found',
+        provider: 'exchangerate_api',
+        rate: 812.42,
+        providerAsOf: targetDate,
+      }),
+    );
     const tertiary = createProvider('fixer', async () => ({
       status: 'no_data',
     }));
@@ -228,7 +246,12 @@ describe('fetchExchangeRate regression', () => {
       ],
     });
 
-    const result = await fetchExchangeRate('2026-05-30', 'usd-id', 'ngn-id', knex);
+    const result = await fetchExchangeRate(
+      '2026-05-30',
+      'usd-id',
+      'ngn-id',
+      knex,
+    );
 
     expect(result.success).toBe(true);
     expect(primary.fetchHistoricalRate).toHaveBeenCalledTimes(1);
@@ -270,7 +293,12 @@ describe('fetchExchangeRate regression', () => {
       ],
     });
 
-    const result = await fetchExchangeRate('2026-05-30', 'usd-id', 'eur-id', knex);
+    const result = await fetchExchangeRate(
+      '2026-05-30',
+      'usd-id',
+      'eur-id',
+      knex,
+    );
 
     expect(result.success).toBe(true);
     expect(primary.fetchHistoricalRate).toHaveBeenCalledTimes(1);
@@ -294,7 +322,12 @@ describe('fetchExchangeRate regression', () => {
       ],
     });
 
-    const result = await fetchExchangeRate('2026-05-29', 'gbp-id', 'ngn-id', knex);
+    const result = await fetchExchangeRate(
+      '2026-05-29',
+      'gbp-id',
+      'ngn-id',
+      knex,
+    );
 
     expect(result.success).toBe(true);
     expect(result.data?.rate).toBe(100.01);
@@ -324,7 +357,12 @@ describe('fetchExchangeRate regression', () => {
       ],
     });
 
-    const result = await fetchExchangeRate('2026-05-30', 'usd-id', 'eur-id', knex);
+    const result = await fetchExchangeRate(
+      '2026-05-30',
+      'usd-id',
+      'eur-id',
+      knex,
+    );
 
     expect(result.success).toBe(false);
     expect(result.code).toBe(ErrorCode.NOT_FOUND);

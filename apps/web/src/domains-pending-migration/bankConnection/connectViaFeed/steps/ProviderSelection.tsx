@@ -56,7 +56,7 @@ export const ProviderSelection = React.memo(
           property: 'status',
           values: ['active'],
         },
-        fallbackSort: (a, b) => a.priority - b.priority,
+        fallbackSort: (a, b) => a.name.localeCompare(b.name),
         limit: 2,
       });
     }, [providers]);
@@ -106,7 +106,7 @@ export const ProviderSelection = React.memo(
     const providerCards = useMemo(() => {
       return sortedProviders.map((provider) => {
         const recommended =
-          provider.priority === 1 && provider.status === 'active';
+          provider.status === 'active' && sortedProviders.length === 1;
         const isSelected = selectedProvider?.key === provider.key;
         const logo = provider.logoUrl;
         const active = provider.status === 'active';
@@ -136,7 +136,7 @@ export const ProviderSelection = React.memo(
                     )}
                   >
                     {logo ? (
-                      <img src={provider.logoUrl} alt={provider.name} />
+                      <img src={logo} alt={provider.name} />
                     ) : (
                       <span className="text-sm font-bold text-blue-600">
                         {provider.name.charAt(0)}
@@ -172,7 +172,7 @@ export const ProviderSelection = React.memo(
                   <span className="flex items-center">
                     <Building className="mr-1 h-3 w-3" />
                     {/* Add no of banks supported */}
-                    {provider.name === 'plaid' || provider.name === 'stripe'
+                    {provider.key === 'plaid' || provider.key === 'stripe'
                       ? '10,000+'
                       : '300+'}
                   </span>

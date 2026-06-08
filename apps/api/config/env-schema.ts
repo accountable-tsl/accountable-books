@@ -330,33 +330,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     default: 'transaction-files',
   },
 
-  // ============================================================================
-  // PLATFORM COMPANY CONFIGURATION
-  // ============================================================================
-  PLATFORM_COMPANY_ID: {
-    description: 'Main platform company UUID',
-    type: 'string',
-    local: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-    staging: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-    production: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-  },
-
-  PLATFORM_COMPANY_NAME: {
-    description: 'Platform company legal name',
-    type: 'string',
-    local: 'Accountable Techserve Ltd',
-    staging: 'Accountable Techserve Ltd',
-    production: 'Accountable Techserve Ltd',
-  },
-
-  PLATFORM_COMPANY_SHORT_CODE: {
-    description: 'Platform company short identifier',
-    type: 'string',
-    local: 'accX',
-    staging: 'accX',
-    production: 'accX',
-  },
-
   PLATFORM_ACCOUNTING_FIRM_ID: {
     description: 'Platform accounting firm UUID',
     type: 'string',

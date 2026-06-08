@@ -76,7 +76,7 @@ async function syncMonoInstitutionsToMappingsNG(
   const [allBanks, existing] = await Promise.all([
     knex('banks')
       .where({ country_id: nigeria.id })
-      .select('id', 'local_code', 'secondary_reference', 'key'),
+      .select('id', 'local_code', 'alternate_identifier', 'key'),
 
     knex('bank_provider_mappings')
       .where({ provider_id: provider.id })
@@ -93,7 +93,7 @@ async function syncMonoInstitutionsToMappingsNG(
   interface BankRow {
     id: string;
     local_code: string | null;
-    secondary_reference: string | null;
+    alternate_identifier: string | null;
     key: string;
   }
   const banksByLocalCode = new Map<string, BankRow>();
@@ -102,8 +102,8 @@ async function syncMonoInstitutionsToMappingsNG(
 
   for (const b of allBanks) {
     if (b.local_code) banksByLocalCode.set(b.local_code, b);
-    if (b.secondary_reference)
-      banksBySecondaryRef.set(b.secondary_reference, b);
+    if (b.alternate_identifier)
+      banksBySecondaryRef.set(b.alternate_identifier, b);
     if (b.key === 'ng_other_financial_institution') otherFI = b;
   }
   if (!otherFI) throw new Error('Other financial institution bank not found');

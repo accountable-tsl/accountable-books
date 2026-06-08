@@ -11,16 +11,19 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { newExchangeRate } from './exchangeRate.types.js';
-import {
-  type FxProviderFailureCategory,
-  type FxProviderName,
-  type FxProviderRateFound,
-  type FxProviderRateNoData,
-  resolveFxProviderChain,
-} from './exchangeRates.providers.js';
+import { resolveFxProviderChain } from './exchangeRates.providers.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
-import type { ExchangeRateItem, NewExchangeRateInput } from './exchangeRate.types.js';
+import type {
+  ExchangeRateItem,
+  NewExchangeRateInput,
+} from './exchangeRate.types.js';
+import type {
+  FxProviderFailureCategory,
+  FxProviderName,
+  FxProviderRateFound,
+  FxProviderRateNoData,
+} from './exchangeRates.providers.js';
 
 const DEFAULT_RATE_LOOKBACK_DAYS = 5;
 const DEFAULT_FX_REQUEST_TIMEOUT_MS = 5000;
@@ -55,10 +58,7 @@ type CandidateAttemptLog = {
   resolvedProvider?: FxProviderName;
 };
 
-function parsePositiveInt(
-  raw: string | undefined,
-  fallback: number,
-): number {
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
   if (!raw) return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -93,7 +93,8 @@ function maybeNotifyProviderFailure(params: {
   candidateDate: Date;
   error: unknown;
 }): void {
-  const { provider, category, baseCode, priceCode, candidateDate, error } = params;
+  const { provider, category, baseCode, priceCode, candidateDate, error } =
+    params;
   if (!NOTIFIABLE_FAILURE_CATEGORIES.has(category)) return;
 
   const now = Date.now();
@@ -202,7 +203,10 @@ function getEffectiveTargetDate(requestedDate: Date): Date {
   return requestedDate;
 }
 
-function buildCandidateDates(requestedDate: Date, lookbackDays: number): Date[] {
+function buildCandidateDates(
+  requestedDate: Date,
+  lookbackDays: number,
+): Date[] {
   const effectiveDate = getEffectiveTargetDate(requestedDate);
   return Array.from({ length: lookbackDays + 1 }, (_, offset) => {
     const candidate = new Date(effectiveDate);
@@ -342,7 +346,9 @@ async function fetchProviderRateForCandidate(params: {
         outcome: 'error',
         category: result.category,
         errorMessage:
-          result.error instanceof Error ? result.error.message : String(result.error),
+          result.error instanceof Error
+            ? result.error.message
+            : String(result.error),
       });
       maybeNotifyProviderFailure({
         provider: result.provider,
@@ -533,7 +539,9 @@ export async function fetchExchangeRate(
         pair: `${fromCurrency.code}->${toCurrency.code}`,
         requestedDate: toYMD(requestedDate),
         effectiveDate: toYMD(effectiveDate),
-        datesAttempted: candidateDates.map((candidateDate) => toYMD(candidateDate)),
+        datesAttempted: candidateDates.map((candidateDate) =>
+          toYMD(candidateDate),
+        ),
         providerOutcomes,
       },
       'warn',
@@ -544,7 +552,9 @@ export async function fetchExchangeRate(
       {
         from: fromCurrency.code,
         to: toCurrency.code,
-        datesAttempted: candidateDates.map((candidateDate) => toYMD(candidateDate)),
+        datesAttempted: candidateDates.map((candidateDate) =>
+          toYMD(candidateDate),
+        ),
         requestedDate: toYMD(requestedDate),
         effectiveDate: toYMD(effectiveDate),
         finalReason: 'rate_not_found',

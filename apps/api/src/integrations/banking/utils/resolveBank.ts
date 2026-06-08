@@ -18,6 +18,13 @@ const BANK_KEY_MAX_LENGTH = 100;
 const stripDiacritics = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+const normalizeOptionalString = (
+  value: string | null | undefined,
+): string | undefined => {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
+};
+
 /**
  * Generate a standardized, unique bank key from name and country.
  */
@@ -52,6 +59,10 @@ async function findExistingBank({
 } | null> {
   const tableName = 'banks';
   const selectFields = ['id', 'display_name', 'logo_url'];
+  const institutionName = institution.name.trim();
+  const swiftCode = normalizeOptionalString(
+    institution.bankCodes?.swift,
+  )?.toUpperCase();
   const strategies = [
     () =>
       // Exact name match
@@ -61,9 +72,9 @@ async function findExistingBank({
           is_deleted: false,
         })
         .andWhere(function () {
-          this.where('display_name', institution.name).orWhere(
+          this.where('display_name', institutionName).orWhere(
             'official_name',
-            institution.name,
+            institutionName,
           );
         })
         .select(selectFields)
@@ -71,12 +82,12 @@ async function findExistingBank({
 
     // Swift code match
     () =>
-      institution.bankCodes?.swift
+      swiftCode
         ? txn(tableName)
             .where({
               country_id: countryId,
               is_deleted: false,
-              swift_code: institution.bankCodes.swift,
+              swift_code: swiftCode,
             })
             .select(selectFields)
             .first()
@@ -85,11 +96,9 @@ async function findExistingBank({
     // Routing or local code match
     () => {
       const codes: string[] = [
-        institution.bankCodes?.routing,
-        institution.bankCodes?.local,
-      ].filter(
-        (code): code is string => code != null && typeof code === 'string',
-      );
+        normalizeOptionalString(institution.bankCodes?.routing),
+        normalizeOptionalString(institution.bankCodes?.local),
+      ].filter((code): code is string => code !== undefined);
 
       return codes.length
         ? txn(tableName)
@@ -99,7 +108,7 @@ async function findExistingBank({
             })
             .where(function () {
               this.whereIn('local_code', codes).orWhereIn(
-                'secondary_reference',
+                'alternate_identifier',
                 codes,
               );
             })
@@ -220,24 +229,31 @@ export async function findOrCreateBankMapping(params: {
     } else {
       // No match, so we will create a new bank.
       const newBankKey = generateBankKey(institution.name, countryCode);
+      const routingCode = normalizeOptionalString(
+        institution.bankCodes?.routing,
+      );
       const newBankData: NewBank = {
         key: newBankKey,
-        display_name: institution.name,
-        official_name: institution.name,
+        display_name: institution.name.trim(),
+        official_name: institution.name.trim(),
         country_id: countryId,
-        swift_code: institution.bankCodes?.swift,
-        local_code: institution.bankCodes?.local,
-        secondary_reference: institution.bankCodes?.routing,
-        website: institution.website,
-        logo_url: institution.logoUrl,
-        raw_data: institution.rawData,
+        swift_code: normalizeOptionalString(
+          institution.bankCodes?.swift,
+        )?.toUpperCase(),
+        local_code: routingCode,
+        local_code_type: routingCode ? 'routing' : undefined,
+        alternate_identifier: normalizeOptionalString(
+          institution.bankCodes?.local,
+        ),
+        website: normalizeOptionalString(institution.website),
+        logo_url: normalizeOptionalString(institution.logoUrl),
         created_by_id: resolvedUserId,
         updated_by_id: resolvedUserId,
       };
 
       const [finalBank] = await txn('banks')
         .insert(newBankData)
-        .onConflict(['key', 'country_id'])
+        .onConflict('key')
         .ignore()
         .returning(['id', 'display_name', 'logo_url']);
       if (!finalBank) {

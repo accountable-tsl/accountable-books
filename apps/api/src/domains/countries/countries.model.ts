@@ -6,14 +6,14 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
-import {
-  type CountryRow,
-  type CountryRes,
-  type GetCountriesOptions,
-  toCountryRes,
-} from './countries.types.js';
+import { toCountryRes } from './countries.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
+import type {
+  CountryRes,
+  CountryRow,
+  GetCountriesOptions,
+} from './countries.types.js';
 
 type CountryIndex = {
   byId: Map<string, CountryRes>;

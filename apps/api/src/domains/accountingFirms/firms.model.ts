@@ -31,8 +31,8 @@ export const resolveFirm = async (
 ): Promise<string> => {
   if (firmId) {
     const [verifyFirm] = await trx('accounting_firms_meta')
-      .where('id', firmId)
-      .select('id');
+      .where('company_id', firmId)
+      .select('company_id as id');
 
     if (verifyFirm) {
       return verifyFirm.id;
@@ -42,7 +42,7 @@ export const resolveFirm = async (
   const platformFirm = await trx('accounting_firms_meta as af')
     .join('companies as c', 'af.company_id', 'c.id')
     .where('c.workspace_class', 'platform')
-    .select('af.id');
+    .select('af.company_id as id');
 
   if (!platformFirm || platformFirm.length > 1) {
     throw new Error('Unable to resolve firm to assign');
@@ -91,9 +91,7 @@ export const getSlugs = async (): Promise<ApiResponse<string[]>> => {
   try {
     const slugs = await knexClient('accounting_firms_meta')
       .pluck('slug')
-      .whereNotNull('slug')
-      .where('deleted_at', null)
-      .where('is_deleted', false);
+      .whereNotNull('slug');
 
     if (!slugs || slugs.length === 0) {
       return errorResponse('No slugs found');
@@ -256,7 +254,7 @@ export const getCompanySlug = async (
       .join(
         'accounting_firms_meta',
         'companies.assigned_firm_id',
-        'accounting_firms_meta.id',
+        'accounting_firms_meta.company_id',
       )
       .where('companies.id', companyUUID)
       .select('accounting_firms_meta.slug')

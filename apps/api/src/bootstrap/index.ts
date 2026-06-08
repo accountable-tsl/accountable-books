@@ -2,6 +2,9 @@ import type { Knex } from 'knex';
 
 import { bootstrapAccountElements } from './phases/account-elements.bootstrap.js';
 import { bootstrapAccountTypes } from './phases/account-types.bootstrap.js';
+import { bootstrapBankFeedProviders } from './phases/bank-feed-providers.bootstrap.js';
+import { bootstrapBanks } from './phases/banks.bootstrap.js';
+import { bootstrapCanonicalWorkspaces } from './phases/canonical-workspaces.bootstrap.js';
 import { bootstrapCoaTemplates } from './phases/coa-templates.bootstrap.js';
 import { bootstrapCountries } from './phases/countries.bootstrap.js';
 import { bootstrapCurrencies } from './phases/currencies.bootstrap.js';
@@ -15,8 +18,10 @@ import type { AccountElementKey } from './catalogs/accounting/account-elements.j
 import type { AccountTypeKey } from './catalogs/accounting/account-types.js';
 import type { FinancialStatementKey } from './catalogs/accounting/financial-statements.js';
 import type { LoadFxPackResult } from './catalogs/fx/load-fx-pack.js';
+import type { CanonicalWorkspaceKey } from './catalogs/workspaces/canonical-workspaces.js';
 import type { BootstrappedAccountElement } from './phases/account-elements.bootstrap.js';
 import type { BootstrappedAccountType } from './phases/account-types.bootstrap.js';
+import type { BootstrappedCanonicalWorkspace } from './phases/canonical-workspaces.bootstrap.js';
 import type { BootstrappedCoaTemplate } from './phases/coa-templates.bootstrap.js';
 import type { BootstrappedCountry } from './phases/countries.bootstrap.js';
 import type { BootstrappedCurrency } from './phases/currencies.bootstrap.js';
@@ -29,11 +34,14 @@ export const BOOTSTRAP_PHASES = [
   'users',
   'roles',
   'countries',
+  'banks',
+  'bank-feed-providers',
   'currencies',
   'financial-statements',
   'account-elements',
   'account-types',
   'coa-templates',
+  'canonical-workspaces',
   'fx-seeds',
 ] as const;
 
@@ -51,6 +59,11 @@ export type BootstrapContext = {
   accountElementsByKey?: Record<AccountElementKey, BootstrappedAccountElement>;
   accountTypesByKey?: Record<AccountTypeKey, BootstrappedAccountType>;
   coaTemplatesByNaturalKey?: Record<string, BootstrappedCoaTemplate>;
+  canonicalWorkspacesByKey?: Record<
+    CanonicalWorkspaceKey,
+    BootstrappedCanonicalWorkspace
+  >;
+  canonicalWorkspaceAdminUserId?: string;
   fxSeedResults?: LoadFxPackResult[];
 };
 
@@ -156,6 +169,40 @@ const BOOTSTRAP_PHASE_REGISTRY: Record<
       context.countriesByCode = countriesByCode;
     },
   },
+  banks: {
+    dependsOn: ['users', 'countries'],
+    defaultEnabled: true,
+    run: async (trx, context) => {
+      const systemUser = requireContextValue<SystemUser>(
+        context,
+        'systemUser',
+        'banks',
+      );
+      const countriesByCode = requireContextValue<
+        Record<string, BootstrappedCountry>
+      >(context, 'countriesByCode', 'banks');
+
+      await bootstrapBanks(trx, {
+        systemUserId: systemUser.id,
+        countriesByCode,
+      });
+    },
+  },
+  'bank-feed-providers': {
+    dependsOn: ['users'],
+    defaultEnabled: true,
+    run: async (trx, context) => {
+      const systemUser = requireContextValue<SystemUser>(
+        context,
+        'systemUser',
+        'bank-feed-providers',
+      );
+
+      await bootstrapBankFeedProviders(trx, {
+        systemUserId: systemUser.id,
+      });
+    },
+  },
   currencies: {
     dependsOn: [],
     defaultEnabled: true,
@@ -213,6 +260,33 @@ const BOOTSTRAP_PHASE_REGISTRY: Record<
         accountTypesByKey,
       });
       context.coaTemplatesByNaturalKey = coaTemplatesByNaturalKey;
+    },
+  },
+  'canonical-workspaces': {
+    dependsOn: ['users', 'roles', 'countries', 'currencies', 'coa-templates'],
+    defaultEnabled: true,
+    run: async (trx, context) => {
+      const systemUser = requireContextValue<SystemUser>(
+        context,
+        'systemUser',
+        'canonical-workspaces',
+      );
+      const countriesByCode = requireContextValue<
+        Record<string, BootstrappedCountry>
+      >(context, 'countriesByCode', 'canonical-workspaces');
+      const currenciesByCode = requireContextValue<
+        Record<string, BootstrappedCurrency>
+      >(context, 'currenciesByCode', 'canonical-workspaces');
+
+      const { canonicalWorkspacesByKey, adminUserId } =
+        await bootstrapCanonicalWorkspaces(trx, {
+          systemUser,
+          countriesByCode,
+          currenciesByCode,
+        });
+
+      context.canonicalWorkspacesByKey = canonicalWorkspacesByKey;
+      context.canonicalWorkspaceAdminUserId = adminUserId;
     },
   },
   'fx-seeds': {

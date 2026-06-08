@@ -1,15 +1,18 @@
 import '../config/env-loader.js';
 
-import { knexClient } from '../src/db/knexClient.js';
 import {
-  BootstrapPhaseExecutionError,
   BOOTSTRAP_PHASES,
+  BootstrapPhaseExecutionError,
   resolveBootstrapPlan,
   runBootstrap,
-  type BootstrapPhase,
-  type RunBootstrapOptions,
 } from '../src/bootstrap/index.js';
 import { resolveFxSeedPackIdsFromEnv } from '../src/bootstrap/phases/fx-seeds.bootstrap.js';
+import { knexClient } from '../src/db/knexClient.js';
+
+import type {
+  BootstrapPhase,
+  RunBootstrapOptions,
+} from '../src/bootstrap/index.js';
 
 function getArgValue(name: string): string | undefined {
   const prefix = `--${name}=`;
@@ -104,7 +107,7 @@ async function run(): Promise<void> {
         );
       }
     }
-    console.error('Catalog bootstrap failed:', error);
+    console.error('Bootstrap failed:', error);
     exitCode = 1;
   } finally {
     await knexClient.destroy();

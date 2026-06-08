@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'url';
+import { describe, expect, it } from 'vitest';
 
 import { loadFxPack } from './load-fx-pack.js';
 
@@ -143,4 +143,3 @@ describe('loadFxPack', () => {
     expect(gbpUsd?.rate).toBe('1.35');
   });
 });
-

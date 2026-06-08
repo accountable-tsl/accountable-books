@@ -17,6 +17,40 @@ import {
 } from '../provisioning/provisioning.service.js';
 import { resolveWorkspaceBillingContext } from '../resolver/ownership-resolver.service.js';
 
+function randomFirmSlug(): string {
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  let suffix = '';
+  for (let i = 0; i < 8; i++) {
+    suffix += letters[Math.floor(Math.random() * letters.length)];
+  }
+  return `firm-${suffix}`;
+}
+
+async function upsertActiveFirmAssignment(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    accountingFirmCompanyId: string;
+    userId: string;
+  },
+) {
+  const updated = await trx('client_firm_assignments')
+    .where({ client_company_id: input.clientCompanyId, is_deleted: false })
+    .update({
+      accounting_firm_company_id: input.accountingFirmCompanyId,
+      updated_by_id: input.userId,
+    });
+
+  if (updated > 0) return;
+
+  await trx('client_firm_assignments').insert({
+    client_company_id: input.clientCompanyId,
+    accounting_firm_company_id: input.accountingFirmCompanyId,
+    created_by_id: input.userId,
+    updated_by_id: input.userId,
+  });
+}
+
 async function insertCompany(
   trx: Knex.Transaction,
   opts: {
@@ -52,25 +86,20 @@ async function insertCompany(
     await trx('accounting_firms_meta')
       .insert({
         company_id: company.id,
-        slug: `t${randomUUID().slice(0, 8)}`,
+        slug: randomFirmSlug(),
+        created_by_id: testUserId,
+        updated_by_id: testUserId,
       })
       .onConflict(['company_id'])
       .ignore();
   }
 
   if (opts.assignedFirmId) {
-    await trx('client_firm_assignments')
-      .insert({
-        client_company_id: company.id,
-        accounting_firm_company_id: opts.assignedFirmId,
-        created_by_id: testUserId,
-        updated_by_id: testUserId,
-      })
-      .onConflict(['client_company_id'])
-      .merge({
-        accounting_firm_company_id: opts.assignedFirmId,
-        updated_by_id: testUserId,
-      });
+    await upsertActiveFirmAssignment(trx, {
+      clientCompanyId: company.id,
+      accountingFirmCompanyId: opts.assignedFirmId,
+      userId: testUserId,
+    });
   }
 
   return company.id;
@@ -98,15 +127,12 @@ describe('provisioning.service', () => {
       .where({ id: firmCompanyId })
       .update({ assigned_firm_id: firmCompanyId });
 
-    await trx('client_firm_assignments')
-      .insert({
-        client_company_id: firmCompanyId,
-        accounting_firm_company_id: firmCompanyId,
-        created_by_id: await getTestUserId(trx, US_USER_EMAIL),
-        updated_by_id: await getTestUserId(trx, US_USER_EMAIL),
-      })
-      .onConflict(['client_company_id'])
-      .merge({ accounting_firm_company_id: firmCompanyId });
+    const userId = await getTestUserId(trx, US_USER_EMAIL);
+    await upsertActiveFirmAssignment(trx, {
+      clientCompanyId: firmCompanyId,
+      accountingFirmCompanyId: firmCompanyId,
+      userId,
+    });
 
     const result = await finalizeAccountingFirmBillingBootstrap(firmCompanyId, {
       billingEmail,
@@ -271,9 +297,11 @@ describe('provisioning.service', () => {
     await trx('companies')
       .where({ id: firmCompanyId })
       .update({ assigned_firm_id: firmCompanyId });
-    await trx('client_firm_assignments')
-      .where({ client_company_id: firmCompanyId })
-      .update({ accounting_firm_company_id: firmCompanyId });
+    await upsertActiveFirmAssignment(trx, {
+      clientCompanyId: firmCompanyId,
+      accountingFirmCompanyId: firmCompanyId,
+      userId: await getTestUserId(trx, US_USER_EMAIL),
+    });
 
     await provisionBillingForCompany(firmCompanyId, { billingEmail, db: trx });
 

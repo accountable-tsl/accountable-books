@@ -3,6 +3,10 @@ import { z } from 'zod';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { AppError, logger } from '../../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../../shared/services/advisoryLocks.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import { candidateInput, updateCandidateInput } from './candidates.types.js';
 
@@ -104,6 +108,18 @@ export async function persistCategorizationCandidate({
   const exec = async (
     txn: Knex.Transaction,
   ): Promise<{ candidateId: string }> => {
+    await acquireAdvisoryXactLocks(txn, [lockKeyCompany(c.company_id)]);
+    const referencedCoaIds = [
+      ...new Set(candidate_lines.map((line) => line.coa_id)),
+    ];
+    const activeCoas = await txn('coa')
+      .where({ company_id: c.company_id, is_active: true, is_deleted: false })
+      .whereIn('id', referencedCoaIds)
+      .select('id');
+    if (activeCoas.length !== referencedCoaIds.length) {
+      throw new Error('Candidate references invalid or inactive COA IDs');
+    }
+
     // Any existing candidate for this transaction/task?
     const existing = await txn('categorization_candidates')
       .select(['id', 'source', 'confidence'])

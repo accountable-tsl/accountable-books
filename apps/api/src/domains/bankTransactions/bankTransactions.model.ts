@@ -23,6 +23,7 @@ import {
   bankTransactionBatchInput,
   bankTransactionsFilters,
   deleteBankTransactionsInput,
+  reverseBankTransactionBatchInput,
 } from './bankTransactions.types.js';
 import {
   buildBankTransactionQuery,
@@ -37,6 +38,7 @@ import type {
   BankTransactionWithFilteredFields,
   DeleteBankTransactionsInput,
   NewBankTransaction,
+  ReverseBankTransactionBatchInput,
 } from './bankTransactions.types.js';
 
 const FX_PREFETCH_BATCH_SIZE = 10;
@@ -46,7 +48,9 @@ async function prefetchExchangeRatesByDate(input: {
   fromCurrencyId: string;
   toCurrencyId: string;
 }) {
-  const uniqueDateKeys = Array.from(new Set(input.dates.map((date) => toYMD(date))));
+  const uniqueDateKeys = Array.from(
+    new Set(input.dates.map((date) => toYMD(date))),
+  );
   const fxRates = new Map<string, number>();
   const missingDates: string[] = [];
 
@@ -126,7 +130,7 @@ export async function addNewBankTransactions({
     provider_key: batch_provider_key,
     bank_account_id,
     bank_transactions,
-    metadata,
+    source_metadata,
   } = validate.data;
   log('validation_complete');
 
@@ -207,9 +211,9 @@ export async function addNewBankTransactions({
           source,
           fingerprint,
           import_row_count: bank_transactions.length,
-          metadata,
+          source_metadata,
+          status: 'active',
           created_by_id: userId,
-          updated_by_id: userId,
         })
         .onConflict(['bank_account_id', 'fingerprint'])
         .ignore()
@@ -693,6 +697,146 @@ export async function deleteBankTransactions({
       'Failed to delete bank transactions',
     );
     return errorResponse('Failed to delete bank transactions');
+  }
+}
+
+export async function reverseBankTransactionBatch({
+  companyId,
+  userId,
+  batchId,
+  input,
+}: {
+  companyId: string;
+  userId: string;
+  batchId: string;
+  input: ReverseBankTransactionBatchInput;
+}) {
+  const validate = reverseBankTransactionBatchInput.safeParse(input);
+  if (!validate.success) {
+    return errorResponse('Invalid request body', validate.error.flatten());
+  }
+
+  try {
+    const result = await knexClient.transaction(async (txn) => {
+      const companyUUID = await getCompanyUUID(companyId, txn);
+      if (!companyUUID) {
+        throw new AppError('Company not found');
+      }
+
+      const batch = await txn('bank_transaction_batches as btb')
+        .join('bank_accounts as ba', 'btb.bank_account_id', 'ba.id')
+        .where({
+          'btb.id': batchId,
+          'ba.company_id': companyUUID,
+        })
+        .forUpdate('btb')
+        .first([
+          'btb.id',
+          'btb.bank_account_id',
+          'btb.start_date',
+          'btb.status',
+        ]);
+
+      if (!batch) {
+        throw new AppError('Bank transaction batch not found');
+      }
+      if (batch.status === 'reversed') {
+        throw new AppError('Bank transaction batch has already been reversed');
+      }
+
+      const deletedRows = await txn('bank_transactions')
+        .where({
+          bank_transaction_batch_id: batch.id,
+          bank_account_id: batch.bank_account_id,
+          is_deleted: false,
+        })
+        .update({
+          is_deleted: true,
+          deleted_at: txn.fn.now(),
+          updated_at: txn.fn.now(),
+          updated_by_id: userId,
+        })
+        .returning('id');
+
+      const deletedIds = deletedRows.map((row) => row.id);
+      await handleTransactionsDeleted({
+        bankTransactionIds: deletedIds,
+        reason: validate.data.reason,
+        trx: txn,
+      });
+
+      await txn('bank_transaction_batches').where({ id: batch.id }).update({
+        status: 'reversed',
+        reversed_at: txn.fn.now(),
+        reversed_by_id: userId,
+        reversal_reason: validate.data.reason,
+      });
+
+      return {
+        bankAccountId: batch.bank_account_id as string,
+        companyUUID,
+        deletedIds,
+        recalcFrom: toYMD(batch.start_date),
+      };
+    });
+
+    if (result.deletedIds.length > 0) {
+      try {
+        await emitTxnDeletedEvent({
+          company_uuid: result.companyUUID,
+          bank_transaction_ids: result.deletedIds,
+          reason: validate.data.reason,
+        });
+      } catch (error) {
+        logger.error(
+          {
+            batchId,
+            companyId,
+            error,
+          },
+          'Bank transaction batch reversed but deletion event emission failed',
+        );
+      }
+    }
+
+    try {
+      await enqueueBankBalance({
+        companyId: result.companyUUID,
+        bankAccountId: result.bankAccountId,
+        recalcFrom: result.recalcFrom,
+        triggeredBy: 'soft_delete',
+        userId,
+      });
+    } catch (error) {
+      logger.error(
+        {
+          batchId,
+          companyId,
+          error,
+        },
+        'Bank transaction batch reversed but balance recalculation enqueue failed',
+      );
+    }
+
+    return successResponse('Bank transaction batch reversed', {
+      batchId,
+      deletedTransactions: result.deletedIds.length,
+    });
+  } catch (error) {
+    logger.error(
+      {
+        batchId,
+        companyId,
+        userId,
+        error,
+      },
+      'Failed to reverse bank transaction batch',
+    );
+    return errorResponse(
+      error instanceof AppError
+        ? error.message
+        : 'Failed to reverse bank transaction batch',
+    );
   }
 }
 

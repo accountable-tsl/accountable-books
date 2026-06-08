@@ -109,6 +109,8 @@ describe('companies model', () => {
         legalName: '  Updated Legal Name  ',
         displayName: '  Updated Display Name  ',
         address: '  12 Example Street  ',
+        city: '  New York  ',
+        postalCode: '  10001  ',
         companyTaxId: '   ',
         defaultTimezone: ' America/New_York ',
       },
@@ -120,6 +122,9 @@ describe('companies model', () => {
     expect(result.data?.legalName).toBe('Updated Legal Name');
     expect(result.data?.displayName).toBe('Updated Display Name');
     expect(result.data?.address).toBe('12 Example Street');
+    expect(result.data?.addressLine1).toBe('12 Example Street');
+    expect(result.data?.city).toBe('New York');
+    expect(result.data?.postalCode).toBe('10001');
     expect(result.data?.companyTaxId).toBeNull();
     expect(result.data?.defaultTimezone).toBe('America/New_York');
 
@@ -127,7 +132,9 @@ describe('companies model', () => {
       .select(
         'legal_name',
         'display_name',
-        'address',
+        'address_line1',
+        'city',
+        'postal_code',
         'tax_id',
         'default_timezone',
       )
@@ -137,7 +144,9 @@ describe('companies model', () => {
     expect(updated).toMatchObject({
       legal_name: 'Updated Legal Name',
       display_name: 'Updated Display Name',
-      address: '12 Example Street',
+      address_line1: '12 Example Street',
+      city: 'New York',
+      postal_code: '10001',
       tax_id: null,
       default_timezone: 'America/New_York',
     });
@@ -228,7 +237,7 @@ describe('companies model', () => {
 
   it('writes a profile-updated audit diff and clears address verification when address changes', async () => {
     await trx('companies').where('id', companyId).update({
-      address: 'Old Address',
+      address_line1: 'Old Address',
       address_verified_at: new Date(),
     });
 
@@ -250,11 +259,11 @@ describe('companies model', () => {
     expect(result.data?.verification.address.verifiedAt).toBeNull();
 
     const updated = await trx('companies')
-      .select('address', 'address_verified_at')
+      .select('address_line1', 'address_verified_at')
       .where('id', companyId)
       .first();
 
-    expect(updated?.address).toBe('New Address');
+    expect(updated?.address_line1).toBe('New Address');
     expect(updated?.address_verified_at).toBeNull();
 
     const auditRow = await trx('audit_events')

@@ -85,7 +85,7 @@ export function UploadBankTransactions() {
         source: bankTransactionSource.enum.file_import,
         bank_account_id: selectedBankAccount.id,
         bank_transactions: inserts,
-        metadata: generateSourceMetadata(parsed.file),
+        source_metadata: generateSourceMetadata(parsed.file),
       };
     };
 

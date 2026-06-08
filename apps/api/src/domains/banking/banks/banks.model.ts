@@ -111,7 +111,7 @@ export async function addNewBank(params: {
   try {
     const inserted = await knex('banks')
       .insert(validateProcessedBanks.data)
-      .onConflict(['key', 'country_id'])
+      .onConflict('key')
       .ignore()
       .returning('id');
 
@@ -135,9 +135,9 @@ const bankResponse = [
   'banks.swift_code as swiftCode',
   'banks.local_code as localCode',
   'banks.local_code_type as localCodeType',
+  'banks.alternate_identifier as alternateIdentifier',
   'banks.website',
   'banks.logo_url as logoUrl',
-  'banks.logo_key as logoKey',
   'countries.id as countryId',
   'countries.code as countryCode',
   'countries.name as countryName',
@@ -159,7 +159,7 @@ function getCacheKeyFromOptions(opts: FetchBanksOptions): string | null {
  * @param options - Optional filters (id or key).
  * @returns A promise resolving to an ApiResponse with bank data.
  * @example
- * fetchBanks({ id: 123 }) // Returns single bank
+ * fetchBanks({ id: '01900000-0000-7000-8000-000000000000' }) // Returns one bank in an array
  * fetchBanks() // Returns all banks
  */
 export async function fetchBanks(
@@ -254,7 +254,7 @@ export async function getAllBanks() {
 export async function getSingleBank(
   keyOrId: string,
 ): Promise<ApiResponse<FetchBanksResponse>> {
-  if (!keyOrId || keyOrId.length > 40) {
+  if (!keyOrId || keyOrId.length > 128) {
     return errorResponse('Bank key or id is required');
   }
 

@@ -20,7 +20,10 @@ export async function up(knex: Knex): Promise<void> {
     table.string('firstname', 256).notNullable();
     table.string('lastname', 256).nullable();
 
-    table.specificType('email', 'citext').notNullable().unique({indexName: 'users_email_unique'});
+    table
+      .specificType('email', 'citext')
+      .notNullable()
+      .unique({ indexName: 'users_email_unique' });
     table.text('password').nullable();
     table.string('phone_number', 32).nullable();
     table.text('avatar_url').nullable();

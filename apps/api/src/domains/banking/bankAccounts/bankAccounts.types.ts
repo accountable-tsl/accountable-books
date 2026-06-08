@@ -7,7 +7,11 @@ import {
   bankOpeningBalanceOrigin,
   bankOpeningBalanceRole,
 } from '../../balances/opening-balance/opening-balance.types.js';
-import { coaSource } from '../../chart-of-accounts/coa.types.js';
+import {
+  coaCodeInput,
+  coaNameInput,
+  coaSource,
+} from '../../chart-of-accounts/coa.types.js';
 
 import type { SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 
@@ -38,8 +42,8 @@ export type BankAccountConnectionStatus = z.infer<
 
 const manualBankAccountInput = z.object({
   id: z.uuid().optional(),
-  display_name: z.string().min(1, 'Display name is required'),
-  account_name: z.string().nullish(),
+  display_name: z.string().trim().min(1, 'Display name is required'),
+  account_name: z.string().trim().min(1).nullish(),
   account_number: z
     .string()
     .min(1, 'Account number is required')
@@ -59,11 +63,11 @@ const manualBankAccountInput = z.object({
     .length(3, 'Currency code must be exactly 3 characters')
     .optional(),
   currency_id: z.uuid().optional(),
-  coa_code: z.string().optional(),
-  coa_name: z.string().max(256, 'Coa name is too long').nullish(),
+  coa_code: coaCodeInput,
+  coa_name: coaNameInput.nullish(),
   coa_description: z
     .string()
-    .max(1024, 'Coa description is too long')
+    .max(512, 'Coa description is too long')
     .nullish(),
   source: coaSource.optional(),
   opening_balance: z

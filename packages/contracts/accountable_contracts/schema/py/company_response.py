@@ -60,6 +60,11 @@ class CompanyResponse(BaseModel):
     verification: Verification
     displayName: Optional[str]
     address: Optional[str]
+    addressLine1: Optional[str]
+    addressLine2: Optional[str]
+    city: Optional[str]
+    stateRegion: Optional[str]
+    postalCode: Optional[str]
     companyLogo: Optional[str]
     companyLogoKey: Optional[str]
     description: Optional[str]

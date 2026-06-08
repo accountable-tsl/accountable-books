@@ -52,7 +52,9 @@ async function prefetchExchangeRatesByDate(input: {
   fromCurrencyId: string;
   toCurrencyId: string;
 }) {
-  const uniqueDateKeys = Array.from(new Set(input.dates.map((date) => toYMD(date))));
+  const uniqueDateKeys = Array.from(
+    new Set(input.dates.map((date) => toYMD(date))),
+  );
   const fxRates = new Map<string, number>();
   const missingDates: string[] = [];
 

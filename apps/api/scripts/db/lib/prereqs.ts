@@ -163,7 +163,7 @@ export async function initializeManagedDatabase(
   await db.raw(`SET TIME ZONE 'UTC'`);
   await db.raw(`SET search_path TO ${APP_SEARCH_PATH}`);
   await db.raw(`ALTER DATABASE ?? SET timezone TO 'UTC'`, [databaseName]);
-  await db.raw(`ALTER DATABASE ?? SET search_path TO '${APP_SEARCH_PATH}'`, [
+  await db.raw(`ALTER DATABASE ?? SET search_path TO ${APP_SEARCH_PATH}`, [
     databaseName,
   ]);
   await db.raw(`CREATE SCHEMA IF NOT EXISTS ${APP_SCHEMA}`);

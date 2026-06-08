@@ -24,9 +24,9 @@ const newCredentialInput = z.object({
   raw_metadata: z.record(z.string(), z.unknown()),
   status: bankAccountCredentialStatus,
   connected_at: z.date().optional(),
-  connected_by: z.uuid().optional(),
+  connected_by_id: z.uuid().optional(),
   expires_at: z.date().optional(),
-  updated_by: z.uuid().optional(),
+  updated_by_id: z.uuid().optional(),
 
   sync_cursor: z.string().nullish(),
   sync_state: z.record(z.string(), z.any()).optional(),
@@ -47,7 +47,7 @@ const newBankAccountCredential = newCredentialInput
     company_id: z.uuid(),
     encrypted_access_token: z.string(),
     encrypted_refresh_token: z.string().nullish(),
-    connected_by: z.uuid(),
+    connected_by_id: z.uuid(),
   });
 
 export type NewBankAccountCredential = z.infer<typeof newBankAccountCredential>;

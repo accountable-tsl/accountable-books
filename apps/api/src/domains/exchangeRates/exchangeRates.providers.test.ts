@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { ENV } from '../../config/env.js';
+import {
+  classifyProviderFailure,
+  resolveFxProviderChain,
+} from './exchangeRates.providers.js';
+
 const { mockAxiosGet } = vi.hoisted(() => ({
   mockAxiosGet: vi.fn(),
 }));
@@ -10,12 +16,6 @@ vi.mock('axios', () => ({
     isAxiosError: (error: unknown) => Boolean((error as any)?.isAxiosError),
   },
 }));
-
-import { ENV } from '../../config/env.js';
-import {
-  classifyProviderFailure,
-  resolveFxProviderChain,
-} from './exchangeRates.providers.js';
 
 afterEach(() => {
   mockAxiosGet.mockReset();

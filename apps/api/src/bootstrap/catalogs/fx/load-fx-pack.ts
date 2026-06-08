@@ -1,6 +1,6 @@
 import fs from 'fs';
-import csv from 'csv-parser';
 import type { Knex } from 'knex';
+import csv from 'csv-parser';
 import { z } from 'zod';
 
 export type FxPackDefinition = {
@@ -51,8 +51,16 @@ type FxExchangeRateInsertRow = {
 
 const csvRowSchema = z.object({
   date: z.iso.date(),
-  price_currency: z.string().trim().length(3).regex(/^[A-Za-z]{3}$/),
-  base_currency: z.string().trim().length(3).regex(/^[A-Za-z]{3}$/),
+  price_currency: z
+    .string()
+    .trim()
+    .length(3)
+    .regex(/^[A-Za-z]{3}$/),
+  base_currency: z
+    .string()
+    .trim()
+    .length(3)
+    .regex(/^[A-Za-z]{3}$/),
   rate: z.coerce.number().positive(),
 });
 
@@ -178,4 +186,3 @@ export async function loadFxPack({
     skippedSameCurrency,
   };
 }
-

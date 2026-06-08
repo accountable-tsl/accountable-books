@@ -13,11 +13,14 @@ describe('resolveBootstrapPlan', () => {
       'users',
       'roles',
       'countries',
+      'banks',
+      'bank-feed-providers',
       'currencies',
       'financial-statements',
       'account-elements',
       'account-types',
       'coa-templates',
+      'canonical-workspaces',
     ]);
   });
 
@@ -28,12 +31,41 @@ describe('resolveBootstrapPlan', () => {
     ]);
   });
 
+  it('expands bank catalog dependencies', () => {
+    expect(resolveBootstrapPlan({ phases: ['banks'] })).toEqual([
+      'users',
+      'countries',
+      'banks',
+    ]);
+  });
+
+  it('expands bank feed provider catalog dependencies', () => {
+    expect(resolveBootstrapPlan({ phases: ['bank-feed-providers'] })).toEqual([
+      'users',
+      'bank-feed-providers',
+    ]);
+  });
+
   it('expands accounting dependencies for coa-templates', () => {
     expect(resolveBootstrapPlan({ phases: ['coa-templates'] })).toEqual([
       'financial-statements',
       'account-elements',
       'account-types',
       'coa-templates',
+    ]);
+  });
+
+  it('expands canonical workspace dependencies', () => {
+    expect(resolveBootstrapPlan({ phases: ['canonical-workspaces'] })).toEqual([
+      'users',
+      'roles',
+      'countries',
+      'currencies',
+      'financial-statements',
+      'account-elements',
+      'account-types',
+      'coa-templates',
+      'canonical-workspaces',
     ]);
   });
 });

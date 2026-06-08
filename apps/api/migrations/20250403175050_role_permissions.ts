@@ -24,10 +24,7 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('CASCADE');
 
     table.primary(['role_id', 'permission_id']);
-    table.index(
-      ['permission_id'],
-      'role_permissions_permission_id_idx',
-    );
+    table.index(['permission_id'], 'role_permissions_permission_id_idx');
   });
 }
 

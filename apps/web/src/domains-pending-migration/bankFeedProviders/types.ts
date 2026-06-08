@@ -10,12 +10,9 @@ export type BankFeedProvider = {
   id: string;
   key: string;
   name: string;
-  description: string;
-  website: string;
-  logoUrl: string;
-  logoKey: string;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
   status: BankFeedProviderStatus;
-  priority: number;
-  externalId: string;
   countries: { id: string; code: string }[];
 };

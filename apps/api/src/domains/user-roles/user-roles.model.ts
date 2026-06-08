@@ -140,6 +140,7 @@ const getFirmMediatedRoles = async (
       .where({
         'fuca.firm_staff_user_id': userId,
         'fuca.is_deleted': false,
+        'cfa.is_deleted': false,
         'ucr.is_deleted': false,
       })
       .select(

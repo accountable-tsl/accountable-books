@@ -68,10 +68,17 @@ export async function up(knex: Knex): Promise<void> {
         AND is_deleted = false;
   `);
 
+  await knex.raw(`
+    CREATE INDEX journal_entries_active_coa_idx
+    ON journal_entries(coa_id)
+    WHERE is_deleted = false;
+  `);
+
   await createUpdateTimestampTrigger(knex, tableName);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`DROP INDEX IF EXISTS journal_entries_active_coa_idx`);
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

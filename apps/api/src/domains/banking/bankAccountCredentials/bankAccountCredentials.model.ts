@@ -81,8 +81,8 @@ export const createBankAccountCredential = async ({
         status: v.status,
         ...(v.expires_at ? { expires_at: v.expires_at } : {}),
         provider_id: v.provider_id,
-        connected_by: userId,
-        updated_by: userId,
+        connected_by_id: userId,
+        updated_by_id: userId,
       })
       .returning<{ id: string }[]>('id');
 
@@ -174,50 +174,3 @@ export async function getAllActiveCredentials(trx?: Knex.Transaction): Promise<
     .where('status', 'active')
     .orderBy('connected_at', 'desc');
 }
-// export async function getBankAccountCredential({
-//   credentialId,
-//   decryptToken = false,
-//   activeStatusOnly = true,
-//   trx,
-// }: {
-//   credentialId: string;
-//   activeStatusOnly?: boolean;
-//   decryptToken?: boolean;
-//   trx?: Knex | Knex.Transaction;
-// }) {
-//   const knex = trx || knexClient;
-
-//   if (!credentialId) {
-//     throw new Error('Credential ID is required');
-//   }
-//   try {
-//     const query = knex('bank_account_credentials as bac').where('id', credentialId);
-
-//     if (activeStatusOnly) {
-//       query.where('status', 'active');
-//     }
-
-//     const cred = await query.first<BankAccountCredential>();
-//     if (!cred) throw new Error('Credential not found');
-//     if (decryptToken) {
-//       const aad = getBankAccountCredentialAAD({
-//         providerId: cred.provider_id,
-//         companyId: cred.company_id,
-//       });
-//       const newCred: DecryptedBankAccountCredential = {
-//         ...cred,
-//         access_token: decrypt(cred.encrypted_access_token, aad),
-//         ...(cred.encrypted_refresh_token
-//           ? { refresh_token: decrypt(cred.encrypted_refresh_token, aad) }
-//           : {}),
-//       };
-//       return successResponse<DecryptedBankAccountCredential>(
-//         'Credential retrieved successfully',
-//         newCred,
-//       );
-//     }
-//     return successResponse<BankAccountCredential>('Credential retrieved successfully', cred);
-//   } catch (error) {
-//     return errorResponse('Unable to retrieve credential', error);
-//   }
-// }
