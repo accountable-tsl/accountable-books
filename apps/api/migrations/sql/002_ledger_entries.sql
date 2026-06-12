@@ -437,7 +437,18 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION prevent_ledger_entries_delete()
 RETURNS TRIGGER AS $$
+DECLARE
+  target_company_id uuid;
 BEGIN
+  SELECT lt.company_id
+  INTO target_company_id
+  FROM app.ledger_transactions lt
+  WHERE lt.id = OLD.ledger_transaction_id;
+
+  IF app.is_demo_seed_teardown_allowed(target_company_id) THEN
+    RETURN OLD;
+  END IF;
+
   RAISE EXCEPTION 'Ledger entries are immutable';
 END;
 $$ LANGUAGE plpgsql;

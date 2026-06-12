@@ -215,6 +215,9 @@ export class DemoSeedRunner {
       async (trx) => {
         // Set statement timeout for delete operations (3 minutes)
         await trx.raw("SET LOCAL statement_timeout = '180s'");
+        await trx.raw(
+          "SELECT set_config('app.demo_seed_teardown', 'on', true)",
+        );
 
         // Always run deletions sequentially to respect dependencies
         await this.runSequential(reversedSteps, 'delete', trx, filters);

@@ -152,6 +152,7 @@ export async function up(knex: Knex): Promise<void> {
       ['connection_credential_id'],
       'bank_accounts_connection_credential_id_idx',
     );
+    table.unique(['id', 'company_id'], 'bank_accounts_id_company_uniq');
   });
 
   await knex.raw(`

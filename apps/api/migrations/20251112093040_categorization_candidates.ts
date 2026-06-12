@@ -30,12 +30,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
     table.specificType('source', 'txn_categorization_source').notNullable();
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL');
+    table.uuid('contact_id').nullable();
     table.specificType('contact_type', 'contact_type').nullable();
     table.string('description').nullable();
     table.string('reference').nullable();
@@ -53,6 +48,15 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('SET NULL');
     addStandardColumns(knex, table);
+
+    table
+      .foreign(
+        ['contact_id', 'company_id'],
+        'categorization_predictions_contact_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('contacts')
+      .onDelete('RESTRICT');
   });
 
   await createUpdateTimestampTrigger(knex, PREDICTIONS_TABLE);
@@ -74,12 +78,7 @@ export async function up(knex: Knex): Promise<void> {
     table.uuid('coa_id').notNullable();
     table.uuid('project_id').nullable();
 
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL');
+    table.uuid('contact_id').nullable();
     table.specificType('contact_type', 'contact_type').nullable();
 
     table.decimal('signed_native_amount', 20, 6).notNullable();
@@ -92,6 +91,7 @@ export async function up(knex: Knex): Promise<void> {
     table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
+
   });
 
   await createUpdateTimestampTrigger(knex, PREDICTION_LINES_TABLE);
@@ -103,15 +103,14 @@ export async function up(knex: Knex): Promise<void> {
   );
 
   await knex.raw(
-    `CREATE INDEX idx_cat_predictions_bank_tx ON ${PREDICTIONS_TABLE}(bank_transaction_id, bank_transaction_date) WHERE is_deleted = FALSE;`,
+    `CREATE INDEX idx_cat_predictions_bank_tx ON ${PREDICTIONS_TABLE}(bank_transaction_id) WHERE is_deleted = FALSE;`,
   );
 
-  // Composite FK from predictions to bank_transactions (id + date)
   await knex.raw(`
     ALTER TABLE ${PREDICTIONS_TABLE}
     ADD CONSTRAINT cat_predictions_bank_tx_fk
-    FOREIGN KEY (bank_transaction_id, bank_transaction_date)
-    REFERENCES bank_transactions (id, date)
+    FOREIGN KEY (bank_transaction_id)
+    REFERENCES bank_transactions (id)
     ON DELETE CASCADE;
   `);
 
@@ -148,12 +147,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
     table.specificType('source', 'txn_categorization_source').notNullable();
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL');
+    table.uuid('contact_id').nullable();
     table.specificType('contact_type', 'contact_type').nullable();
     table.string('description').nullable();
     table.string('reference').nullable();
@@ -170,6 +164,15 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('users')
       .onDelete('SET NULL');
     addStandardColumns(knex, table);
+
+    table
+      .foreign(
+        ['contact_id', 'company_id'],
+        'categorization_candidates_contact_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('contacts')
+      .onDelete('RESTRICT');
   });
 
   await createUpdateTimestampTrigger(knex, CANDIDATES_TABLE);
@@ -181,7 +184,7 @@ export async function up(knex: Knex): Promise<void> {
   );
 
   await knex.raw(
-    `CREATE INDEX idx_cat_candidates_bank_tx ON ${CANDIDATES_TABLE}(bank_transaction_id, bank_transaction_date) WHERE is_deleted = FALSE;`,
+    `CREATE INDEX idx_cat_candidates_bank_tx ON ${CANDIDATES_TABLE}(bank_transaction_id) WHERE is_deleted = FALSE;`,
   );
 
   await knex.schema.createTable(CANDIDATE_LINES_TABLE, (table) => {
@@ -259,12 +262,11 @@ export async function up(knex: Knex): Promise<void> {
     `CREATE INDEX idx_cat_candidate_lines_search_trgm ON ${CANDIDATE_LINES_TABLE} USING GIN ((CASE WHEN is_deleted = FALSE THEN search_text END) gin_trgm_ops);`,
   );
 
-  // Composite FK from candidates to bank_transactions (id + date)
   await knex.raw(`
     ALTER TABLE ${CANDIDATES_TABLE}
     ADD CONSTRAINT cat_candidates_bank_tx_fk
-    FOREIGN KEY (bank_transaction_id, bank_transaction_date)
-    REFERENCES bank_transactions (id, date)
+    FOREIGN KEY (bank_transaction_id)
+    REFERENCES bank_transactions (id)
     ON DELETE CASCADE;
   `);
 

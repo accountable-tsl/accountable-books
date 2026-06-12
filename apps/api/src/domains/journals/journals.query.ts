@@ -462,8 +462,8 @@ function buildJournalsBaseQuery(
       db.raw(`jb.journal_source::text as "journalSource"`),
       db.raw(`(jb.currency_id <> co.reporting_currency_id) as "isFx"`),
       db.raw(`jb.status as "journalStatus"`),
-      db.raw(`NULL::recurring_journal_status as "templateStatus"`),
-      db.raw(`NULL::recurrence_frequency as "frequency"`),
+      db.raw(`NULL::text as "templateStatus"`),
+      db.raw(`NULL::text as "frequency"`),
       db.raw(`NULL::date as "nextRunDate"`),
       db.raw(`NULL::boolean as "autoPost"`),
       db.raw(`NULL::uuid as "templateId"`),
@@ -523,7 +523,7 @@ function buildJournalsBaseQuery(
       db.raw(`rjt.created_at as "createdAt"`),
       db.raw(`rjt.created_by_id as "createdById"`),
       db.raw(`rjt.updated_at as "updatedAt"`),
-      db.raw(`NULL::uuid as "updatedById"`),
+      db.raw(`rjt.updated_by_id as "updatedById"`),
       db.raw(`rjt.is_deleted as "isDeleted"`),
       db.raw(`rjt.deleted_at as "deletedAt"`),
       ...templateAggregateSelect,
@@ -1220,7 +1220,7 @@ export async function getJournal({
       db.raw(`jb.status as "journalStatus"`),
       db.raw(`jb.recurring_template_id as "generatedFromTemplateId"`),
       db.raw(`NULL::uuid as "templateId"`),
-      db.raw(`NULL::recurrence_frequency as "frequency"`),
+      db.raw(`NULL::text as "frequency"`),
       db.raw(`NULL::text as "nextRunDate"`),
       db.raw(`NULL::boolean as "autoPost"`),
       db.raw(`rjt.status as "templateStatus"`),
@@ -1352,7 +1352,6 @@ export async function getJournal({
         db.raw(`je.project_id as "projectId"`),
         db.raw(`p.name as "projectName"`),
         db.raw(`je.ledger_entry_id as "ledgerEntryId"`),
-        db.raw(`je.ledger_entry_fs_date as "ledgerEntryFsDate"`),
         db.raw(`je.created_at as "createdAt"`),
         db.raw(`je.updated_at as "updatedAt"`),
       ])
@@ -1421,8 +1420,7 @@ export async function getJournal({
           'le.ledger_transaction_id',
         )
         .where('le.ledger_transaction_id', journal.ledgerTransactionId)
-        .where('le.is_deleted', false)
-        .where('lt.is_deleted', false)
+        .where('lt.status', 'posted')
         .where('lt.company_id', companyUUID)
         .select([
           db.raw(

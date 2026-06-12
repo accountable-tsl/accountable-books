@@ -26,13 +26,10 @@ export const projectExists: Constraint = {
     const uniqueProjectIds = Array.from(new Set(projectIds));
 
     try {
-      // Query projects table to verify they exist and belong to company
-      // Use transaction from context if available, otherwise fall back to default connection
       const queryClient = ctx.trx || db;
       const projects = await queryClient('projects')
         .whereIn('id', uniqueProjectIds)
         .where('company_id', ctx.companyUUID)
-        .where('is_deleted', false)
         .select('id');
 
       const validProjectIds = new Set(projects.map((p) => p.id));

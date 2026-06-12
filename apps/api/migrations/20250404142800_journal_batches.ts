@@ -21,12 +21,7 @@ export async function up(knex: Knex): Promise<void> {
     table.date('date').notNullable();
     table.string('title', 512).notNullable();
     table.text('description').nullable();
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('RESTRICT');
+    table.uuid('contact_id').nullable();
     table
       .uuid('currency_id')
       .notNullable()
@@ -106,6 +101,15 @@ export async function up(knex: Knex): Promise<void> {
     table.string('note', 2048).nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
+
+    table
+      .foreign(
+        ['contact_id', 'company_id'],
+        'journal_batches_contact_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('contacts')
+      .onDelete('RESTRICT');
 
     table.index(
       ['status', 'company_id'],

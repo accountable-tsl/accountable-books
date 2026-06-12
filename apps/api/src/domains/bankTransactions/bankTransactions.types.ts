@@ -1,11 +1,10 @@
 import { z } from 'zod';
 
-import { dbBaseFields, debitCredit, zDate } from '../../core/types/core.js';
+import { dbBaseFields, zDate } from '../../core/types/core.js';
 import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
-import { bankProviderKey } from '../banking/bankFeedProviders/bankFeedProviders.types.js';
-import { contactType } from '../contacts/index.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
+import { contactType, type ContactType } from '../contacts/index.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([
@@ -18,21 +17,34 @@ export const bankTransactionBatchStatus = z.enum(['active', 'reversed']);
 export type BankTransactionBatchStatus = z.infer<
   typeof bankTransactionBatchStatus
 >;
+export const bankTransactionDeletionSource = z.enum([
+  'user_action',
+  'batch_reversal',
+  'provider_sync',
+]);
+
+export const bankTransactionContactResolutionInput = z.object({
+  contact_id: z.uuid(),
+  contact_type: contactType.nullish(),
+  reason: z.string().trim().max(512).optional(),
+});
+export type BankTransactionContactResolutionInput = z.infer<
+  typeof bankTransactionContactResolutionInput
+>;
 
 // BANK TRANSACTIONS
 export const bankTransactionInput = z.object({
-  date: zDate,
-  txn_at: z.date().optional(),
+  transaction_date: zDate,
+  transaction_at: z.date().optional(),
   amount: z.number(),
   bank_account_id: z.uuid().optional(),
-  contact_id: z.uuid().nullish(),
-  contact_type_snapshot: contactType.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
   additional_notes: z.string().nullish(),
-  raw_data: z.any().nullish(),
-  external_id: z.string().optional(),
+  source_payload: z.record(z.string(), z.unknown()).optional(),
+  idempotency_key: z.string().trim().min(1).max(256).optional(),
+  contact_resolution: bankTransactionContactResolutionInput.optional(),
   //   id: z.uuid().optional(),
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
@@ -44,14 +56,14 @@ export type BankTransactionInputCamel = SnakeToCamelCaseObject<
 >;
 
 export const newBankTransaction = bankTransactionInput.extend({
+  transaction_at: z.date(),
   bank_account_id: z.uuid(),
+  company_id: z.uuid(),
   system_exchange_rate: z.number(),
-  bank_transaction_batch_id: z.uuid().nullish(),
-  external_id: z.string().max(256),
+  bank_transaction_batch_id: z.uuid(),
+  idempotency_key: z.string().trim().min(1).max(256),
+  source_payload: z.record(z.string(), z.unknown()),
   ledger_transaction_id: z.uuid().nullish(),
-  contact_name: z.string().nullish(),
-  bank_account_name: z.string().nullish(),
-  bank_name: z.string().nullish(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().nullish(),
 });
@@ -60,23 +72,49 @@ export type NewBankTransaction = z.infer<typeof newBankTransaction>;
 export const bankTransaction = z.object({
   ...newBankTransaction.shape,
   ...dbBaseFields.shape,
+  deleted_by_id: z.uuid().nullish(),
+  deletion_origin: bankTransactionDeletionSource.nullish(),
+  deletion_reason: z.string().max(512).nullish(),
+  absolute_amount: z.number(),
+  search_text: z.string(),
 });
 export type BankTransaction = z.infer<typeof bankTransaction>;
 
 // BANK TRANSACTION BATCHES
-export const bankTransactionBatchInput = z.object({
-  source: bankTransactionSource,
-  bank_account_id: z.uuid(),
-  bank_transactions: z.array(bankTransactionInput).min(1),
-  // fingerprint: z.string(),
-  // opening_balance: z.number().optional(), // Balance before the first transaction
-  // closing_balance: z.number().optional(), // Balance after the last transaction
-  source_metadata: z
-    .record(z.string(), z.unknown())
-    .optional()
-    .default({}),
-  provider_key: bankProviderKey.nullish(),
-});
+export const bankTransactionBatchInput = z
+  .object({
+    source: bankTransactionSource,
+    bank_account_id: z.uuid(),
+    bank_transactions: z.array(bankTransactionInput).min(1),
+    // fingerprint: z.string(),
+    // opening_balance: z.number().optional(), // Balance before the first transaction
+    // closing_balance: z.number().optional(), // Balance after the last transaction
+    source_metadata: z.record(z.string(), z.unknown()).optional().default({}),
+    connection_credential_id: z.uuid().nullish(),
+  })
+  .superRefine((batch, ctx) => {
+    const hasCredential = batch.connection_credential_id != null;
+    if ((batch.source === 'bank_feed') !== hasCredential) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['connection_credential_id'],
+        message:
+          'connection_credential_id is required only for bank feed batches',
+      });
+    }
+
+    if (batch.source === 'bank_feed') {
+      batch.bank_transactions.forEach((transaction, index) => {
+        if (!transaction.idempotency_key) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['bank_transactions', index, 'idempotency_key'],
+            message: 'idempotency_key is required for bank feed transactions',
+          });
+        }
+      });
+    }
+  });
 export type BankTransactionBatchInput = z.infer<
   typeof bankTransactionBatchInput
 >;
@@ -89,6 +127,8 @@ export type BankTransactionBatchInputCamel =
 
 export const newBankTransactionBatches = z.object({
   bank_account_id: z.uuid(),
+  company_id: z.uuid(),
+  connection_credential_id: z.uuid().nullish(),
   start_date: zDate,
   end_date: zDate,
   source: bankTransactionSource,
@@ -147,7 +187,6 @@ export const bankTransactionsFilters = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
   bankAccountIds: z.array(z.uuid()).optional(),
-  transactionSide: debitCredit.optional(),
   // categorizationStatus: categorizationStatus.optional(),
   isDeleted: z.boolean().optional(),
   searchQuery: z.string().optional(),
@@ -161,7 +200,7 @@ export type BankTransactionFilters = z.infer<typeof bankTransactionsFilters>;
 
 export const deleteBankTransactionsInput = z.object({
   bankTransactionIds: z.array(z.uuid()).min(1),
-  reason: z.string().max(256).optional(),
+  reason: z.string().trim().min(1).max(256).optional(),
 });
 export type DeleteBankTransactionsInput = z.infer<
   typeof deleteBankTransactionsInput
@@ -179,4 +218,6 @@ export type BankTransactionWithFilteredFields = Omit<
 > & {
   bank_account_coa_id: string;
   bank_account_currency_id: string;
+  resolved_contact_id?: string | null;
+  resolved_contact_type?: ContactType | null;
 };

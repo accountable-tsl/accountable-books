@@ -185,11 +185,13 @@ describe('COA explicit lifecycle reference resolution', () => {
       coa_id: fixture.replacementCoaId,
     });
     await db('recurring_journal_template_entries').insert({
+      company_id: fixture.companyId,
+      template_id: fixture.recurringTemplateId,
+      line_number: 2,
       description: 'Shared recurring line',
       amount: 100,
       transaction_side: 'credit',
       coa_id: fixture.replacementCoaId,
-      template_id: fixture.recurringTemplateId,
     });
     const sharedRuleDefinition = {
       actions: [
@@ -418,18 +420,22 @@ async function createFixture(db: Knex): Promise<Fixture> {
         status: 'active',
         company_id: companyId,
         auto_post: false,
+        currency_id: currencyId,
         template_timezone: 'Europe/London',
         frequency: 'monthly',
         start_date: new Date('2025-01-01'),
+        next_run_date: new Date('2025-02-01'),
         created_by_id: userId,
       })
       .returning<{ id: string }[]>('id');
     await trx('recurring_journal_template_entries').insert({
+      company_id: companyId,
+      template_id: template.id,
+      line_number: 1,
       description: 'Recurring line',
       amount: 100,
       transaction_side: 'debit',
       coa_id: source.id,
-      template_id: template.id,
     });
 
     const [rule] = await trx('rules')

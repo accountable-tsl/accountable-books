@@ -86,6 +86,8 @@ export async function up(knex: Knex): Promise<void> {
       ['company_id', 'account_type_id'],
       'coa_company_account_type_idx',
     );
+
+    table.unique(['id', 'company_id']);
   });
 
   await knex.raw(`

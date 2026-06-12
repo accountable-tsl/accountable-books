@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -210,9 +209,9 @@ describe('COA lifecycle atomicity', () => {
         error: 'Locked accounts cannot be archived or deleted',
       },
     ]);
-    expect(
-      await captureMutationState([alreadyArchived.id, locked.id]),
-    ).toEqual(before);
+    expect(await captureMutationState([alreadyArchived.id, locked.id])).toEqual(
+      before,
+    );
   });
 
   it('rejects an entire bulk delete when one account has ledger entries', async () => {
@@ -223,9 +222,10 @@ describe('COA lifecycle atomicity', () => {
       companyId,
       userId,
       data: {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
         categorization_source: 'manual',
+        source_transaction_id: randomUUID(),
         source_transaction_currency_id: currencyId,
         transactions: [
           {
@@ -476,14 +476,16 @@ describe('COA lifecycle atomicity', () => {
   }
 
   async function getLifecycleState(coaId: string): Promise<CoaState> {
-    const row = await trx('coa').where({ id: coaId }).first<CoaState>(
-      'name',
-      'code',
-      'is_active',
-      'is_deleted',
-      'deleted_at',
-      'version_seq',
-    );
+    const row = await trx('coa')
+      .where({ id: coaId })
+      .first<CoaState>(
+        'name',
+        'code',
+        'is_active',
+        'is_deleted',
+        'deleted_at',
+        'version_seq',
+      );
     if (!row) throw new Error(`Expected COA ${coaId}`);
     return row;
   }
@@ -506,9 +508,9 @@ describe('COA lifecycle atomicity', () => {
   async function getSnapshotVersion(): Promise<bigint> {
     const snapshot = await trx('coa_snapshot_versions')
       .where({ company_id: companyId })
-      .first<{ snapshot_version: string | number | bigint }>(
-        'snapshot_version',
-      );
+      .first<{
+        snapshot_version: string | number | bigint;
+      }>('snapshot_version');
     if (!snapshot) throw new Error('Expected COA snapshot');
     return BigInt(snapshot.snapshot_version);
   }

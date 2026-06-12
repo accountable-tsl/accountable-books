@@ -117,12 +117,20 @@ export async function inspectCoaLifecycleImpacts({
   );
 
   const recurringEntries = await trx('recurring_journal_template_entries as e')
-    .join('recurring_journal_templates as t', 'e.template_id', 't.id')
+    .join('recurring_journal_templates as t', function () {
+      this.on('e.template_id', '=', 't.id').andOn(
+        'e.company_id',
+        '=',
+        't.company_id',
+      );
+    })
     .where('t.company_id', companyId)
+    .where('e.company_id', companyId)
     .where('t.is_deleted', false)
     .whereNot('t.status', 'closed')
     .whereIn('e.coa_id', sortedCoaIds)
-    .orderBy('e.id')
+    .orderBy('e.template_id')
+    .orderBy('e.line_number')
     .forUpdate('e')
     .select<
       {

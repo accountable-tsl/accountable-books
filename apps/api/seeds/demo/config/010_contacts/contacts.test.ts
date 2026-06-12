@@ -128,14 +128,17 @@ vi.mock('./raw/ng_contacts.json', () => ({
 const createMockTransaction = (
   options: { existingContacts?: boolean } = {},
 ): Knex.Transaction => {
+  let contactsSelectCall = 0;
   const mockTransaction = vi.fn((tableName: string) => {
     const queryBuilder = {
       where: vi.fn().mockReturnThis(),
+      whereIn: vi.fn().mockReturnThis(),
       first: vi.fn(),
       insert: vi.fn().mockReturnThis(),
       onConflict: vi.fn().mockReturnThis(),
       ignore: vi.fn().mockReturnThis(),
       returning: vi.fn(),
+      select: vi.fn(),
     };
 
     if (tableName === 'contacts') {
@@ -143,6 +146,33 @@ const createMockTransaction = (
       queryBuilder.first.mockResolvedValue(
         options.existingContacts ? { id: 'existing-contact' } : null,
       );
+
+      queryBuilder.select.mockImplementation(async () => {
+        contactsSelectCall += 1;
+        const isExistingLookup = contactsSelectCall % 2 === 1;
+        return isExistingLookup
+          ? options.existingContacts
+            ? [{ normalized_name: 'stripe' }]
+            : []
+          : [
+              {
+                id: 'contact-1',
+                email: 'support@stripe.com',
+                display_name: 'Stripe',
+                status: 'active',
+                company_id: 'company-1',
+                created_by_id: 'user-1',
+              },
+              {
+                id: 'contact-2',
+                email: 'billing@amazon.com',
+                display_name: 'AWS',
+                status: 'active',
+                company_id: 'company-1',
+                created_by_id: 'user-1',
+              },
+            ];
+      });
 
       // Mock successful insertion
       queryBuilder.returning.mockResolvedValue([
@@ -166,6 +196,10 @@ const createMockTransaction = (
     }
 
     return queryBuilder;
+  });
+
+  Object.assign(mockTransaction, {
+    fn: { now: vi.fn(() => new Date('2025-01-01T00:00:00Z')) },
   });
 
   return mockTransaction as any as Knex.Transaction;
@@ -306,14 +340,14 @@ describe('createDemoContacts', () => {
     expect(mockTransaction).toHaveBeenCalledWith('contacts');
   });
 
-  test('should skip when contacts already exist', async () => {
+  test('should reconcile missing contacts when some contacts already exist', async () => {
     const mockTransaction = createMockTransaction({ existingContacts: true });
 
     await createDemoContacts(mockTransaction);
 
-    // Should check for existing contacts but not proceed with insertion
     expect(mockTransaction).toHaveBeenCalledWith('contacts');
-    expect(console.log).toHaveBeenCalledWith(
+    expect(demoContactsByCompanyMap.get('company-1')).toBeDefined();
+    expect(console.log).not.toHaveBeenCalledWith(
       expect.stringContaining('Contacts already exist'),
     );
   });

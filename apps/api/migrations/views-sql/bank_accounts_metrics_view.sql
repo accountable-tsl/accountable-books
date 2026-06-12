@@ -14,7 +14,6 @@ WITH transaction_stats AS (
         AND NOT EXISTS (
           SELECT 1 FROM categorization_candidates cc
           WHERE cc.bank_transaction_id = bt.id
-            AND cc.bank_transaction_date = bt.date
             AND cc.is_deleted = false
         )
     )::int as uncategorized_count,
@@ -24,7 +23,6 @@ WITH transaction_stats AS (
         AND EXISTS (
           SELECT 1 FROM categorization_candidates cc
           WHERE cc.bank_transaction_id = bt.id
-            AND cc.bank_transaction_date = bt.date
             AND cc.is_deleted = false
         )
     )::int as needs_review_count,
@@ -32,8 +30,8 @@ WITH transaction_stats AS (
       WHERE bt.is_deleted = false 
         AND bt.ledger_transaction_id IS NOT NULL
     )::int as posted_count,
-    MAX(bt.date) FILTER (WHERE bt.is_deleted = false) as last_transaction_date,
-    MAX(bt.txn_at) FILTER (WHERE bt.is_deleted = false) as last_transaction_at
+    MAX(bt.transaction_date) FILTER (WHERE bt.is_deleted = false) as last_transaction_date,
+    MAX(bt.transaction_at) FILTER (WHERE bt.is_deleted = false) as last_transaction_at
   FROM bank_transactions bt
   GROUP BY bt.bank_account_id
 ),

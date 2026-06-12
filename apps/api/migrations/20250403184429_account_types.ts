@@ -46,7 +46,7 @@ export async function up(knex: Knex): Promise<void> {
     table.boolean('trainable').notNullable();
     table.boolean('is_contra').notNullable().defaultTo(false);
     table.boolean('is_postable_control').notNullable().defaultTo(false);
-    table.specificType('accrual_targets', 'text[]').nullable();
+    table.specificType('accrual_targets', 'varchar(256)[]').nullable();
 
     table
       .timestamp('created_at', { useTz: true })

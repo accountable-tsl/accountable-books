@@ -6,6 +6,7 @@ import type {
   BankFeedProviderCatalogEntry,
   BankFeedProviderStatus,
 } from '../catalogs/bank-feed-providers/bank-feed-providers.js';
+import type { BootstrappedCountry } from './countries.bootstrap.js';
 
 const bankFeedProvidersTable = 'app.bank_feed_providers';
 const MUTABLE_BANK_FEED_PROVIDER_COLUMNS = [
@@ -17,10 +18,11 @@ const MUTABLE_BANK_FEED_PROVIDER_COLUMNS = [
   'updated_by_id',
 ] as const;
 const BANK_FEED_PROVIDER_DRIFT_SQL = MUTABLE_BANK_FEED_PROVIDER_COLUMNS.map(
-  () => '?? IS DISTINCT FROM ??.??',
+  () => '??.?? IS DISTINCT FROM ??.??',
 ).join(' OR ');
 const BANK_FEED_PROVIDER_DRIFT_BINDINGS =
   MUTABLE_BANK_FEED_PROVIDER_COLUMNS.flatMap((column) => [
+    bankFeedProvidersTable,
     column,
     'excluded',
     column,
@@ -59,6 +61,7 @@ export async function bootstrapBankFeedProviders(
   trx: Knex.Transaction,
   options: {
     systemUserId: string;
+    countriesByCode?: Record<string, BootstrappedCountry>;
   },
 ): Promise<void> {
   const canonical = BANK_FEED_PROVIDERS_CATALOG.map((provider) =>
@@ -96,4 +99,32 @@ export async function bootstrapBankFeedProviders(
     .onConflict('key')
     .merge([...MUTABLE_BANK_FEED_PROVIDER_COLUMNS])
     .whereRaw(BANK_FEED_PROVIDER_DRIFT_SQL, BANK_FEED_PROVIDER_DRIFT_BINDINGS);
+
+  if (!options.countriesByCode) return;
+
+  const countryMappings = BANK_FEED_PROVIDERS_CATALOG.flatMap((provider) =>
+    provider.countryCodes.map((countryCode) => {
+      const country = options.countriesByCode![countryCode];
+      if (!country) {
+        throw new Error(
+          `Bank feed provider ${provider.key} references unknown country ${countryCode}`,
+        );
+      }
+      return {
+        bank_feed_provider_id: provider.id,
+        country_id: country.id,
+        active: true,
+        created_by_id: options.systemUserId,
+        updated_by_id: options.systemUserId,
+      };
+    }),
+  );
+
+  await trx('app.bank_feed_provider_countries')
+    .insert(countryMappings)
+    .onConflict(['bank_feed_provider_id', 'country_id'])
+    .merge({
+      active: true,
+      updated_by_id: options.systemUserId,
+    });
 }

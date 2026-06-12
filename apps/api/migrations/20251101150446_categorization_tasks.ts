@@ -16,12 +16,12 @@ export async function up(knex: Knex): Promise<void> {
     table
       .uuid('bank_transaction_id')
       .notNullable()
-      .comment('FK to bank_transactions (composite with date)');
+      .comment('FK to bank_transactions');
 
     table
       .date('bank_transaction_date')
       .notNullable()
-      .comment('FK to bank_transactions (composite with id)');
+      .comment('Transaction date snapshot used by categorization workflows');
 
     table
       .uuid('company_id')
@@ -30,8 +30,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('companies')
       .onDelete('CASCADE');
 
-    // Composite unique constraint on bank transaction id + date
-    table.unique(['bank_transaction_id', 'bank_transaction_date']);
+    table.unique(['bank_transaction_id']);
 
     table
       .jsonb('enriched_transaction')
@@ -62,12 +61,12 @@ export async function up(knex: Knex): Promise<void> {
 
   await createUpdateTimestampTrigger(knex, tableName);
 
-  // Add composite foreign key to bank_transactions (id, date)
+  // Transaction identity is the globally unique bank transaction id.
   await knex.raw(`
       ALTER TABLE ${tableName}
       ADD CONSTRAINT fk_categorization_tasks_bank_transaction
-      FOREIGN KEY (bank_transaction_id, bank_transaction_date)
-      REFERENCES bank_transactions(id, date)
+      FOREIGN KEY (bank_transaction_id)
+      REFERENCES bank_transactions(id)
       ON DELETE CASCADE;
     `);
 

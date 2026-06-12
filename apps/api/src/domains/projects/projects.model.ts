@@ -67,8 +67,7 @@ export async function getProjects(
 
     let baseQuery = tx('projects as p')
       .leftJoin('contacts as c', 'p.contact_id', 'c.id')
-      .where('p.company_id', companyUUID)
-      .andWhere('p.is_deleted', false);
+      .where('p.company_id', companyUUID);
 
     if (ids && ids.length > 0) {
       baseQuery = baseQuery.whereIn('p.id', ids);
@@ -179,22 +178,25 @@ export async function addNewProjects({
     const companyUUID = await getCompanyUUID(companyId, tx);
     if (!companyUUID) return errorResponse('Company not found');
 
-    // Verify all contacts exist
-    const contactIds = data.map((p) => p.contact_id).filter((id) => !!id);
+    const contactIds = data
+      .map((p) => p.contact_id)
+      .filter((id): id is string => Boolean(id));
 
-    const validContactRows = await tx('contacts')
-      .whereIn('id', contactIds)
-      .andWhere('company_id', companyUUID)
-      .select('id');
+    const validContactRows =
+      contactIds.length > 0
+        ? await tx('contacts')
+            .whereIn('id', contactIds)
+            .andWhere('company_id', companyUUID)
+            .select('id')
+        : [];
 
     const validContactIds = new Set(validContactRows.map((c) => c.id));
 
-    const invalidContacts = data
-      .filter((p) => p.contact_id && !validContactIds.has(p.contact_id))
-      .map((p) => ({
-        contactId: p.contact_id,
-        projectName: p.name,
-      }));
+    const invalidContacts = data.flatMap((project) => {
+      const contactId = project.contact_id;
+      if (!contactId || validContactIds.has(contactId)) return [];
+      return [{ contactId, projectName: project.name }];
+    });
 
     if (invalidContacts.length > 0) {
       const errorDetails = invalidContacts
@@ -207,7 +209,6 @@ export async function addNewProjects({
       return errorResponse(`Invalid contact(s): ${errorDetails}`);
     }
 
-    // Create data structure and insert
     const projects = data.map((project) => ({
       ...project,
       company_id: companyUUID,

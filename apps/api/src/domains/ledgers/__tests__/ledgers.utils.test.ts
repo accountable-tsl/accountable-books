@@ -116,6 +116,7 @@ describe('validateIds', () => {
     // Create a mock query builder that chains methods
     mockQueryBuilder = {
       where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
       whereIn: vi.fn().mockReturnThis(),
       pluck: vi.fn(),
     };
@@ -143,8 +144,8 @@ describe('validateIds', () => {
     expect(mockQueryBuilder.whereIn).toHaveBeenCalledWith('id', validIds);
     expect(mockQueryBuilder.where).toHaveBeenCalledWith({
       company_id: 'company-123',
-      is_deleted: false,
     });
+    expect(mockQueryBuilder.andWhere).not.toHaveBeenCalled();
   });
 
   it('should throw when some IDs are invalid', async () => {
@@ -165,6 +166,7 @@ describe('validateIds', () => {
     await expect(
       validateIds('projects', requestedIds, 'company-123', mockTxn as any),
     ).rejects.toThrow('Invalid projects IDs: id-2, id-4');
+    expect(mockQueryBuilder.andWhere).not.toHaveBeenCalled();
   });
 
   it('should not throw when empty array is provided', async () => {
@@ -537,7 +539,6 @@ describe('processEntriesDates', () => {
       min: '2025-01-15',
       max: '2025-01-15',
     });
-    expect(result.transactionDates).toHaveLength(1);
   });
 
   it('should process multiple entries with same date and COA', () => {
@@ -567,7 +568,6 @@ describe('processEntriesDates', () => {
       min: '2025-01-15',
       max: '2025-01-15',
     });
-    expect(result.transactionDates).toHaveLength(2);
   });
 
   it('should calculate correct date range across multiple dates', () => {
@@ -702,6 +702,5 @@ describe('processEntriesDates', () => {
     expect(result.minYMD).toBeNull();
     expect(result.maxYMD).toBeNull();
     expect(result.bounds.size).toBe(0);
-    expect(result.transactionDates).toHaveLength(0);
   });
 });

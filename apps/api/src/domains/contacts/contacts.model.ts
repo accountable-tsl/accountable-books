@@ -6,39 +6,45 @@ import { logFlowStep } from '../../shared/telemetry/log-flow-step.js';
 import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { normalizeContactName } from './contact-normalization.utils.js';
 import {
-  createHybridSearch,
-  defineSearchableColumns,
-} from '../../shared/utils/search.utils.js';
+  writeContactCreatedAudit,
+  writeContactDeletedAudit,
+  writeContactUpdatedAudit,
+} from './contacts.audit.js';
 import {
   contactInputSchema,
+  deleteContactInput,
   getContactsParams,
   updateContactSchema,
 } from './contacts.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
+  ContactCreatedVia,
   ContactInput,
   ContactResponse,
+  DeleteContactInput,
   GetContactsParams,
   UpdateContact,
 } from './contacts.types.js';
-
-export const normalizeContactName = (name: string) => name.trim().toLowerCase();
 
 /**
  * Sanitizes contact input data by trimming whitespace and normalizing text fields
  */
 function sanitizeContactInput(contact: ContactInput): ContactInput {
+  const optionalText = (value?: string) => value?.trim() || undefined;
+
   return {
     ...contact,
     displayName: contact.displayName.trim(),
-    email: contact.email?.trim().toLowerCase(),
-    address: contact.address?.trim(),
-    notes: contact.notes?.trim(),
+    email: optionalText(contact.email)?.toLowerCase(),
+    address: optionalText(contact.address),
+    notes: optionalText(contact.notes),
   };
 }
 
@@ -46,11 +52,13 @@ export async function addNewContacts({
   input,
   companyId,
   userId,
+  createdVia = 'manual',
   trx,
 }: {
   input: ContactInput[];
   companyId: string;
   userId: string;
+  createdVia?: Extract<ContactCreatedVia, 'manual' | 'import' | 'integration'>;
   trx?: Knex.Transaction;
 }): Promise<ApiResponse<ContactResponse['contacts']>> {
   const startTime = Date.now();
@@ -109,38 +117,11 @@ export async function addNewContacts({
 
       contactsLogger.debug({ companyUUID }, 'Company resolved successfully');
 
-      // Normalize names to verify uniqueness
-      const normalizedNames = sanitizedContacts.map((c) =>
-        normalizeContactName(c.displayName),
-      );
       contactsLogger.debug(
         {
           names: sanitizedContacts.map((c) => c.displayName),
-          normalizedNames,
         },
-        'Contact names normalized for duplicate check',
-      );
-
-      const existingContacts: { display_name: string }[] = await tx('contacts')
-        .whereIn('normalized_name', normalizedNames)
-        .andWhere('company_id', companyUUID)
-        .select('display_name');
-
-      if (existingContacts.length > 0) {
-        const existingNames = existingContacts.map((c) => c.display_name);
-        const duplicateError = `Contact(s) with these names already exist: ${existingNames.join(', ')}`;
-        contactsLogger.warn(
-          {
-            existingNames,
-            attemptedNames: sanitizedContacts.map((c) => c.displayName),
-          },
-          'Duplicate contact names detected',
-        );
-        throw new Error(duplicateError);
-      }
-
-      contactsLogger.debug(
-        'No duplicate contacts found, proceeding with creation',
+        'Contacts prepared for creation',
       );
 
       // Create data structure for insertion
@@ -152,6 +133,10 @@ export async function addNewContacts({
         notes: contact.notes,
         status: contact.status,
         normalized_name: normalizeContactName(contact.displayName),
+        created_via: createdVia,
+        review_status: 'confirmed',
+        reviewed_by_id: userId,
+        reviewed_at: tx.fn.now(),
         company_id: companyUUID,
         created_by_id: userId,
         updated_by_id: userId,
@@ -165,10 +150,27 @@ export async function addNewContacts({
           'address',
           'email',
           'status',
+          'created_via as createdVia',
+          'review_status as reviewStatus',
           'notes',
           'created_at as createdAt',
           'updated_at as updatedAt',
         ]);
+
+      for (const contact of result) {
+        await writeContactCreatedAudit({
+          companyId: companyUUID,
+          entityId: contact.id,
+          actor: { type: 'user', userId },
+          trx: tx,
+          context: { source: createdVia === 'import' ? 'import' : 'web' },
+          payload: {
+            displayName: contact.displayName,
+            createdVia: contact.createdVia,
+            reviewStatus: contact.reviewStatus,
+          },
+        });
+      }
 
       contactsLogger.info(
         {
@@ -232,11 +234,6 @@ export async function addNewContacts({
       'Contact creation operation failed',
     );
 
-    // Handle specific error types with appropriate responses
-    if (error.message?.startsWith('Contact(s) with these names')) {
-      return errorResponse(String(error.message), error);
-    }
-
     if (error.message?.startsWith('Company not found')) {
       return errorResponse('Invalid company identifier', error);
     }
@@ -264,31 +261,19 @@ export async function getContacts(
     companyId,
     ids,
     displayNames,
+    emails,
     page,
     limit,
     search,
     status,
+    createdVia,
+    reviewStatus,
     sortBy,
     sortOrder,
     trx,
   } = parseInput.data;
 
-  const searchableColumns = defineSearchableColumns('c', [
-    { column: 'display_name', name: 'displayName', weight: 2.0 },
-    { column: 'email', weight: 1.5 },
-    { column: 'address' },
-    { column: 'notes', weight: 0.8 },
-  ]);
-
-  const { applySearchFilter, rankFields, rankOrder } = createHybridSearch({
-    search,
-    searchableColumns,
-    trx,
-    options: {
-      minSimilarityThreshold: 0.25,
-      fuzzyMinLength: 2,
-    },
-  });
+  const normalizedSearch = search?.trim().toLowerCase();
 
   const query = async (tx: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, tx);
@@ -296,9 +281,7 @@ export async function getContacts(
       return errorResponse('Company not found');
     }
 
-    let baseQuery = tx('contacts as c')
-      .where('c.company_id', companyUUID)
-      .andWhere('c.is_deleted', false);
+    let baseQuery = tx('contacts as c').where('c.company_id', companyUUID);
 
     if (ids?.length) {
       baseQuery = baseQuery.whereIn('c.id', ids);
@@ -308,12 +291,30 @@ export async function getContacts(
       baseQuery = baseQuery.whereIn('c.display_name', displayNames);
     }
 
+    if (emails?.length) {
+      baseQuery = baseQuery.whereIn('c.email', emails);
+    }
+
     if (status) {
       baseQuery = baseQuery.andWhere('c.status', status);
     }
 
+    if (createdVia) {
+      baseQuery = baseQuery.andWhere('c.created_via', createdVia);
+    }
+
+    if (reviewStatus) {
+      baseQuery = baseQuery.andWhere('c.review_status', reviewStatus);
+    }
+
     // Apply search
-    if (search?.trim()) baseQuery = applySearchFilter(baseQuery);
+    if (normalizedSearch) {
+      baseQuery = baseQuery.andWhere((qb) => {
+        qb.whereRaw('c.search_text ILIKE ?', [
+          `%${normalizedSearch}%`,
+        ]).orWhereRaw('c.search_text % ?', [normalizedSearch]);
+      });
+    }
 
     // Get total count for pagination
     const countResult = await baseQuery.clone().count('* as count').first();
@@ -339,15 +340,23 @@ export async function getContacts(
       'c.address',
       'c.email',
       'c.status',
+      'c.created_via as createdVia',
+      'c.review_status as reviewStatus',
       'c.notes',
       'c.created_at as createdAt',
       'c.updated_at as updatedAt',
-      ...rankFields,
+      ...(normalizedSearch
+        ? [tx.raw('similarity(c.search_text, ?) as rank', [normalizedSearch])]
+        : []),
     ];
 
     const contacts = await baseQuery
       .select(selectFields)
-      .orderBy(...(rankOrder ?? [resolvedSortBy, sortOrder ?? 'asc']))
+      .orderBy(
+        ...(normalizedSearch
+          ? (['rank', 'desc'] as const)
+          : ([resolvedSortBy, sortOrder ?? 'asc'] as const)),
+      )
       .limit(limit)
       .offset(offset);
 
@@ -409,7 +418,7 @@ export async function updateContacts({
     const existingContacts = await tx('contacts')
       .whereIn('id', contactIds)
       .andWhere('company_id', companyUUID)
-      .select('id');
+      .select('id', 'display_name', 'email', 'address', 'status', 'notes');
 
     if (existingContacts.length !== contactIds.length) {
       const missingIds = contactIds.filter(
@@ -418,43 +427,6 @@ export async function updateContacts({
       throw new Error(
         `Contact(s) with these IDs do not exist: ${missingIds.join(', ')}`,
       );
-    }
-
-    // Check for display name uniqueness if any updates include display names
-    const displayNamesToUpdate = validate.data
-      .filter(
-        (c) =>
-          typeof c.display_name === 'string' && c.display_name.trim() !== '',
-      )
-      .map((c) => c.display_name as string);
-
-    if (displayNamesToUpdate.length > 0) {
-      const normalizedNamesToUpdate =
-        displayNamesToUpdate.map(normalizeContactName);
-
-      // Check for duplicates within the batch itself
-      const duplicatesInBatch = normalizedNamesToUpdate.filter(
-        (name, index, arr) => arr.indexOf(name) !== index,
-      );
-      if (duplicatesInBatch.length > 0) {
-        throw new Error(
-          `Duplicate names found in update batch: ${duplicatesInBatch.join(', ')}`,
-        );
-      }
-
-      // Check for conflicts with existing contacts (excluding those being updated)
-      const duplicateContacts = await tx('contacts')
-        .where('company_id', companyUUID)
-        .whereIn('normalized_name', normalizedNamesToUpdate)
-        .whereNotIn('id', contactIds) // Exclude contacts being updated
-        .select('display_name');
-
-      if (duplicateContacts.length > 0) {
-        const duplicateNames = duplicateContacts.map((c) => c.display_name);
-        throw new Error(
-          `Contact(s) with these names already exist: ${duplicateNames.join(', ')}`,
-        );
-      }
     }
 
     // Prepare update data with normalized names
@@ -489,12 +461,54 @@ export async function updateContacts({
           'address',
           'email',
           'status',
+          'created_via as createdVia',
+          'review_status as reviewStatus',
           'notes',
         ]);
       return updatedContact;
     });
 
     const updatedContacts = await Promise.all(updatePromises);
+
+    for (const contact of validate.data) {
+      const previousContact = existingContacts.find(
+        (existingContact) => existingContact.id === contact.id,
+      );
+      const changedFields: Record<
+        string,
+        { previous: unknown | null; next: unknown | null }
+      > = {};
+      const addChange = (field: string, previous: unknown, next: unknown) => {
+        if (next !== undefined && previous !== next) {
+          changedFields[field] = {
+            previous: previous ?? null,
+            next: next ?? null,
+          };
+        }
+      };
+
+      addChange(
+        'displayName',
+        previousContact?.display_name,
+        contact.display_name,
+      );
+      addChange('email', previousContact?.email, contact.email);
+      addChange('address', previousContact?.address, contact.address);
+      addChange('status', previousContact?.status, contact.status);
+      addChange('notes', previousContact?.notes, contact.notes);
+
+      if (Object.keys(changedFields).length > 0) {
+        await writeContactUpdatedAudit({
+          companyId: companyUUID!,
+          entityId: contact.id,
+          actor: { type: 'user', userId },
+          trx: tx,
+          context: { source: 'web' },
+          payload: { changedFields },
+        });
+      }
+    }
+
     return updatedContacts;
   };
 
@@ -502,12 +516,169 @@ export async function updateContacts({
     const result = trx ? await query(trx) : await knexClient.transaction(query);
     return successResponse('Contacts updated successfully', result);
   } catch (error: any) {
-    if (error.message?.startsWith('Contact(s) with these names')) {
-      return errorResponse(error.message);
-    }
     if (error.message?.startsWith('Contact(s) with these IDs')) {
       return errorResponse(error.message);
     }
     return errorResponse('Failed to update contacts', error);
   }
+}
+
+export async function deleteContact({
+  input,
+  companyId,
+  userId,
+}: {
+  input: DeleteContactInput;
+  companyId: string;
+  userId: string;
+}) {
+  const validate = deleteContactInput.safeParse(input);
+  if (!validate.success) {
+    return errorResponse('Invalid input', z.treeifyError(validate.error), {
+      code: ErrorCode.INVALID_INPUT,
+    });
+  }
+
+  try {
+    const result = await knexClient.transaction(async (tx) => {
+      const companyUUID = await getCompanyUUID(companyId, tx);
+      if (!companyUUID) {
+        throw new Error('Company not found');
+      }
+
+      const contact = await tx('contacts')
+        .where({
+          id: validate.data.id,
+          company_id: companyUUID,
+        })
+        .first('id', 'display_name');
+      if (!contact) {
+        return errorResponse('Contact not found', undefined, {
+          code: ErrorCode.NOT_FOUND,
+        });
+      }
+
+      const referenceCounts = await getContactReferenceCounts({
+        trx: tx,
+        companyId: companyUUID,
+        contactId: validate.data.id,
+      });
+      const totalReferences = Object.values(referenceCounts).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+
+      if (totalReferences > 0) {
+        return errorResponse(
+          'Contact is linked to transaction, accounting, or resolution records and cannot be deleted. Mark it inactive instead.',
+          { referenceCounts },
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+
+      await tx('contacts')
+        .where({ id: validate.data.id, company_id: companyUUID })
+        .delete();
+
+      await writeContactDeletedAudit({
+        companyId: companyUUID,
+        entityId: validate.data.id,
+        actor: { type: 'user', userId },
+        trx: tx,
+        context: { source: 'web' },
+        payload: {
+          displayName: contact.display_name ?? null,
+        },
+      });
+
+      return successResponse('Contact deleted successfully', {
+        contactId: validate.data.id,
+      });
+    });
+
+    return result;
+  } catch (error) {
+    return errorResponse('Failed to delete contact', error);
+  }
+}
+
+async function getContactReferenceCounts({
+  trx,
+  companyId,
+  contactId,
+}: {
+  trx: Knex.Transaction;
+  companyId: string;
+  contactId: string;
+}): Promise<Record<string, number>> {
+  const countTable = async (
+    table: string,
+    extraWhere: Record<string, unknown> = {},
+  ) => {
+    const row = await trx(table)
+      .where({ company_id: companyId, contact_id: contactId, ...extraWhere })
+      .count('* as count')
+      .first();
+    return Number(row?.count ?? 0);
+  };
+  const countLedgerEntries = async () => {
+    const row = await trx('ledger_entries as le')
+      .join('ledger_transactions as lt', 'lt.id', 'le.ledger_transaction_id')
+      .where({
+        'lt.company_id': companyId,
+        'lt.status': 'posted',
+        'le.contact_id': contactId,
+      })
+      .count('* as count')
+      .first();
+    return Number(row?.count ?? 0);
+  };
+  const countCategorizationCandidateLines = async () => {
+    const row = await trx('categorization_candidate_lines as ccl')
+      .join('categorization_candidates as cc', 'cc.id', 'ccl.candidate_id')
+      .where({
+        'cc.company_id': companyId,
+        'ccl.contact_id': contactId,
+      })
+      .count('* as count')
+      .first();
+    return Number(row?.count ?? 0);
+  };
+  const countCategorizationPredictionLines = async () => {
+    const row = await trx('categorization_prediction_lines as cpl')
+      .join('categorization_predictions as cp', 'cp.id', 'cpl.prediction_id')
+      .where({
+        'cp.company_id': companyId,
+        'cpl.contact_id': contactId,
+      })
+      .count('* as count')
+      .first();
+    return Number(row?.count ?? 0);
+  };
+
+  return {
+    projects: await countTable('projects'),
+    contactTypeAssignments: await countTable('contact_type_assignments'),
+    ledgerTransactions: await countTable('ledger_transactions', {
+      status: 'posted',
+    }),
+    ledgerEntries: await countLedgerEntries(),
+    categorizationCandidates: await countTable('categorization_candidates'),
+    categorizationCandidateLines: await countCategorizationCandidateLines(),
+    categorizationPredictions: await countTable('categorization_predictions'),
+    categorizationPredictionLines: await countCategorizationPredictionLines(),
+    bankTransactionContactResolutions: await countTable(
+      'bank_transaction_contact_resolutions',
+    ),
+    contactAliases: await countTable('contact_aliases'),
+    recurringJournalTemplates: await countTable('recurring_journal_templates'),
+    journalBatches: await countTable('journal_batches'),
+    bankTransactionContactStats: await countTable(
+      'bank_transaction_contact_stats',
+    ),
+    bankTransactionContactStatsEntries: await countTable(
+      'bank_transaction_contact_stats_entries',
+    ),
+    contactStatsReplays: await countTable('contact_stats_replays'),
+  };
 }

@@ -145,7 +145,13 @@ export const glBalanceRecalcParamsSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD format')
     .optional(),
-  triggeredBy: z.enum(['ledger_entry', 'backfill', 'soft_delete', 'manual']),
+  triggeredBy: z.enum([
+    'ledger_entry',
+    'backfill',
+    'soft_delete',
+    'supersession',
+    'manual',
+  ]),
 });
 export type GLBalanceRecalcParams = z.infer<typeof glBalanceRecalcParamsSchema>;
 

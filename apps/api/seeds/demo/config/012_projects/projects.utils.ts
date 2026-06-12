@@ -2,12 +2,17 @@ import { faker } from '@faker-js/faker';
 
 import { projectStatus } from '../../../../src/domains/projects/projects.types.js';
 
-import type { NewProjectInput } from '../../../../src/domains/projects/projects.types.js';
+import type { ProjectStatus } from '../../../../src/domains/projects/projects.types.js';
 import type { DemoCompanyType, DemoCountryCode } from '../../shared/config.js';
 
 // Projects seed template without IDs or contact references.
-export type SeedProject = Omit<NewProjectInput, 'id' | 'contactId'> & {
-  // Optional hint to attach to a specific contact by name
+export type SeedProject = {
+  name: string;
+  code: string | null;
+  description?: string | null;
+  status: ProjectStatus;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
   contactNameHint?: string;
 };
 

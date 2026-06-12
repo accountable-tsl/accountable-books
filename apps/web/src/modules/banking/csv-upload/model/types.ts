@@ -1,3 +1,4 @@
+import { contactType } from '@/modules/contacts/model/types';
 import { debitCredit } from '@/shared/types/core';
 import z from 'zod';
 
@@ -36,16 +37,23 @@ export const parsedBankTxn = rawRowSchema.extend({
 });
 export type ParsedBankTxn = z.infer<typeof parsedBankTxn>;
 
+const bankTransactionContactResolutionSchema = z.object({
+  contact_id: z.uuid(),
+  contact_type: contactType.nullish(),
+  reason: z.string().trim().max(512).optional(),
+});
+
 export const bankTransactionInsertSchema = z.object({
-  date: z.date(),
+  transaction_date: z.date(),
   amount: z.number(),
   bank_account_id: z.uuid(),
   // transactionSide: debitCredit.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
-  additionalComments: z.string().nullish(),
-  rawData: z.any().nullish(),
+  additional_notes: z.string().nullish(),
+  source_payload: z.record(z.string(), z.unknown()).optional(),
+  contact_resolution: bankTransactionContactResolutionSchema.optional(),
 });
 export type BankTransactionInsert = z.infer<typeof bankTransactionInsertSchema>;
 

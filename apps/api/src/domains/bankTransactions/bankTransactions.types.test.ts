@@ -6,7 +6,7 @@ import {
 } from './bankTransactions.types.js';
 
 const validTransaction = {
-  date: new Date('2026-01-15'),
+  transaction_date: new Date('2026-01-15'),
   amount: 100,
   bank_account_id: '019c0000-0000-7000-8000-000000000001',
 };
@@ -30,6 +30,17 @@ describe('bankTransactionBatchInput', () => {
     });
 
     expect(result.source_metadata).toEqual({});
+  });
+
+  it('requires provider idempotency keys for bank feed transactions', () => {
+    const result = bankTransactionBatchInput.safeParse({
+      source: 'bank_feed',
+      bank_account_id: validTransaction.bank_account_id,
+      connection_credential_id: '019c0000-0000-7000-8000-000000000002',
+      bank_transactions: [validTransaction],
+    });
+
+    expect(result.success).toBe(false);
   });
 });
 

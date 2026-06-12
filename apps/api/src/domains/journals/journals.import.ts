@@ -270,7 +270,6 @@ export async function preflightJournalImport(p: {
       const rows = await db('projects')
         .where('company_id', context.companyUUID)
         .whereIn('id', ids)
-        .where('is_deleted', false)
         .select<{ id: string }[]>('id');
       const ok = new Set(rows.map((r) => r.id));
       const invalid = ids.filter((id) => !ok.has(id));
@@ -359,7 +358,6 @@ export async function preflightJournalImport(p: {
         ...projectCodeKeys,
       ])
         .where('company_id', context.companyUUID)
-        .where('is_deleted', false)
         .select<{ id: string; name: string; code: string | null }[]>(
           'id',
           'name',
@@ -379,7 +377,6 @@ export async function preflightJournalImport(p: {
         ...projectNameKeys,
       ])
         .where('company_id', context.companyUUID)
-        .where('is_deleted', false)
         .select<{ id: string; name: string; code: string | null }[]>(
           'id',
           'name',

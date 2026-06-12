@@ -9,28 +9,6 @@ export async function up(knex: Knex): Promise<void> {
   );
 
   await knex.raw(
-    createEnumIfNotExists('recurrence_frequency', [
-      'daily',
-      'weekly',
-      'monthly',
-      'quarterly',
-      'yearly',
-      'custom',
-    ]),
-  );
-  await knex.raw(
-    createEnumIfNotExists('recurring_journal_status', [
-      'draft',
-      'active',
-      'paused',
-      'closed',
-    ]),
-  );
-  await knex.raw(
-    createEnumIfNotExists('contact_status', ['active', 'inactive']),
-  );
-
-  await knex.raw(
     createEnumIfNotExists('txn_categorization_source', [
       'rule',
       'ml',
@@ -51,9 +29,6 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
   await knex.raw(dropEnumIfExists('categorization_line_split_type'));
   await knex.raw(dropEnumIfExists('txn_categorization_source'));
-  await knex.raw(dropEnumIfExists('contact_status'));
-  await knex.raw(dropEnumIfExists('recurring_journal_status'));
-  await knex.raw(dropEnumIfExists('recurrence_frequency'));
   await knex.raw(dropEnumIfExists('journal_status'));
   await knex.raw(dropEnumIfExists('debit_credit'));
 }

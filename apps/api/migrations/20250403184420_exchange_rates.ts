@@ -39,7 +39,7 @@ export async function up(knex: Knex): Promise<void> {
       .string('source', 16)
       .notNullable()
       .checkIn(['seed', 'api', 'manual'], 'exchange_rates_source_chk');
-    table.string('provider').nullable();
+    table.string('provider', 128).nullable();
     table.timestamp('provider_as_of', { useTz: true }).nullable();
     table
       .timestamp('ingested_at', { useTz: true })

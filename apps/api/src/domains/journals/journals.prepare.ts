@@ -283,16 +283,14 @@ export async function validateAndPrepareJournalInput<
       .trx('projects')
       .where('company_id', p.context.companyUUID)
       .whereIn('id', projectIds)
-      .where('is_deleted', false)
       .select('id');
 
     if (projects.length !== projectIds.length) {
       const foundIds = new Set(projects.map((proj) => proj.id));
       const missing = projectIds.filter((id) => !foundIds.has(id));
-      throw new AppError(
-        `Invalid or inactive Project IDs: ${missing.join(', ')}`,
-        { traceId: p.traceId },
-      );
+      throw new AppError(`Invalid Project IDs: ${missing.join(', ')}`, {
+        traceId: p.traceId,
+      });
     }
   }
 

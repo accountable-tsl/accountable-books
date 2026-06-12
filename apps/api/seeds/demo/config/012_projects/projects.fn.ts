@@ -25,7 +25,7 @@ async function assignContactsToProjects(
 ): Promise<any[]> {
   // Fetch available contacts for the company
   const contacts = await trx('contacts')
-    .where({ company_id: companyId, is_deleted: false })
+    .where({ company_id: companyId, status: 'active' })
     .select('id', 'display_name');
 
   if (contacts.length === 0) {

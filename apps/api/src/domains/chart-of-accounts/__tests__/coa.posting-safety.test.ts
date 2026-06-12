@@ -138,9 +138,10 @@ describe('COA posting safety', () => {
       await expect(
         createLedgerRecord({
           data: {
-            date: new Date('2025-01-15'),
+            transaction_date: '2025-01-15',
             transaction_source: 'manual_journal',
             categorization_source: 'manual',
+            source_transaction_id: randomUUID(),
             source_transaction_currency_id: currencyId,
             transactions: [
               {

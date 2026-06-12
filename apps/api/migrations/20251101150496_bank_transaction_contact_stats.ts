@@ -22,9 +22,6 @@ export async function up(knex: Knex): Promise<void> {
     table
       .uuid('contact_id')
       .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL')
       .comment('NULL when contact is not matched/created yet');
 
     table
@@ -75,16 +72,19 @@ export async function up(knex: Knex): Promise<void> {
     table.bigInteger('rolling_90d_stddev_native').notNullable().defaultTo(0);
     table.bigInteger('rolling_90d_stddev_reporting').notNullable().defaultTo(0);
 
-    // Last transaction metadata (composite FK to bank_transactions)
+    // Last transaction metadata
     table
       .uuid('last_transaction_id')
       .nullable()
-      .comment('FK to bank_transactions (composite with date)');
+      .references('id')
+      .inTable('bank_transactions')
+      .onDelete('SET NULL')
+      .comment('FK to the last bank transaction included in these statistics');
 
     table
       .date('last_transaction_date')
       .nullable()
-      .comment('FK to bank_transactions (composite with id)');
+      .comment('Business-date snapshot for the last included transaction');
 
     table
       .integer('stats_replay_seq')
@@ -110,6 +110,15 @@ export async function up(knex: Knex): Promise<void> {
 
     addStandardColumns(knex, table);
 
+    table
+      .foreign(
+        ['contact_id', 'company_id'],
+        'bank_transaction_contact_stats_contact_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('contacts')
+      .onDelete('RESTRICT');
+
     // Composite unique constraint
     table.unique([
       'company_id',
@@ -120,15 +129,6 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
-
-  // Add composite foreign key to bank_transactions (id, date)
-  await knex.raw(`
-    ALTER TABLE ${tableName}
-    ADD CONSTRAINT fk_contact_stats_last_transaction
-    FOREIGN KEY (last_transaction_id, last_transaction_date)
-    REFERENCES bank_transactions(id, date)
-    ON DELETE SET NULL;
-  `);
 
   // Partial unique indexes to prevent collision of unknown contacts with NULL contact_ids
   await knex.raw(`
@@ -169,9 +169,6 @@ export async function down(knex: Knex): Promise<void> {
   await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_company;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_unknown;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_contact_stats_known;`);
-  await knex.raw(
-    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS fk_contact_stats_last_transaction;`,
-  );
   await dropUpdateTimestampTrigger(knex, tableName);
   await knex.schema.dropTableIfExists(tableName);
 }

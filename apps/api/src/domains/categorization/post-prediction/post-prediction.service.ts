@@ -16,6 +16,7 @@ import {
   enqueueDelayedAutopost,
   postCandidateToLedger,
 } from '../autopost/index.js';
+import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
@@ -679,10 +680,10 @@ async function processPredictionToCandidate({
         'ba.currency_id as bank_account_currency_id',
       ])
       .where({
-        id: bankTxnId,
-        date: bankTxnDate,
-        company_id: companyUUID,
-        is_deleted: false,
+        'bt.id': bankTxnId,
+        'bt.transaction_date': bankTxnDate,
+        'bt.company_id': companyUUID,
+        'bt.is_deleted': false,
       })
       .join('bank_accounts as ba', 'ba.id', 'bt.bank_account_id')
       .first();
@@ -774,9 +775,7 @@ async function processPredictionToCandidate({
 
     const contactIds = Array.from(
       new Set(
-        [p.contact_id, bankTxn.contact_id].filter((id): id is string =>
-          Boolean(id),
-        ),
+        [p.contact_id].filter((id): id is string => Boolean(id)),
       ),
     );
     const contacts = contactIds.length
@@ -800,20 +799,20 @@ async function processPredictionToCandidate({
       },
       'Building bank leg for candidate',
     );
-    const bankLegContactId = p.contact_id ?? bankTxn.contact_id ?? null;
+    const bankLegContactId = p.contact_id ?? null;
     const bankLeg: CandidateLineDraft = {
-      fs_date: p.ledger_date ?? bankTxn.date,
+      fs_date: p.ledger_date ?? bankTxn.transaction_date,
       transaction_side: bankTxn.amount > 0 ? 'debit' : 'credit',
       coa_id: bankAccountCoaId,
       coa_name: coaNameById.get(bankAccountCoaId) ?? null,
       contact_id: bankLegContactId,
-      contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
+      contact_type: p.contact_type ?? null,
       contact_name: bankLegContactId
         ? (contactNameById.get(bankLegContactId) ?? null)
         : null,
       source_currency_id: bankAccountCurrencyId,
       system_exchange_rate: bankTxn.system_exchange_rate,
-      custom_exchange_rate: bankTxn.custom_exchange_rate,
+      custom_exchange_rate: bankTxn.system_exchange_rate,
       signed_native_amount: bankTxn.amount,
       description: p.description ?? bankTxn.description,
       is_bank_leg: true,
@@ -829,7 +828,7 @@ async function processPredictionToCandidate({
       .map((l) => {
         const lineContactId = l.contact_id ?? null;
         return {
-          fs_date: p.ledger_date ?? bankTxn.date,
+          fs_date: p.ledger_date ?? bankTxn.transaction_date,
           status: 'proposed',
           transaction_side: l.signed_native_amount > 0 ? 'debit' : 'credit',
           coa_id: l.coa_id,
@@ -844,7 +843,7 @@ async function processPredictionToCandidate({
             : null,
           source_currency_id: bankAccountCurrencyId,
           system_exchange_rate: bankTxn.system_exchange_rate,
-          custom_exchange_rate: bankTxn.custom_exchange_rate,
+          custom_exchange_rate: bankTxn.system_exchange_rate,
           signed_native_amount: l.signed_native_amount,
           description: l.description ?? p.description ?? bankTxn.description,
           is_bank_leg: false,
@@ -885,7 +884,7 @@ async function processPredictionToCandidate({
       {
         companyUUID,
         entries: constraintEntries,
-        transaction_date: p.ledger_date ?? bankTxn.date,
+        transaction_date: p.ledger_date ?? bankTxn.transaction_date,
       },
       txn, // Pass the transaction to avoid deadlocks and ensure consistency
     );
@@ -952,10 +951,10 @@ async function processPredictionToCandidate({
       categorization_task_id: event.categorization_task_id,
       prediction_id: predictionId, // Persisted prediction must have ID
       bank_transaction_id: bankTxnId,
-      bank_transaction_date: bankTxn.date,
+      bank_transaction_date: bankTxn.transaction_date,
       company_id: companyUUID,
-      contact_id: p.contact_id ?? bankTxn.contact_id ?? null,
-      contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
+      contact_id: p.contact_id ?? null,
+      contact_type: p.contact_type ?? null,
       reference: p.reference ?? bankTxn.reference ?? null,
       description: p.description ?? bankTxn.description,
       confidence: p.confidence,
@@ -978,6 +977,20 @@ async function processPredictionToCandidate({
     if (!candidateId) {
       throw new Error('Failed to persist candidate');
     }
+
+    await updateBankTransactionContactResolution({
+      trx: txn,
+      companyId: companyUUID,
+      bankTransactionId: bankTxnId,
+      contactId: p.contact_id,
+      contactType: p.contact_type,
+      source: source === 'rule' ? 'rule' : 'system',
+      confidence: p.confidence,
+      reason:
+        source === 'rule'
+          ? 'Categorization rule selected contact'
+          : 'Categorization prediction selected contact',
+    });
 
     logger.debug(
       {

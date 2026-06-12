@@ -4,6 +4,7 @@ import { bootstrapAccountElements } from './phases/account-elements.bootstrap.js
 import { bootstrapAccountTypes } from './phases/account-types.bootstrap.js';
 import { bootstrapBankFeedProviders } from './phases/bank-feed-providers.bootstrap.js';
 import { bootstrapBanks } from './phases/banks.bootstrap.js';
+import { bootstrapBillingCatalog } from './phases/billing-catalog.bootstrap.js';
 import { bootstrapCanonicalWorkspaces } from './phases/canonical-workspaces.bootstrap.js';
 import { bootstrapCoaTemplates } from './phases/coa-templates.bootstrap.js';
 import { bootstrapCountries } from './phases/countries.bootstrap.js';
@@ -36,6 +37,7 @@ export const BOOTSTRAP_PHASES = [
   'countries',
   'banks',
   'bank-feed-providers',
+  'billing-catalog',
   'currencies',
   'financial-statements',
   'account-elements',
@@ -189,7 +191,7 @@ const BOOTSTRAP_PHASE_REGISTRY: Record<
     },
   },
   'bank-feed-providers': {
-    dependsOn: ['users'],
+    dependsOn: ['users', 'countries'],
     defaultEnabled: true,
     run: async (trx, context) => {
       const systemUser = requireContextValue<SystemUser>(
@@ -197,10 +199,21 @@ const BOOTSTRAP_PHASE_REGISTRY: Record<
         'systemUser',
         'bank-feed-providers',
       );
+      const countriesByCode = requireContextValue<
+        Record<string, BootstrappedCountry>
+      >(context, 'countriesByCode', 'bank-feed-providers');
 
       await bootstrapBankFeedProviders(trx, {
         systemUserId: systemUser.id,
+        countriesByCode,
       });
+    },
+  },
+  'billing-catalog': {
+    dependsOn: [],
+    defaultEnabled: true,
+    run: async (trx) => {
+      await bootstrapBillingCatalog(trx);
     },
   },
   currencies: {

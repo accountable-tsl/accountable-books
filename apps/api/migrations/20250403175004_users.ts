@@ -24,10 +24,10 @@ export async function up(knex: Knex): Promise<void> {
       .specificType('email', 'citext')
       .notNullable()
       .unique({ indexName: 'users_email_unique' });
-    table.text('password').nullable();
+    table.string('password', 512).nullable();
     table.string('phone_number', 32).nullable();
-    table.text('avatar_url').nullable();
-    table.text('avatar_key').nullable();
+    table.string('avatar_url', 2048).nullable();
+    table.string('avatar_key', 1024).nullable();
 
     table.timestamp('email_verified_at', { useTz: true }).nullable();
     table.jsonb('onboarding_state').nullable();

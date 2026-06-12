@@ -20,7 +20,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('key', 64).unique().notNullable();
     table.string('name', 100).notNullable();
     table.string('scope', 24).notNullable().checkIn(ROLE_SCOPE);
-    table.text('description').nullable();
+    table.string('description', 1024).nullable();
 
     table
       .timestamp('created_at', { useTz: true })

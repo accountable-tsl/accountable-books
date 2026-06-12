@@ -17,11 +17,7 @@ import {
 } from '@accountable-books/contracts/schema';
 import { z } from 'zod';
 
-import {
-  dbStandardFields,
-  debitCredit,
-  zDateYMD,
-} from '../../core/types/core.js';
+import { dbStandardFields, debitCredit } from '../../core/types/core.js';
 import { createCamelCaseSchemaWithExclusions } from '../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
@@ -46,7 +42,6 @@ const newJournalEntry = z.object({
   ...dbStandardFields.shape,
   journal_batch_id: z.uuid(),
   ledger_entry_id: z.uuid().nullish(),
-  ledger_entry_fs_date: zDateYMD.nullish(),
 });
 export type NewJournalEntry = z.infer<typeof newJournalEntry>;
 

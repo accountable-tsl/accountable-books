@@ -581,11 +581,11 @@ class BankBalanceService {
     const rows = await knex('bank_transactions as t')
       .select<
         BankTransactionRecord[]
-      >(['t.id', 't.date', 't.txn_at as txnAt', 't.amount', 't.absolute_amount as absoluteAmount', 't.payee', 't.reference', 't.description'])
+      >(['t.id', 't.transaction_date as date', 't.transaction_at as txnAt', 't.amount', 't.absolute_amount as absoluteAmount', 't.payee', 't.reference', 't.description'])
       .where('t.bank_account_id', bankAccountId)
       .andWhere('t.is_deleted', false)
-      .andWhereBetween('t.date', [startDate, endDate])
-      .orderBy(['t.date', 't.txn_at']);
+      .andWhereBetween('t.transaction_date', [startDate, endDate])
+      .orderBy(['t.transaction_date', 't.transaction_at']);
 
     return rows.map((r) => ({
       ...r,
@@ -977,8 +977,8 @@ class BankBalanceService {
     const result = await knex('bank_transactions')
       .where('bank_account_id', bankAccountId)
       .andWhere('is_deleted', false)
-      .andWhere('date', '>', fromDayExclusive)
-      .andWhere('date', '<=', toDayInclusive)
+      .andWhere('transaction_date', '>', fromDayExclusive)
+      .andWhere('transaction_date', '<=', toDayInclusive)
       .sum<{ net: string | number }>('amount as net')
       .first();
 

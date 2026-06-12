@@ -313,7 +313,7 @@ export function buildLedgerTxnFromCandidate({
   }));
 
   return {
-    date: c.bank_transaction_date,
+    transaction_date: c.bank_transaction_date,
     transaction_source: 'bank_transaction',
     categorization_source: c.source,
     description: c.description,
@@ -323,7 +323,7 @@ export function buildLedgerTxnFromCandidate({
     contact_type: c.contact_type,
 
     source_transaction_id: c.bank_transaction_id,
-    source_transaction_date: new Date(c.bank_transaction_date),
+    source_transaction_date: c.bank_transaction_date,
     source_transaction_amount: bankTransaction.transactionValue,
     source_transaction_currency_id: bankTransaction.bankAccountCurrencyId,
 

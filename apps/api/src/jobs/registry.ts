@@ -27,8 +27,6 @@ import {
   startTransactionSyncWorker,
 } from '../integrations/banking/index.js';
 import { transactionSyncQueue } from '../integrations/banking/jobs/transaction-sync.queue.js';
-import { partitionMaintenanceQueue } from './queues/partition-maintenance.queue.js';
-import { startPartitionMaintenanceWorker } from './workers/partition-maintenance.worker.js';
 
 export interface JobDefinition {
   name: string;
@@ -69,17 +67,6 @@ export const JOB_REGISTRY: JobDefinition[] = [
     config: {
       envVar: 'TRANSACTION_SYNC_CONCURRENCY',
       defaultValue: 3,
-    },
-  },
-  {
-    name: 'partitionMaintenance',
-    queue: partitionMaintenanceQueue,
-    factory: () => startPartitionMaintenanceWorker(),
-    label: 'Partition maintenance worker',
-    icon: '🗂️',
-    config: {
-      envVar: 'PARTITION_MAINTENANCE_CONCURRENCY',
-      defaultValue: 1,
     },
   },
   {

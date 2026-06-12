@@ -459,6 +459,7 @@ class GLBalanceService {
 
     const query = knex('ledger_entries as le')
       .join('coa', 'le.coa_id', 'coa.id')
+      .join('ledger_transactions as lt', 'le.ledger_transaction_id', 'lt.id')
       .select([
         'le.id',
         'le.ledger_transaction_id',
@@ -469,7 +470,7 @@ class GLBalanceService {
       ])
       .where('coa.company_id', companyUUID)
       .andWhere('le.coa_id', coaId)
-      .andWhere('le.is_deleted', false)
+      .andWhere('lt.status', 'posted')
       .andWhere('le.fs_date', '>=', fromDay);
 
     if (recalcTo) {

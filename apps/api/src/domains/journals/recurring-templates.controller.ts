@@ -123,10 +123,12 @@ export async function updateRecurringTemplateStatusController(
     }
 
     const companyId = String(req.params.companyId);
+    const userId = String(req.user.id);
     const templateId = String(req.params.templateId);
 
     const result = await updateRecurringTemplateStatus({
       companyId,
+      userId,
       templateId,
       input: req.body ?? {},
     });

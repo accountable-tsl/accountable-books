@@ -92,12 +92,12 @@ async function processEnrichmentJob(job: Job<EnrichmentJobData>) {
 
     // Fetch transaction dates for deterministic ordering
     const transactionRows = await knexClient('bank_transactions')
-      .select('id', 'date')
+      .select('id', 'transaction_date')
       .whereIn('id', bankTransactionIds);
 
     const dateLookup = new Map<string, string>();
     for (const row of transactionRows) {
-      dateLookup.set(row.id, row.date);
+      dateLookup.set(row.id, row.transaction_date);
     }
 
     const sortedTransactionIds = [...bankTransactionIds].sort((a, b) => {

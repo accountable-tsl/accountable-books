@@ -1,93 +1,5 @@
 import type { Knex } from 'knex';
 
-import { adminUser } from './20250403184441_users.js';
-import { countryMap } from './20250404021752_banks.js';
-import {
-  MONO_COUNTRIES,
-  PLAID_COUNTRIES,
-  SEED_BANK_FEED_PROVIDERS,
-  STRIPE_COUNTRIES,
-} from './data/feed_providers.js';
-
-function mapProviderToCountry(
-  providerKey: string,
-  countryCodes: string[],
-  adminUserId: string,
-): {
-  bank_feed_provider_id: string;
-  country_id: string;
-  created_by_id: string;
-  updated_by_id: string;
-}[] {
-  const provider = FEED_PROVIDERS_BY_KEY.get(providerKey);
-  if (!provider) throw new Error(`Provider ${providerKey} not found`);
-
-  return countryCodes.map((c) => {
-    const country = countryMap.get(c);
-    if (!country) throw new Error(`Country ${c} not found`);
-    return {
-      bank_feed_provider_id: provider.id,
-      country_id: country.id,
-      created_by_id: adminUserId,
-      updated_by_id: adminUserId,
-    };
-  });
-}
-
-interface FeedProvider {
-  id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  website: string | null;
-  logoUrl: string | null;
-  status: string;
-  priority: number;
-}
-export const FEED_PROVIDERS_BY_KEY = new Map<string, FeedProvider>();
-
-const getProvidersData = (adminUserId: string) =>
-  SEED_BANK_FEED_PROVIDERS.map((p) => {
-    FEED_PROVIDERS_BY_KEY.set(p.key, p);
-    return {
-      id: p.id,
-      key: p.key,
-      name: p.name,
-      description: p.description,
-      website: p.website,
-      logo_url: p.logoUrl,
-      status: p.status,
-      priority: p.priority,
-      created_by_id: adminUserId,
-      updated_by_id: adminUserId,
-    };
-  });
-
-const addBankFeedProviders = async (
-  knex: Knex,
-  data: ReturnType<typeof getProvidersData>,
-) => {
-  await knex('bank_feed_providers').insert(data).onConflict().ignore();
-};
-
-const seedBankFeedProviders = async function seed(knex: Knex): Promise<void> {
-  const adminUserId = adminUser.id;
-  if (!adminUserId) throw new Error('adminUserId is required');
-
-  await addBankFeedProviders(knex, getProvidersData(adminUserId));
-
-  const providerCountryMappings = [
-    ...mapProviderToCountry('mono', MONO_COUNTRIES, adminUserId),
-    ...mapProviderToCountry('plaid', PLAID_COUNTRIES, adminUserId),
-    ...mapProviderToCountry('stripe', STRIPE_COUNTRIES, adminUserId),
-  ];
-
-  const x = await knex('bank_feed_provider_countries')
-    .insert(providerCountryMappings)
-    .returning(['bank_feed_provider_id', 'country_id']);
-  console.log(`Created bank feed provider-country mappings: ${x.length}`);
-};
-
 const tableName = 'bank_feed_provider_countries';
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
@@ -120,8 +32,6 @@ export async function up(knex: Knex): Promise<void> {
 
     table.primary(['bank_feed_provider_id', 'country_id']);
   });
-
-  await seedBankFeedProviders(knex);
 }
 
 export async function down(knex: Knex): Promise<void> {

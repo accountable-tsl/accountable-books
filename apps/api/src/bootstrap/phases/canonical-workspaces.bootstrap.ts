@@ -2,6 +2,8 @@ import type { Knex } from 'knex';
 
 import { ENV, isProd } from '../../config/env.js';
 import { provisionCompanyWorkspace } from '../../domains/companies/company-provisioning.service.js';
+import { createUserDirect } from '../../domains/users/users.model.js';
+import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
 import { upsertDirectCompanyRole } from '../../domains/user-roles/user-roles.model.js';
 import { CANONICAL_WORKSPACES } from '../catalogs/workspaces/canonical-workspaces.js';
 
@@ -84,9 +86,12 @@ type ExistingRoleGrant = {
   role_key: string;
 };
 
-type AdminBootstrapReference = {
+type WorkspaceOwnerReference = {
   id?: string;
   email?: string;
+  firstname: string;
+  lastname: string | null;
+  password?: string;
 };
 
 class BootstrapCanonicalWorkspaceError extends Error {
@@ -96,33 +101,26 @@ class BootstrapCanonicalWorkspaceError extends Error {
   }
 }
 
-function getAdminBootstrapReference(): AdminBootstrapReference {
+function getWorkspaceOwnerReference(): WorkspaceOwnerReference {
   return {
     id: isProd ? ENV.ADMIN_ID : ENV.TEST_ADMIN_ID,
     email: (isProd ? ENV.ADMIN_EMAIL : ENV.TEST_ADMIN_EMAIL)
       ?.trim()
       .toLowerCase(),
+    firstname:
+      (isProd ? ENV.ADMIN_FIRSTNAME : ENV.TEST_ADMIN_FIRSTNAME)?.trim() ||
+      'Admin',
+    lastname:
+      (isProd ? ENV.ADMIN_LASTNAME : ENV.TEST_ADMIN_LASTNAME)?.trim() || null,
+    password: isProd ? ENV.ADMIN_PASSWORD : ENV.TEST_ADMIN_PASSWORD,
   };
 }
 
-async function resolveBootstrapAdmin(
+async function findWorkspaceOwner(
   trx: Knex.Transaction,
+  reference: WorkspaceOwnerReference,
 ): Promise<BootstrapUser> {
-  const reference = getAdminBootstrapReference();
-
-  if (isProd && (!reference.id || !reference.email)) {
-    throw new BootstrapCanonicalWorkspaceError(
-      'Canonical workspace bootstrap requires both ADMIN_ID and ADMIN_EMAIL in staging/production.',
-    );
-  }
-
-  if (!reference.id && !reference.email) {
-    throw new BootstrapCanonicalWorkspaceError(
-      'Canonical workspace bootstrap requires a configured platform admin user.',
-    );
-  }
-
-  const admin = await trx('users')
+  const owner = await trx('users')
     .select('id', 'email')
     .where((builder) => {
       let hasCondition = false;
@@ -142,25 +140,97 @@ async function resolveBootstrapAdmin(
     })
     .first<BootstrapUser>();
 
-  if (!admin?.id || !admin.email) {
+  if (!owner?.id || !owner.email) {
     throw new BootstrapCanonicalWorkspaceError(
-      'Canonical workspace bootstrap could not resolve the configured platform admin user.',
+      'Canonical workspace bootstrap could not resolve the configured workspace owner.',
     );
   }
 
-  if (reference.id && admin.id !== reference.id) {
+  if (reference.id && owner.id !== reference.id) {
     throw new BootstrapCanonicalWorkspaceError(
-      `Canonical workspace bootstrap admin mismatch: ADMIN_ID/TEST_ADMIN_ID expected "${reference.id}", but resolved user "${admin.id}".`,
+      `Canonical workspace bootstrap owner mismatch: ADMIN_ID/TEST_ADMIN_ID expected "${reference.id}", but resolved user "${owner.id}".`,
     );
   }
 
-  if (reference.email && admin.email.trim().toLowerCase() !== reference.email) {
+  if (reference.email && owner.email.trim().toLowerCase() !== reference.email) {
     throw new BootstrapCanonicalWorkspaceError(
-      `Canonical workspace bootstrap admin mismatch: ADMIN_EMAIL/TEST_ADMIN_EMAIL expected "${reference.email}", but resolved user "${admin.email}".`,
+      `Canonical workspace bootstrap owner mismatch: ADMIN_EMAIL/TEST_ADMIN_EMAIL expected "${reference.email}", but resolved user "${owner.email}".`,
     );
   }
 
-  return { id: admin.id, email: admin.email.trim().toLowerCase() };
+  return { id: owner.id, email: owner.email.trim().toLowerCase() };
+}
+
+async function createWorkspaceOwner(
+  trx: Knex.Transaction,
+  reference: Required<Pick<WorkspaceOwnerReference, 'email' | 'password'>> &
+    WorkspaceOwnerReference,
+): Promise<BootstrapUser> {
+  const response = await createUserDirect({
+    transaction: trx,
+    input: {
+      ...(reference.id ? { id: reference.id } : {}),
+      firstname: reference.firstname,
+      lastname: reference.lastname,
+      email: reference.email,
+      password: reference.password,
+      email_verified_at: new Date(),
+      onboarding_state: createInitialUserOnboardingState(),
+      user_type: 'regular',
+    },
+  });
+
+  if (!response.success || !response.data?.id) {
+    throw new BootstrapCanonicalWorkspaceError(
+      `Canonical workspace bootstrap could not create the configured workspace owner: ${response.message}`,
+    );
+  }
+
+  return {
+    id: response.data.id,
+    email: response.data.email.trim().toLowerCase(),
+  };
+}
+
+async function resolveWorkspaceOwner(
+  trx: Knex.Transaction,
+): Promise<BootstrapUser> {
+  const reference = getWorkspaceOwnerReference();
+
+  if (isProd && (!reference.id || !reference.email)) {
+    throw new BootstrapCanonicalWorkspaceError(
+      'Canonical workspace bootstrap requires ADMIN_ID and ADMIN_EMAIL in staging/production.',
+    );
+  }
+
+  if (!reference.id && !reference.email) {
+    throw new BootstrapCanonicalWorkspaceError(
+      'Canonical workspace bootstrap requires a configured workspace owner.',
+    );
+  }
+
+  try {
+    return await findWorkspaceOwner(trx, reference);
+  } catch (error) {
+    if (
+      !(error instanceof BootstrapCanonicalWorkspaceError) ||
+      !error.message.includes('could not resolve')
+    ) {
+      throw error;
+    }
+
+    if (!reference.email || !reference.password) {
+      throw new BootstrapCanonicalWorkspaceError(
+        'Canonical workspace bootstrap could not resolve the configured workspace owner, and cannot create one without ADMIN_EMAIL/TEST_ADMIN_EMAIL and ADMIN_PASSWORD/TEST_ADMIN_PASSWORD.',
+      );
+    }
+
+    return createWorkspaceOwner(trx, {
+      ...reference,
+      email: reference.email,
+      password: reference.password,
+    });
+  }
 }
 
 function requireSeedCountry(
@@ -585,7 +655,7 @@ export async function bootstrapCanonicalWorkspaces(
   >;
   adminUserId: string;
 }> {
-  const admin = await resolveBootstrapAdmin(trx);
+  const admin = await resolveWorkspaceOwner(trx);
   const bootstrapped: BootstrappedCanonicalWorkspace[] = [];
 
   for (const seed of CANONICAL_WORKSPACES) {

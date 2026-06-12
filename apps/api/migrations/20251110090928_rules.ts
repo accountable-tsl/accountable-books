@@ -14,7 +14,12 @@ export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(tableName, (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
     table.string('name', 200).notNullable();
-    table.string('scope').notNullable().checkIn(RULE_SCOPE);
+    table
+      .enu('scope', RULE_SCOPE, {
+        enumName: 'rule_scope',
+        useNative: true,
+      })
+      .notNullable();
     table.string('region_code', 32).nullable();
     table.string('country_code', 2).nullable().comment('ISO 3166-1 alpha-2');
     table.string('subregion_code', 32).nullable();

@@ -21,9 +21,10 @@ const MUTABLE_BANK_COLUMNS = [
   'deleted_at',
 ] as const;
 const BANK_DRIFT_SQL = MUTABLE_BANK_COLUMNS.map(
-  () => '?? IS DISTINCT FROM ??.??',
+  () => '??.?? IS DISTINCT FROM ??.??',
 ).join(' OR ');
 const BANK_DRIFT_BINDINGS = MUTABLE_BANK_COLUMNS.flatMap((column) => [
+  banksTable,
   column,
   'excluded',
   column,
@@ -64,7 +65,7 @@ function toCanonicalSeed(
     key: bank.key,
     display_name: bank.displayName,
     official_name: bank.officialName,
-    swift_code: bank.swiftCode,
+    swift_code: bank.swiftCode?.trim().toUpperCase() ?? null,
     local_code: bank.localCode,
     local_code_type: bank.localCodeType,
     alternate_identifier: bank.alternateIdentifier,
@@ -113,9 +114,25 @@ export async function bootstrapBanks(
     );
   }
 
-  await trx(banksTable)
-    .insert(canonical)
-    .onConflict('key')
-    .merge([...MUTABLE_BANK_COLUMNS])
-    .whereRaw(BANK_DRIFT_SQL, BANK_DRIFT_BINDINGS);
+  for (const bank of canonical) {
+    try {
+      await trx(banksTable)
+        .insert(bank)
+        .onConflict('key')
+        .merge([...MUTABLE_BANK_COLUMNS])
+        .whereRaw(BANK_DRIFT_SQL, BANK_DRIFT_BINDINGS);
+    } catch (error) {
+      const detail =
+        typeof error === 'object' &&
+        error !== null &&
+        'detail' in error &&
+        typeof error.detail === 'string'
+          ? ` ${error.detail}`
+          : '';
+      throw new Error(
+        `Bank bootstrap failed for ${bank.key} (${bank.id}).${detail}`,
+        { cause: error },
+      );
+    }
+  }
 }

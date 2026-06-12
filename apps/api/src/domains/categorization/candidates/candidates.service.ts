@@ -7,6 +7,7 @@ import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
+import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import { candidateInput, updateCandidateInput } from './candidates.types.js';
 
@@ -179,12 +180,12 @@ export async function persistCategorizationCandidate({
     }
 
     // If we get here, we need to persist the new candidate
-    const [candidateId] = await txn('categorization_candidates')
+    const [candidate] = await txn('categorization_candidates')
       .insert(c)
-      .returning('id');
+      .returning<{ id: string }[]>('id');
 
     await txn('categorization_candidate_lines').insert(
-      candidate_lines.map((l) => ({ ...l, candidate_id: candidateId })),
+      candidate_lines.map((l) => ({ ...l, candidate_id: candidate.id })),
     );
 
     await logTaskEventSafe({
@@ -194,7 +195,7 @@ export async function persistCategorizationCandidate({
       event_type: 'candidate_created',
       event_timestamp: new Date(),
       metadata: {
-        candidate_id: candidateId,
+        candidate_id: candidate.id,
         replaced_existing: existing ? true : false,
         previous_candidate_id: existing?.id ?? null,
         previous_source: existing?.source ?? null,
@@ -209,7 +210,7 @@ export async function persistCategorizationCandidate({
       trx: txn,
     });
 
-    return { candidateId };
+    return { candidateId: candidate.id };
   };
 
   if (trx) {
@@ -225,8 +226,9 @@ export async function persistCategorizationCandidate({
 // I think this will be called from the UI when the user makes updates to candidate but hasn't saved yet
 // But is that even reasonable? If they make update and we want to save automatically as ui suggests, shouldn't we just post to legder instead and update ledger if anything changes?
 export async function updateCategorizationCandidate(
-  p: UpdateCandidateInput & { trx?: Knex.Transaction },
+  p: UpdateCandidateInput & { userId: string; trx?: Knex.Transaction },
 ) {
+  const userId = z.uuid().parse(p.userId);
   const v = updateCandidateInput.safeParse(p);
   if (!v.success) {
     logger.error({
@@ -266,6 +268,27 @@ export async function updateCategorizationCandidate(
         ...(contactId ? { contact_id: contactId } : {}),
         ...(contactType ? { contact_type: contactType } : {}),
       });
+
+    if (contactId) {
+      const candidate = await txn('categorization_candidates')
+        .where({ id: candidate_id, is_deleted: false })
+        .select('company_id', 'bank_transaction_id')
+        .first();
+
+      if (candidate) {
+        await updateBankTransactionContactResolution({
+          trx: txn,
+          companyId: candidate.company_id,
+          bankTransactionId: candidate.bank_transaction_id,
+          contactId,
+          contactType,
+          source: 'user',
+          confidence: 1,
+          reason: 'User updated categorization candidate contact',
+          resolvedById: userId,
+        });
+      }
+    }
   };
 
   if (p.trx) {

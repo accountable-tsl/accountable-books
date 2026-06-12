@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 
+import { normalizeContactName } from '../../../../src/domains/contacts/contact-normalization.utils.js';
 import { deleteDemoData, getDemoUserMap } from '../../shared/utils.js';
 import {
   generateDemoContactsMap,
@@ -40,37 +41,48 @@ export const createDemoContacts = async (
     const company = item.company;
     const companyId = company.id;
 
-    // Check if contacts already exist for this company (simple idempotency like COA)
+    const userId = getUserId(item.user.email);
+    const desiredByNormalizedName = new Map(
+      item.contacts.map((contact) => [
+        normalizeContactName(contact.displayName),
+        contact,
+      ]),
+    );
+    const normalizedNames = [...desiredByNormalizedName.keys()];
     const existingContacts = await trx('contacts')
       .where({ company_id: companyId })
-      .first();
+      .whereIn('normalized_name', normalizedNames)
+      .select('normalized_name');
+    const existingNames = new Set(
+      existingContacts.map((contact) => contact.normalized_name),
+    );
 
-    if (existingContacts) {
-      console.log(
-        `Contacts already exist for company ${company.shortCode}, skipping`,
-      );
-      continue;
+    const toInsert = [...desiredByNormalizedName.entries()]
+      .filter(([normalizedName]) => !existingNames.has(normalizedName))
+      .map(([normalizedName, contact]) => ({
+        email: contact.email.toLowerCase(),
+        address: contact.address,
+        notes: contact.notes,
+        status: contact.status || 'active',
+        display_name: contact.displayName,
+        normalized_name: normalizedName,
+        created_via: 'demo',
+        review_status: 'confirmed',
+        reviewed_by_id: userId,
+        reviewed_at: trx.fn.now(),
+        company_id: companyId,
+        created_by_id: userId,
+        updated_by_id: userId,
+      }));
+
+    if (toInsert.length > 0) {
+      await trx('contacts').insert(toInsert);
     }
 
-    // Prepare contacts for insertion
-    const toInsert = item.contacts.map((contact) => ({
-      email: contact.email,
-      address: contact.address,
-      notes: contact.notes,
-      status: contact.status || 'active',
-      display_name: contact.displayName,
-      normalized_name: contact.displayName.trim().toLowerCase(),
-      company_id: companyId,
-      created_by_id: getUserId(item.user.email),
-      updated_by_id: getUserId(item.user.email),
-    }));
-
-    // Insert contacts with generic conflict handling
-    const insertedContacts = await trx('contacts')
-      .insert(toInsert)
-      .onConflict()
-      .ignore()
-      .returning([
+    const reconciledContacts = await trx('contacts')
+      .where({ company_id: companyId })
+      .whereIn('normalized_name', normalizedNames)
+      .select([
         'id',
         'email',
         'display_name',
@@ -79,23 +91,20 @@ export const createDemoContacts = async (
         'created_by_id',
       ]);
 
-    // Store in state map for potential later use
-    if (insertedContacts.length > 0) {
-      demoContactsByCompanyMap.set(
-        companyId,
-        insertedContacts.map((contact) => ({
-          id: contact.id,
-          email: contact.email,
-          displayName: contact.display_name,
-          status: contact.status,
-          companyId: contact.company_id,
-          userId: getUserId(item.user.email),
-        })),
-      );
-    }
+    demoContactsByCompanyMap.set(
+      companyId,
+      reconciledContacts.map((contact) => ({
+        id: contact.id,
+        email: contact.email,
+        displayName: contact.display_name,
+        status: contact.status,
+        companyId: contact.company_id,
+        userId,
+      })),
+    );
 
     console.log(
-      `Created ${insertedContacts.length} contacts for company ${company.shortCode}`,
+      `Created ${toInsert.length} contacts for company ${company.shortCode}`,
     );
   }
 };

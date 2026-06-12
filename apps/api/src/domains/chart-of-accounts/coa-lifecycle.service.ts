@@ -468,6 +468,7 @@ async function applyResolutions({
     await closeRecurringTemplatesForCoaResolution({
       trx,
       companyId,
+      userId,
       templateIds: recurringTemplateIds,
     });
   }
@@ -516,6 +517,7 @@ async function applyReplacementResolution({
     return replaceCoaInRecurringTemplates({
       trx,
       companyId,
+      userId,
       sourceCoaId: resolution.sourceCoaId,
       replacementCoaId: resolution.replacementCoaId!,
       templateIds: resolution.referenceIds,

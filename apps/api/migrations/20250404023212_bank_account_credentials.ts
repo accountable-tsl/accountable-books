@@ -112,6 +112,10 @@ export async function up(knex: Knex): Promise<void> {
       'bank_account_credentials_company_provider_status_idx',
     );
     table.unique(
+      ['id', 'company_id'],
+      'bank_account_credentials_id_company_uniq',
+    );
+    table.unique(
       ['id', 'company_id', 'provider_id'],
       'bank_account_credentials_id_company_provider_uniq',
     );

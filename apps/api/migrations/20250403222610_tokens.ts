@@ -29,7 +29,7 @@ export async function up(knex: Knex): Promise<void> {
       .string('token_type', 32)
       .notNullable()
       .checkIn([...TOKEN_TYPES], 'tokens_token_type_check');
-    table.text('token_hash').notNullable();
+    table.string('token_hash', 512).notNullable();
     table
       .uuid('user_id')
       .nullable()

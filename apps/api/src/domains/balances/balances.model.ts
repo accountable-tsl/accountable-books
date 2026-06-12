@@ -593,13 +593,16 @@ export async function getGLBalanceHistory({
       .select(
         'gbs.day',
         'gbs.closing_balance',
-        knex.raw('COUNT(le.id) as transaction_count'),
+        knex.raw('COUNT(CASE WHEN le_lt.id IS NOT NULL THEN le.id END) as transaction_count'),
       )
       .leftJoin('ledger_entries as le', function (this: any) {
         this.on('le.coa_id', '=', 'gbs.coa_id')
           .andOn('le.company_id', '=', 'gbs.company_id')
-          .andOn(knex.raw('DATE(le.fs_date) = gbs.day'))
-          .andOn('le.is_deleted', '=', knex.raw('false'));
+          .andOn(knex.raw('DATE(le.fs_date) = gbs.day'));
+      })
+      .leftJoin('ledger_transactions as le_lt', function (this: any) {
+        this.on('le_lt.id', '=', 'le.ledger_transaction_id')
+          .andOn('le_lt.status', '=', knex.raw("'posted'"));
       })
       .where({
         'gbs.company_id': companyUUID,
@@ -1098,6 +1101,7 @@ export async function recalculateGLBalance({
         | 'ledger_entry'
         | 'backfill'
         | 'soft_delete'
+        | 'supersession'
         | 'manual',
     });
 
@@ -1269,9 +1273,10 @@ export async function recalculateGLBalances({
         )
         .whereExists(
           knexClient('ledger_entries as le')
+            .join('ledger_transactions as lt', 'lt.id', 'le.ledger_transaction_id')
             .select(knexClient.raw('1'))
             .whereRaw('le.coa_id = coa.id')
-            .where('le.is_deleted', false),
+            .where('lt.status', 'posted'),
         );
     }
 
@@ -1312,6 +1317,7 @@ export async function recalculateGLBalances({
           | 'ledger_entry'
           | 'backfill'
           | 'soft_delete'
+          | 'supersession'
           | 'manual',
       });
       jobs.push({

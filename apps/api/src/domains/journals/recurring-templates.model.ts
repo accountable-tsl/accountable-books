@@ -115,8 +115,7 @@ function mapTemplateRow(row: any): RecurringTemplateDetail {
     startDateYMD,
     endDateYMD,
     nextRunDateYMD,
-    placeholderVars: row.placeholder_vars ?? null,
-    currencyId: row.currency_id ?? null,
+    currencyId: row.currency_id,
     currencyCode: row.currency_code ?? null,
     currencyName: row.currency_name ?? null,
     currencySymbol: row.currency_symbol ?? null,
@@ -142,30 +141,50 @@ function mapEntryRow(row: any): RecurringTemplateDetailEntry {
     coaCode: row.coa_code ?? null,
     coaName: row.coa_name ?? null,
     templateId: row.template_id,
+    lineNumber: row.line_number,
   };
 }
 
-function templateEntriesDetailQuery(trx: Knex.Transaction, templateId: string) {
+function templateEntriesDetailQuery({
+  trx,
+  templateId,
+  companyUUID,
+}: {
+  trx: Knex.Transaction;
+  templateId: string;
+  companyUUID: string;
+}) {
   return trx(`${ENTRIES_TABLE} as rjte`)
-    .leftJoin('coa as c', 'c.id', 'rjte.coa_id')
+    .leftJoin('coa as c', function () {
+      this.on('c.id', '=', 'rjte.coa_id').andOn(
+        'c.company_id',
+        '=',
+        'rjte.company_id',
+      );
+    })
     .where('rjte.template_id', templateId)
+    .where('rjte.company_id', companyUUID)
     .select('rjte.*', 'c.code as coa_code', 'c.name as coa_name')
-    .orderBy('rjte.id', 'asc');
+    .orderBy('rjte.line_number', 'asc');
 }
 
 function buildTemplateEntriesInsert({
+  companyId,
   templateId,
   entries,
 }: {
+  companyId: string;
   templateId: string;
   entries: RecurringTemplateInput['entries'];
 }) {
-  return entries.map((entry) => ({
+  return entries.map((entry, index) => ({
+    company_id: companyId,
     description: entry.description,
     amount: entry.amount,
     transaction_side: entry.side,
     coa_id: entry.coa_id,
     template_id: templateId,
+    line_number: index + 1,
   }));
 }
 
@@ -550,7 +569,11 @@ export async function getRecurringTemplate({
         });
       }
 
-      const entries = await templateEntriesDetailQuery(trx, templateId);
+      const entries = await templateEntriesDetailQuery({
+        trx,
+        templateId,
+        companyUUID: context.companyUUID,
+      });
 
       return successResponse('Recurring template retrieved successfully', {
         template: mapTemplateRow(template),
@@ -632,20 +655,24 @@ export async function createRecurringTemplate({
           start_date: startDate,
           end_date: endDate,
           next_run_date: null,
-          placeholder_vars: null,
           auto_reversal_days: data.auto_reversal_days ?? null,
           created_by_id: userId,
         })
         .returning('*');
 
       const entriesInsert = buildTemplateEntriesInsert({
+        companyId: context.companyUUID,
         templateId: template.id,
         entries: data.entries,
       });
 
       await trx(ENTRIES_TABLE).insert(entriesInsert);
 
-      const entries = await templateEntriesDetailQuery(trx, template.id);
+      const entries = await templateEntriesDetailQuery({
+        trx,
+        templateId: template.id,
+        companyUUID: context.companyUUID,
+      });
 
       return successResponse('Recurring template created successfully', {
         template: mapTemplateRow(template),
@@ -763,18 +790,27 @@ export async function updateRecurringTemplate({
           next_run_date: nextRunDate,
           auto_reversal_days: data.auto_reversal_days ?? null,
           status: nextStatus ?? existing.status,
+          updated_by_id: userId,
         })
         .returning('*');
 
-      await trx(ENTRIES_TABLE).where('template_id', templateId).del();
+      await trx(ENTRIES_TABLE)
+        .where('template_id', templateId)
+        .where('company_id', context.companyUUID)
+        .del();
       await trx(ENTRIES_TABLE).insert(
         buildTemplateEntriesInsert({
+          companyId: context.companyUUID,
           templateId,
           entries: data.entries,
         }),
       );
 
-      const entries = await templateEntriesDetailQuery(trx, templateId);
+      const entries = await templateEntriesDetailQuery({
+        trx,
+        templateId,
+        companyUUID: context.companyUUID,
+      });
 
       return successResponse('Recurring template updated successfully', {
         template: mapTemplateRow(updated),
@@ -790,10 +826,12 @@ export async function updateRecurringTemplate({
 
 export async function updateRecurringTemplateStatus({
   companyId,
+  userId,
   templateId,
   input,
 }: {
   companyId: string;
+  userId: string;
   templateId: string;
   input: RecurringTemplateStatusInput;
 }): Promise<ApiResponse<UpdateRecurringTemplateStatusResponse>> {
@@ -830,11 +868,13 @@ export async function updateRecurringTemplateStatus({
 
       const updateData: Record<string, any> = {
         status: nextStatus,
+        updated_by_id: userId,
       };
 
       if (nextStatus === 'active') {
         const entries = await trx(ENTRIES_TABLE)
           .where('template_id', template.id)
+          .where('company_id', context.companyUUID)
           .select('coa_id');
         await validateCoaIds({
           trx,
@@ -1024,8 +1064,9 @@ export async function runRecurringTemplateNow({
 
       const entries = await trx(ENTRIES_TABLE)
         .where('template_id', template.id)
+        .where('company_id', context.companyUUID)
         .select('*')
-        .orderBy('id', 'asc');
+        .orderBy('line_number', 'asc');
 
       let runDateYMD = template.next_run_date
         ? ymdFromDateInTz(template.next_run_date, template.template_timezone)
@@ -1076,6 +1117,7 @@ export async function runRecurringTemplateNow({
         last_run_at: new Date(),
         last_error: null,
         last_failed_at: null,
+        updated_by_id: userId,
       };
 
       if (endDateYMD && nextRunYMD > endDateYMD) {
@@ -1149,8 +1191,9 @@ export async function processDueRecurringTemplates({
 
       const entries = await trx(ENTRIES_TABLE)
         .where('template_id', template.id)
+        .where('company_id', template.company_id)
         .select('*')
-        .orderBy('id', 'asc');
+        .orderBy('line_number', 'asc');
 
       const runDateYMD = ymdFromDateInTz(
         template.next_run_date,
@@ -1164,7 +1207,11 @@ export async function processDueRecurringTemplates({
       if (endDateYMD && runDateYMD > endDateYMD) {
         await trx(TEMPLATES_TABLE)
           .where('id', template.id)
-          .update({ status: 'closed', next_run_date: null });
+          .update({
+            status: 'closed',
+            next_run_date: null,
+            updated_by_id: systemUser.id,
+          });
         return { done: false } as const;
       }
 
@@ -1191,6 +1238,7 @@ export async function processDueRecurringTemplates({
               last_failed_at: new Date(),
               last_error: message,
               failure_count: trx.raw('failure_count + 1'),
+              updated_by_id: systemUser.id,
             });
           return { done: false } as const;
         }
@@ -1205,6 +1253,7 @@ export async function processDueRecurringTemplates({
         last_run_at: new Date(),
         last_error: null,
         last_failed_at: null,
+        updated_by_id: systemUser.id,
       };
 
       if (endDateYMD && nextRunYMD > endDateYMD) {

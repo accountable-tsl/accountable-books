@@ -225,19 +225,23 @@ describe('COA lifecycle impacts', () => {
         status,
         company_id: companyId,
         auto_post: false,
+        currency_id: currencyId,
         template_timezone: 'Europe/London',
         frequency: 'monthly',
         start_date: new Date('2025-01-01'),
+        next_run_date: status === 'active' ? new Date('2025-02-01') : null,
         created_by_id: userId,
       })
       .returning<{ id: string }[]>('id');
 
     await trx('recurring_journal_template_entries').insert({
+      company_id: companyId,
+      template_id: template.id,
+      line_number: 1,
       description: 'Recurring line',
       amount: 100,
       transaction_side: 'debit',
       coa_id: coaId,
-      template_id: template.id,
     });
   }
 
@@ -277,7 +281,8 @@ describe('COA lifecycle impacts', () => {
   async function createDerivedReferences(coaId: string) {
     const bankTransaction = await trx('bank_transactions')
       .where({ company_id: companyId, is_deleted: false })
-      .first<{ id: string; date: string }>('id', 'date');
+      .select('id', 'transaction_date as date')
+      .first<{ id: string; date: string }>();
     if (!bankTransaction) throw new Error('Expected bank transaction fixture');
 
     const [legacyPrediction] = await trx('predictions')

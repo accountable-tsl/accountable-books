@@ -36,9 +36,12 @@ export async function up(knex: Knex): Promise<void> {
       .inTable('projects')
       .onDelete('SET NULL');
 
-    // Composite FK target is ledger_entries(id, fs_date)
-    table.uuid('ledger_entry_id').nullable();
-    table.date('ledger_entry_fs_date').nullable();
+    table
+      .uuid('ledger_entry_id')
+      .nullable()
+      .references('id')
+      .inTable('ledger_entries')
+      .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
     table.index(['journal_batch_id'], 'journal_entry_batch_idx');
@@ -49,22 +52,10 @@ export async function up(knex: Knex): Promise<void> {
       ADD CONSTRAINT journal_entries_positive_amount_chk CHECK (amount > 0);
   `);
 
-  // Ensure ledger link columns are set together (no half-links)
-  await knex.raw(`
-    ALTER TABLE ${tableName}
-      ADD CONSTRAINT journal_entries_ledger_link_all_or_nothing_chk
-      CHECK (
-        (ledger_entry_id IS NULL AND ledger_entry_fs_date IS NULL)
-        OR
-        (ledger_entry_id IS NOT NULL AND ledger_entry_fs_date IS NOT NULL)
-      );
-  `);
-
   await knex.raw(`
     CREATE UNIQUE INDEX journal_entries_ledger_link_uniq
-      ON ${tableName} (ledger_entry_id, ledger_entry_fs_date)
+      ON ${tableName} (ledger_entry_id)
       WHERE ledger_entry_id IS NOT NULL
-        AND ledger_entry_fs_date IS NOT NULL
         AND is_deleted = false;
   `);
 

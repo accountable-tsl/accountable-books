@@ -211,11 +211,7 @@ export const createDemoJournals = async (
       .where('company_id', companyId)
       .whereRaw("metadata ->> 'seed' = ?", [SEED_TAG])
       .first('id');
-    const existingTemplate = await trx('recurring_journal_templates')
-      .where('company_id', companyId)
-      .whereRaw("placeholder_vars ->> 'seed' = ?", [SEED_TAG])
-      .first('id');
-    if (existingSeed || existingTemplate) {
+    if (existingSeed) {
       console.log(
         `Seed journals/templates already exist for company ${shortCode}, skipping`,
       );
@@ -249,13 +245,11 @@ export const createDemoJournals = async (
 
     const contacts = (await trx('contacts')
       .where('company_id', companyId)
-      .where('is_deleted', false)
       .where('status', 'active')
       .select('id', 'display_name')) as ContactRow[];
 
     const projects = (await trx('projects')
       .where('company_id', companyId)
-      .where('is_deleted', false)
       .select('id', 'name')) as ProjectRow[];
 
     const coaRows = (await trx('coa as c')
@@ -482,7 +476,6 @@ export const createDemoJournals = async (
           start_date: ymdToUtcDate(startYMD, defaultTimezone),
           end_date: null,
           next_run_date: nextRunDate,
-          placeholder_vars: { seed: SEED_TAG, templateKey: template.key },
           auto_reversal_days: template.autoReversalDays ?? null,
           created_by_id: userId,
         })
@@ -494,22 +487,24 @@ export const createDemoJournals = async (
 
       await trx('recurring_journal_template_entries').insert([
         {
+          company_id: companyId,
+          template_id: templateRow.id,
+          line_number: 1,
           description:
             template.entryDescriptionDebit ?? `${template.description} expense`,
           amount: template.amount,
           transaction_side: 'debit',
-          placeholder_description_var: null,
           coa_id: debitAccount.id,
-          template_id: templateRow.id,
         },
         {
+          company_id: companyId,
+          template_id: templateRow.id,
+          line_number: 2,
           description:
             template.entryDescriptionCredit ?? `${template.description} offset`,
           amount: template.amount,
           transaction_side: 'credit',
-          placeholder_description_var: null,
           coa_id: creditAccount.id,
-          template_id: templateRow.id,
         },
       ]);
 
@@ -602,6 +597,7 @@ export const createDemoJournals = async (
           last_error: null,
           last_failed_at: null,
           next_run_date: ymdToUtcDate(nextAfterRun, defaultTimezone),
+          updated_by_id: userId,
         });
     }
 
@@ -615,6 +611,16 @@ export const deleteDemoJournals = async (
 ) => {
   const companyIds = await getFilteredCompanyIds(trx, filters);
   if (companyIds.length === 0) return;
+
+  const templateIds = Array.from(
+    new Set(
+      (await trx('journal_batches')
+        .whereIn('company_id', companyIds)
+        .whereRaw("metadata ->> 'seed' = ?", [SEED_TAG])
+        .whereNotNull('recurring_template_id')
+        .pluck('recurring_template_id')) as string[],
+    ),
+  );
 
   const seededJournalIds = (await trx('journal_batches')
     .whereIn('company_id', companyIds)
@@ -638,6 +644,10 @@ export const deleteDemoJournals = async (
       .pluck('ledger_transaction_id')) as string[];
 
     if (ledgerTransactionIds.length > 0) {
+      await trx('ledger_audit_logs')
+        .whereIn('ledger_transaction_id', ledgerTransactionIds)
+        .delete();
+
       await trx('ledger_entries')
         .whereIn('ledger_transaction_id', ledgerTransactionIds)
         .delete();
@@ -653,11 +663,6 @@ export const deleteDemoJournals = async (
 
     await trx('journal_batches').whereIn('id', allJournalIds).delete();
   }
-
-  const templateIds = (await trx('recurring_journal_templates')
-    .whereIn('company_id', companyIds)
-    .whereRaw("placeholder_vars ->> 'seed' = ?", [SEED_TAG])
-    .pluck('id')) as string[];
 
   if (templateIds.length > 0) {
     await trx('recurring_journal_template_entries')

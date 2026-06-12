@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import { dbBaseFields, debitCredit, zDateYMD } from '../../core/types/core.js';
+import { debitCredit, zDateYMD } from '../../core/types/core.js';
 import { txnCategorizationSource } from '../categorization/categorization.types.js';
 import { contactType } from '../contacts/index.js';
 
@@ -9,6 +9,9 @@ export const ledgerTransactionSource = z.enum([
   'manual_journal',
 ]);
 export type LedgerTransactionSource = z.infer<typeof ledgerTransactionSource>;
+
+export const ledgerTransactionStatus = z.enum(['posted', 'superseded']);
+export type LedgerTransactionStatus = z.infer<typeof ledgerTransactionStatus>;
 
 /**
  * // Note, we do not edit ledger transactions fields, except for contact_id and contact_type which sit there\
@@ -40,23 +43,9 @@ export type LedgerTransactionSource = z.infer<typeof ledgerTransactionSource>;
 
 // Ledger Transaction Types
 const baseLedgerTransaction = z.object({
-  date: z.union([z.date(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+  transaction_date: zDateYMD,
   transaction_source: ledgerTransactionSource,
   categorization_source: txnCategorizationSource,
-  /**
-   * is_trainable Flag
-   *
-   * A transaction is trainable (is_trainable = true) ONLY when ALL of the following criteria are met:
-   * 1. Non-bank line: The entry is NOT a bank leg (is_bank_leg = false)
-   * 2. Semantic role: The account type has label_role === 'semantic'
-   * 3. Account type is trainable: The account type has trainable === true
-   * 4. User reviewed: human_reviewed === true
-   * 5. Enough data gathered: Manual flag (will be backfilled) and a cut off date
-   *
-   * Current state: All transactions have is_trainable = false (default)
-   * Future: Will implement logic to check all criteria above
-   */
-  is_trainable: z.boolean().default(false).optional(),
   description: z.string().nullish(), // Description of the transaction typically as is from bank
   reference: z.string().nullish(),
   note: z.string().nullish(),
@@ -64,8 +53,8 @@ const baseLedgerTransaction = z.object({
   contact_id: z.uuid().nullish(), // Contact as resolved from bank transaction
   contact_type: contactType.nullish(), // Contact type as resolved from bank transaction
 
-  source_transaction_id: z.uuid().nullish(),
-  source_transaction_date: z.date().nullish(),
+  source_transaction_id: z.uuid(),
+  source_transaction_date: zDateYMD.nullish(),
   source_transaction_amount: z.number().nullish(),
   source_transaction_currency_id: z.uuid(),
 
@@ -77,6 +66,10 @@ const baseLedgerTransaction = z.object({
 export const newLedgerTransaction = z.object({
   ...baseLedgerTransaction.shape,
   company_id: z.uuid(),
+  status: ledgerTransactionStatus.default('posted').optional(),
+  superseded_by_ledger_transaction_id: z.uuid().nullish(),
+  superseded_at: z.date().nullish(),
+  superseded_by_id: z.uuid().nullish(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().nullish(),
 });
@@ -84,7 +77,10 @@ export type NewLedgerTransaction = z.infer<typeof newLedgerTransaction>;
 
 export const ledgerTransaction = z.object({
   ...newLedgerTransaction.shape,
-  ...dbBaseFields.shape,
+  id: z.uuid(),
+  status: ledgerTransactionStatus,
+  created_at: z.date(),
+  updated_at: z.date(),
 });
 export type LedgerTransaction = z.infer<typeof ledgerTransaction>;
 
@@ -94,16 +90,14 @@ const baseLedgerEntry = z.object({
   id: z.uuid().optional(),
   fs_date: zDateYMD,
   coa_id: z.uuid(),
-  coa_name: z.string().nullish(),
 
   source_currency_id: z.uuid(),
   source_amount: z.number(),
 
   custom_exchange_rate: z.number().optional(),
 
-  contact_id: z.uuid().nullish(), // Defaults to contact on ledger transaction but can be changed
-  contact_type: contactType.nullish(), // Same as contact_id
-  contact_name: z.string().nullish(),
+  contact_id: z.uuid().nullish(),
+  contact_type: contactType.nullish(),
 
   description: z.string().nullable(),
   reference: z.string().nullish(),
@@ -114,7 +108,6 @@ const baseLedgerEntry = z.object({
 
   ledger_transaction_id: z.uuid().optional(),
   project_id: z.uuid().nullish(),
-  project_name: z.string().nullish(),
 
   human_reviewed: z.boolean().default(false).optional(),
   review_notes: z.string().nullish(),
@@ -122,9 +115,17 @@ const baseLedgerEntry = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+// Names populated via JOINs on read — not stored on the table
+const ledgerEntryJoinedNames = z.object({
+  coa_name: z.string().nullish(),
+  contact_name: z.string().nullish(),
+  project_name: z.string().nullish(),
+});
+
 export const newLedgerEntry = z.object({
   ...baseLedgerEntry.shape,
 
+  company_id: z.uuid(),
   ledger_transaction_id: z.uuid(),
   system_exchange_rate: z.number(),
   custom_exchange_rate: z.number(),
@@ -133,9 +134,6 @@ export const newLedgerEntry = z.object({
 
   is_monetary: z.boolean(),
   is_bank_leg: z.boolean().default(false).optional(),
-
-  is_deleted: z.boolean().default(false).optional(),
-  deleted_at: z.date().nullish(),
 
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
@@ -158,13 +156,15 @@ const autoGeneratedLedgerEntryFields = z.object({
 export const ledgerEntry = z.object({
   ...newLedgerEntry.shape,
   ...autoGeneratedLedgerEntryFields.shape,
-  ...dbBaseFields.shape,
+  ...ledgerEntryJoinedNames.shape,
+  id: z.uuid(),
+  created_at: z.date(),
+  updated_at: z.date(),
 });
 export type LedgerEntry = z.infer<typeof ledgerEntry>;
 
 const ledgerTransactionInput = z.object({
   ...baseLedgerTransaction.shape,
-  // contact_name: z.string().nullish(),
 });
 
 const ledgerEntryInput = z.object({
@@ -193,6 +193,7 @@ export type LedgerTransactionMetadataUpdate = z.infer<
 // Metadata fields that can be updated in-place at entry level
 export const ledgerEntryMetadataUpdate = z.object({
   description: z.string().nullable(),
+  reference: z.string().nullish(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   human_reviewed: z.boolean().optional(),
   review_notes: z.string().optional(),
@@ -245,15 +246,13 @@ export type LedgerTransactionWithEntries = LedgerTransaction & {
 
 export type LedgerTransactionWithEntriesFiltered = Omit<
   LedgerTransaction,
-  'created_at' | 'updated_at' | 'is_deleted' | 'deleted_at'
+  'created_at' | 'updated_at'
 > & {
   entries: Array<
     Omit<
       LedgerEntry,
       | 'created_at'
       | 'updated_at'
-      | 'is_deleted'
-      | 'deleted_at'
       | 'absolute_source_amount'
       | 'amount'
       | 'absolute_amount'

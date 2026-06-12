@@ -27,11 +27,9 @@ export async function up(knex: Knex): Promise<void> {
       WHERE is_deleted = false;
   `);
 
-  // Note: bank_transactions doesn't have company_id directly,
-  // so we index on bank_account_id instead (company_id is on bank_accounts)
   await knex.raw(`
     CREATE INDEX IF NOT EXISTS idx_bt_account_date 
-      ON bank_transactions(bank_account_id, date DESC) 
+      ON bank_transactions(bank_account_id, transaction_date DESC)
       WHERE is_deleted = false;
   `);
 
@@ -49,8 +47,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     CREATE INDEX IF NOT EXISTS idx_le_ledger_txn_id 
-      ON ledger_entries(ledger_transaction_id, is_bank_leg) 
-      WHERE is_deleted = false;
+      ON ledger_entries(ledger_transaction_id, is_bank_leg);
   `);
 }
 

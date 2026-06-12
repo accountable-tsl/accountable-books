@@ -7,14 +7,14 @@ WITH uncategorized_txns AS (
   -- Bank transactions without candidates or ledger entries
   SELECT 
     bt.id,
-    bt.date,
-    bt.date as fs_date,
+    bt.transaction_date as date,
+    bt.transaction_date as fs_date,
     bt.amount as bank_amount,
     bt.description as description,
     bt.reference as reference,
-    bt.payee as contact_name,
-    bt.contact_id,
-    bt.contact_type_snapshot as contact_type,
+    COALESCE(resolved_contacts.display_name, bt.payee) as contact_name,
+    resolved_contacts.id as contact_id,
+    btr.contact_type as contact_type,
     bt.bank_account_id,
     ba.display_name as bank_account_display_name,
     b.id as bank_id,
@@ -61,7 +61,7 @@ WITH uncategorized_txns AS (
       WHERE fc.company_id = ba.company_id
         AND fc.period_type = 'monthly'
         AND fc.status IN ('closed', 'locked')
-        AND fc.period_span @> bt.date::date
+        AND fc.period_span @> bt.transaction_date
     ) as is_editable,
 
     NULL::text as review_notes,
@@ -88,6 +88,13 @@ WITH uncategorized_txns AS (
   LEFT JOIN coa ba_coa ON ba.coa_id = ba_coa.id
   JOIN companies c ON ba.company_id = c.id
   LEFT JOIN currencies rc ON c.reporting_currency_id = rc.id
+  LEFT JOIN bank_transaction_contact_resolutions btr
+    ON btr.bank_transaction_id = bt.id
+    AND btr.company_id = ba.company_id
+  LEFT JOIN contacts resolved_contacts
+    ON resolved_contacts.id = btr.contact_id
+    AND resolved_contacts.company_id = ba.company_id
+    AND resolved_contacts.status = 'active'
   LEFT JOIN file_attachments fa_bank ON fa_bank.source = 'bank'
     AND fa_bank.transaction_id = bt.id
     AND fa_bank.entry_id IS NULL
@@ -101,8 +108,9 @@ WITH uncategorized_txns AS (
       WHERE cc.bank_transaction_id = bt.id
         AND cc.is_deleted = false
     )
-  GROUP BY bt.id, bt.date, bt.amount, bt.description, bt.reference, bt.payee, bt.contact_id, 
-    bt.contact_type_snapshot, bt.bank_account_id, ba.display_name, b.id, b.display_name, 
+  GROUP BY bt.id, bt.transaction_date, bt.amount, bt.description, bt.reference, bt.payee,
+    resolved_contacts.id, resolved_contacts.display_name, btr.contact_type,
+    bt.bank_account_id, ba.display_name, b.id, b.display_name,
     ba.currency_id, cur.code, b.logo_url, ba.coa_id, ba_coa.name, ba_coa.code, 
     bt.system_exchange_rate, ba.company_id, rc.id, rc.code, rc.name, rc.symbol
 ),
@@ -111,7 +119,7 @@ candidate_txns AS (
   -- Shows candidate lines (non-bank legs only)
   SELECT 
     bt.id,
-    bt.date,
+    bt.transaction_date as date,
     ccl.fs_date,
     bt.amount as bank_amount,
     ccl.description as description,
@@ -195,7 +203,7 @@ posted_txns AS (
   -- Shows ledger entries (non-bank legs only)
   SELECT 
     bt.id,
-    bt.date,
+    bt.transaction_date as date,
     le.fs_date,
     bt.amount as bank_amount,
     le.description as description,
@@ -272,7 +280,11 @@ posted_txns AS (
   JOIN banks b ON ba.bank_id = b.id
   JOIN currencies cur ON ba.currency_id = cur.id
   LEFT JOIN coa ba_coa ON ba.coa_id = ba_coa.id
-  JOIN ledger_transactions lt ON lt.source_transaction_id = bt.id
+  JOIN ledger_transactions lt
+    ON lt.company_id = ba.company_id
+    AND lt.transaction_source = 'bank_transaction'
+    AND lt.source_transaction_id = bt.id
+    AND lt.status = 'posted'
   JOIN ledger_entries le ON le.ledger_transaction_id = lt.id
   JOIN companies c ON lt.company_id = c.id
   LEFT JOIN currencies rc ON c.reporting_currency_id = rc.id
@@ -293,10 +305,8 @@ posted_txns AS (
   LEFT JOIN files tf_txn ON tf_txn.id = fa_txn.file_id
     AND tf_txn.is_deleted = false
   WHERE bt.is_deleted = false
-    AND lt.is_deleted = false
-    AND le.is_deleted = false
     AND le.is_bank_leg = false  -- Exclude bank leg
-  GROUP BY bt.id, bt.date, bt.amount, bt.bank_account_id, ba.display_name, b.id, b.display_name, 
+  GROUP BY bt.id, bt.transaction_date, bt.amount, bt.bank_account_id, ba.display_name, b.id, b.display_name,
     ba.currency_id, cur.code, b.logo_url, ba.coa_id, ba_coa.name, ba_coa.code,
     le.fs_date, le.description, lt.reference, contacts.display_name, le.contact_id, 
     le.contact_type, le.coa_id, coa.name, coa.code, le.project_id, projects.name,
@@ -309,4 +319,3 @@ UNION ALL
 SELECT * FROM candidate_txns
 UNION ALL
 SELECT * FROM posted_txns;
-

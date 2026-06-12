@@ -8,7 +8,6 @@ import {
   lockKeyBankTxn,
   lockKeyCompany,
 } from '../../shared/services/advisoryLocks.service.js';
-import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import {
@@ -25,6 +24,7 @@ import {
 } from '../fx/index.js';
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
+import { getBankTransactionContactResolutions } from './bank-transaction-contact-resolution.service.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
@@ -35,6 +35,7 @@ import {
 } from './ledgers.utils.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
+import type { ContactType } from '../contacts/index.js';
 import type {
   NewLedgerEntry,
   NewLedgerTransaction,
@@ -137,16 +138,7 @@ export async function createLedgerRecordsBatch({
     }
     await acquireAdvisoryXactLocks(txn, advisoryKeys);
 
-    // STEP 3: PARTITION MANAGEMENT (ONCE FOR ALL)
-    // Collect all unique dates across all transactions
-    const allDates = new Set<Date>();
-    for (const tx of validatedTransactions) {
-      const { transactionDates } = processEntriesDates(tx.transactions);
-      transactionDates.forEach((d) => allDates.add(d));
-    }
-    await ensurePartitionsForDates('ledger_entries', Array.from(allDates), txn);
-
-    // STEP 4: COLLECT ALL CONTACT & PROJECT IDS (FOR BATCH VALIDATION)
+    // STEP 3: COLLECT ALL CONTACT & PROJECT IDS (FOR BATCH VALIDATION)
     // Instead of validating per transaction, we collect all IDs upfront
     // and validate them in one batch query - much more efficient
     const allContactIdsGlobal = new Set<string>();
@@ -167,9 +159,9 @@ export async function createLedgerRecordsBatch({
         const existing = await txn('ledger_transactions')
           .where({
             company_id: companyUUID,
+            transaction_source: 'bank_transaction',
             source_transaction_id: sourceTxId,
-            source_transaction_date: toYMD(sourceTxDate),
-            is_deleted: false,
+            status: 'posted',
           })
           .first('id');
 
@@ -216,48 +208,49 @@ export async function createLedgerRecordsBatch({
         system_exchange_rate: number;
         bank_coa_id: string;
         bank_currency_id: string;
-        contact_id?: string | null;
-        contact_type_snapshot?: string | null;
+        resolved_contact_id: string | null;
+        resolved_contact_type: ContactType | null;
       }
     >();
 
     if (bankTxnIds.length > 0) {
-      // Build WHERE clause for composite key matching
-      // We need to match on (bt.id, bt.date) pairs
+      const contactResolutionByBankTxnId =
+        await getBankTransactionContactResolutions({
+          companyId: companyUUID,
+          bankTransactionIds: bankTxnIds.map((bankTxn) => bankTxn.id),
+          trx: txn,
+        });
+
       const bankTxnResults = await txn('bank_transactions as bt')
         .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
         .where('ba.company_id', companyUUID)
         .where('bt.is_deleted', false)
-        .where((builder) => {
-          for (const btxn of bankTxnIds) {
-            builder.orWhere((subBuilder) => {
-              subBuilder.where('bt.id', btxn.id).andWhere('bt.date', btxn.date);
-            });
-          }
-        })
+        .whereIn(
+          'bt.id',
+          bankTxnIds.map((bankTxn) => bankTxn.id),
+        )
         .select(
           'bt.id',
-          'bt.date',
+          'bt.transaction_date as date',
           'bt.amount',
           'bt.system_exchange_rate',
-          'bt.contact_id',
-          'bt.contact_type_snapshot',
           'ba.coa_id as bank_coa_id',
           'ba.currency_id as bank_currency_id',
         );
 
       for (const row of bankTxnResults) {
         const key = `${row.id}|${row.date}`;
+        const contactResolution = contactResolutionByBankTxnId.get(row.id);
         bankTxnMap.set(key, {
           amount: Number(row.amount),
           system_exchange_rate: Number(row.system_exchange_rate),
           bank_coa_id: row.bank_coa_id,
           bank_currency_id: row.bank_currency_id,
-          contact_id: row.contact_id ?? null,
-          contact_type_snapshot: row.contact_type_snapshot ?? null,
+          resolved_contact_id: contactResolution?.contact_id ?? null,
+          resolved_contact_type: contactResolution?.contact_type ?? null,
         });
-        if (row.contact_id) {
-          allContactIdsGlobal.add(row.contact_id);
+        if (contactResolution?.contact_id) {
+          allContactIdsGlobal.add(contactResolution.contact_id);
         }
       }
     }
@@ -339,8 +332,8 @@ export async function createLedgerRecordsBatch({
         system_exchange_rate: number;
         bank_coa_id: string;
         bank_currency_id: string;
-        contact_id?: string | null;
-        contact_type_snapshot?: string | null;
+        resolved_contact_id: string | null;
+        resolved_contact_type: ContactType | null;
       } | null = null;
 
       if (isBankTransaction && requiredBankTxSourceFieldsExist) {
@@ -381,9 +374,9 @@ export async function createLedgerRecordsBatch({
         let id = ledgerTx.contact_id ?? null;
         let type = ledgerTx.contact_type ?? null;
 
-        if (!id && bankTxn?.contact_id) {
-          id = bankTxn.contact_id;
-          type = (bankTxn.contact_type_snapshot as typeof type) ?? null;
+        if (!id && bankTxn?.resolved_contact_id) {
+          id = bankTxn.resolved_contact_id;
+          type = bankTxn.resolved_contact_type;
         }
 
         return [id, type];
@@ -396,7 +389,7 @@ export async function createLedgerRecordsBatch({
         warnings: fxWarnings,
       } = await resolveFx({
         entries,
-        ledgerTxDate: new Date(ledgerTx.date),
+        ledgerTxDate: new Date(ledgerTx.transaction_date),
         sourceCurrencyId: sourceTxCurrencyId,
         reportingCurrencyId,
         bankTxnSystemRate: bankTxn?.system_exchange_rate,
@@ -424,7 +417,7 @@ export async function createLedgerRecordsBatch({
         {
           companyUUID,
           entries: constraintEntries,
-          transaction_date: toYMD(ledgerTx.date),
+          transaction_date: toYMD(ledgerTx.transaction_date),
         },
         txn, // Pass the transaction to avoid deadlocks and ensure consistency
       );
@@ -509,35 +502,16 @@ export async function createLedgerRecordsBatch({
           ? entry.contact_type
           : transactionContactType,
       }));
-      const coaIds = Array.from(
-        new Set(resolvedEntries.map((entry) => entry.coa_id)),
-      );
-      const coas = coaIds.length
-        ? await txn('coa')
-            .whereIn('id', coaIds)
-            .where('company_id', companyUUID)
-            .select('id', 'name')
-        : [];
-      const coaNameById = new Map(
-        coas.map((coa) => [String(coa.id), coa.name]),
-      );
-
       const entriesToInsert: NewLedgerEntry[] = resolvedEntries.map(
         (entry, index) => ({
           ...entry,
+          company_id: companyUUID,
           ledger_transaction_id: ledgerTransactionId,
           is_bank_leg: entry.is_bank_leg ?? false,
           system_exchange_rate: systemExRate,
           custom_exchange_rate: customExRate,
           is_monetary: monetaryMap.get(index) ?? false,
           fx_transaction_id: monetaryMap.get(index) ? fxTransactionId : null,
-          coa_name: coaNameById.get(entry.coa_id) ?? null,
-          project_name: entry.project_id
-            ? (projectNameByIdGlobal.get(entry.project_id) ?? null)
-            : null,
-          contact_name: entry.contact_id
-            ? (contactNameByIdGlobal.get(entry.contact_id) ?? null)
-            : null,
           updated_by_id: userId,
         }),
       );

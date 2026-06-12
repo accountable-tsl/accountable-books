@@ -138,7 +138,12 @@ async function processAutopostJob(job: Job<AutopostJobData>) {
     // Race condition check: Check if already posted
     const bankTransaction = await knexClient('bank_transactions')
       .where({ id: candidate.bank_transaction_id })
-      .first('ledger_transaction_id', 'amount', 'bank_account_id', 'date');
+      .first(
+        'ledger_transaction_id',
+        'amount',
+        'bank_account_id',
+        'transaction_date as date',
+      );
 
     if (!bankTransaction) {
       logger.warn(

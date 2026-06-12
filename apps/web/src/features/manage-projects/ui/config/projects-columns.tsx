@@ -69,8 +69,8 @@ export function getProjectColumns(): ColumnDef<Project>[] {
       id: 'endDate',
       accessorKey: 'endDate',
       accessorFn: (row) => {
-        return row.startDate
-          ? formatDate(new Date(row.startDate), 'dd MMM yyyy')
+        return row.endDate
+          ? formatDate(new Date(row.endDate), 'dd MMM yyyy')
           : '';
       },
       header: 'End Date',

@@ -485,7 +485,7 @@ export async function postJournalRecord({
 
     if (batch.status === 'posted') {
       const ledgerPayload: NewLedgerTransactionData = {
-        date: batch.date,
+        transaction_date: batch.date,
         transaction_source: 'manual_journal',
         categorization_source: 'manual',
         description: batch.title,
@@ -534,19 +534,17 @@ export async function postJournalRecord({
         updated_at: now,
       });
 
-      const valuesSql = entryMappings.map(() => '(?, ?, ?)').join(', ');
+      const valuesSql = entryMappings.map(() => '(?, ?)').join(', ');
       const valuesBindings = entryMappings.flatMap((m) => [
         m.journalEntryId,
         m.ledgerEntryId,
-        m.fsDate,
       ]);
 
       await txn.raw(
         `UPDATE journal_entries AS je
          SET ledger_entry_id = v.ledger_entry_id::uuid,
-             ledger_entry_fs_date = v.ledger_entry_fs_date::date,
              updated_at = ?
-         FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id, ledger_entry_fs_date)
+         FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id)
          WHERE je.id = v.journal_entry_id::uuid`,
         [now, ...valuesBindings],
       );
@@ -1185,9 +1183,8 @@ export async function postDraftJournal({
           coa_id: string;
           project_id: string | null;
           ledger_entry_id: string | null;
-          ledger_entry_fs_date: string | null;
         }[]
-      >('id', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id', 'ledger_entry_fs_date');
+      >('id', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id');
 
     if (journalEntries.length < 2) {
       throw new AppError(
@@ -1196,11 +1193,7 @@ export async function postDraftJournal({
       );
     }
 
-    if (
-      journalEntries.some(
-        (e) => e.ledger_entry_id != null || e.ledger_entry_fs_date != null,
-      )
-    ) {
+    if (journalEntries.some((e) => e.ledger_entry_id != null)) {
       throw new AppError(
         'Draft journal already has ledger links and cannot be posted',
         { traceId, journalBatchId },
@@ -1298,7 +1291,7 @@ export async function postDraftJournal({
     }));
 
     const ledgerPayload: NewLedgerTransactionData = {
-      date: journalBatch.date,
+      transaction_date: journalBatch.date,
       transaction_source: 'manual_journal',
       categorization_source: 'manual',
       description: journalBatch.title,
@@ -1352,19 +1345,17 @@ export async function postDraftJournal({
       updated_by_id: userId,
     });
 
-    const valuesSql = entryMappings.map(() => '(?, ?, ?)').join(', ');
+    const valuesSql = entryMappings.map(() => '(?, ?)').join(', ');
     const valuesBindings = entryMappings.flatMap((m) => [
       m.journalEntryId,
       m.ledgerEntryId,
-      m.fsDate,
     ]);
 
     await tx.raw(
       `UPDATE journal_entries AS je
        SET ledger_entry_id = v.ledger_entry_id::uuid,
-           ledger_entry_fs_date = v.ledger_entry_fs_date::date,
            updated_at = ?
-       FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id, ledger_entry_fs_date)
+       FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id)
        WHERE je.id = v.journal_entry_id::uuid`,
       [now, ...valuesBindings],
     );

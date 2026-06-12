@@ -4,10 +4,6 @@ import { scheduleNightlyAutoExtend } from '../domains/reporting/fiscal-calendar/
 import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.queue.js';
 import { scheduleDailySyncScan } from '../integrations/banking/jobs/transaction-sync.queue.js';
 import { getLogger } from '../shared/utils/logger.js';
-import {
-  scheduleDefaultPartitionDraining,
-  scheduleSmartPartitionMaintenance,
-} from './queues/partition-maintenance.queue.js';
 import { getJobSchedule } from './schedules.js';
 
 import type { JobSchedule, JobScheduleKey } from './schedules.js';
@@ -62,31 +58,6 @@ export const SCHEDULE_REGISTRY: ScheduleDefinition[] = [
     icon: '💳',
     run: async (schedule) => {
       await scheduleDailySyncScan(schedule.cron);
-    },
-  },
-  {
-    key: 'partitionMaintenance',
-    scheduleKey: 'partitionMaintenance',
-    label: 'Partition maintenance',
-    icon: '🗂️',
-    run: async (schedule) => {
-      await scheduleSmartPartitionMaintenance(
-        {
-          yearsAhead: 3,
-          monthlyThreshold: 100000,
-          drainDefaults: false,
-        },
-        schedule.cron,
-      );
-    },
-  },
-  {
-    key: 'partitionDrain',
-    scheduleKey: 'partitionDrain',
-    label: 'Partition drain defaults',
-    icon: '🧹',
-    run: async (schedule) => {
-      await scheduleDefaultPartitionDraining(schedule.cron);
     },
   },
   {

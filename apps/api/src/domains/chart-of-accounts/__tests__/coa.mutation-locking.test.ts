@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -114,10 +113,8 @@ describe('COA mutation locking', () => {
     const second = await createAccount('Ordered lock second');
     const requestedIds = [first.id, second.id].sort().reverse();
     const queries: Array<{ sql: string; bindings?: readonly unknown[] }> = [];
-    const listener = (query: {
-      sql: string;
-      bindings?: readonly unknown[];
-    }) => queries.push(query);
+    const listener = (query: { sql: string; bindings?: readonly unknown[] }) =>
+      queries.push(query);
     trx.on('query', listener);
 
     try {
@@ -176,9 +173,10 @@ describe('COA mutation locking', () => {
       companyId,
       userId,
       data: {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
         categorization_source: 'manual',
+        source_transaction_id: randomUUID(),
         source_transaction_currency_id: currencyId,
         transactions: [
           {

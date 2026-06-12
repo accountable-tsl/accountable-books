@@ -28,13 +28,13 @@ export async function checkUncategorizedTransactions(
   const hasLedgerEntry = trx('ledger_transactions')
     .whereRaw('ledger_transactions.source_transaction_id = bt.id')
     .where('ledger_transactions.transaction_source', 'bank_transaction')
-    .where('ledger_transactions.is_deleted', false)
+    .where('ledger_transactions.status', 'posted')
     .limit(1);
 
   const row = await trx('bank_transactions as bt')
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
     .where({ 'ba.company_id': companyId })
-    .whereBetween('bt.txn_at', [period.start_date, period.end_date])
+    .whereBetween('bt.transaction_date', [period.start_date, period.end_date])
     .where('bt.is_deleted', false)
     .whereNotExists(hasLedgerEntry)
     .count('* as count')

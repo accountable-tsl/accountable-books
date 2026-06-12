@@ -41,6 +41,23 @@ describe('condition-checks', () => {
     period_type: 'monthly',
   };
 
+  async function createIsolatedTransactionBatch(importRowCount: number) {
+    const [batch] = await trx('bank_transaction_batches')
+      .insert({
+        bank_account_id: isolatedBankAccountId,
+        company_id: isolatedCompanyId,
+        start_date: '2025-03-15',
+        end_date: '2025-03-16',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: importRowCount,
+        created_by_id: testUserId,
+      })
+      .returning<{ id: string }[]>('id');
+
+    return batch.id;
+  }
+
   beforeEach(async () => {
     const db = getTestDb();
     trx = await db.transaction();
@@ -184,24 +201,29 @@ describe('condition-checks', () => {
     it('returns count > 0 and isActive true when bank transactions have no ledger entry', async () => {
       const extId1 = `cc-${Date.now()}-1`;
       const extId2 = `cc-${Date.now()}-2`;
+      const batchId = await createIsolatedTransactionBatch(2);
       await trx('bank_transactions').insert([
         {
           bank_account_id: isolatedBankAccountId,
-          date: '2025-03-15',
-          txn_at: new Date('2025-03-15T12:00:00Z'),
+          company_id: isolatedCompanyId,
+          bank_transaction_batch_id: batchId,
+          transaction_date: '2025-03-15',
+          transaction_at: new Date('2025-03-15T12:00:00Z'),
           amount: -100,
           system_exchange_rate: 1,
           created_by_id: testUserId,
-          external_id: extId1,
+          idempotency_key: extId1,
         },
         {
           bank_account_id: isolatedBankAccountId,
-          date: '2025-03-16',
-          txn_at: new Date('2025-03-16T12:00:00Z'),
+          company_id: isolatedCompanyId,
+          bank_transaction_batch_id: batchId,
+          transaction_date: '2025-03-16',
+          transaction_at: new Date('2025-03-16T12:00:00Z'),
           amount: -200,
           system_exchange_rate: 1,
           created_by_id: testUserId,
-          external_id: extId2,
+          idempotency_key: extId2,
         },
       ]);
 
@@ -217,21 +239,24 @@ describe('condition-checks', () => {
 
     it('excludes bank transactions that have a matching ledger_transaction', async () => {
       const extId = `cc-${Date.now()}-ledger`;
+      const batchId = await createIsolatedTransactionBatch(1);
       const [bt] = await trx('bank_transactions')
         .insert({
           bank_account_id: isolatedBankAccountId,
-          date: '2025-03-15',
-          txn_at: new Date('2025-03-15T12:00:00Z'),
+          company_id: isolatedCompanyId,
+          bank_transaction_batch_id: batchId,
+          transaction_date: '2025-03-15',
+          transaction_at: new Date('2025-03-15T12:00:00Z'),
           amount: -100,
           system_exchange_rate: 1,
           created_by_id: testUserId,
-          external_id: extId,
+          idempotency_key: extId,
         })
         .returning('*');
 
       await trx('ledger_transactions').insert({
         company_id: isolatedCompanyId,
-        date: new Date('2025-03-15'),
+        transaction_date: '2025-03-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'manual',
         source_transaction_id: bt.id,
@@ -239,7 +264,6 @@ describe('condition-checks', () => {
         source_transaction_amount: -100,
         source_transaction_currency_id: testCurrencyId,
         created_by_id: testUserId,
-        is_deleted: false,
       });
 
       const result = await checkUncategorizedTransactions(
@@ -439,7 +463,11 @@ describe('condition-checks', () => {
         .first();
       if (!provider) {
         [provider] = await trx('bank_feed_providers')
-          .insert({ key: 'plaid', display_name: 'Plaid', created_by_id: testUserId })
+          .insert({
+            key: 'plaid',
+            display_name: 'Plaid',
+            created_by_id: testUserId,
+          })
           .returning('*');
       }
       const [credential] = await trx('bank_account_credentials')

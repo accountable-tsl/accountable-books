@@ -140,7 +140,8 @@ export async function up(knex: Knex): Promise<void> {
           swift_code IS NULL
           OR (
             swift_code = upper(btrim(swift_code))
-            AND swift_code ~ '^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$'
+            AND char_length(swift_code) IN (8, 11)
+            AND swift_code ~ '^[A-Z]{4}[A-Z]{2}[A-Z0-9]+$'
           )
         ),
       ADD CONSTRAINT banks_local_code_trimmed_chk

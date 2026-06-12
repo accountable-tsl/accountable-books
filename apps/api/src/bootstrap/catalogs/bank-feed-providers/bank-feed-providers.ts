@@ -25,6 +25,7 @@ const bankFeedProviderCatalogEntry = z.object({
   website: optionalUrl(2048),
   logoUrl: optionalUrl(2048),
   status: z.enum(BANK_FEED_PROVIDER_STATUSES),
+  countryCodes: z.array(z.string().trim().toUpperCase().length(2)).min(1),
 });
 
 export type BankFeedProviderStatus =
@@ -43,6 +44,7 @@ const catalog = [
     website: 'https://mono.co',
     logoUrl: 'https://i.postimg.cc/bNMg2Bhh/mono.png',
     status: 'active',
+    countryCodes: ['NG', 'GH', 'KE', 'ZA'],
   },
   {
     id: 'e5b2a79f-9d28-4afb-897c-b837b332d7a1',
@@ -52,6 +54,7 @@ const catalog = [
     website: 'https://plaid.com',
     logoUrl: 'https://i.postimg.cc/RFsVZfng/plaid.png',
     status: 'active',
+    countryCodes: ['US', 'CA'],
   },
 ] satisfies BankFeedProviderCatalogEntry[];
 
@@ -81,6 +84,7 @@ function normalizeCatalog(
     website: row.website?.trim() ?? null,
     logoUrl: row.logoUrl?.trim() ?? null,
     status: row.status,
+    countryCodes: row.countryCodes.map((code) => code.trim().toUpperCase()),
   }));
 }
 

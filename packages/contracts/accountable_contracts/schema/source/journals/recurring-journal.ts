@@ -29,6 +29,7 @@ export type RecurringTemplateDetailEntry = {
   coaCode?: string | null;
   coaName?: string | null;
   templateId: string;
+  lineNumber: number;
 };
 
 export type RecurringTemplateDetail = {
@@ -44,8 +45,7 @@ export type RecurringTemplateDetail = {
   startDateYMD: string | null;
   endDateYMD: string | null;
   nextRunDateYMD: string | null;
-  placeholderVars: unknown | null;
-  currencyId: string | null;
+  currencyId: string;
   currencyCode?: string | null;
   currencyName?: string | null;
   currencySymbol?: string | null;

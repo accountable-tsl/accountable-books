@@ -95,6 +95,7 @@ describe('getJournalsByCursor', () => {
         status: 'draft',
         company_id: testCompanyId,
         auto_post: false,
+        currency_id: usdCurrencyId,
         template_timezone: 'America/New_York',
         frequency: 'monthly',
         start_date: new Date(`${startDate}T00:00:00Z`),

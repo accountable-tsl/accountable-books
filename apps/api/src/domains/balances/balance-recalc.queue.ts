@@ -26,7 +26,13 @@ export const glBalanceJobDataSchema = z
     coaId: z.string().trim().min(1),
     recalcFrom: YMD,
     recalcTo: YMD.optional(),
-    triggeredBy: z.enum(['ledger_entry', 'backfill', 'soft_delete', 'manual']),
+    triggeredBy: z.enum([
+      'ledger_entry',
+      'backfill',
+      'soft_delete',
+      'supersession',
+      'manual',
+    ]),
     userId: z.string().optional(),
   })
   .superRefine((val, ctx) => {
@@ -125,6 +131,7 @@ function priorityForGL(trigger: GLBalanceJobData['triggeredBy']): number {
     case 'manual':
       return 10;
     case 'soft_delete':
+    case 'supersession':
       return 7;
     case 'ledger_entry':
       return 5;

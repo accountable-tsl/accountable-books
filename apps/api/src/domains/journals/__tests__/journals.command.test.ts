@@ -101,11 +101,10 @@ describe('postJournalRecord - Integration Tests', () => {
 
     const journalRows = await trx('journal_entries')
       .where('journal_batch_id', result.data!.journalBatchId)
-      .select('ledger_entry_id', 'ledger_entry_fs_date');
+      .select('ledger_entry_id');
 
     expect(journalRows.length).toBe(2);
     expect(journalRows.every((r) => r.ledger_entry_id)).toBe(true);
-    expect(journalRows.every((r) => r.ledger_entry_fs_date)).toBe(true);
   });
 
   it('creates a draft journal without sequence fields', async () => {
@@ -732,11 +731,10 @@ describe('postJournalRecord - Integration Tests', () => {
       const entries = await trx('journal_entries')
         .where('journal_batch_id', draft.data!.journalBatchId)
         .where('is_deleted', false)
-        .select('ledger_entry_id', 'ledger_entry_fs_date');
+        .select('ledger_entry_id');
 
       expect(entries.length).toBe(2);
       expect(entries.every((e) => e.ledger_entry_id)).toBe(true);
-      expect(entries.every((e) => e.ledger_entry_fs_date)).toBe(true);
     });
   });
 

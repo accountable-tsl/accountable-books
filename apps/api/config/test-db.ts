@@ -5,6 +5,7 @@ import knex from 'knex';
 
 import knexConfig from '../knexfile.js';
 import { runBootstrap } from '../src/bootstrap/index.js';
+import { ENV } from './env-loader.js';
 
 let testKnex: Knex | null = null;
 
@@ -22,7 +23,7 @@ export function getTestDb(): Knex {
  * This function handles migrations and bootstrap only.
  */
 export async function setupTestDatabase(): Promise<void> {
-  const testDbName = `${process.env.POSTGRES_DB || 'accountable_books'}_test`;
+  const testDbName = `${ENV.POSTGRES_DB || 'accountable_books'}_test`;
   const testDb = getTestDb();
 
   try {

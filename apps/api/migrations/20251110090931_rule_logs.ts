@@ -56,8 +56,8 @@ export async function up(knex: Knex): Promise<void> {
     table.integer('duration_ms').nullable();
 
     table
-      .foreign(['transaction_id', 'transaction_date'])
-      .references(['id', 'date'])
+      .foreign('transaction_id')
+      .references('id')
       .inTable('bank_transactions')
       .onDelete('RESTRICT');
   });

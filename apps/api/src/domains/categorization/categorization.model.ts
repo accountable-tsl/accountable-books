@@ -273,17 +273,21 @@ export async function getCategorizationTransactions(
           .orWhere((sub) => {
             sub
               .where('categorization_status', 'posted')
-              .whereExists(function () {
-                this.select(txn.raw('1'))
-                  .from('ledger_entries as le')
-                  .whereRaw(
-                    'le.id = categorization_engine_view.ledger_entry_id',
-                  )
-                  .whereRaw(
-                    '(CASE WHEN le.is_deleted = false THEN le.search_text END) LIKE ?',
-                    [likePattern],
-                  );
-              });
+              .whereRaw(
+                `lower(concat_ws(' ',
+                  description,
+                  reference,
+                  contact_name,
+                  coa_name,
+                  coa_code,
+                  project_name,
+                  bank_account_display_name,
+                  bank_display_name,
+                  bank_account_coa_name,
+                  bank_account_coa_code
+                )) LIKE ?`,
+                [likePattern],
+              );
           });
       });
     }
@@ -653,27 +657,6 @@ export async function processCategorizationIntent({
       const intentEntries = intent.desired_state?.entries ?? [];
 
       if (currentState === 'bank_transaction') {
-        // const bankLeg: LedgerEntryInput[] = [
-        //   {
-        //     // id - not needed
-        //     is_bank_leg: true,
-        //     fs_date: toYMD(bankTransaction.date),
-        //     coa_id: bankTransaction.bank_account_coa_id,
-
-        //     source_currency_id: bankTransaction.bank_account_currency_id,
-        //     source_amount: bankTransaction.amount,
-
-        //     custom_exchange_rate:
-        //       intent.desired_state?.custom_exchange_rate ??
-        //       bankTransaction.system_exchange_rate,
-
-        //     contact_id: bankTransaction.contact_id,
-        //     contact_type: bankTransaction.contact_type_snapshot,
-
-        //     description: bankTransaction.description ?? null,
-        //   },
-        // ];
-
         const bankLeg = buildBankLeg(bankTransaction, intent);
         const ledgerTxn = buildLedgerTransactionMetadata(
           bankTransaction,
@@ -681,27 +664,6 @@ export async function processCategorizationIntent({
           'manual',
         );
 
-        // const ledgerTxn: Omit<NewLedgerTransactionData, 'transactions'> = {
-        //   date: bankTransaction.date,
-        //   transaction_source: 'bank_transaction',
-        //   categorization_source: 'manual',
-
-        //   description: bankTransaction.description ?? null,
-        //   reference: bankTransaction.reference ?? null,
-
-        //   note: bankTransaction.additional_notes ?? null,
-
-        //   contact_id: bankTransaction.contact_id,
-        //   contact_type: bankTransaction.contact_type_snapshot,
-
-        //   source_transaction_id: bankTransaction.id,
-        //   source_transaction_date: toDate(bankTransaction.date, 'start'),
-        //   source_transaction_amount: bankTransaction.amount,
-        //   source_transaction_currency_id:
-        //     bankTransaction.bank_account_currency_id,
-
-        //   // metadata: bankTransaction.raw_data,
-        // };
         // Skip if no intent entries (can't post without COA assignments)
         if (!intentEntries.length) {
           logger.warn({
@@ -722,46 +684,6 @@ export async function processCategorizationIntent({
           if (!e.coa_id) {
             continue;
           }
-
-          // nonBankLegs.push({
-          //   // id - no need for id, new ledger transaction will be created
-          //   is_bank_leg: false,
-          //   coa_id: e.coa_id,
-
-          //   fs_date: e.fs_date || toYMD(bankTransaction.date),
-
-          //   source_currency_id: bankTransaction.bank_account_currency_id,
-          //   source_amount:
-          //     e.source_amount ??
-          //     (intentEntries.length === 1 ? bankTransaction.amount : 0), // updateOrCreate will handle verification of sum
-
-          //   custom_exchange_rate:
-          //     intent.desired_state?.custom_exchange_rate ??
-          //     bankTransaction.system_exchange_rate,
-
-          //   // If contact_id and contact id is null, then mark as null, if contact_id was not provided then use whatever we have from the bank transaction
-          //   contact_id:
-          //     e.contact_id === null
-          //       ? null
-          //       : (e.contact_id ?? bankTransaction.contact_id),
-
-          //   contact_type:
-          //     e.contact_type === null
-          //       ? null
-          //       : (e.contact_type ?? bankTransaction.contact_type_snapshot),
-
-          //   description:
-          //     e.description === null
-          //       ? null
-          //       : (bankTransaction.description ?? null),
-
-          //   project_id: e.project_id === null ? null : e.project_id,
-
-          //   human_reviewed: true,
-          //   review_notes: e.review_notes,
-
-          //   ...(e.metadata ? { metadata: e.metadata } : {}),
-          // });
 
           nonBankLegs.push(
             buildNonBankLegFromBankTransaction(
@@ -829,53 +751,6 @@ export async function processCategorizationIntent({
           const candidateLine =
             candidateNonBankLegs.length === 1 ? candidateNonBankLegs[0] : null;
 
-          // mergedNonBankLegs.push({
-          //   is_bank_leg: false,
-          //   coa_id: intentEntry.coa_id ?? candidateLine?.coa_id,
-          //   fs_date:
-          //     intentEntry.fs_date ??
-          //     candidateLine?.fs_date ??
-          //     toYMD(bankTransaction.date),
-          //   source_currency_id: bankTransaction.bank_account_currency_id,
-          //   source_amount: bankTransaction.amount,
-          //   custom_exchange_rate:
-          //     intent.desired_state?.custom_exchange_rate ??
-          //     candidateBankLeg.custom_exchange_rate ??
-          //     bankTransaction.system_exchange_rate,
-          //   contact_id:
-          //     intentEntry.contact_id === null
-          //       ? null
-          //       : (intentEntry.contact_id ??
-          //         candidateLine?.contact_id ??
-          //         bankTransaction.contact_id ??
-          //         null),
-          //   contact_type:
-          //     intentEntry.contact_type === null
-          //       ? null
-          //       : (intentEntry.contact_type ??
-          //         candidateLine?.contact_type ??
-          //         bankTransaction.contact_type_snapshot ??
-          //         null),
-          //   description:
-          //     intentEntry.description === null
-          //       ? null
-          //       : (intentEntry.description ??
-          //         candidateLine?.description ??
-          //         bankTransaction.description ??
-          //         null),
-
-          //   project_id:
-          //     intentEntry.project_id === null
-          //       ? null
-          //       : (intentEntry.project_id ?? candidateLine?.project_id ?? null),
-          //   human_reviewed: intentEntry.human_reviewed ?? true,
-          //   review_notes:
-          //     intentEntry.review_notes === null
-          //       ? null
-          //       : (intentEntry.review_notes ?? null),
-          //   ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
-          // });
-
           mergedNonBankLegs.push(
             buildNonBankLegFromCandidateSingle(
               intentEntry,
@@ -888,52 +763,6 @@ export async function processCategorizationIntent({
         } else {
           // MULTIPLE ENTRIES: Split/replace
           for (const intentEntry of intentEntries) {
-            // mergedNonBankLegs.push({
-            //   is_bank_leg: false,
-            //   coa_id: intentEntry.coa_id, // Required in intent
-            //   fs_date:
-            //     intentEntry.fs_date ??
-            //     candidateBankLeg.fs_date ??
-            //     toYMD(bankTransaction.date),
-            //   source_currency_id: bankTransaction.bank_account_currency_id,
-            //   source_amount: intentEntry.source_amount ?? 0,
-            //   custom_exchange_rate:
-            //     intent.desired_state?.custom_exchange_rate ??
-            //     candidateBankLeg.custom_exchange_rate ??
-            //     bankTransaction.system_exchange_rate,
-            //   contact_id:
-            //     intentEntry.contact_id === null
-            //       ? null
-            //       : (intentEntry.contact_id ??
-            //         candidateBankLeg.contact_id ??
-            //         bankTransaction.contact_id ??
-            //         null),
-            //   contact_type:
-            //     intentEntry.contact_type === null
-            //       ? null
-            //       : (intentEntry.contact_type ??
-            //         candidateBankLeg.contact_type ??
-            //         bankTransaction.contact_type_snapshot ??
-            //         null),
-            //   description:
-            //     intentEntry.description === null
-            //       ? null
-            //       : (intentEntry.description ??
-            //         candidateBankLeg.description ??
-            //         bankTransaction.description ??
-            //         null),
-            //   project_id: intentEntry.project_id ?? null,
-            //   human_reviewed: intentEntry.human_reviewed ?? true,
-
-            //   review_notes:
-            //     intentEntry.review_notes === null
-            //       ? null
-            //       : (intentEntry.review_notes ?? null),
-            //   ...(intentEntry.metadata
-            //     ? { metadata: intentEntry.metadata }
-            //     : {}),
-            // });
-
             mergedNonBankLegs.push(
               buildNonBankLegFromCandidateSplit(
                 intentEntry,
@@ -944,39 +773,6 @@ export async function processCategorizationIntent({
             );
           }
         }
-
-        // // Build bank leg from candidate
-        // const bankLeg: LedgerEntryInput = {
-        //   is_bank_leg: true,
-        //   fs_date: toYMD(bankTransaction.date),
-        //   coa_id: bankTransaction.bank_account_coa_id,
-        //   source_currency_id: bankTransaction.bank_account_currency_id,
-        //   source_amount: bankTransaction.amount,
-        //   custom_exchange_rate:
-        //     intent.desired_state?.custom_exchange_rate ??
-        //     candidateBankLeg.custom_exchange_rate ??
-        //     bankTransaction.system_exchange_rate,
-        //   contact_id: bankTransaction.contact_id ?? null,
-        //   contact_type: bankTransaction.contact_type_snapshot ?? null,
-        //   description: bankTransaction.description ?? null,
-        // };
-
-        // // Build ledger transaction data
-        // const ledgerTxn: Omit<NewLedgerTransactionData, 'transactions'> = {
-        //   date: toDate(bankTransaction.date, 'start'),
-        //   transaction_source: 'bank_transaction',
-        //   categorization_source: candidate.source,
-        //   description: candidate.description ?? null,
-        //   reference: candidate.reference ?? null,
-        //   contact_id: candidate.contact_id,
-        //   contact_type: candidate.contact_type,
-        //   source_transaction_id: candidate.bank_transaction_id,
-        //   source_transaction_date: toDate(bankTransaction.date, 'start'),
-        //   source_transaction_amount: bankTransaction.amount,
-        //   source_transaction_currency_id:
-        //     bankTransaction.bank_account_currency_id,
-        //   categorization_candidate_id: candidate.id,
-        // };
 
         const bankLeg = buildBankLeg(bankTransaction, intent, candidateBankLeg);
         const ledgerTxn = buildLedgerTransactionMetadataFromCandidate(
@@ -1178,11 +974,11 @@ export async function processCategorizationIntent({
         // Add new entries (splits) - intent entries without entry_id
         const templateEntry = ledgerTxn.entries.find((e) => !e.is_bank_leg);
         const ledgerTxnDate =
-          typeof ledgerTxn.date === 'string'
-            ? new Date(ledgerTxn.date)
-            : ledgerTxn.date;
+          typeof ledgerTxn.transaction_date === 'string'
+            ? new Date(ledgerTxn.transaction_date)
+            : ledgerTxn.transaction_date;
         const ledgerTxnWithDate = {
-          date: ledgerTxnDate,
+          transaction_date: ledgerTxnDate,
           source_transaction_currency_id:
             ledgerTxn.source_transaction_currency_id,
           contact_id: ledgerTxn.contact_id ?? null,
@@ -1212,7 +1008,7 @@ export async function processCategorizationIntent({
           //     intentEntry.fs_date ??
           //     (templateEntry
           //       ? toYMD(templateEntry.fs_date)
-          //       : toYMD(ledgerTxn.date)),
+          //       : toYMD(ledgerTxn.transaction_date)),
           //   source_currency_id:
           //     templateEntry?.source_currency_id ??
           //     ledgerTxn.source_transaction_currency_id,

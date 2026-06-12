@@ -33,7 +33,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string('state_region', 128).nullable();
     table.string('postal_code', 64).nullable();
     table
-      .string('type')
+      .string('type', 32)
       .notNullable()
       .checkIn([...COMPANY_TYPES]);
     table.string('description', 2000).nullable();
@@ -44,19 +44,19 @@ export async function up(knex: Knex): Promise<void> {
     table.integer('year_end_day').notNullable();
     table.integer('year_end_month').notNullable();
     table
-      .string('accounting_basis')
+      .string('accounting_basis', 32)
       .notNullable()
       .checkIn([...ACCOUNTING_BASES]);
     table
-      .string('reporting_framework')
+      .string('reporting_framework', 32)
       .nullable()
       .checkIn([...REPORTING_FRAMEWORKS]);
-    table.string('registration_number').nullable();
-    table.string('tax_id').nullable();
+    table.string('registration_number', 128).nullable();
+    table.string('tax_id', 128).nullable();
     table.jsonb('onboarding_state').nullable();
     table.timestamp('onboarding_completed_at', { useTz: true }).nullable();
     table
-      .string('workspace_class')
+      .string('workspace_class', 32)
       .checkIn([...WORKSPACE_CLASSES], 'companies_workspace_class_check')
       .notNullable()
       .defaultTo('customer');
@@ -68,7 +68,7 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable(`${schemaName}.countries`)
       .onDelete('RESTRICT');
-    table.text('default_timezone').notNullable().defaultTo('Etc/UTC');
+    table.string('default_timezone', 64).notNullable().defaultTo('Etc/UTC');
 
     table
       .uuid('reporting_currency_id')

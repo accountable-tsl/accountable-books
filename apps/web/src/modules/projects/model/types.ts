@@ -20,20 +20,32 @@ export type SortField = (typeof sortFields)[number];
 
 const sortOrderEnum = z.enum(['asc', 'desc']);
 
-export const newProject = z.object({
-  id: z.uuid().optional(),
-  name: z.string().min(2, 'Project name is required').max(256),
-  code: z.string().nullable(),
-  description: z.string().max(512).nullish(),
-  status: projectStatus.prefault('in_draft').optional(),
-  searchFields: z
-    .array(z.enum(['name', 'code', 'description', 'contactName', 'address']))
-    .optional(),
-  contactId: z.uuid(),
-  startDate: z.date().nullish(),
-  endDate: z.date().nullish(),
-});
+export const newProject = z
+  .object({
+    id: z.uuid().optional(),
+    name: z.string().trim().min(2, 'Project name is required').max(256),
+    code: z.string().trim().min(1).max(64).nullish(),
+    description: z.string().trim().min(1).max(512).nullish(),
+    status: projectStatus.prefault('in_draft').optional(),
+    searchFields: z
+      .array(z.enum(['name', 'code', 'description', 'contactName', 'address']))
+      .optional(),
+    contactId: z.uuid().nullish(),
+    startDate: z.date().nullish(),
+    endDate: z.date().nullish(),
+  })
+  .refine(
+    (project) =>
+      !project.startDate ||
+      !project.endDate ||
+      project.startDate <= project.endDate,
+    {
+      message: 'Project end date cannot be before start date',
+      path: ['endDate'],
+    },
+  );
 export type NewProject = z.infer<typeof newProject>;
+export type NewProjectFormInput = z.input<typeof newProject>;
 
 export const fetchProjectsParams = z.object({
   companyId: z.string().nonempty(),
@@ -54,10 +66,10 @@ export const projects = z.object({
   code: z.string().nullable(),
   description: z.string().max(512).nullish(),
   status: projectStatus.prefault('in_draft'),
-  contactId: z.uuid(),
+  contactId: z.uuid().nullable(),
   contactName: z.string().nullish(),
-  startDate: z.date().nullish(),
-  endDate: z.date().nullish(),
+  startDate: z.union([z.date(), z.string().min(1)]).nullish(),
+  endDate: z.union([z.date(), z.string().min(1)]).nullish(),
 });
 export type Project = z.infer<typeof projects>;
 

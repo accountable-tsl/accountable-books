@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { generateBatchFingerprint } from '../../../../src/domains/bankTransactions/bankTransactions.utils.js';
+import { createBankTransactionContactResolutions } from '../../../../src/domains/bankTransactions/contactResolution.service.js';
 import { determineExchangeRate } from '../../../../src/domains/exchangeRates/exchangeRates.utils.js';
 import { generateFingerprintSync } from '../../../../src/shared/index.js';
 import { toYMD } from '../../../../src/shared/utils/date.utils.js';
@@ -12,12 +13,6 @@ import {
 } from '../../shared/utils.js';
 import { generateDemoCompaniesMap } from '../002_companies/companies.data.js';
 import { generateBankTransactions } from './bank-transactions.data.js';
-
-/**
- * NOTE: Partition creation is skipped for seed to avoid DDL locks within transaction context.
- * Transactions will go to default partition. Partitions can be created later if needed.
- * This is acceptable for seed data as partition management can be handled separately.
- */
 
 /**
  * Inline helper: Get company UUID (avoid importing from src/)
@@ -43,7 +38,7 @@ async function getCompanyUUID(
 // const CATEGORIZATION_STATUS_UNCATEGORIZED = 'uncategorized';
 
 /**
- * Helper: Generate external ID for transaction deduplication
+ * Helper: Generate an idempotency key for transaction deduplication
  */
 const FX_PREFETCH_BATCH_SIZE = 10;
 
@@ -85,7 +80,7 @@ async function prefetchExchangeRatesByDate(input: {
   return { uniqueDateKeys, fxRates, missingDates };
 }
 
-function generateExternalId(input: {
+function generateIdempotencyKey(input: {
   date: Date;
   amount: number;
   payee: string;
@@ -159,7 +154,6 @@ export const createDemoBankTransactions = async (
     // Ensure we have bank accounts with currency information
     const bankAccounts = await trx('bank_accounts as ba')
       .join('companies as c', 'ba.company_id', 'c.id')
-      .join('banks as b', 'ba.bank_id', 'b.id')
       .where({ 'ba.company_id': company.id, 'ba.is_deleted': false })
       .select(
         'ba.id',
@@ -167,7 +161,6 @@ export const createDemoBankTransactions = async (
         'ba.display_name',
         'ba.business_or_personal',
         'ba.company_id',
-        'b.display_name as bankName',
         'ba.currency_id as bankCurrencyId',
         'c.reporting_currency_id as reportingCurrencyId',
       );
@@ -201,6 +194,7 @@ export const createDemoBankTransactions = async (
       });
 
       const { bank_transactions } = batch;
+      const batchSource = batch.source || 'manual_entry';
 
       // Skip if no transactions
       if (!bank_transactions || bank_transactions.length === 0) {
@@ -213,16 +207,17 @@ export const createDemoBankTransactions = async (
       // Normalize to Date objects for downstream logic
       const normalizedTxns = bank_transactions.map((tx) => ({
         ...tx,
-        date: tx.date,
-        txn_at: tx.date,
+        transaction_date: tx.date,
+        transaction_at: tx.date,
       }));
 
       // Find earliest and latest transactions
       let earliestTxn = normalizedTxns[0];
       let latestTxn = normalizedTxns[0];
       for (const txn of normalizedTxns) {
-        if (txn.date < earliestTxn.date) earliestTxn = txn;
-        if (txn.date > latestTxn.date) latestTxn = txn;
+        if (txn.transaction_date < earliestTxn.transaction_date)
+          earliestTxn = txn;
+        if (txn.transaction_date > latestTxn.transaction_date) latestTxn = txn;
       }
 
       // Create batch record
@@ -230,12 +225,13 @@ export const createDemoBankTransactions = async (
       const [batchRecord] = await trx('bank_transaction_batches')
         .insert({
           bank_account_id: bankAccount.id,
-          start_date: earliestTxn.date,
-          end_date: latestTxn.date,
-          source: batch.source || 'manual_entry',
+          company_id: companyUUID,
+          start_date: earliestTxn.transaction_date,
+          end_date: latestTxn.transaction_date,
+          source: batchSource,
           fingerprint,
           import_row_count: bank_transactions.length,
-          metadata: {
+          source_metadata: {
             bankAccountType: bankAccount.account_type,
             generatedFor: company.short_code,
           },
@@ -253,48 +249,6 @@ export const createDemoBankTransactions = async (
         continue;
       }
 
-      // Extract unique payees and create contacts
-      const uniquePayees = [
-        ...new Set(
-          normalizedTxns
-            .map((tx) => tx.payee?.trim())
-            .filter((payee): payee is string => !!payee),
-        ),
-      ];
-
-      if (uniquePayees.length > 0) {
-        await trx('contacts')
-          .insert(
-            uniquePayees.map((payee) => ({
-              company_id: companyUUID,
-              display_name: payee,
-              normalized_name: payee.toLowerCase(),
-              created_by_id: userId,
-              updated_by_id: userId,
-            })),
-          )
-          .onConflict(['company_id', 'normalized_name'])
-          .ignore();
-      }
-
-      // Fetch created contacts for linking
-      const createdContacts = uniquePayees.length
-        ? await trx('contacts')
-            .select(['id', 'normalized_name', 'display_name'])
-            .where({ company_id: companyUUID, is_deleted: false })
-            .whereIn(
-              'normalized_name',
-              uniquePayees.map((p) => p.toLowerCase()),
-            )
-        : [];
-
-      const contactIdByName = new Map(
-        createdContacts.map((r) => [r.normalized_name, r.id as string]),
-      );
-      const contactNameById = new Map(
-        createdContacts.map((r) => [r.id as string, r.display_name as string]),
-      );
-
       // Get currency information for exchange rate calculation
       const bankCurrencyId = bankAccount.bankCurrencyId;
       const reportingCurrencyId = bankAccount.reportingCurrencyId;
@@ -306,7 +260,7 @@ export const createDemoBankTransactions = async (
       let uniqueDateKeys: string[] = [];
       if (!sameCurrency) {
         const prefetched = await prefetchExchangeRatesByDate({
-          dates: normalizedTxns.map((tx) => tx.date),
+          dates: normalizedTxns.map((tx) => tx.transaction_date),
           fromCurrencyId: bankCurrencyId,
           toCurrencyId: reportingCurrencyId,
         });
@@ -328,50 +282,38 @@ export const createDemoBankTransactions = async (
       }
 
       // Prepare transactions for insertion
+      const generatedKeyOccurrences = new Map<string, number>();
       const preparedTransactions = normalizedTxns.map((tx) => {
-        const rate = sameCurrency ? 1 : fxRates.get(toYMD(tx.date));
+        const rate = sameCurrency ? 1 : fxRates.get(toYMD(tx.transaction_date));
 
         if (rate == null) {
-          throw new Error(`Missing exchange rate for ${tx.date}`);
+          throw new Error(`Missing exchange rate for ${tx.transaction_date}`);
         }
 
-        const generatedExternalId = generateExternalId({
-          date: new Date(tx.date),
+        const idempotencyKey = generateIdempotencyKey({
+          date: new Date(tx.transaction_date),
           amount: tx.amount,
           payee: tx.payee || '',
           description: tx.description || '',
           bankAccountId: bankAccount.id,
         });
-
-        const normalizedPayee = tx.payee?.trim();
-        const contactId = normalizedPayee
-          ? contactIdByName.get(normalizedPayee.toLowerCase())
-          : (tx.contact_id ?? undefined);
-        const contactName = normalizedPayee
-          ? normalizedPayee
-          : contactId
-            ? (contactNameById.get(contactId) ?? null)
-            : null;
+        const occurrence =
+          (generatedKeyOccurrences.get(idempotencyKey) ?? 0) + 1;
+        generatedKeyOccurrences.set(idempotencyKey, occurrence);
 
         return {
-          date: tx.date,
-          txn_at: tx.txn_at || tx.date, // Use date as transaction timestamp
+          transaction_date: tx.transaction_date,
+          transaction_at: tx.transaction_at,
           amount: Number(tx.amount),
-          payee: tx.payee || null,
-          description: tx.description || null,
-          reference: tx.reference || null,
+          payee: normalizeOptionalText(tx.payee),
+          description: normalizeOptionalText(tx.description),
+          reference: normalizeOptionalText(tx.reference),
           bank_account_id: bankAccount.id,
-          contact_id: contactId || null,
-          contact_type_snapshot: null,
-          contact_name: contactName,
-          bank_account_name: bankAccount.display_name,
-          bank_name: bankAccount.bankName ?? null,
-          raw_data: tx.metadata ?? null,
-          external_id: generatedExternalId,
+          company_id: companyUUID,
+          source_payload: tx.metadata ?? {},
+          idempotency_key: `${idempotencyKey}:${occurrence}`,
           system_exchange_rate: Number(rate),
-          // categorization_status: CATEGORIZATION_STATUS_UNCATEGORIZED,
           bank_transaction_batch_id: batchRecord.id,
-          source: batch.source || 'manual_entry',
           created_by_id: userId,
           updated_by_id: userId,
         };
@@ -380,9 +322,15 @@ export const createDemoBankTransactions = async (
       // Insert transactions
       const insertedTxns = await trx('bank_transactions')
         .insert(preparedTransactions)
-        .onConflict(['bank_account_id', 'external_id', 'date'])
+        .onConflict(['bank_account_id', 'idempotency_key'])
         .ignore()
-        .returning('id');
+        .returning([
+          'id',
+          'idempotency_key',
+          'payee',
+          'description',
+          'source_payload',
+        ]);
 
       const inserted = insertedTxns.length;
       const skipped = preparedTransactions.length - inserted;
@@ -391,12 +339,33 @@ export const createDemoBankTransactions = async (
         `✓ Created ${inserted} transactions for ${company.short_code} account ${bankAccount.display_name}${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`,
       );
 
+      if (inserted > 0) {
+        await createBankTransactionContactResolutions({
+          trx,
+          companyId: companyUUID,
+          userId,
+          source: batchSource,
+          transactions: insertedTxns.map((insertedTxn) => ({
+            id: insertedTxn.id,
+            idempotency_key: insertedTxn.idempotency_key,
+            payee: insertedTxn.payee,
+            description: insertedTxn.description,
+            source_payload: insertedTxn.source_payload,
+          })),
+        });
+      }
+
       // NOTE: We deliberately skip balance recalculation and enrichment queues
       // to avoid Redis connection during seeding. Balances can be recalculated
       // later if needed through the production API or worker.
     }
   }
 };
+
+function normalizeOptionalText(value?: string | null): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
 
 export const deleteDemoBankTransactions = async (
   trx: Knex.Transaction,
@@ -421,35 +390,49 @@ export const deleteDemoBankTransactions = async (
     return;
   }
 
-  // Temporarily disable triggers to allow demo data cleanup
-  await trx.raw(
-    'ALTER TABLE bank_transactions DISABLE TRIGGER guard_bank_transactions_update',
-  );
-  await trx.raw(
-    'ALTER TABLE bank_transactions DISABLE TRIGGER prevent_bank_transactions_delete',
-  );
+  const bankTransactionIds = (await trx('bank_transactions')
+    .whereIn('bank_account_id', bankAccountIds)
+    .pluck('id')) as string[];
 
-  try {
-    // Delete transactions (now possible with triggers disabled)
-    await trx('bank_transactions')
-      .whereIn('bank_account_id', bankAccountIds)
-      .delete();
+  if (bankTransactionIds.length > 0) {
+    const linkedLedgerTransactionIds = (await trx('bank_transactions')
+      .whereIn('id', bankTransactionIds)
+      .whereNotNull('ledger_transaction_id')
+      .pluck('ledger_transaction_id')) as string[];
 
-    // Delete batches
-    await trx('bank_transaction_batches')
-      .whereIn('bank_account_id', bankAccountIds)
-      .delete();
+    const sourceLedgerTransactionIds = (await trx('ledger_transactions')
+      .where({
+        transaction_source: 'bank_transaction',
+      })
+      .whereIn('source_transaction_id', bankTransactionIds)
+      .pluck('id')) as string[];
 
-    console.log(
-      `Deleted bank transactions and batches for ${bankAccountIds.length} accounts`,
+    const ledgerTransactionIds = Array.from(
+      new Set([...linkedLedgerTransactionIds, ...sourceLedgerTransactionIds]),
     );
-  } finally {
-    // Re-enable triggers
-    await trx.raw(
-      'ALTER TABLE bank_transactions ENABLE TRIGGER guard_bank_transactions_update',
-    );
-    await trx.raw(
-      'ALTER TABLE bank_transactions ENABLE TRIGGER prevent_bank_transactions_delete',
-    );
+
+    if (ledgerTransactionIds.length > 0) {
+      await trx('ledger_audit_logs')
+        .whereIn('ledger_transaction_id', ledgerTransactionIds)
+        .delete();
+
+      await trx('ledger_entries')
+        .whereIn('ledger_transaction_id', ledgerTransactionIds)
+        .delete();
+
+      await trx('ledger_transactions')
+        .whereIn('id', ledgerTransactionIds)
+        .delete();
+    }
+
+    await trx('bank_transactions').whereIn('id', bankTransactionIds).delete();
   }
+
+  await trx('bank_transaction_batches')
+    .whereIn('bank_account_id', bankAccountIds)
+    .delete();
+
+  console.log(
+    `Deleted bank transactions and batches for ${bankAccountIds.length} accounts`,
+  );
 };

@@ -23,7 +23,7 @@ export async function up(knex: Knex): Promise<void> {
       `text generated always as (resource || ':' || action) stored`,
     );
     table.string('label', 256).notNullable();
-    table.text('description').nullable();
+    table.string('description', 1024).nullable();
 
     table
       .timestamp('created_at', { useTz: true })

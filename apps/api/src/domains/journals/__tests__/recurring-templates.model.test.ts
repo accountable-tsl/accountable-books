@@ -148,6 +148,7 @@ describe('recurring templates model', () => {
 
     const resumeResult = await updateRecurringTemplateStatus({
       companyId: testCompanyId,
+      userId: testUserId,
       templateId: template.id,
       input: { status: 'active' },
     });

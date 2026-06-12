@@ -45,6 +45,36 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table
+      .uuid('company_id')
+      .notNullable()
+      .references('id')
+      .inTable(`${schemaName}.companies`)
+      .onDelete('RESTRICT');
+
+    table
+      .uuid('connection_credential_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.bank_account_credentials`)
+      .onDelete('RESTRICT');
+    table
+      .foreign(
+        ['bank_account_id', 'company_id'],
+        'bank_transaction_batches_account_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable(`${schemaName}.bank_accounts`)
+      .onDelete('RESTRICT');
+    table
+      .foreign(
+        ['connection_credential_id', 'company_id'],
+        'bank_transaction_batches_credential_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable(`${schemaName}.bank_account_credentials`)
+      .onDelete('RESTRICT');
+
+    table
       .uuid('created_by_id')
       .notNullable()
       .references('id')
@@ -70,9 +100,12 @@ export async function up(knex: Knex): Promise<void> {
       ['bank_account_id', 'start_date', 'end_date'],
       'bank_transaction_batches_account_date_range_idx',
     );
+    table.unique(['bank_account_id', 'fingerprint'], {
+      indexName: 'bank_transaction_batches_account_fingerprint_uniq',
+    });
     table.unique(
-      ['bank_account_id', 'fingerprint'],
-      { indexName: 'bank_transaction_batches_account_fingerprint_uniq' },
+      ['id', 'bank_account_id', 'company_id'],
+      'bank_transaction_batches_id_account_company_uniq',
     );
   });
 
@@ -100,6 +133,12 @@ export async function up(knex: Knex): Promise<void> {
             AND reversal_reason = btrim(reversal_reason)
             AND char_length(reversal_reason) >= 1
           )
+        ),
+      ADD CONSTRAINT bank_transaction_batches_source_credential_chk
+        CHECK (
+          (source = 'bank_feed' AND connection_credential_id IS NOT NULL)
+          OR
+          (source != 'bank_feed' AND connection_credential_id IS NULL)
         ),
       ADD CONSTRAINT bank_transaction_batches_fingerprint_trimmed_chk
         CHECK (

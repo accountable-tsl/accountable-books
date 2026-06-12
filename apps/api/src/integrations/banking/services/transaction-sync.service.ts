@@ -13,7 +13,6 @@ import { providerRegistry } from '../providers/registry.js';
 import { TransactionSyncStrategy } from '../types/base.js';
 
 import type { BankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
-import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
 import type {
   BankTransactionBatchInput,
   BankTransactionInput,
@@ -266,7 +265,7 @@ export class TransactionSyncService {
             transactions: result.transactions.added,
             accountMap,
             companyId: credential.company_id,
-            providerKey: provider.key,
+            credentialId,
           });
 
           // Track dates from added transactions for balance recalculation
@@ -511,12 +510,12 @@ export class TransactionSyncService {
     transactions,
     accountMap,
     companyId,
-    providerKey,
+    credentialId,
   }: {
     transactions: ProviderTransaction[];
     accountMap: Map<string, BankAccountForSync>;
     companyId: string;
-    providerKey: BankProviderKey;
+    credentialId: string;
   }): Promise<{
     successful: number;
     failed: number;
@@ -529,7 +528,7 @@ export class TransactionSyncService {
     const transactionBatches = this.groupTransactionsByAccountId({
       transactions,
       accountMap,
-      providerKey,
+      credentialId,
     });
 
     const results = {
@@ -593,15 +592,15 @@ export class TransactionSyncService {
         continue;
       }
 
-      // Due to immutability constraints, we can only update specific fields
-      // For now, we'll just update the raw_data to track changes
+      // Provider modifications are retained in the source payload. Financial
+      // field corrections require an explicit audited revision workflow.
       await knexClient('bank_transactions')
         .where({
-          external_id: txn.transactionId,
+          idempotency_key: txn.transactionId,
           bank_account_id: account.id,
         })
         .update({
-          raw_data: {
+          source_payload: {
             ...txn.rawData,
             category: txn.category,
             merchant_name: txn.merchantName,
@@ -626,23 +625,25 @@ export class TransactionSyncService {
 
     // First, fetch the transactions to get their dates before soft-deleting
     const transactionsToRemove = await knexClient('bank_transactions')
-      .whereIn('external_id', transactionIds)
+      .whereIn('idempotency_key', transactionIds)
       .whereIn('bank_account_id', accountIds)
-      .select('bank_account_id', 'date');
+      .select('bank_account_id', 'transaction_date');
 
     // Then soft delete them
     await knexClient('bank_transactions')
-      .whereIn('external_id', transactionIds)
+      .whereIn('idempotency_key', transactionIds)
       .whereIn('bank_account_id', accountIds)
       .update({
         is_deleted: true,
         deleted_at: new Date(),
+        deletion_origin: 'provider_sync',
+        deletion_reason: 'Removed by bank feed provider',
         updated_at: new Date(),
       });
 
     return transactionsToRemove.map((txn) => ({
       bankAccountId: txn.bank_account_id,
-      date: new Date(txn.date),
+      date: new Date(txn.transaction_date),
     }));
   }
 
@@ -719,12 +720,12 @@ export class TransactionSyncService {
     transactions,
     accountMap,
     batchMeta,
-    providerKey,
+    credentialId,
   }: {
     transactions: ProviderTransaction[];
     accountMap: Map<string, BankAccountForSync>;
     batchMeta?: any;
-    providerKey?: BankProviderKey;
+    credentialId: string;
   }): BankTransactionBatchInput[] {
     // group with Map to preserve key types
     const byProvider = new Map<string, ProviderTransaction[]>();
@@ -743,14 +744,14 @@ export class TransactionSyncService {
       if (!acct) continue; // skip unknown accounts
 
       const bank_transactions: BankTransactionInput[] = txs.map((tx) => ({
-        date: new Date(tx.date),
-        txn_at: tx.txnAt || new Date(tx.date),
+        transaction_date: new Date(tx.date),
+        transaction_at: tx.txnAt || new Date(tx.date),
         amount: tx.amount,
         bank_account_id: acct.id,
         description: tx.description ?? null,
         payee: tx.merchantName ?? null,
-        raw_data: tx.rawData ?? undefined,
-        external_id: tx.transactionId,
+        source_payload: tx.rawData ?? undefined,
+        idempotency_key: tx.transactionId,
         additional_notes: tx.additionalNotes ?? undefined,
       }));
 
@@ -761,7 +762,7 @@ export class TransactionSyncService {
         bank_account_id: acct.id,
         bank_transactions,
         source_metadata: batchMeta ?? undefined,
-        provider_key: providerKey ?? undefined,
+        connection_credential_id: credentialId,
       });
     }
 

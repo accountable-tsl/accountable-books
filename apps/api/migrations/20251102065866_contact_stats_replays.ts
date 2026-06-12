@@ -17,12 +17,7 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('companies')
       .onDelete('CASCADE');
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL');
+    table.uuid('contact_id').nullable();
     table.string('contact_fingerprint', 256).notNullable();
     table.string('currency_code', 3).notNullable();
     table.date('start_date').notNullable();
@@ -33,6 +28,15 @@ export async function up(knex: Knex): Promise<void> {
     table.string('new_snapshot_checksum', 64).nullable();
     table.integer('stats_replay_seq').notNullable().defaultTo(0);
     addStandardColumns(knex, table);
+
+    table
+      .foreign(
+        ['contact_id', 'company_id'],
+        'contact_stats_replays_contact_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('contacts')
+      .onDelete('RESTRICT');
   });
 
   await createUpdateTimestampTrigger(knex, tableName);

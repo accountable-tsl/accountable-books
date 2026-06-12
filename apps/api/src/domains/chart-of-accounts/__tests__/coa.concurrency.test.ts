@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -242,12 +241,7 @@ describe('COA mutation concurrency', () => {
   async function coaState(id: string) {
     return db('coa')
       .where({ id })
-      .first(
-        'description',
-        'is_active',
-        'is_deleted',
-        'version_seq',
-      );
+      .first('description', 'is_active', 'is_deleted', 'version_seq');
   }
 });
 
@@ -359,7 +353,9 @@ async function cleanupFixture(db: Knex, companyId: string): Promise<void> {
       .where({ company_id: companyId })
       .delete();
     await trx('coa_versions').where({ company_id: companyId }).delete();
-    await trx('coa_snapshot_versions').where({ company_id: companyId }).delete();
+    await trx('coa_snapshot_versions')
+      .where({ company_id: companyId })
+      .delete();
     await trx('coa').where({ company_id: companyId }).delete();
     await trx('companies').where({ id: companyId }).delete();
   });
@@ -371,9 +367,10 @@ function ledgerInput(
   currencyId: string,
 ) {
   return {
-    date: new Date('2025-01-15'),
+    transaction_date: '2025-01-15',
     transaction_source: 'manual_journal' as const,
     categorization_source: 'manual' as const,
+    source_transaction_id: randomUUID(),
     source_transaction_currency_id: currencyId,
     transactions: [
       {

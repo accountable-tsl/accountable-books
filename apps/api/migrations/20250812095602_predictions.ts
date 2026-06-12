@@ -68,12 +68,13 @@ export async function up(knex: Knex): Promise<void> {
     `ALTER TABLE predictions ADD CONSTRAINT predictions_confidence_check CHECK (confidence >= 0 AND confidence <= 1);`,
   );
 
-  // Add composite foreign key to bank_transactions
+  // The date is retained for prediction history/querying, but transaction
+  // identity is the globally unique bank transaction id.
   await knex.raw(`
     ALTER TABLE predictions 
     ADD CONSTRAINT predictions_bank_transaction_fk 
-    FOREIGN KEY (bank_transaction_id, bank_transaction_date) 
-    REFERENCES bank_transactions (id, date) 
+    FOREIGN KEY (bank_transaction_id)
+    REFERENCES bank_transactions (id)
     ON DELETE CASCADE;
   `);
 
