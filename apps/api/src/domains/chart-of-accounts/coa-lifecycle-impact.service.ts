@@ -77,6 +77,7 @@ export async function inspectCoaLifecycleImpacts({
       'jb.status': 'draft',
       'jb.is_deleted': false,
       'je.is_deleted': false,
+      'je.entry_status': 'active',
     })
     .whereIn('je.coa_id', sortedCoaIds)
     .orderBy('je.id')
@@ -88,7 +89,12 @@ export async function inspectCoaLifecycleImpacts({
         title: string;
         reference: string | null;
       }[]
-    >('je.coa_id', 'je.journal_batch_id', 'jb.title', 'jb.reference');
+    >(
+      'je.coa_id',
+      'je.journal_batch_id',
+      'jb.title',
+      trx.raw('jb.system_reference as "reference"'),
+    );
   const draftJournalIds = uniqueSorted(
     draftJournalEntries.map((entry) => entry.journal_batch_id),
   );

@@ -63,7 +63,8 @@ export type JournalListJournalRow = JournalListRowBase & {
   journalSource: JournalBatchSource;
   isFx: boolean;
   status: JournalBatchStatus;
-  reference: string | null;
+  systemReference: string | null;
+  userReference: string | null;
   sequenceMonth: string | null;
   sequenceNumber: number | null;
   ledgerTransactionId: string | null;
@@ -86,7 +87,8 @@ export type JournalListRecurringTemplateRow = JournalListRowBase & {
   frequency: RecurrenceFrequency;
   nextRunDate: string | null;
   autoPost: boolean;
-  reference: null;
+  systemReference: null;
+  userReference: null;
   sequenceMonth: null;
   sequenceNumber: null;
   ledgerTransactionId: null;
@@ -113,6 +115,7 @@ export type JournalListCursorResponse = {
       draft: number;
       posted: number;
       voided: number;
+      reversed: number;
     };
     kindCounts: {
       journals: number;
@@ -145,6 +148,7 @@ export type JournalListCursorResponse = {
 
 export type JournalDetailEntry = {
   id: string;
+  lineNumber: number;
   description: string;
   side: DebitCredit;
   amount: number;
@@ -161,7 +165,7 @@ export type JournalDetailEntry = {
 
 export type RelatedJournalSummary = {
   id: string;
-  reference: string | null;
+  systemReference: string | null;
   date: string;
   title: string;
 };
@@ -211,6 +215,7 @@ export type CreateJournalResponse = {
   // Journal batches are the journal "id" in this system.
   journalBatchId: string;
   journalId: string; // kept for backward compatibility in clients
-  journalReference: string | null;
+  systemReference: string | null;
+  userReference: string | null;
   ledgerTransactionId: string | null;
 };

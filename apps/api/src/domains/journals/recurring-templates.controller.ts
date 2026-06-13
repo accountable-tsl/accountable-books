@@ -1,9 +1,13 @@
 import type { Response } from 'express';
 
 import { type AuthRequest } from '../../features/auth/auth.types.js';
-import { errorResponse } from '../../shared/utils/response.utils.js';
+import {
+  errorResponse,
+  getHttpStatusFromErrorCode,
+} from '../../shared/utils/response.utils.js';
 import {
   createRecurringTemplate,
+  deleteRecurringTemplate,
   getRecurringTemplate,
   listRecurringTemplates,
   previewRecurringTemplate,
@@ -108,6 +112,33 @@ export async function updateRecurringTemplateController(
     return result.success
       ? res.status(200).json(result)
       : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
+  }
+}
+
+export async function deleteRecurringTemplateController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    if (!req.user?.id || !req.params.companyId || !req.params.templateId) {
+      return res.status(400).json(errorResponse('Bad Request'));
+    }
+
+    const companyId = String(req.params.companyId);
+    const userId = String(req.user.id);
+    const templateId = String(req.params.templateId);
+
+    const result = await deleteRecurringTemplate({
+      companyId,
+      userId,
+      templateId,
+    });
+
+    return res
+      .status(result.success ? 200 : getHttpStatusFromErrorCode(result.code))
+      .json(result);
   } catch (error) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }

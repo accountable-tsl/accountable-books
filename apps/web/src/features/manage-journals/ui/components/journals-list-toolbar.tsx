@@ -20,6 +20,7 @@ const statusOptions = [
   { label: 'Draft', value: 'draft' },
   { label: 'Posted', value: 'posted' },
   { label: 'Voided', value: 'voided' },
+  { label: 'Reversed', value: 'reversed' },
   { label: 'Recurring', value: 'recurring' },
 ] as const;
 
@@ -187,6 +188,7 @@ export function JournalsListToolbar({
                           { key: 'draft', label: 'Draft' },
                           { key: 'posted', label: 'Posted' },
                           { key: 'voided', label: 'Voided' },
+                          { key: 'reversed', label: 'Reversed' },
                           { key: 'recurring', label: 'Recurring' },
                         ] as const
                       ).map(({ key, label }) => (

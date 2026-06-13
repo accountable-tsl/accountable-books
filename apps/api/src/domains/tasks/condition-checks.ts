@@ -70,6 +70,8 @@ export async function checkDraftJournals(
     .where('journal_batches.company_id', companyId)
     .whereBetween('journal_batches.date', [period.start_date, period.end_date])
     .where('journal_batches.status', 'draft')
+    .where('journal_entries.entry_status', 'active')
+    .where('journal_entries.is_deleted', false)
     .count('* as count')
     .first();
 

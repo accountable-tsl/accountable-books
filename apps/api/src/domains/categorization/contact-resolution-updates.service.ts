@@ -43,6 +43,7 @@ export async function updateBankTransactionContactResolution({
       id: contactId,
       company_id: companyId,
       status: 'active',
+      is_deleted: false,
     })
     .select('id', 'review_status')
     .first();
@@ -64,6 +65,7 @@ export async function updateBankTransactionContactResolution({
         id: contactId,
         company_id: companyId,
         review_status: 'unreviewed',
+        is_deleted: false,
       })
       .update({
         review_status: 'confirmed',

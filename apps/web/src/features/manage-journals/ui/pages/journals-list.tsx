@@ -29,7 +29,7 @@ import type {
   JournalListStatusFilter,
 } from '../components/journals-list-toolbar';
 
-type JournalServerStatus = 'draft' | 'posted' | 'voided';
+type JournalServerStatus = 'draft' | 'posted' | 'voided' | 'reversed';
 type JournalServerKind = 'journal' | 'recurring_template';
 type JournalServerSource = 'one_off' | 'generated_from_template';
 type JournalSelection = { id: string; kind: JournalListRow['kind'] };
@@ -63,11 +63,21 @@ export function JournalsListPage() {
     JournalServerStatus[] | undefined
   >(() => {
     const next = new Set<JournalServerStatus>();
-    if (status === 'draft' || status === 'posted' || status === 'voided') {
+    if (
+      status === 'draft' ||
+      status === 'posted' ||
+      status === 'voided' ||
+      status === 'reversed'
+    ) {
       next.add(status);
     }
     for (const value of advancedStatusFilters) {
-      if (value === 'draft' || value === 'posted' || value === 'voided') {
+      if (
+        value === 'draft' ||
+        value === 'posted' ||
+        value === 'voided' ||
+        value === 'reversed'
+      ) {
         next.add(value);
       }
     }
@@ -141,6 +151,7 @@ export function JournalsListPage() {
         draft: 0,
         posted: 0,
         voided: 0,
+        reversed: 0,
         recurring: 0,
       };
     }
@@ -150,6 +161,7 @@ export function JournalsListPage() {
       draft: facets.journalStatusCounts.draft,
       posted: facets.journalStatusCounts.posted,
       voided: facets.journalStatusCounts.voided,
+      reversed: facets.journalStatusCounts.reversed,
       recurring: facets.kindCounts.recurringTemplates,
     };
   }, [query.data?.pages]);
@@ -200,6 +212,7 @@ export function JournalsListPage() {
       case 'draft':
       case 'posted':
       case 'voided':
+      case 'reversed':
         result = result.filter(
           (journal) => journal.kind === 'journal' && journal.status === status,
         );

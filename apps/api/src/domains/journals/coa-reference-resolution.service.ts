@@ -24,6 +24,7 @@ export async function replaceCoaInDraftJournals({
       'jb.status': 'draft',
       'jb.is_deleted': false,
       'je.is_deleted': false,
+      'je.entry_status': 'active',
       'je.coa_id': sourceCoaId,
     })
     .whereIn('jb.id', journalIds)
@@ -35,7 +36,12 @@ export async function replaceCoaInDraftJournals({
   );
 
   await trx('journal_entries')
-    .where({ coa_id: sourceCoaId, is_deleted: false })
+    .where({
+      company_id: companyId,
+      coa_id: sourceCoaId,
+      entry_status: 'active',
+      is_deleted: false,
+    })
     .whereIn('journal_batch_id', journalIds)
     .update({
       coa_id: replacementCoaId,

@@ -6,6 +6,7 @@ class JournalStatusesItemEnum(str, Enum):
     DRAFT = "draft"
     POSTED = "posted"
     VOIDED = "voided"
+    REVERSED = "reversed"
 
 class TemplateStatusesItemEnum(str, Enum):
     DRAFT = "draft"
@@ -24,7 +25,7 @@ class KindsItemEnum(str, Enum):
 class SortByEnum(str, Enum):
     CREATED_AT = "created_at"
     DATE = "date"
-    REFERENCE = "reference"
+    SYSTEM_REFERENCE = "system_reference"
 
 class SortDirEnum(str, Enum):
     ASC = "asc"

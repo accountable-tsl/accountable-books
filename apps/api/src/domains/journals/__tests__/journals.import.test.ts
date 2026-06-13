@@ -386,7 +386,7 @@ describe('journals import - preflight + import', () => {
             data: {
               date: '2025-01-10',
               title: 'Draft 1',
-              reference: r1,
+              user_reference: r1,
               currency_id: usdCurrencyId,
               entries: [
                 {
@@ -410,7 +410,7 @@ describe('journals import - preflight + import', () => {
             data: {
               date: '2025-01-11',
               title: 'Draft 2',
-              reference: r2,
+              user_reference: r2,
               currency_id: usdCurrencyId,
               entries: [
                 {
@@ -437,7 +437,7 @@ describe('journals import - preflight + import', () => {
     expect(result.data?.summary.drafts).toBe(2);
 
     const inserted = await trx('journal_batches')
-      .whereIn('reference', [r1, r2])
+      .whereIn('user_reference', [r1, r2])
       .select('id', 'status');
 
     expect(inserted.length).toBe(2);
@@ -461,7 +461,7 @@ describe('journals import - preflight + import', () => {
             data: {
               date: '2025-01-12',
               title: 'FX Draft',
-              reference: ref,
+              user_reference: ref,
               currency_id: ngnCurrencyId,
               exchange_rate: 0.001,
               entries: [

@@ -10,7 +10,7 @@ import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils
 export { contactType } from '@accountable-books/contracts/schema';
 export type ContactType = z.infer<typeof contactType>;
 
-export const contactStatus = z.enum(['active', 'inactive']);
+export const contactStatus = z.enum(['active', 'archived']);
 export type ContactStatus = z.infer<typeof contactStatus>;
 export const contactCreatedVia = z.enum([
   'manual',
@@ -63,8 +63,11 @@ const newContact = contactInput.extend({
   review_status: contactReviewStatus.optional().default('confirmed'),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().optional(),
+  deleted_by_id: z.uuid().nullish(),
   reviewed_by_id: z.uuid().nullish(),
   reviewed_at: z.date().nullish(),
+  is_deleted: z.boolean().optional(),
+  deleted_at: z.date().nullish(),
 });
 export type NewContact = z.infer<typeof newContact>;
 

@@ -19,6 +19,7 @@ export type JournalAction = 'edit' | 'post' | 'void' | 'copy' | 'reverse';
 export type TemplateAction =
   | 'edit'
   | 'activate'
+  | 'delete'
   | 'pause'
   | 'resume'
   | 'close'
@@ -68,6 +69,11 @@ const JOURNAL_ACTION_CONFIG: Record<JournalAction, JournalActionConfig> = {
 const TEMPLATE_ACTION_CONFIG: Record<TemplateAction, TemplateActionConfig> = {
   edit: createActionConfig('edit', { label: 'Edit', icon: Pencil }),
   activate: createActionConfig('activate', { label: 'Activate', icon: Play }),
+  delete: createActionConfig('delete', {
+    label: 'Delete',
+    icon: Trash2,
+    className: 'text-destructive',
+  }),
   pause: createActionConfig('pause', { label: 'Pause', icon: Pause }),
   resume: createActionConfig('resume', { label: 'Resume', icon: Play }),
   close: createActionConfig('close', {
@@ -110,9 +116,7 @@ const JOURNAL_RULES: readonly JournalRule[] = [
     actions: ['copy'],
   },
   {
-    predicate: (j) =>
-      j.status === 'posted' &&
-      (j.reversalJournalId != null || j.reversedAt != null),
+    predicate: (j) => j.status === 'reversed',
     actions: ['copy'],
   },
   {
@@ -128,7 +132,7 @@ const JOURNAL_RULES: readonly JournalRule[] = [
 const TEMPLATE_RULES: readonly TemplateRule[] = [
   {
     predicate: (t) => t.status === 'draft',
-    actions: ['activate'],
+    actions: ['activate', 'delete'],
   },
   {
     predicate: (t) => t.status === 'active',

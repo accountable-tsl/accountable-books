@@ -1,6 +1,6 @@
 import type { JournalListRow } from '@accountable-books/contracts/schema';
 
-export type JournalStatus = 'draft' | 'posted' | 'voided';
+export type JournalStatus = 'draft' | 'posted' | 'voided' | 'reversed';
 
 export function getJournalStatusDotClass(status: JournalStatus) {
   switch (status) {
@@ -8,6 +8,8 @@ export function getJournalStatusDotClass(status: JournalStatus) {
       return 'bg-emerald-500';
     case 'voided':
       return 'bg-destructive/70';
+    case 'reversed':
+      return 'bg-amber-500';
     default:
       return 'bg-muted-foreground/50';
   }
@@ -21,6 +23,8 @@ export function getJournalStatusBadgeVariant(status: JournalStatus) {
     case 'posted':
       return 'default' as const;
     case 'voided':
+      return 'outline' as const;
+    case 'reversed':
       return 'outline' as const;
     default:
       return 'secondary' as const;

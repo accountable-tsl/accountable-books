@@ -111,6 +111,7 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table.index(['ledger_transaction_id'], 'ledger_entries_transaction_idx');
+    table.unique(['id', 'company_id']);
   });
 
   // Generated columns — Knex has no builder support for GENERATED ALWAYS AS

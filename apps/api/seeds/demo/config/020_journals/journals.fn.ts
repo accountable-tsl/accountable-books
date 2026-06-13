@@ -285,7 +285,7 @@ export const createDemoJournals = async (
         unknown
       >;
 
-      const reference = buildReference(scenario.reference, shortCode);
+      const userReference = buildReference(scenario.userReference, shortCode);
       const autoReversalDate = scenario.autoReversalDays
         ? toYMD(addDaysToYMD(journalDate, scenario.autoReversalDays))
         : null;
@@ -359,7 +359,7 @@ export const createDemoJournals = async (
           description: scenario.description,
           note: scenario.note,
           status: scenario.status,
-          reference: reference ?? null,
+          userReference: userReference ?? null,
           contactId: contact?.id ?? null,
           currencyId,
           exchangeRate,
@@ -544,7 +544,7 @@ export const createDemoJournals = async (
           description: template.description,
           note: renderedNote ?? undefined,
           status: template.autoPost ? 'posted' : 'draft',
-          reference: null,
+          userReference: null,
           contactId: contact?.id ?? null,
           currencyId: reportingCurrencyId,
           autoReversalDate,

@@ -656,9 +656,9 @@ export async function rejectInferredContact({
       }
 
       await trx('contacts')
-        .where({ id: contact.id, company_id: companyUUID })
+        .where({ id: contact.id, company_id: companyUUID, is_deleted: false })
         .update({
-          status: 'inactive',
+          status: 'archived',
           review_status: 'rejected',
           reviewed_by_id: userId,
           reviewed_at: trx.fn.now(),
@@ -790,7 +790,8 @@ export async function getContactAliases({
           'oc.id',
           'ca.observed_counterparty_id',
         )
-        .where('ca.company_id', companyUUID);
+        .where('ca.company_id', companyUUID)
+        .where('c.is_deleted', false);
 
       if (!parsed.data.includeDeleted) {
         baseQuery.where('ca.is_deleted', false);
@@ -1129,6 +1130,7 @@ async function getUnreviewedInferredContacts({
       'c.created_via': 'system_inferred',
       'c.review_status': 'unreviewed',
       'c.status': 'active',
+      'c.is_deleted': false,
     });
 
   if (search) {
@@ -1204,7 +1206,7 @@ async function getContact({
   contactId: string;
 }): Promise<ContactRow> {
   const contact = await trx('contacts')
-    .where({ id: contactId, company_id: companyId })
+    .where({ id: contactId, company_id: companyId, is_deleted: false })
     .first<ContactRow>('id', 'display_name', 'created_via', 'review_status');
   if (!contact) {
     throw new AppError(
@@ -1229,6 +1231,7 @@ async function getActiveContact(args: {
       id: args.contactId,
       company_id: args.companyId,
       status: 'active',
+      is_deleted: false,
     })
     .first('id');
   if (!active) {
@@ -1483,6 +1486,7 @@ async function confirmContactIfUnreviewed({
       id: contactId,
       company_id: companyId,
       review_status: 'unreviewed',
+      is_deleted: false,
     })
     .update({
       review_status: 'confirmed',

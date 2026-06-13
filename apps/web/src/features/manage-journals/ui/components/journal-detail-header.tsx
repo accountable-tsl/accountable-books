@@ -32,7 +32,7 @@ export type JournalDetailHeaderAction = {
 };
 
 export function JournalDetailHeader({
-  reference,
+  systemReference,
   status,
   leftAddon,
   actions,
@@ -40,7 +40,7 @@ export function JournalDetailHeader({
   isMobile,
   showStatusLabel = true,
 }: {
-  reference: string | null;
+  systemReference: string | null;
   status: JournalBatchStatus | RecurringTemplateStatus;
   leftAddon?: React.ReactNode;
   actions: readonly JournalDetailHeaderAction[];
@@ -56,9 +56,9 @@ export function JournalDetailHeader({
       <div className="flex items-baseline gap-1">
         <div
           className="text-muted-foreground max-w-36 truncate font-mono whitespace-nowrap sm:pt-2 sm:text-sm"
-          title={reference || undefined}
+          title={systemReference || undefined}
         >
-          {reference || 'Journal'}
+          {systemReference || 'Journal'}
         </div>
 
         {showStatusLabel && <StatusLabel status={status} />}

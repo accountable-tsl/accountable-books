@@ -5,9 +5,14 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
-import { addNewProjects, fetchProjects } from '../api';
+import {
+  addNewProjects,
+  deleteProject,
+  fetchProjects,
+  updateProjects,
+} from '../api';
 
-import type { FetchProjectsParams, NewProject } from './types';
+import type { FetchProjectsParams, NewProject, UpdateProject } from './types';
 
 const CACHE_TIMES = {
   STALE: 1000 * 60 * 30, // 30mins
@@ -72,6 +77,50 @@ export const useCreateProjects = () => {
       data: NewProject[];
     }) => {
       return addNewProjects({ companyId, data });
+    },
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['projects', variables.companyId],
+        exact: false,
+      });
+    },
+  });
+};
+
+export const useUpdateProjects = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: UpdateProject[];
+    }) => {
+      return updateProjects({ companyId, data });
+    },
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['projects', variables.companyId],
+        exact: false,
+      });
+    },
+  });
+};
+
+export const useDeleteProject = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      projectId,
+    }: {
+      companyId: string;
+      projectId: string;
+    }) => {
+      return deleteProject({ companyId, projectId });
     },
     onSuccess: (_response, variables) => {
       queryClient.invalidateQueries({

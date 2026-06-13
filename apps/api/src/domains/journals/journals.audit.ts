@@ -14,7 +14,8 @@ export const JOURNAL_AUDIT_SCHEMA_VERSION = '1.0.0';
 
 export const journalCreatePayloadV1 = z.object({
   status: z.enum(['draft', 'posted']),
-  reference: z.string().nullable(),
+  systemReference: z.string().nullable(),
+  userReference: z.string().nullable(),
   currencyId: z.uuid(),
   isFx: z.boolean(),
   exchangeRate: z.number().nullable(),
@@ -29,17 +30,18 @@ export type JournalCreatePayload = z.infer<typeof journalCreatePayloadV1>;
 
 export const journalVoidPayloadV1 = z.object({
   previousStatus: z.literal('draft'),
-  reference: z.string().nullable(),
+  systemReference: z.string().nullable(),
+  userReference: z.string().nullable(),
   voidReason: z.string().nullable(),
 });
 export type JournalVoidPayload = z.infer<typeof journalVoidPayloadV1>;
 
 export const journalReversePayloadV1 = z.object({
   previousStatus: z.literal('posted'),
-  reference: z.string().nullable(),
+  systemReference: z.string().nullable(),
   ledgerTransactionId: z.uuid(),
   reversalJournalId: z.uuid(),
-  reversalReference: z.string().nullable(),
+  reversalSystemReference: z.string().nullable(),
   reversalDate: z.iso.date(),
   reversalReason: z.string().nullable(),
 });
@@ -47,7 +49,8 @@ export type JournalReversePayload = z.infer<typeof journalReversePayloadV1>;
 
 export const journalUpdatePayloadV1 = z.object({
   previousStatus: z.literal('draft'),
-  reference: z.string().nullable(),
+  systemReference: z.string().nullable(),
+  userReference: z.string().nullable(),
   currencyId: z.uuid(),
   isFx: z.boolean(),
   exchangeRate: z.number().nullable(),
@@ -61,7 +64,8 @@ export type JournalUpdatePayload = z.infer<typeof journalUpdatePayloadV1>;
 
 export const journalPostPayloadV1 = z.object({
   previousStatus: z.literal('draft'),
-  reference: z.string().nullable(),
+  systemReference: z.string().nullable(),
+  userReference: z.string().nullable(),
   currencyId: z.uuid(),
   isFx: z.boolean(),
   exchangeRate: z.number().nullable(),

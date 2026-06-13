@@ -281,7 +281,9 @@ export async function getContacts(
       return errorResponse('Company not found');
     }
 
-    let baseQuery = tx('contacts as c').where('c.company_id', companyUUID);
+    let baseQuery = tx('contacts as c')
+      .where('c.company_id', companyUUID)
+      .where('c.is_deleted', false);
 
     if (ids?.length) {
       baseQuery = baseQuery.whereIn('c.id', ids);
@@ -297,6 +299,8 @@ export async function getContacts(
 
     if (status) {
       baseQuery = baseQuery.andWhere('c.status', status);
+    } else {
+      baseQuery = baseQuery.andWhere('c.status', 'active');
     }
 
     if (createdVia) {
@@ -418,6 +422,7 @@ export async function updateContacts({
     const existingContacts = await tx('contacts')
       .whereIn('id', contactIds)
       .andWhere('company_id', companyUUID)
+      .andWhere('is_deleted', false)
       .select('id', 'display_name', 'email', 'address', 'status', 'notes');
 
     if (existingContacts.length !== contactIds.length) {
@@ -453,7 +458,7 @@ export async function updateContacts({
     const updatePromises = updateData.map(async (data) => {
       const { id, ...updateFields } = data;
       const [updatedContact] = await tx('contacts')
-        .where({ id, company_id: companyUUID })
+        .where({ id, company_id: companyUUID, is_deleted: false })
         .update(updateFields)
         .returning([
           'id',
@@ -550,6 +555,7 @@ export async function deleteContact({
         .where({
           id: validate.data.id,
           company_id: companyUUID,
+          is_deleted: false,
         })
         .first('id', 'display_name');
       if (!contact) {
@@ -570,7 +576,7 @@ export async function deleteContact({
 
       if (totalReferences > 0) {
         return errorResponse(
-          'Contact is linked to transaction, accounting, or resolution records and cannot be deleted. Mark it inactive instead.',
+          'Contact is linked to transaction, accounting, or resolution records and cannot be deleted. Archive it instead.',
           { referenceCounts },
           { code: ErrorCode.OPERATION_NOT_ALLOWED },
         );
@@ -578,7 +584,14 @@ export async function deleteContact({
 
       await tx('contacts')
         .where({ id: validate.data.id, company_id: companyUUID })
-        .delete();
+        .update({
+          status: 'archived',
+          is_deleted: true,
+          deleted_at: tx.fn.now(),
+          deleted_by_id: userId,
+          updated_by_id: userId,
+          updated_at: tx.fn.now(),
+        });
 
       await writeContactDeletedAudit({
         companyId: companyUUID,

@@ -417,6 +417,7 @@ async function resolveImportContact({
       id: importResolution.contactId,
       company_id: companyId,
       status: 'active',
+      is_deleted: false,
     })
     .select('id')
     .first();
@@ -432,7 +433,8 @@ async function resolveImportContact({
       status: 'unresolved',
       source: 'none',
       confidence: null,
-      resolution_reason: 'Import supplied contact was not found or inactive',
+      resolution_reason:
+        'Import supplied contact was not found, archived, or deleted',
       resolved_at: null,
       resolved_by_id: null,
     };
@@ -579,6 +581,7 @@ async function resolveExistingContact({
       'ca.company_id': companyId,
       'ca.is_deleted': false,
       'c.status': 'active',
+      'c.is_deleted': false,
     })
     .whereIn('ca.normalized_alias', normalizedNames)
     .whereNot('ca.verification_status', 'rejected')
@@ -588,6 +591,7 @@ async function resolveExistingContact({
     .where({
       company_id: companyId,
       status: 'active',
+      is_deleted: false,
     })
     .whereIn('normalized_name', normalizedNames)
     .select<{ id: string }[]>('id');
@@ -621,6 +625,7 @@ async function resolveFromObservedHistory({
       'bcr.company_id': companyId,
       'bcr.observed_counterparty_id': observedCounterpartyId,
       'c.status': 'active',
+      'c.is_deleted': false,
     })
     .whereNotNull('bcr.contact_id')
     .andWhere((qb) => {

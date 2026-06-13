@@ -48,7 +48,8 @@ const JournalListSelect = {
   id: 'jb.id',
   companyId: 'jb.company_id',
 
-  reference: 'jb.reference',
+  systemReference: 'jb.system_reference',
+  userReference: 'jb.user_reference',
   sequenceMonth: 'jb.sequence_month',
   sequenceNumber: 'jb.sequence_number',
 
@@ -78,8 +79,6 @@ const JournalListSelect = {
   reversalReason: 'jb.reversal_reason',
   reversedById: 'jb.reversed_by_id',
 
-  voidedAt: 'jb.voided_at',
-
   metadata: 'jb.metadata',
 
   createdAt: 'jb.created_at',
@@ -95,7 +94,8 @@ const JournalListSelect = {
 type JournalListRowDb = {
   id: string;
   companyId: string;
-  reference: string | null;
+  systemReference: string | null;
+  userReference: string | null;
   sequenceMonth: string | null;
   sequenceNumber: number | null;
   date: string;
@@ -130,8 +130,8 @@ type JournalListRowDb = {
   kind: JournalListRow['kind'];
   journalSource: 'one_off' | 'generated_from_template' | null;
   isFx: boolean | null;
-  status: 'draft' | 'posted' | 'voided' | null;
-  journalStatus: 'draft' | 'posted' | 'voided' | null;
+  status: 'draft' | 'posted' | 'voided' | 'reversed' | null;
+  journalStatus: 'draft' | 'posted' | 'voided' | 'reversed' | null;
   templateId: string | null;
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
   nextRunDate: string | null;
@@ -147,7 +147,7 @@ const SORT_COL: Record<SortBy, string> = {
   // to avoid duplicates when DB timestamps include microseconds.
   created_at: `date_trunc('milliseconds', jl."createdAt")`,
   date: 'jl."date"',
-  reference: 'jl."reference"',
+  system_reference: 'jl."systemReference"',
 } as const;
 
 function selectAliasedFields(
@@ -261,7 +261,8 @@ function mapJournalListRow(row: JournalListRowDb): JournalListRow {
       frequency: row.frequency ?? 'monthly',
       nextRunDate: row.nextRunDate,
       autoPost: row.autoPost === true,
-      reference: null,
+      systemReference: null,
+      userReference: null,
       sequenceMonth: null,
       sequenceNumber: null,
       date: row.date,
@@ -303,7 +304,8 @@ function mapJournalListRow(row: JournalListRowDb): JournalListRow {
     journalSource: row.journalSource ?? 'one_off',
     isFx: row.isFx === true,
     status: row.status ?? 'draft',
-    reference: row.reference,
+    systemReference: row.systemReference,
+    userReference: row.userReference,
     sequenceMonth: row.sequenceMonth,
     sequenceNumber: row.sequenceNumber,
     date: row.date,
@@ -324,7 +326,7 @@ function mapJournalListRow(row: JournalListRowDb): JournalListRow {
     reversedAt: row.reversedAt,
     reversalReason: row.reversalReason,
     reversedById: row.reversedById,
-    voidedAt: row.voidedAt,
+    voidedAt: row.status === 'voided' ? row.deletedAt : null,
     metadata: row.metadata,
     createdAt: row.createdAt,
     createdById: row.createdById,
@@ -391,8 +393,8 @@ function buildJournalsBaseQuery(
             WHERE je.journal_batch_id = jb.id
               AND je.side = 'debit'
               AND (
-                (jb.status <> 'voided' AND je.is_deleted = false)
-                OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+                (jb.status <> 'voided' AND je.entry_status = 'active')
+                OR (jb.status = 'voided' AND je.entry_status = 'voided')
               )
           ), 0) as "totalDebit"`,
         ),
@@ -403,8 +405,8 @@ function buildJournalsBaseQuery(
             WHERE je.journal_batch_id = jb.id
               AND je.side = 'credit'
               AND (
-                (jb.status <> 'voided' AND je.is_deleted = false)
-                OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+                (jb.status <> 'voided' AND je.entry_status = 'active')
+                OR (jb.status = 'voided' AND je.entry_status = 'voided')
               )
           ), 0) as "totalCredit"`,
         ),
@@ -414,8 +416,8 @@ function buildJournalsBaseQuery(
             FROM journal_entries je
             WHERE je.journal_batch_id = jb.id
               AND (
-                (jb.status <> 'voided' AND je.is_deleted = false)
-                OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at)
+                (jb.status <> 'voided' AND je.entry_status = 'active')
+                OR (jb.status = 'voided' AND je.entry_status = 'voided')
               )
           ), 0)::int as "entriesCount"`,
         ),
@@ -489,7 +491,8 @@ function buildJournalsBaseQuery(
     .select([
       db.raw(`rjt.id as "id"`),
       db.raw(`rjt.company_id as "companyId"`),
-      db.raw(`NULL::text as "reference"`),
+      db.raw(`NULL::text as "systemReference"`),
+      db.raw(`NULL::text as "userReference"`),
       db.raw(`NULL::date as "sequenceMonth"`),
       db.raw(`NULL::integer as "sequenceNumber"`),
       db.raw(
@@ -500,7 +503,7 @@ function buildJournalsBaseQuery(
       ),
       db.raw(`COALESCE(rjt.title, rjt.description) as "title"`),
       db.raw(`rjt.description as "description"`),
-      db.raw(`NULL::journal_status as "status"`),
+      db.raw(`NULL::text as "status"`),
       db.raw(`rjt.note as "note"`),
       db.raw(`rjt.contact_id as "contactId"`),
       db.raw(`c.display_name as "contactName"`),
@@ -530,7 +533,7 @@ function buildJournalsBaseQuery(
       db.raw(`'recurring_template'::text as "kind"`),
       db.raw(`NULL::text as "journalSource"`),
       db.raw(`NULL::boolean as "isFx"`),
-      db.raw(`NULL::journal_status as "journalStatus"`),
+      db.raw(`NULL::text as "journalStatus"`),
       db.raw(`rjt.status as "templateStatus"`),
       db.raw(`rjt.frequency as "frequency"`),
       db.raw(`rjt.next_run_date::date as "nextRunDate"`),
@@ -613,9 +616,9 @@ function buildJournalsBaseQuery(
   }
 
   const col = SORT_COL[filters.sortBy];
-  if (filters.sortBy === 'reference') {
+  if (filters.sortBy === 'system_reference') {
     qb.orderByRaw(
-      `(jl.reference IS NULL) asc, jl.reference ${filters.sortDir} NULLS LAST, jl.id ${filters.sortDir}`,
+      `(jl."systemReference" IS NULL) asc, jl."systemReference" ${filters.sortDir} NULLS LAST, jl.id ${filters.sortDir}`,
     );
   } else {
     qb.orderByRaw(`${col} ${filters.sortDir}, jl.id ${filters.sortDir}`);
@@ -624,7 +627,7 @@ function buildJournalsBaseQuery(
   return qb.select([
     db.raw(`jl.id as "id"`),
     db.raw(`jl."companyId" as "companyId"`),
-    db.raw(`jl.reference as "reference"`),
+    db.raw(`jl."systemReference" as "systemReference"`),
     db.raw(`jl."sequenceMonth" as "sequenceMonth"`),
     db.raw(`jl."sequenceNumber" as "sequenceNumber"`),
     db.raw(`jl.date as "date"`),
@@ -852,36 +855,35 @@ function applyKeysetCursor(
   // DESC: get earlier rows (< cursor), ASC: get later rows (> cursor)
   const op = filters.sortDir === 'asc' ? '>' : '<';
 
-  if (filters.sortBy === 'reference') {
+  if (filters.sortBy === 'system_reference') {
     const cursorIsNull = cursor.isNull === true;
 
     if (cursorIsNull) {
-      qb.andWhereRaw('jl.reference IS NULL');
+      qb.andWhereRaw('jl."systemReference" IS NULL');
       qb.andWhere('jl.id', op, cursor.id);
       return;
     }
 
     qb.andWhere((w) => {
-      w.whereRaw('jl.reference IS NULL').orWhere((w2) => {
-        w2.whereRaw('jl.reference IS NOT NULL');
+      w.whereRaw('jl."systemReference" IS NULL').orWhere((w2) => {
+        w2.whereRaw('jl."systemReference" IS NOT NULL');
         w2.andWhere((w3) => {
           if (filters.sortDir === 'asc') {
-            w3.where('jl.reference', '>', cursor.value).orWhere((w4) => {
-              w4.where('jl.reference', '=', cursor.value).andWhere(
-                'jl.id',
-                '>',
-                cursor.id,
-              );
-            });
+            w3.whereRaw('jl."systemReference" > ?', [cursor.value]).orWhere(
+              (w4) => {
+                w4
+                  .whereRaw('jl."systemReference" = ?', [cursor.value])
+                  .andWhere('jl.id', '>', cursor.id);
+              },
+            );
             return;
           }
-          w3.where('jl.reference', '<', cursor.value).orWhere((w4) => {
-            w4.where('jl.reference', '=', cursor.value).andWhere(
-              'jl.id',
-              '<',
-              cursor.id,
-            );
-          });
+          w3.whereRaw('jl."systemReference" < ?', [cursor.value]).orWhere(
+            (w4) => {
+              w4
+                .whereRaw('jl."systemReference" = ?', [cursor.value])
+                .andWhere('jl.id', '<', cursor.id);
+            });
         });
       });
     });
@@ -917,11 +919,11 @@ function getSortValueFromRow(
       return new Date(row.createdAt).toISOString();
     case 'date':
       return String(row.date);
-    case 'reference':
-      if (!row.reference || row.reference.length === 0) {
+    case 'system_reference':
+      if (!row.systemReference || row.systemReference.length === 0) {
         return '';
       }
-      return String(row.reference);
+      return String(row.systemReference);
   }
 }
 
@@ -1008,8 +1010,8 @@ export async function getJournalsByCursor({
         value,
         id: last.id,
         isNull:
-          resolvedFilters.sortBy === 'reference'
-            ? last.reference == null
+          resolvedFilters.sortBy === 'system_reference'
+            ? last.systemReference == null
             : false,
       });
     }
@@ -1034,6 +1036,9 @@ export async function getJournalsByCursor({
         ),
         txn.raw(
           `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalStatus" = 'voided')::int as "voidedCount"`,
+        ),
+        txn.raw(
+          `COUNT(*) FILTER (WHERE jl.kind = 'journal' AND jl."journalStatus" = 'reversed')::int as "reversedCount"`,
         ),
         txn.raw(
           `COUNT(*) FILTER (WHERE jl.kind = 'journal')::int as "journalRowsCount"`,
@@ -1065,6 +1070,7 @@ export async function getJournalsByCursor({
         draftCount: number;
         postedCount: number;
         voidedCount: number;
+        reversedCount: number;
         journalRowsCount: number;
         recurringTemplatesCount: number;
         oneOffCount: number;
@@ -1088,6 +1094,7 @@ export async function getJournalsByCursor({
           draft: Number(facetRow?.draftCount ?? 0),
           posted: Number(facetRow?.postedCount ?? 0),
           voided: Number(facetRow?.voidedCount ?? 0),
+          reversed: Number(facetRow?.reversedCount ?? 0),
         },
         kindCounts: {
           journals: Number(facetRow?.journalRowsCount ?? 0),
@@ -1205,13 +1212,13 @@ export async function getJournal({
     );
     const computedFields = [
       db.raw(
-        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'debit' AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0) as "totalDebit"`,
+        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'debit' AND ((jb.status <> 'voided' AND je.entry_status = 'active') OR (jb.status = 'voided' AND je.entry_status = 'voided'))), 0) as "totalDebit"`,
       ),
       db.raw(
-        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'credit' AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0) as "totalCredit"`,
+        `COALESCE((SELECT SUM(amount) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND je.side = 'credit' AND ((jb.status <> 'voided' AND je.entry_status = 'active') OR (jb.status = 'voided' AND je.entry_status = 'voided'))), 0) as "totalCredit"`,
       ),
       db.raw(
-        `COALESCE((SELECT COUNT(*) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND ((jb.status <> 'voided' AND je.is_deleted = false) OR (jb.status = 'voided' AND je.deleted_at = jb.deleted_at))), 0)::int as "entriesCount"`,
+        `COALESCE((SELECT COUNT(*) FROM journal_entries je WHERE je.journal_batch_id = jb.id AND ((jb.status <> 'voided' AND je.entry_status = 'active') OR (jb.status = 'voided' AND je.entry_status = 'voided'))), 0)::int as "entriesCount"`,
       ),
       db.raw(`'journal'::text as "kind"`),
       db.raw(`jb.journal_source::text as "journalSource"`),
@@ -1332,17 +1339,18 @@ export async function getJournal({
       .where('jb.company_id', companyUUID)
       .andWhere((w) => {
         w.where((active) =>
-          active.whereNot('jb.status', 'voided').where('je.is_deleted', false),
+          active
+            .whereNot('jb.status', 'voided')
+            .where('je.entry_status', 'active'),
         ).orWhere((voided) =>
-          voided
-            .where('jb.status', 'voided')
-            .whereRaw('je.deleted_at = jb.deleted_at'),
+          voided.where('jb.status', 'voided').where('je.entry_status', 'voided'),
         );
       })
       .where('coa.is_deleted', false)
       .where('coa.company_id', companyUUID)
       .select([
         db.raw(`je.id as "id"`),
+        db.raw(`je.line_number as "lineNumber"`),
         db.raw(`COALESCE(je.description, '') as "description"`),
         db.raw(`je.side as "side"`),
         db.raw(`je.amount as "amount"`),
@@ -1356,7 +1364,7 @@ export async function getJournal({
         db.raw(`je.updated_at as "updatedAt"`),
       ])
       .orderBy([
-        { column: 'je.created_at', order: 'asc' },
+        { column: 'je.line_number', order: 'asc' },
         { column: 'je.id', order: 'asc' },
       ])) as unknown as Array<
       Omit<JournalDetailEntry, 'amount'> & { amount: string | number }
@@ -1380,7 +1388,7 @@ export async function getJournal({
         .where('rjb.is_deleted', false)
         .select([
           db.raw(`rjb.id as "id"`),
-          db.raw(`rjb.reference as "reference"`),
+          db.raw(`rjb.system_reference as "systemReference"`),
           db.raw(`rjb.date as "date"`),
           db.raw(`rjb.title as "title"`),
         ])
@@ -1397,7 +1405,7 @@ export async function getJournal({
         .where('ojb.is_deleted', false)
         .select([
           db.raw(`ojb.id as "id"`),
-          db.raw(`ojb.reference as "reference"`),
+          db.raw(`ojb.system_reference as "systemReference"`),
           db.raw(`ojb.date as "date"`),
           db.raw(`ojb.title as "title"`),
         ])

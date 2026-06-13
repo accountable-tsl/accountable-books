@@ -9,7 +9,7 @@ import { createTrgmIndexes, dropTrgmIndexes } from './utils/trgmIndexes.js';
 const schemaName = 'app';
 const tableName = 'contacts';
 
-const CONTACT_STATUSES = ['active', 'inactive'] as const;
+const CONTACT_STATUSES = ['active', 'archived'] as const;
 
 const CONTACT_CREATED_VIA = [
   'manual', // user created it.
@@ -72,6 +72,13 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('SET NULL');
 
     table
+      .uuid('deleted_by_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('SET NULL');
+
+    table
       .uuid('reviewed_by_id')
       .nullable()
       .references('id')
@@ -89,6 +96,9 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
+    table.boolean('is_deleted').notNullable().defaultTo(false);
+    table.timestamp('deleted_at', { useTz: true }).nullable();
+
     table.unique(['id', 'company_id']);
     table.index(['company_id', 'display_name']);
     table.index(['company_id', 'normalized_name']);
@@ -96,6 +106,7 @@ export async function up(knex: Knex): Promise<void> {
     table.index(['company_id', 'created_via']);
     table.index(['company_id', 'review_status']);
     table.index(['company_id', 'created_at']);
+    table.index(['company_id', 'is_deleted', 'status']);
   });
 
   await knex.raw(`
@@ -144,7 +155,22 @@ export async function up(knex: Knex): Promise<void> {
           (
             review_status = 'rejected'
             AND reviewed_at IS NOT NULL
-            AND status = 'inactive'
+            AND status = 'archived'
+          )
+        ),
+      ADD CONSTRAINT contacts_soft_delete_chk
+        CHECK (
+          (
+            is_deleted = false
+            AND deleted_at IS NULL
+            AND deleted_by_id IS NULL
+          )
+          OR
+          (
+            is_deleted = true
+            AND deleted_at IS NOT NULL
+            AND deleted_by_id IS NOT NULL
+            AND status = 'archived'
           )
         );
   `);

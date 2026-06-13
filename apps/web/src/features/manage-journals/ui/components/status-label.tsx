@@ -16,6 +16,7 @@ const statusMap: Record<
   posted: { label: 'Posted', className: 'bg-emerald-500/10 text-emerald-500' },
   draft: { label: 'Draft', className: 'bg-muted text-muted-foreground' },
   voided: { label: 'Voided', className: 'bg-destructive/10 text-destructive' },
+  reversed: { label: 'Reversed', className: 'bg-amber-500/10 text-amber-600' },
   active: { label: 'Active', className: 'bg-emerald-500/10 text-emerald-500' },
   paused: { label: 'Paused', className: 'bg-amber-500/10 text-amber-600' },
   closed: { label: 'Closed', className: 'bg-muted text-muted-foreground' },

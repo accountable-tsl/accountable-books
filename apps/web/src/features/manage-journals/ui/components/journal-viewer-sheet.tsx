@@ -55,7 +55,7 @@ export function JournalViewerSheet({
             )}
           </SheetTitle>
           <SheetDescription>
-            {journal?.reference ? `${journal.reference} • ` : ''}
+            {journal?.systemReference ? `${journal.systemReference} • ` : ''}
             {journal?.date ?? ''}
           </SheetDescription>
         </SheetHeader>

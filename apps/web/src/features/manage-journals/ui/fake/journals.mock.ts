@@ -70,7 +70,13 @@ export function generateMockJournals({
 
     const statusRoll = Math.random();
     const status =
-      statusRoll < 0.65 ? 'posted' : statusRoll < 0.9 ? 'draft' : 'voided';
+      statusRoll < 0.58
+        ? 'posted'
+        : statusRoll < 0.82
+          ? 'draft'
+          : statusRoll < 0.94
+            ? 'voided'
+            : 'reversed';
 
     const generatedFromTemplate = Math.random() < 0.14 ? mockId() : null;
 
@@ -82,10 +88,12 @@ export function generateMockJournals({
     const effectiveCurrencyCode = fxCurrencyCode ?? currencyCode;
     const exchangeRate = isFx ? (0.85 + Math.random() * 0.45).toFixed(6) : '1';
 
-    const reference =
-      status === 'draft' && Math.random() < 0.35
+    const systemReference =
+      status === 'draft' || status === 'voided'
         ? null
         : `JE-${yyyymm}-${pad4(seq++)}`;
+    const userReference =
+      Math.random() < 0.35 ? `CLIENT-${pad4(i + 1)}` : null;
 
     const titlePool = [
       'Rent accrual',
@@ -122,9 +130,10 @@ export function generateMockJournals({
         ? 'generated_from_template'
         : 'one_off',
       isFx,
-      reference,
-      sequenceMonth: `${yyyy}-${mm}-01`,
-      sequenceNumber: reference ? seq - 1 : null,
+      systemReference,
+      userReference,
+      sequenceMonth: systemReference ? `${yyyy}-${mm}-01` : null,
+      sequenceNumber: systemReference ? seq - 1 : null,
       date: toYMD(date),
       title,
       description:
@@ -141,24 +150,25 @@ export function generateMockJournals({
       currencySymbol:
         effectiveCurrencyCode === 'USD' ? '$' : effectiveCurrencyCode,
       exchangeRate,
-      ledgerTransactionId: status === 'posted' ? mockId() : null,
+      ledgerTransactionId:
+        status === 'posted' || status === 'reversed' ? mockId() : null,
       generatedFromTemplateId: generatedFromTemplate,
       generatedAt: generatedFromTemplate ? createdAt.toISOString() : null,
       generatedScheduledForDate: generatedFromTemplate ? toYMD(date) : null,
       autoReversalDate,
       reversalJournalId: null,
       originalJournalId: null,
-      reversedAt: null,
-      reversalReason: null,
-      reversedById: null,
+      reversedAt: status === 'reversed' ? createdAt.toISOString() : null,
+      reversalReason: status === 'reversed' ? 'Correction posted' : null,
+      reversedById: status === 'reversed' ? mockId() : null,
       voidedAt: status === 'voided' ? createdAt.toISOString() : null,
       metadata: null,
       createdAt: createdAt.toISOString(),
       createdById: mockId(),
       updatedAt: createdAt.toISOString(),
       updatedById: null,
-      isDeleted: false,
-      deletedAt: null,
+      isDeleted: status === 'voided',
+      deletedAt: status === 'voided' ? createdAt.toISOString() : null,
       totalDebit: totalStr,
       totalCredit: totalStr,
       entriesCount: 0,
@@ -174,6 +184,7 @@ export function generateMockJournals({
     const entries: JournalDetailEntry[] = [
       {
         id: mockId(),
+        lineNumber: 1,
         description: `${title} (line 1)`,
         side: 'debit',
         amount: partA,
@@ -182,8 +193,12 @@ export function generateMockJournals({
         coaName: coa.debit.name,
         projectId: null,
         projectName: null,
-        ledgerEntryId: status === 'posted' ? mockId() : null,
-        ledgerEntryFsDate: status === 'posted' ? journalRow.date : null,
+        ledgerEntryId:
+          status === 'posted' || status === 'reversed' ? mockId() : null,
+        ledgerEntryFsDate:
+          status === 'posted' || status === 'reversed'
+            ? journalRow.date
+            : null,
         createdAt: createdAt.toISOString(),
         updatedAt: createdAt.toISOString(),
       },
@@ -192,6 +207,7 @@ export function generateMockJournals({
     if (splitDebit && partB > 0) {
       entries.push({
         id: mockId(),
+        lineNumber: 2,
         description: `${title} (line 2)`,
         side: 'debit',
         amount: partB,
@@ -200,8 +216,12 @@ export function generateMockJournals({
         coaName: coa.debit.name,
         projectId: null,
         projectName: null,
-        ledgerEntryId: status === 'posted' ? mockId() : null,
-        ledgerEntryFsDate: status === 'posted' ? journalRow.date : null,
+        ledgerEntryId:
+          status === 'posted' || status === 'reversed' ? mockId() : null,
+        ledgerEntryFsDate:
+          status === 'posted' || status === 'reversed'
+            ? journalRow.date
+            : null,
         createdAt: createdAt.toISOString(),
         updatedAt: createdAt.toISOString(),
       });
@@ -209,6 +229,7 @@ export function generateMockJournals({
 
     entries.push({
       id: mockId(),
+      lineNumber: splitDebit && partB > 0 ? 3 : 2,
       description: `${title} offset`,
       side: 'credit',
       amount: total,
@@ -217,8 +238,10 @@ export function generateMockJournals({
       coaName: coa.credit.name,
       projectId: null,
       projectName: null,
-      ledgerEntryId: status === 'posted' ? mockId() : null,
-      ledgerEntryFsDate: status === 'posted' ? journalRow.date : null,
+      ledgerEntryId:
+        status === 'posted' || status === 'reversed' ? mockId() : null,
+      ledgerEntryFsDate:
+        status === 'posted' || status === 'reversed' ? journalRow.date : null,
       createdAt: createdAt.toISOString(),
       updatedAt: createdAt.toISOString(),
     });
@@ -252,6 +275,9 @@ export function mockCursorResponseFromList(
     ).length,
     voided: journals.filter(
       (journal) => journal.kind === 'journal' && journal.status === 'voided',
+    ).length,
+    reversed: journals.filter(
+      (journal) => journal.kind === 'journal' && journal.status === 'reversed',
     ).length,
   };
   const kindCounts = {

@@ -16,7 +16,7 @@ class StatusEnum(str, Enum):
 
 class JournalBatchInput(BaseModel):
     class EntriesItem(BaseModel):
-        description: str
+        description: Optional[Optional[constr(max_length=512)]] = None
         side: EntriesItemSideEnum
         amount: float
         coaId: UUID
@@ -34,7 +34,7 @@ class JournalBatchInput(BaseModel):
         region: Optional[Optional[str]] = None
         endpoint: Optional[Optional[str]] = None
     id: Optional[UUID] = None
-    reference: Optional[Optional[str]] = None
+    userReference: Optional[Optional[constr(max_length=256)]] = None
     date: str
     title: constr(min_length=1, max_length=512)
     description: Optional[constr(max_length=2048)] = None

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 from typing import Optional
 from enum import Enum
 from uuid import UUID
@@ -8,7 +8,7 @@ class SideEnum(str, Enum):
     CREDIT = "credit"
 
 class JournalEntryInput(BaseModel):
-    description: str
+    description: Optional[Optional[constr(max_length=512)]] = None
     side: SideEnum
     amount: float
     coaId: UUID

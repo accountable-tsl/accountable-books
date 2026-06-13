@@ -61,6 +61,7 @@ export async function getBankTransactionContactResolutions({
     .whereIn('bcr.bank_transaction_id', uniqueBankTransactionIds)
     .whereIn('bcr.status', ['inferred', 'confirmed', 'manual_override'])
     .where('c.status', 'active')
+    .where('c.is_deleted', false)
     .select(
       'bcr.bank_transaction_id',
       'bcr.contact_id',

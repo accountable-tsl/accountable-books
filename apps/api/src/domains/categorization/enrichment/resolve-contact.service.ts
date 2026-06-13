@@ -126,6 +126,7 @@ export async function resolveContactForEnrichment({
           id: contactId,
           company_id: companyUUID,
           status: 'active',
+          is_deleted: false,
         })
         .first();
 
@@ -156,6 +157,7 @@ export async function resolveContactForEnrichment({
           'ca.normalized_alias': normalizedPayee,
           'ca.is_deleted': false,
           'c.status': 'active',
+          'c.is_deleted': false,
         })
         .whereNot('ca.verification_status', 'rejected')
         .select('ca.id as alias_id', 'c.id', 'c.normalized_name');
@@ -164,6 +166,7 @@ export async function resolveContactForEnrichment({
           company_id: companyUUID,
           normalized_name: normalizedPayee,
           status: 'active',
+          is_deleted: false,
         })
         .select('id', 'normalized_name');
       const selection = chooseContactMatch({

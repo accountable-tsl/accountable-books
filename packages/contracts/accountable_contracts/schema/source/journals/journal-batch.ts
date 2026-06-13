@@ -7,7 +7,12 @@ import { txnFileBase } from '../objects/txn-files.js';
 // Enums
 // =============================================================================
 
-export const journalBatchStatus = z.enum(['draft', 'posted', 'voided']);
+export const journalBatchStatus = z.enum([
+  'draft',
+  'posted',
+  'voided',
+  'reversed',
+]);
 export type JournalBatchStatus = z.infer<typeof journalBatchStatus>;
 
 export const journalBatchSource = z.enum([
@@ -20,7 +25,7 @@ export type JournalBatchSource = z.infer<typeof journalBatchSource>;
 // =============================================================================
 
 export const journalEntryInput = z.object({
-  description: z.string(),
+  description: z.string().max(512).nullish(),
   side: debitCredit,
   amount: z.number().refine(
     (n) => {
@@ -29,8 +34,8 @@ export const journalEntryInput = z.object({
     },
     { message: 'Amount cannot have more than 2 decimal places' },
   ),
-  coaId: z.string().uuid(),
-  projectId: z.string().uuid().nullish(),
+  coaId: z.uuid(),
+  projectId: z.uuid().nullish(),
 });
 export type JournalEntryInput = z.infer<typeof journalEntryInput>;
 
@@ -39,13 +44,13 @@ export type JournalEntryInput = z.infer<typeof journalEntryInput>;
 // =============================================================================
 
 export const journalBatchInput = z.object({
-  id: z.string().uuid().optional(),
-  reference: z.string().nullish(),
+  id: z.uuid().optional(),
+  userReference: z.string().max(256).nullish(),
   date: z.string(), // ISO date string YYYY-MM-DD
   title: z.string().min(1).max(512),
   description: z.string().max(2048).optional(),
-  contactId: z.string().uuid().nullish(),
-  currencyId: z.string().uuid().nullish(),
+  contactId: z.uuid().nullish(),
+  currencyId: z.uuid().nullish(),
   exchangeRate: z.number().positive().nullish(),
   status: z.enum(['draft', 'posted']).optional(),
   autoReversalDate: z.string().nullish(),
@@ -62,7 +67,7 @@ export type JournalBatchInput = z.infer<typeof journalBatchInput>;
 // =============================================================================
 
 export const postDraftJournalsBatchBody = z.object({
-  journalIds: z.array(z.string().uuid()).min(1).max(200),
+  journalIds: z.array(z.uuid()).min(1).max(200),
   mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
 });
 export type PostDraftJournalsBatchBody = z.infer<
@@ -70,7 +75,7 @@ export type PostDraftJournalsBatchBody = z.infer<
 >;
 
 export const voidDraftJournalsBatchBody = z.object({
-  journalIds: z.array(z.string().uuid()).min(1).max(200),
+  journalIds: z.array(z.uuid()).min(1).max(200),
   voidReason: z.string().min(1).max(2048).nullable().optional(),
   mode: z.enum(['partial', 'all_or_nothing']).default('partial'),
 });

@@ -71,7 +71,11 @@ export async function validateIds(
 
   const query = txn(table).whereIn('id', ids).where({ company_id: companyId });
 
-  if (!['contacts', 'projects'].includes(table)) {
+  if (table === 'contacts') {
+    query.andWhere({ is_deleted: false, status: 'active' });
+  } else if (table === 'projects') {
+    query.andWhere({ is_deleted: false });
+  } else {
     query.andWhere({ is_deleted: false });
   }
 
@@ -105,6 +109,11 @@ export async function fetchLookupMap({
   const labelColumn = table === 'contacts' ? 'display_name' : 'name';
 
   const query = txn(table).whereIn('id', ids).where({ company_id: companyId });
+  if (table === 'contacts') {
+    query.andWhere({ is_deleted: false, status: 'active' });
+  } else if (table === 'projects') {
+    query.andWhere({ is_deleted: false });
+  }
 
   const rows = await query.select('id', labelColumn);
 

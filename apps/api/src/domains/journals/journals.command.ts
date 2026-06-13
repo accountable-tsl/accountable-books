@@ -138,7 +138,7 @@ export async function copyJournal({
         description: source.description ?? undefined,
         note: source.note ?? undefined,
         status: 'draft',
-        reference: null,
+        userReference: null,
         contactId: source.contactId ?? null,
         currencyId: source.currencyId,
         autoReversalDate: null,
@@ -259,7 +259,8 @@ export async function postJournalRecord({
   ApiResponse<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
     ledgerTransactionId: string | null;
   }>
 > {
@@ -291,7 +292,7 @@ export async function postJournalRecord({
     entriesCount: data.entries?.length || 0,
     filesCount: data.files?.length || 0,
     status: data.status,
-    hasReference: !!data.reference,
+    hasUserReference: !!data.userReference,
   });
 
   const exec = async (
@@ -299,7 +300,8 @@ export async function postJournalRecord({
   ): Promise<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
     ledgerTransactionId: string | null;
   }> => {
     const now = new Date();
@@ -354,8 +356,8 @@ export async function postJournalRecord({
       });
     }
 
-    // Resolve reference + sequence
-    let journalReference: string | null = prepared.journalReference;
+    // Resolve official system reference + sequence.
+    let systemReference: string | null = null;
     let sequenceMonth: string | null = null;
     let sequenceNumber: number | null = null;
 
@@ -368,16 +370,15 @@ export async function postJournalRecord({
 
       sequenceMonth = ref.sequenceMonth;
       sequenceNumber = ref.sequenceNumber;
-      if (!journalReference) {
-        journalReference = ref.reference;
-      }
+      systemReference = ref.systemReference;
     }
 
     // Create journal batch
     const journalBatch: NewJournalBatch = {
       sequence_month: sequenceMonth,
       sequence_number: sequenceNumber,
-      reference: journalReference,
+      system_reference: systemReference,
+      user_reference: prepared.userReference,
       company_id: companyUUID,
       currency_id: journalCurrencyId,
       exchange_rate: exchangeRate,
@@ -416,7 +417,8 @@ export async function postJournalRecord({
 
     log('journal_batch_created', {
       journalBatchId: journalBatchId,
-      reference: journalReference,
+      systemReference,
+      userReference: prepared.userReference,
     });
 
     if (files.length > 0) {
@@ -463,14 +465,17 @@ export async function postJournalRecord({
     }));
 
     const entriesToInsert: Array<NewJournalEntry & { id: string }> =
-      entryMappings.map(({ journalEntryId, entry }) => ({
+      entryMappings.map(({ journalEntryId, entry }, index) => ({
         id: journalEntryId,
+        company_id: companyUUID,
         journal_batch_id: journalBatchId,
-        description: entry.description,
+        line_number: index + 1,
+        description: entry.description ?? null,
         side: entry.side,
         amount: Math.abs(entry.amount),
         coa_id: entry.coa_id,
         project_id: entry.project_id ?? null,
+        entry_status: 'active',
         created_at: now,
         updated_at: now,
       }));
@@ -561,7 +566,8 @@ export async function postJournalRecord({
       actor: { type: 'user', userId },
       payload: {
         status: batch.status,
-        reference: journalReference,
+        systemReference,
+        userReference: prepared.userReference,
         currencyId: journalCurrencyId,
         isFx,
         exchangeRate: isFx ? exchangeRate : null,
@@ -581,7 +587,8 @@ export async function postJournalRecord({
     log('completed', {
       journalBatchId,
       ledgerTransactionId,
-      journalReference,
+      systemReference,
+      userReference: prepared.userReference,
       journalCurrencyId,
       exchangeRate,
       isFx,
@@ -590,7 +597,8 @@ export async function postJournalRecord({
     return {
       journalBatchId,
       journalId: journalBatchId,
-      journalReference,
+      systemReference,
+      userReference: prepared.userReference,
       ledgerTransactionId,
     };
   };
@@ -659,7 +667,8 @@ export async function updateDraftJournal({
   ApiResponse<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
   }>
 > {
   const traceId = randomUUID();
@@ -703,7 +712,8 @@ export async function updateDraftJournal({
   ): Promise<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
   }> => {
     const now = new Date();
     const context = await resolveJournalCompanyContext({
@@ -721,9 +731,9 @@ export async function updateDraftJournal({
       .first<{
         id: string;
         status: string;
-        reference: string | null;
+        system_reference: string | null;
         ledger_transaction_id: string | null;
-      }>('id', 'status', 'reference', 'ledger_transaction_id');
+      }>('id', 'status', 'system_reference', 'ledger_transaction_id');
 
     if (!existingBatch) {
       throw new AppError(
@@ -785,7 +795,8 @@ export async function updateDraftJournal({
         status: 'draft',
         ledger_transaction_id: null,
 
-        reference: prepared.journalReference,
+        system_reference: null,
+        user_reference: prepared.userReference,
         company_id: companyUUID,
         currency_id: prepared.journalCurrencyId,
         exchange_rate: prepared.exchangeRate,
@@ -812,23 +823,28 @@ export async function updateDraftJournal({
         updated_by_id: userId,
       });
 
-    // Replace entries (soft-delete old + insert new)
+    // Replace active draft entries while retaining previous line sets.
     const deletedEntriesCount = await txn('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
       .where('is_deleted', false)
       .update({
+        entry_status: 'superseded',
         is_deleted: true,
         deleted_at: now,
         updated_at: now,
       });
 
-    const entriesToInsert: NewJournalEntry[] = entries.map((entry) => ({
+    const entriesToInsert: NewJournalEntry[] = entries.map((entry, index) => ({
+      company_id: companyUUID,
       journal_batch_id: journalBatchId,
-      description: entry.description,
+      line_number: index + 1,
+      description: entry.description ?? null,
       side: entry.side,
       amount: Math.abs(entry.amount),
       coa_id: entry.coa_id,
       project_id: entry.project_id ?? null,
+      entry_status: 'active',
       created_at: now,
       updated_at: now,
     }));
@@ -879,7 +895,8 @@ export async function updateDraftJournal({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'draft',
-        reference: prepared.journalReference,
+        systemReference: null,
+        userReference: prepared.userReference,
         currencyId: prepared.journalCurrencyId,
         isFx: prepared.isFx,
         exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
@@ -897,7 +914,8 @@ export async function updateDraftJournal({
     return {
       journalBatchId,
       journalId: journalBatchId,
-      journalReference: prepared.journalReference,
+      systemReference: null,
+      userReference: prepared.userReference,
     };
   };
 
@@ -976,8 +994,9 @@ export async function voidDraftJournal({
       .first<{
         id: string;
         status: string;
-        reference: string | null;
-      }>('id', 'status', 'reference');
+        system_reference: string | null;
+        user_reference: string | null;
+      }>('id', 'status', 'system_reference', 'user_reference');
 
     if (!journalBatch) {
       throw new AppError(
@@ -1002,15 +1021,21 @@ export async function voidDraftJournal({
     await tx('journal_batches').where('id', journalBatchId).update({
       status: 'voided',
       updated_by_id: userId,
+      deleted_by_id: userId,
       is_deleted: true,
       updated_at: now,
       deleted_at: now,
-      voided_at: now,
+      system_reference: null,
+      sequence_month: null,
+      sequence_number: null,
     });
 
     await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
+      .where('is_deleted', false)
       .update({
+        entry_status: 'voided',
         is_deleted: true,
         updated_at: now,
         deleted_at: now,
@@ -1022,7 +1047,8 @@ export async function voidDraftJournal({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'draft',
-        reference: journalBatch.reference ?? null,
+        systemReference: journalBatch.system_reference ?? null,
+        userReference: journalBatch.user_reference ?? null,
         voidReason: voidReason ?? null,
       },
       notes: `Draft journal batch voided by user ${userId}${voidReason ? `: ${voidReason}` : ''}`,
@@ -1069,7 +1095,7 @@ export async function postDraftJournal({
   ApiResponse<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string;
+    systemReference: string;
     ledgerTransactionId: string;
   }>
 > {
@@ -1105,7 +1131,8 @@ export async function postDraftJournal({
   ): Promise<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string;
+    systemReference: string;
+    userReference: string | null;
     ledgerTransactionId: string;
   }> => {
     const now = new Date();
@@ -1126,7 +1153,8 @@ export async function postDraftJournal({
         title: string;
         description: string | null;
         status: string;
-        reference: string | null;
+        system_reference: string | null;
+        user_reference: string | null;
         currency_id: string;
         exchange_rate: string | number;
         contact_id: string | null;
@@ -1172,11 +1200,14 @@ export async function postDraftJournal({
 
     const journalEntries = await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
       .where('is_deleted', false)
-      .orderBy('created_at', 'asc')
+      .orderBy('line_number', 'asc')
+      .orderBy('id', 'asc')
       .select<
         {
           id: string;
+          line_number: number;
           description: string | null;
           side: 'debit' | 'credit';
           amount: string | number;
@@ -1184,7 +1215,16 @@ export async function postDraftJournal({
           project_id: string | null;
           ledger_entry_id: string | null;
         }[]
-      >('id', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id');
+      >(
+        'id',
+        'line_number',
+        'description',
+        'side',
+        'amount',
+        'coa_id',
+        'project_id',
+        'ledger_entry_id',
+      );
 
     if (journalEntries.length < 2) {
       throw new AppError(
@@ -1212,7 +1252,7 @@ export async function postDraftJournal({
 
     const inputForValidation: JournalBatchData = {
       status: 'posted',
-      reference: journalBatch.reference,
+      userReference: journalBatch.user_reference,
       date: toYMD(journalBatch.date),
       title: journalBatch.title,
       description: journalBatch.description ?? undefined,
@@ -1257,16 +1297,14 @@ export async function postDraftJournal({
       trx: tx,
     });
 
-    // Allocate sequence + determine final reference
+    // Allocate sequence + determine final system reference
     const ref = await generateJournalReference({
       companyId: context.companyUUID,
       journalDate: toYMD(journalBatch.date),
       trx: tx,
     });
 
-    const finalReference = prepared.journalReference?.trim()
-      ? prepared.journalReference.trim()
-      : ref.reference;
+    const finalSystemReference = ref.systemReference;
 
     const entryFsDate = toYMD(journalBatch.date);
     const idResult = await tx.raw<{
@@ -1337,7 +1375,7 @@ export async function postDraftJournal({
     // Update batch + link entries
     await tx('journal_batches').where('id', journalBatchId).update({
       status: 'posted',
-      reference: finalReference,
+      system_reference: finalSystemReference,
       sequence_month: ref.sequenceMonth,
       sequence_number: ref.sequenceNumber,
       ledger_transaction_id: ledgerTransactionId,
@@ -1366,7 +1404,8 @@ export async function postDraftJournal({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'draft',
-        reference: finalReference,
+        systemReference: finalSystemReference,
+        userReference: prepared.userReference,
         currencyId: prepared.journalCurrencyId,
         isFx: prepared.isFx,
         exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
@@ -1385,7 +1424,8 @@ export async function postDraftJournal({
     return {
       journalBatchId,
       journalId: journalBatchId,
-      journalReference: finalReference,
+      systemReference: finalSystemReference,
+      userReference: prepared.userReference,
       ledgerTransactionId,
     };
   };
@@ -1454,7 +1494,7 @@ export async function postDraftJournalsBatch({
     results: Array<{
       journalId: string;
       success: boolean;
-      journalReference?: string;
+      systemReference?: string;
       ledgerTransactionId?: string;
       code?: string;
       message?: string;
@@ -1482,7 +1522,7 @@ export async function postDraftJournalsBatch({
     const results: Array<{
       journalId: string;
       success: boolean;
-      journalReference?: string;
+      systemReference?: string;
       ledgerTransactionId?: string;
       code?: string;
       message?: string;
@@ -1502,7 +1542,7 @@ export async function postDraftJournalsBatch({
           results.push({
             journalId,
             success: true,
-            journalReference: res.data.journalReference,
+            systemReference: res.data.systemReference,
             ledgerTransactionId: res.data.ledgerTransactionId,
           });
         } else {
@@ -1539,7 +1579,7 @@ export async function postDraftJournalsBatch({
     const results: Array<{
       journalId: string;
       success: boolean;
-      journalReference?: string;
+      systemReference?: string;
       ledgerTransactionId?: string;
     }> = [];
 
@@ -1563,7 +1603,7 @@ export async function postDraftJournalsBatch({
         results.push({
           journalId,
           success: true,
-          journalReference: res.data.journalReference,
+          systemReference: res.data.systemReference,
           ledgerTransactionId: res.data.ledgerTransactionId,
         });
       }
@@ -1820,21 +1860,29 @@ export async function reverseJournalRecord({
     if (isDraft) {
       log('handling_draft_journal');
 
+      const now = new Date();
+
       await tx('journal_batches').where('id', journalBatchId).update({
         status: 'voided',
         updated_by_id: userId,
+        deleted_by_id: userId,
         is_deleted: true,
-        updated_at: new Date(),
-        deleted_at: new Date(),
-        voided_at: new Date(),
+        updated_at: now,
+        deleted_at: now,
+        system_reference: null,
+        sequence_month: null,
+        sequence_number: null,
       });
 
       await tx('journal_entries')
         .where('journal_batch_id', journalBatchId)
+        .where('entry_status', 'active')
+        .where('is_deleted', false)
         .update({
+          entry_status: 'voided',
           is_deleted: true,
-          updated_at: new Date(),
-          deleted_at: new Date(),
+          updated_at: now,
+          deleted_at: now,
         });
 
       log('draft_journal_voided');
@@ -1845,7 +1893,8 @@ export async function reverseJournalRecord({
         actor: { type: 'user', userId },
         payload: {
           previousStatus: 'draft',
-          reference: journalBatch.reference ?? null,
+          systemReference: journalBatch.system_reference ?? null,
+          userReference: journalBatch.user_reference ?? null,
           voidReason: null,
         },
         notes: `Draft journal batch voided by user ${userId}`,
@@ -1865,7 +1914,10 @@ export async function reverseJournalRecord({
 
     const originalEntries = await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
       .where('is_deleted', false)
+      .orderBy('line_number', 'asc')
+      .orderBy('id', 'asc')
       .select('coa_id', 'amount', 'side', 'description', 'project_id');
 
     if (originalEntries.length === 0) {
@@ -1890,7 +1942,7 @@ export async function reverseJournalRecord({
         title: `Reversal of ${journalBatch.title}`,
         description: reversalReason
           ? `Reversal reason: ${reversalReason}`
-          : `Reversing journal ${journalBatch.reference || journalBatchId}`,
+          : `Reversing journal ${journalBatch.system_reference || journalBatchId}`,
         status: 'posted',
         note: journalBatch.note,
         contactId: journalBatch.contact_id,
@@ -1917,6 +1969,7 @@ export async function reverseJournalRecord({
     await tx('journal_batches')
       .where('id', journalBatchId)
       .update({
+        status: 'reversed',
         reversed_by_id: userId,
         reversed_at: new Date(),
         reversal_reason: reversalReason || null,
@@ -1933,10 +1986,10 @@ export async function reverseJournalRecord({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'posted',
-        reference: journalBatch.reference ?? null,
+        systemReference: journalBatch.system_reference ?? null,
         ledgerTransactionId: journalBatch.ledger_transaction_id,
         reversalJournalId: reversalResult.data.journalBatchId,
-        reversalReference: reversalResult.data.journalReference ?? null,
+        reversalSystemReference: reversalResult.data.systemReference ?? null,
         reversalDate: effectiveReversalDate,
         reversalReason: reversalReason ?? null,
       },
@@ -1979,9 +2032,18 @@ function mapPostJournalError(error: unknown): Error {
   if (err?.code === '23505') {
     const constraint = err.constraint ?? '';
 
-    if (constraint === 'journal_batch_company_reference_unique') {
+    if (constraint === 'journal_batch_company_system_reference_unique') {
       return new AppError(
-        'Journal reference already exists',
+        'Journal system reference already exists. Please retry.',
+        { constraint, detail: err.detail },
+        false,
+        ErrorCode.CONFLICT,
+      );
+    }
+
+    if (constraint === 'journal_batch_company_user_reference_unique') {
+      return new AppError(
+        'User reference already exists',
         { constraint, detail: err.detail },
         false,
         ErrorCode.CONFLICT,
@@ -2007,7 +2069,7 @@ function mapPostJournalError(error: unknown): Error {
     }
 
     return new AppError(
-      'Duplicate journal reference',
+      'Duplicate journal system reference',
       { constraint, detail: err.detail },
       false,
       ErrorCode.CONFLICT,

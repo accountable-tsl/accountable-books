@@ -49,6 +49,9 @@ const newProjectRecord = newProjectBase.extend({
   company_id: z.uuid(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().nullish(),
+  deleted_by_id: z.uuid().nullish(),
+  is_deleted: z.boolean().optional(),
+  deleted_at: z.date().nullish(),
 });
 
 const newProject = newProjectRecord.refine(hasValidDateRange, {
@@ -57,12 +60,18 @@ const newProject = newProjectRecord.refine(hasValidDateRange, {
 });
 export type NewProject = z.infer<typeof newProject>;
 
-export const updateProjectInput = createCamelCaseSchema(
-  newProjectBase.partial(),
-);
+const updateProjectBase = newProjectBase.partial().extend({
+  id: z.uuid(),
+});
+export const updateProjectInput = createCamelCaseSchema(updateProjectBase);
 export type UpdateProjectInput = SnakeToCamelCaseObject<
-  z.infer<typeof updateProjectInput>
+  z.infer<typeof updateProjectBase>
 >;
+
+export const deleteProjectInput = z.object({
+  id: z.uuid(),
+});
+export type DeleteProjectInput = z.infer<typeof deleteProjectInput>;
 
 export const project = newProjectRecord
   .extend({
@@ -82,6 +91,10 @@ export type ProjectResponse = {
       id: string;
       contactName: string | null;
       createdAt: string;
+      updatedAt: string;
+      isDeleted: boolean;
+      deletedAt: string | null;
+      deletedById: string | null;
     }
   >;
   pagination: Pagination;
@@ -106,6 +119,7 @@ export const getProjectsParams = z.object({
   search: z.string().optional(),
   page: z.int().min(1).optional(),
   limit: z.int().min(1).max(100).prefault(30).optional(),
+  includeDeleted: z.boolean().optional().default(false),
   searchFields: z
     .array(z.enum(['name', 'code', 'description', 'contactName']))
     .optional(),

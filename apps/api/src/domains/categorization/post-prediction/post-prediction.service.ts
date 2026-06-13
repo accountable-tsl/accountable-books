@@ -16,8 +16,8 @@ import {
   enqueueDelayedAutopost,
   postCandidateToLedger,
 } from '../autopost/index.js';
-import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
+import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
@@ -767,6 +767,7 @@ async function processPredictionToCandidate({
       ? await txn('projects')
           .whereIn('id', projectIds)
           .where('company_id', companyUUID)
+          .where('is_deleted', false)
           .select('id', 'name')
       : [];
     const projectNameById = new Map(
@@ -774,14 +775,14 @@ async function processPredictionToCandidate({
     );
 
     const contactIds = Array.from(
-      new Set(
-        [p.contact_id].filter((id): id is string => Boolean(id)),
-      ),
+      new Set([p.contact_id].filter((id): id is string => Boolean(id))),
     );
     const contacts = contactIds.length
       ? await txn('contacts')
           .whereIn('id', contactIds)
           .where('company_id', companyUUID)
+          .where('status', 'active')
+          .where('is_deleted', false)
           .select('id', 'display_name')
       : [];
     const contactNameById = new Map(

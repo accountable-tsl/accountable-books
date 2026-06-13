@@ -22,84 +22,91 @@ const STATUSES = ['draft', 'active', 'paused', 'closed'] as const;
 const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema
-    .withSchema(schemaName)
-    .createTable(tableName, (table) => {
-      table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+  await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
 
-      table
-        .uuid('company_id')
-        .notNullable()
-        .references('id')
-        .inTable(`${schemaName}.companies`)
-        .onDelete('RESTRICT');
+    table
+      .uuid('company_id')
+      .notNullable()
+      .references('id')
+      .inTable(`${schemaName}.companies`)
+      .onDelete('RESTRICT');
 
-      table.string('description', 512).notNullable();
-      table.string('title', 512).nullable();
-      table.string('note', 1000).nullable();
+    table.string('description', 512).notNullable();
+    table.string('title', 512).nullable();
+    table.string('note', 1000).nullable();
 
-      table
-        .text('status')
-        .notNullable()
-        .defaultTo('draft')
-        .checkIn([...STATUSES]);
+    table
+      .text('status')
+      .notNullable()
+      .defaultTo('draft')
+      .checkIn([...STATUSES]);
 
-      table.boolean('auto_post').notNullable().defaultTo(false);
+    table.boolean('auto_post').notNullable().defaultTo(false);
 
-      table
-        .uuid('currency_id')
-        .notNullable()
-        .references('id')
-        .inTable(`${schemaName}.currencies`)
-        .onDelete('RESTRICT');
+    table
+      .uuid('currency_id')
+      .notNullable()
+      .references('id')
+      .inTable(`${schemaName}.currencies`)
+      .onDelete('RESTRICT');
 
-      table.uuid('contact_id').nullable();
+    table.uuid('contact_id').nullable();
 
-      table.text('template_timezone').notNullable();
+    table.text('template_timezone').notNullable();
 
-      table.text('frequency').notNullable().checkIn([...FREQUENCIES]);
-      table.timestamp('start_date', { useTz: true }).notNullable();
-      table.timestamp('end_date', { useTz: true }).nullable();
-      table.timestamp('next_run_date', { useTz: true }).nullable();
+    table
+      .text('frequency')
+      .notNullable()
+      .checkIn([...FREQUENCIES]);
+    table.timestamp('start_date', { useTz: true }).notNullable();
+    table.timestamp('end_date', { useTz: true }).nullable();
+    table.timestamp('next_run_date', { useTz: true }).nullable();
 
-      table.integer('auto_reversal_days').nullable();
+    table.integer('auto_reversal_days').nullable();
 
-      table.timestamp('last_run_at', { useTz: true }).nullable();
-      table.timestamp('last_failed_at', { useTz: true }).nullable();
-      table.text('last_error').nullable();
-      table.integer('failure_count').notNullable().defaultTo(0);
+    table.timestamp('last_run_at', { useTz: true }).nullable();
+    table.timestamp('last_failed_at', { useTz: true }).nullable();
+    table.text('last_error').nullable();
+    table.integer('failure_count').notNullable().defaultTo(0);
 
-      table
-        .uuid('created_by_id')
-        .notNullable()
-        .references('id')
-        .inTable(`${schemaName}.users`)
-        .onDelete('RESTRICT');
-      table
-        .uuid('updated_by_id')
-        .nullable()
-        .references('id')
-        .inTable(`${schemaName}.users`)
-        .onDelete('SET NULL');
+    table
+      .uuid('created_by_id')
+      .notNullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('RESTRICT');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('SET NULL');
+    table
+      .uuid('deleted_by_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('RESTRICT');
 
-      addStandardColumns(knex, table);
+    addStandardColumns(knex, table);
 
-      // Composite FKs - tenant isolation
-      table
-        .foreign(['contact_id', 'company_id'], 'rjt_contact_company_fk')
-        .references(['id', 'company_id'])
-        .inTable(`${schemaName}.contacts`)
-        .onDelete('RESTRICT');
+    // Composite FKs - tenant isolation
+    table
+      .foreign(['contact_id', 'company_id'], 'rjt_contact_company_fk')
+      .references(['id', 'company_id'])
+      .inTable(`${schemaName}.contacts`)
+      .onDelete('RESTRICT');
 
-      // Composite FK target for template entries
-      table.unique(['id', 'company_id']);
+    // Composite FK target for template entries
+    table.unique(['id', 'company_id']);
 
-      table.index(['frequency', 'next_run_date'], 'rjt_frequency_nextrun_idx');
-      table.index(
-        ['company_id', 'status', 'next_run_date'],
-        'rjt_company_status_nextrun_idx',
-      );
-    });
+    table.index(['frequency', 'next_run_date'], 'rjt_frequency_nextrun_idx');
+    table.index(
+      ['company_id', 'status', 'next_run_date'],
+      'rjt_company_status_nextrun_idx',
+    );
+  });
 
   await createUpdateTimestampTrigger(knex, tableName, schemaName);
 
@@ -135,8 +142,15 @@ export async function up(knex: Knex): Promise<void> {
         failure_count >= 0
       ),
       ADD CONSTRAINT rjt_deleted_state_chk CHECK (
-        (is_deleted = false AND deleted_at IS NULL) OR
-        (is_deleted = true AND deleted_at IS NOT NULL)
+        (
+          is_deleted = false
+          AND deleted_at IS NULL
+          AND deleted_by_id IS NULL
+        ) OR (
+          is_deleted = true
+          AND deleted_at IS NOT NULL
+          AND deleted_by_id IS NOT NULL
+        )
       );
   `);
 }

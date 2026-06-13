@@ -101,9 +101,19 @@ describe('postJournalRecord - Integration Tests', () => {
 
     const journalRows = await trx('journal_entries')
       .where('journal_batch_id', result.data!.journalBatchId)
-      .select('ledger_entry_id');
+      .orderBy('line_number', 'asc')
+      .select('company_id', 'line_number', 'entry_status', 'ledger_entry_id');
 
     expect(journalRows.length).toBe(2);
+    expect(journalRows.map((r) => r.company_id)).toEqual([
+      testCompanyId,
+      testCompanyId,
+    ]);
+    expect(journalRows.map((r) => r.line_number)).toEqual([1, 2]);
+    expect(journalRows.map((r) => r.entry_status)).toEqual([
+      'active',
+      'active',
+    ]);
     expect(journalRows.every((r) => r.ledger_entry_id)).toBe(true);
   });
 
@@ -114,7 +124,7 @@ describe('postJournalRecord - Integration Tests', () => {
         title: 'Draft Journal',
         description: 'Draft journal',
         status: 'draft',
-        reference: 'DRAFT-MANUAL-REF',
+        userReference: 'DRAFT-MANUAL-REF',
         currencyId: usdCurrencyId,
         entries: [
           {
@@ -140,11 +150,12 @@ describe('postJournalRecord - Integration Tests', () => {
 
     const batch = await trx('journal_batches')
       .where('id', result.data!.journalBatchId)
-      .first('sequence_month', 'sequence_number', 'reference');
+      .first('sequence_month', 'sequence_number', 'system_reference', 'user_reference');
 
     expect(batch.sequence_month).toBeNull();
     expect(batch.sequence_number).toBeNull();
-    expect(batch.reference).toBe('DRAFT-MANUAL-REF');
+    expect(batch.system_reference).toBeNull();
+    expect(batch.user_reference).toBe('DRAFT-MANUAL-REF');
   });
 
   it('lists voided journals with correct totals when includeDeleted=true', async () => {
@@ -255,13 +266,13 @@ describe('postJournalRecord - Integration Tests', () => {
     expect(batch.currency_id).toBe(ngnCurrencyId);
   });
 
-  it('fails when journal reference already exists', async () => {
+  it('fails when user reference already exists', async () => {
     const first = await postJournalRecord({
       data: {
         date: '2025-01-22',
         title: 'First Journal',
         status: 'posted',
-        reference: 'DUP-REF-001',
+        userReference: 'DUP-REF-001',
         currencyId: usdCurrencyId,
         entries: [
           {
@@ -291,7 +302,7 @@ describe('postJournalRecord - Integration Tests', () => {
           date: '2025-01-23',
           title: 'Second Journal',
           status: 'posted',
-          reference: 'DUP-REF-001',
+          userReference: 'DUP-REF-001',
           currencyId: usdCurrencyId,
           entries: [
             {
@@ -312,7 +323,7 @@ describe('postJournalRecord - Integration Tests', () => {
         userId: testUserId,
         trx,
       }),
-    ).rejects.toThrow('Journal reference already exists');
+    ).rejects.toThrow('User reference already exists');
   });
 
   describe('Decimal validation', () => {
@@ -475,16 +486,19 @@ describe('postJournalRecord - Integration Tests', () => {
 
       const batch = await trx('journal_batches')
         .where('id', draft.data!.journalBatchId)
-        .first('status', 'is_deleted', 'voided_at');
+        .first('status', 'is_deleted', 'deleted_at', 'deleted_by_id');
 
       expect(batch.status).toBe('voided');
       expect(batch.is_deleted).toBe(true);
-      expect(batch.voided_at).not.toBeNull();
+      expect(batch.deleted_at).not.toBeNull();
+      expect(batch.deleted_by_id).toBe(testUserId);
 
       const entries = await trx('journal_entries')
         .where('journal_batch_id', draft.data!.journalBatchId)
-        .select('is_deleted');
+        .select('entry_status', 'is_deleted', 'ledger_entry_id');
       expect(entries.every((e) => e.is_deleted)).toBe(true);
+      expect(entries.every((e) => e.entry_status === 'voided')).toBe(true);
+      expect(entries.every((e) => e.ledger_entry_id === null)).toBe(true);
     });
 
     it('reverses a posted journal and links original/reversal', async () => {
@@ -530,8 +544,9 @@ describe('postJournalRecord - Integration Tests', () => {
 
       const original = await trx('journal_batches')
         .where('id', posted.data!.journalBatchId)
-        .first('reversal_journal_id', 'reversed_at');
+        .first('status', 'reversal_journal_id', 'reversed_at');
 
+      expect(original.status).toBe('reversed');
       expect(original.reversal_journal_id).toBe(
         reversal.data!.reversalJournalId,
       );
@@ -631,11 +646,12 @@ describe('postJournalRecord - Integration Tests', () => {
 
       const batch = await trx('journal_batches')
         .where('id', draft.data!.journalBatchId)
-        .first('status', 'is_deleted', 'voided_at');
+        .first('status', 'is_deleted', 'deleted_at', 'deleted_by_id');
 
       expect(batch.status).toBe('voided');
       expect(batch.is_deleted).toBe(true);
-      expect(batch.voided_at).not.toBeNull();
+      expect(batch.deleted_at).not.toBeNull();
+      expect(batch.deleted_by_id).toBe(testUserId);
     });
 
     it('rejects voiding a posted journal', async () => {
@@ -717,23 +733,26 @@ describe('postJournalRecord - Integration Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.ledgerTransactionId).toBeTruthy();
-      expect(result.data?.journalReference).toBeTruthy();
+      expect(result.data?.systemReference).toBeTruthy();
 
       const batch = await trx('journal_batches')
         .where('id', draft.data!.journalBatchId)
-        .first('status', 'sequence_month', 'sequence_number', 'reference');
+        .first('status', 'sequence_month', 'sequence_number', 'system_reference');
 
       expect(batch.status).toBe('posted');
       expect(batch.sequence_month).not.toBeNull();
       expect(batch.sequence_number).not.toBeNull();
-      expect(batch.reference).toBeTruthy();
+      expect(batch.system_reference).toBeTruthy();
 
       const entries = await trx('journal_entries')
         .where('journal_batch_id', draft.data!.journalBatchId)
         .where('is_deleted', false)
-        .select('ledger_entry_id');
+        .orderBy('line_number', 'asc')
+        .select('line_number', 'entry_status', 'ledger_entry_id');
 
       expect(entries.length).toBe(2);
+      expect(entries.map((e) => e.line_number)).toEqual([1, 2]);
+      expect(entries.map((e) => e.entry_status)).toEqual(['active', 'active']);
       expect(entries.every((e) => e.ledger_entry_id)).toBe(true);
     });
   });
@@ -939,7 +958,7 @@ describe('postJournalRecord - Integration Tests', () => {
         .first(
           'status',
           'date',
-          'reference',
+          'system_reference',
           'original_journal_id',
           'ledger_transaction_id',
         );
@@ -954,7 +973,7 @@ describe('postJournalRecord - Integration Tests', () => {
           (copiedDate.getUTCMonth() - now.getUTCMonth()) * 30,
       );
       expect(dayDiff).toBeLessThanOrEqual(1);
-      expect(copiedBatch.reference).toBeNull();
+      expect(copiedBatch.system_reference).toBeNull();
       expect(copiedBatch.original_journal_id).toBe(source.data!.journalBatchId);
       expect(copiedBatch.ledger_transaction_id).toBeNull();
 
@@ -1060,7 +1079,7 @@ describe('postJournalRecord - Integration Tests', () => {
           title: 'Draft To Update',
           description: 'Original draft',
           status: 'draft',
-          reference: 'DRAFT-TO-UPDATE-001',
+          userReference: 'DRAFT-TO-UPDATE-001',
           currencyId: usdCurrencyId,
           entries: [
             {
@@ -1093,7 +1112,7 @@ describe('postJournalRecord - Integration Tests', () => {
           title: 'Draft Updated',
           description: 'Updated draft',
           status: 'draft',
-          reference: 'DRAFT-TO-UPDATE-002',
+          userReference: 'DRAFT-TO-UPDATE-002',
           currencyId: usdCurrencyId,
           entries: [
             {
@@ -1115,7 +1134,8 @@ describe('postJournalRecord - Integration Tests', () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.journalBatchId).toBe(draft.data!.journalBatchId);
-      expect(result.data?.journalReference).toBe('DRAFT-TO-UPDATE-002');
+      expect(result.data?.systemReference).toBeNull();
+      expect(result.data?.userReference).toBe('DRAFT-TO-UPDATE-002');
 
       const batch = await trx('journal_batches')
         .where('id', draft.data!.journalBatchId)
@@ -1124,7 +1144,8 @@ describe('postJournalRecord - Integration Tests', () => {
           'description',
           'date',
           'status',
-          'reference',
+          'system_reference',
+          'user_reference',
           'sequence_month',
           'sequence_number',
           'ledger_transaction_id',
@@ -1133,27 +1154,129 @@ describe('postJournalRecord - Integration Tests', () => {
       expect(batch.status).toBe('draft');
       expect(batch.title).toBe('Draft Updated');
       expect(batch.description).toBe('Updated draft');
-      expect(batch.reference).toBe('DRAFT-TO-UPDATE-002');
+      expect(batch.system_reference).toBeNull();
+      expect(batch.user_reference).toBe('DRAFT-TO-UPDATE-002');
       expect(batch.sequence_month).toBeNull();
       expect(batch.sequence_number).toBeNull();
       expect(batch.ledger_transaction_id).toBeNull();
 
       const activeEntries = await trx('journal_entries')
         .where('journal_batch_id', draft.data!.journalBatchId)
+        .where('entry_status', 'active')
         .where('is_deleted', false)
-        .select('description', 'amount');
+        .orderBy('line_number', 'asc')
+        .select('description', 'amount', 'line_number', 'ledger_entry_id');
 
       expect(activeEntries.length).toBe(2);
+      expect(activeEntries.map((e) => e.line_number)).toEqual([1, 2]);
       expect(activeEntries.map((e) => e.description).sort()).toEqual(
         ['Cash updated', 'Expense updated'].sort(),
       );
+      expect(activeEntries.every((e) => e.ledger_entry_id === null)).toBe(true);
 
-      const deletedEntries = await trx('journal_entries')
+      const supersededEntries = await trx('journal_entries')
         .where('journal_batch_id', draft.data!.journalBatchId)
+        .where('entry_status', 'superseded')
         .where('is_deleted', true)
-        .select('id');
+        .select('id', 'ledger_entry_id');
 
-      expect(deletedEntries.length).toBe(2);
+      expect(supersededEntries.length).toBe(2);
+      expect(supersededEntries.every((e) => e.ledger_entry_id === null)).toBe(
+        true,
+      );
+    });
+
+    it('voids only the final active draft line set after an edit', async () => {
+      const draft = await postJournalRecord({
+        data: {
+          date: '2025-03-03',
+          title: 'Draft Edit Then Void',
+          status: 'draft',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Original debit',
+              coaId: testCoaIds.cash,
+              amount: 10,
+              side: 'debit',
+            },
+            {
+              description: 'Original credit',
+              coaId: testCoaIds.expense,
+              amount: 10,
+              side: 'credit',
+            },
+          ],
+        },
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+      expect(draft.success).toBe(true);
+
+      const updated = await updateDraftJournal({
+        journalBatchId: draft.data!.journalBatchId,
+        companyId: testCompanyId,
+        userId: testUserId,
+        data: {
+          date: '2025-03-03',
+          title: 'Draft Edit Then Void',
+          status: 'draft',
+          currencyId: usdCurrencyId,
+          entries: [
+            {
+              description: 'Final debit',
+              coaId: testCoaIds.cash,
+              amount: 25,
+              side: 'debit',
+            },
+            {
+              description: 'Final credit',
+              coaId: testCoaIds.expense,
+              amount: 25,
+              side: 'credit',
+            },
+          ],
+        },
+        trx,
+      });
+      expect(updated.success).toBe(true);
+
+      const voided = await voidDraftJournal({
+        journalBatchId: draft.data!.journalBatchId,
+        companyId: testCompanyId,
+        userId: testUserId,
+        trx,
+      });
+      expect(voided.success).toBe(true);
+
+      const rows = await trx('journal_entries')
+        .where('journal_batch_id', draft.data!.journalBatchId)
+        .orderBy('line_number', 'asc')
+        .orderBy('description', 'asc')
+        .select('description', 'entry_status', 'ledger_entry_id');
+
+      expect(rows.filter((r) => r.entry_status === 'superseded')).toHaveLength(
+        2,
+      );
+      expect(rows.filter((r) => r.entry_status === 'voided')).toHaveLength(2);
+      expect(rows.every((r) => r.ledger_entry_id === null)).toBe(true);
+
+      const detail = await getJournal({
+        journalId: draft.data!.journalBatchId,
+        companyId: testCompanyId,
+        includeDeleted: true,
+        trx,
+      });
+
+      expect(detail.success).toBe(true);
+      expect(detail.data?.entries.map((entry) => entry.description)).toEqual([
+        'Final debit',
+        'Final credit',
+      ]);
+      expect(detail.data?.entries.map((entry) => entry.lineNumber)).toEqual([
+        1, 2,
+      ]);
     });
 
     it('rejects updating a posted journal', async () => {

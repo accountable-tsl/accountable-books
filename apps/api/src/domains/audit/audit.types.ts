@@ -12,6 +12,7 @@ export const auditEventEntityType = z.enum([
   'contact',
   'contact_alias',
   'journal',
+  'recurring_journal_template',
   'ai',
   'task_evaluation',
   'support_access',

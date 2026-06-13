@@ -6,7 +6,7 @@ import type { Constraint, ConstraintBase } from '../constraints-types.js';
 
 const projectExistsBase: ConstraintBase = {
   code: 'project_exists',
-  description: 'Project must exist and belong to the company',
+  description: 'Project must exist, belong to the company, and not be deleted',
   scope: 'entry',
 } as const;
 
@@ -30,6 +30,7 @@ export const projectExists: Constraint = {
       const projects = await queryClient('projects')
         .whereIn('id', uniqueProjectIds)
         .where('company_id', ctx.companyUUID)
+        .where('is_deleted', false)
         .select('id');
 
       const validProjectIds = new Set(projects.map((p) => p.id));
@@ -43,7 +44,7 @@ export const projectExists: Constraint = {
 
       return invalidProjectIds.map((projectId) => ({
         code: projectExistsBase.code,
-        message: `Project ${projectId} does not exist or does not belong to company`,
+        message: `Project ${projectId} does not exist, is deleted, or does not belong to company`,
         scope: projectExistsBase.scope,
         severity: 'warning' as const,
       }));

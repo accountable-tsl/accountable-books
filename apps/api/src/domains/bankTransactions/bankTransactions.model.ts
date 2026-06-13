@@ -580,7 +580,8 @@ export async function getBankTransactionsByIds({
     .leftJoin('contacts as resolved_contact', function joinResolvedContact() {
       this.on('resolved_contact.id', '=', 'bcr.contact_id')
         .andOn('resolved_contact.company_id', '=', 'bcr.company_id')
-        .andOnVal('resolved_contact.status', '=', 'active');
+        .andOnVal('resolved_contact.status', '=', 'active')
+        .andOnVal('resolved_contact.is_deleted', '=', false);
     })
     .select(
       'bt.*',

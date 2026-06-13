@@ -177,13 +177,28 @@ describe('COA explicit lifecycle reference resolution', () => {
   });
 
   it('coalesces identical destructive resolutions for shared references', async () => {
-    await db('journal_entries').insert({
-      description: null,
-      side: 'credit',
-      amount: 100,
-      journal_batch_id: fixture.draftJournalId,
-      coa_id: fixture.replacementCoaId,
-    });
+    await db('journal_entries').insert([
+      {
+        company_id: fixture.companyId,
+        journal_batch_id: fixture.draftJournalId,
+        line_number: 3,
+        description: null,
+        side: 'debit',
+        amount: 100,
+        coa_id: fixture.replacementCoaId,
+        entry_status: 'active',
+      },
+      {
+        company_id: fixture.companyId,
+        journal_batch_id: fixture.draftJournalId,
+        line_number: 4,
+        description: null,
+        side: 'credit',
+        amount: 100,
+        coa_id: fixture.replacementCoaId,
+        entry_status: 'active',
+      },
+    ]);
     await db('recurring_journal_template_entries').insert({
       company_id: fixture.companyId,
       template_id: fixture.recurringTemplateId,
@@ -276,7 +291,9 @@ describe('COA explicit lifecycle reference resolution', () => {
 
   it('rejects stale fingerprints before applying resolutions', async () => {
     const inspected = await preflight('delete');
-    await addDraftJournal(db, fixture, fixture.sourceCoaId);
+    await db.transaction((trx) =>
+      addDraftJournal(trx, fixture, fixture.sourceCoaId),
+    );
 
     const result = await executeCoaLifecycle({
       companyId: fixture.companyId,
@@ -505,13 +522,28 @@ async function addDraftJournal(
       created_by_id: fixture.userId,
     })
     .returning<{ id: string }[]>('id');
-  await db('journal_entries').insert({
-    description: null,
-    side: 'debit',
-    amount: 100,
-    journal_batch_id: batch.id,
-    coa_id: coaId,
-  });
+  await db('journal_entries').insert([
+    {
+      company_id: fixture.companyId,
+      journal_batch_id: batch.id,
+      line_number: 1,
+      description: null,
+      side: 'debit',
+      amount: 100,
+      coa_id: coaId,
+      entry_status: 'active',
+    },
+    {
+      company_id: fixture.companyId,
+      journal_batch_id: batch.id,
+      line_number: 2,
+      description: null,
+      side: 'credit',
+      amount: 100,
+      coa_id: coaId,
+      entry_status: 'active',
+    },
+  ]);
   return batch.id;
 }
 

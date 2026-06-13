@@ -155,7 +155,6 @@
 
 @layer base {
   html {
-    font-size: 0.875rem;
     scroll-behavior: smooth;
     font-family:
       'IBM Plex Sans Variable',

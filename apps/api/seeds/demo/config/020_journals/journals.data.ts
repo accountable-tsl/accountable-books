@@ -11,7 +11,7 @@ export type JournalSeedScenario = {
   splitDebit?: boolean;
   useProject?: boolean;
   useContact?: boolean;
-  reference?: string;
+  userReference?: string;
   autoReversalDays?: number;
   fx?: boolean;
   action?: 'void' | 'reverse';
@@ -93,7 +93,7 @@ export const JOURNAL_SEED_SCENARIOS: JournalSeedScenario[] = [
     debitHints: ['deferred', 'unearned'],
     creditHints: ['revenue', 'sales'],
     useContact: true,
-    reference: 'DRAFT-REV-{{COMPANY}}',
+    userReference: 'DRAFT-REV-{{COMPANY}}',
   },
   {
     key: 'fx-revaluation',
@@ -129,7 +129,7 @@ export const JOURNAL_SEED_SCENARIOS: JournalSeedScenario[] = [
     debitHints: ['office', 'supplies'],
     creditHints: ['payable', 'liability'],
     action: 'void',
-    reference: 'DRAFT-VOID-{{COMPANY}}',
+    userReference: 'DRAFT-VOID-{{COMPANY}}',
   },
   {
     key: 'reversal-source',

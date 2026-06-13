@@ -299,12 +299,26 @@ describe('condition-checks', () => {
         })
         .returning('*');
 
-      await trx('journal_entries').insert({
-        journal_batch_id: batch.id,
-        coa_id: testCoaId,
-        side: 'debit',
-        amount: 100,
-      });
+      await trx('journal_entries').insert([
+        {
+          company_id: testCompanyId,
+          journal_batch_id: batch.id,
+          line_number: 1,
+          coa_id: testCoaId,
+          side: 'debit',
+          amount: 100,
+          entry_status: 'active',
+        },
+        {
+          company_id: testCompanyId,
+          journal_batch_id: batch.id,
+          line_number: 2,
+          coa_id: testCoaId,
+          side: 'credit',
+          amount: 100,
+          entry_status: 'active',
+        },
+      ]);
 
       const result = await checkDraftJournals(testCompanyId, march2025, trx);
       expect(result.isActive).toBe(true);

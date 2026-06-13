@@ -206,13 +206,28 @@ describe('COA lifecycle impacts', () => {
       })
       .returning<{ id: string }[]>('id');
 
-    await trx('journal_entries').insert({
-      description: null,
-      side: 'debit',
-      amount: 100,
-      journal_batch_id: batch.id,
-      coa_id: coaId,
-    });
+    await trx('journal_entries').insert([
+      {
+        company_id: companyId,
+        journal_batch_id: batch.id,
+        line_number: 1,
+        description: null,
+        side: 'debit',
+        amount: 100,
+        coa_id: coaId,
+        entry_status: 'active',
+      },
+      {
+        company_id: companyId,
+        journal_batch_id: batch.id,
+        line_number: 2,
+        description: null,
+        side: 'credit',
+        amount: 100,
+        coa_id: coaId,
+        entry_status: 'active',
+      },
+    ]);
   }
 
   async function createRecurringTemplate(

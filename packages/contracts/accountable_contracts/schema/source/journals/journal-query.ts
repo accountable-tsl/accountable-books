@@ -24,7 +24,7 @@ export const listJournalsCursorQuery = z.object({
   contactId: z.string().optional(),
   currencyId: z.string().optional(),
   includeDeleted: z.boolean().optional(),
-  sortBy: z.enum(['created_at', 'date', 'reference']).optional(),
+  sortBy: z.enum(['created_at', 'date', 'system_reference']).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   limit: z.number().optional(),
   cursor: z.string().optional(),

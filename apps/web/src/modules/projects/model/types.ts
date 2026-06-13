@@ -47,6 +47,11 @@ export const newProject = z
 export type NewProject = z.infer<typeof newProject>;
 export type NewProjectFormInput = z.input<typeof newProject>;
 
+export const updateProject = newProject.partial().extend({
+  id: z.uuid(),
+});
+export type UpdateProject = z.infer<typeof updateProject>;
+
 export const fetchProjectsParams = z.object({
   companyId: z.string().nonempty(),
   ids: z.array(z.string()).optional(),
@@ -55,6 +60,7 @@ export const fetchProjectsParams = z.object({
   search: z.string().optional(),
   page: z.int().min(1),
   limit: z.int().min(1).max(100),
+  includeDeleted: z.boolean().optional(),
   sortBy: z.enum(sortFields).optional(),
   sortOrder: sortOrderEnum.optional(),
 });
@@ -70,6 +76,14 @@ export const projects = z.object({
   contactName: z.string().nullish(),
   startDate: z.union([z.date(), z.string().min(1)]).nullish(),
   endDate: z.union([z.date(), z.string().min(1)]).nullish(),
+  createdAt: z.union([z.date(), z.string().min(1)]).nullish(),
+  updatedAt: z.union([z.date(), z.string().min(1)]).nullish(),
+  isDeleted: z.boolean().optional(),
+  deletedAt: z
+    .union([z.date(), z.string().min(1)])
+    .nullable()
+    .optional(),
+  deletedById: z.uuid().nullable().optional(),
 });
 export type Project = z.infer<typeof projects>;
 

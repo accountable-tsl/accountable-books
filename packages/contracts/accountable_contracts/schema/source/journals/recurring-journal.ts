@@ -57,7 +57,12 @@ export type RecurringTemplateDetail = {
   lastError: string | null;
   failureCount: number;
   createdAt: string;
+  createdById: string;
   updatedAt: string;
+  updatedById: string | null;
+  isDeleted: boolean;
+  deletedAt: string | null;
+  deletedById: string | null;
 };
 
 export type GetRecurringTemplateResponse = {

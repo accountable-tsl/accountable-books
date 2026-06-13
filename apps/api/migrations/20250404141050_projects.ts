@@ -61,6 +61,13 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('SET NULL');
 
     table
+      .uuid('deleted_by_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('RESTRICT');
+
+    table
       .timestamp('created_at', { useTz: true })
       .notNullable()
       .defaultTo(knex.fn.now());
@@ -70,6 +77,9 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
+    table.boolean('is_deleted').notNullable().defaultTo(false);
+    table.timestamp('deleted_at', { useTz: true }).nullable();
+
     table
       .foreign(['contact_id', 'company_id'], 'projects_contact_company_fk')
       .references(['id', 'company_id'])
@@ -77,6 +87,10 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table.index(['company_id', 'status'], 'project_company_status_idx');
+    table.index(
+      ['company_id', 'is_deleted', 'status'],
+      'project_company_deleted_status_idx',
+    );
     table.index(['company_id', 'created_at']);
 
     table.unique(['id', 'company_id']);
@@ -108,6 +122,19 @@ export async function up(knex: Knex): Promise<void> {
           start_date IS NULL
           OR end_date IS NULL
           OR start_date <= end_date
+        ),
+      ADD CONSTRAINT projects_soft_delete_chk
+        CHECK (
+          (
+            is_deleted = false
+            AND deleted_at IS NULL
+            AND deleted_by_id IS NULL
+          )
+          OR (
+            is_deleted = true
+            AND deleted_at IS NOT NULL
+            AND deleted_by_id IS NOT NULL
+          )
         );
   `);
 
@@ -121,19 +148,19 @@ export async function up(knex: Knex): Promise<void> {
   await knex.raw(`
     CREATE UNIQUE INDEX projects_company_code_unique
     ON "${schemaName}"."${tableName}" (company_id, lower(code))
-    WHERE code IS NOT NULL;
+    WHERE code IS NOT NULL AND is_deleted = false;
   `);
 
   await knex.raw(`
     CREATE UNIQUE INDEX projects_company_internal_name_unique
     ON "${schemaName}"."${tableName}" (company_id, lower(name))
-    WHERE contact_id IS NULL;
+    WHERE contact_id IS NULL AND is_deleted = false;
   `);
 
   await knex.raw(`
     CREATE UNIQUE INDEX projects_company_contact_name_unique
     ON "${schemaName}"."${tableName}" (company_id, contact_id, lower(name))
-    WHERE contact_id IS NOT NULL;
+    WHERE contact_id IS NOT NULL AND is_deleted = false;
   `);
 
   await createTrgmIndexes(
