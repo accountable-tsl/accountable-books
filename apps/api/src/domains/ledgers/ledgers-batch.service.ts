@@ -15,7 +15,8 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { enqueueGLBalance } from '../balances/index.js';
+import { scheduleGLBalanceAfterCommit } from '../balances/index.js';
+import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
@@ -28,6 +29,7 @@ import { getBankTransactionContactResolutions } from './bank-transaction-contact
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
+  buildOpenEndedGLBalanceRecalcRequests,
   fetchLookupMap,
   processEntriesDates,
   resolveFx,
@@ -471,27 +473,6 @@ export async function createLedgerRecordsBatch({
           type: 'LEDGER_TX',
           ledgerTransactionId,
         });
-
-        if (trackFxPositions) {
-          for (const {
-            index,
-            entry: _baseEntry,
-          } of monetaryResult.monetaryEntries) {
-            const fullEntry = entries[index]!;
-            const calculatedAmount = fullEntry.source_amount * customExRate;
-
-            await upsertFxPosition({
-              companyId: companyUUID,
-              fx_transaction_id: fxTransactionId,
-              account_id: fullEntry.coa_id,
-              foreign_currency_id: fullEntry.source_currency_id,
-              source_amount: fullEntry.source_amount,
-              amount: calculatedAmount,
-              exchange_rate: customExRate,
-              trx: txn,
-            });
-          }
-        }
       }
 
       // Build & insert ledger entries
@@ -516,7 +497,52 @@ export async function createLedgerRecordsBatch({
         }),
       );
 
-      await txn('ledger_entries').insert(entriesToInsert);
+      const insertedEntries = await txn('ledger_entries')
+        .insert(entriesToInsert)
+        .returning<
+          Array<{
+            id: string;
+            coa_id: string;
+            source_currency_id: string;
+            source_amount: string | number;
+            amount: string | number;
+            is_monetary: boolean;
+            fx_transaction_id: string | null;
+            fs_date: string | Date;
+          }>
+        >([
+          'id',
+          'coa_id',
+          'source_currency_id',
+          'source_amount',
+          'amount',
+          'is_monetary',
+          'fx_transaction_id',
+          'fs_date',
+        ]);
+
+      if (trackFxPositions && fxTransactionId) {
+        for (const entry of insertedEntries) {
+          if (!entry.is_monetary || !entry.fx_transaction_id) continue;
+
+          await upsertFxPosition({
+            companyId: companyUUID,
+            fx_transaction_id: entry.fx_transaction_id,
+            account_id: entry.coa_id,
+            foreign_currency_id: entry.source_currency_id,
+            source_amount: Number(entry.source_amount),
+            amount: Number(entry.amount),
+            exchange_rate: customExRate,
+            source_type: 'ledger_entry',
+            source_id: entry.id,
+            ledger_transaction_id: ledgerTransactionId,
+            ledger_entry_id: entry.id,
+            movement_date: toYMD(entry.fs_date),
+            created_by_id: userId,
+            trx: txn,
+          });
+        }
+      }
 
       // STEP 7: CREATE LEDGER AUDIT LOG
       // Automatically create audit log entry for all ledger transactions
@@ -607,14 +633,24 @@ export async function createLedgerRecordsBatch({
     // STEP 6: ENQUEUE BALANCE RECALCULATION (ONCE PER COA)
     // This is the key optimization: instead of enqueuing N times per COA,
     // we enqueue once with the merged date range
-    for (const [coaId, range] of globalCoaBounds) {
-      await enqueueGLBalance({
-        companyId: companyUUID,
-        coaId,
-        recalcFrom: range.min,
-        recalcTo: range.max,
-        triggeredBy: 'ledger_entry',
-      });
+    for (const request of buildOpenEndedGLBalanceRecalcRequests({
+      companyId: companyUUID,
+      bounds: globalCoaBounds,
+      triggeredBy: 'ledger_entry',
+    })) {
+      await scheduleGLBalanceAfterCommit(request, txn);
+    }
+
+    // Re-evaluate close review signals once per created ledger transaction.
+    for (const result of results) {
+      await scheduleCloseSignalEvalAfterCommit(
+        {
+          companyId: companyUUID,
+          ledgerTransactionId: result.ledgerTransactionId,
+          triggeredBy: 'ledger_write',
+        },
+        txn,
+      );
     }
 
     // STEP 8: LINK BACK TO SOURCE ENTITIES

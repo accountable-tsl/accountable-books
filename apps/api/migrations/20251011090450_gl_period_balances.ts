@@ -1,95 +1,106 @@
 import type { Knex } from 'knex';
 
-import {
-  createUpdateTimestampTrigger,
-  dropUpdateTimestampTrigger,
-} from './utils/db.js';
-
+/**
+ * GL period balances are derived fiscal-period summaries per company COA. They
+ * are rebuilt from GL daily balance snapshots and power trial balance,
+ * financial statements, period comparisons, and other period-based reporting.
+ * Posted ledger entries remain the accounting source of truth.
+ */
+const schemaName = 'app';
 const tableName = 'gl_period_balances';
+const qualifiedTable = `"${schemaName}"."${tableName}"`;
 
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema.createTable(tableName, (table) => {
+  await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
     table
       .uuid('company_id')
       .notNullable()
       .references('id')
-      .inTable('companies')
-      .onDelete('CASCADE');
+      .inTable(`${schemaName}.companies`)
+      .onDelete('RESTRICT');
 
-    table
-      .uuid('coa_id')
-      .notNullable()
-      .references('id')
-      .inTable('coa')
-      .onDelete('CASCADE');
+    table.uuid('coa_id').notNullable();
 
     table.integer('fiscal_year').notNullable();
-    table.integer('fiscal_period').notNullable();
+    table.integer('period_number').notNullable();
     table
-      .enu('period_type', ['monthly', 'quarterly', 'yearly'], {
-        useNative: true,
-        existingType: true,
-        enumName: 'fiscal_period_type',
-      })
-      .notNullable()
-      .defaultTo('monthly');
-
-    table.date('period_start_date').notNullable();
-    table.date('period_end_date').notNullable();
+      .specificType('period_type', `"${schemaName}"."fiscal_period_type"`)
+      .notNullable();
 
     table.decimal('opening_balance', 18, 3).notNullable().defaultTo(0);
     table.decimal('period_debits', 18, 3).notNullable().defaultTo(0);
     table.decimal('period_credits', 18, 3).notNullable().defaultTo(0);
-    table.decimal('closing_balance', 18, 3).notNullable();
+    table.decimal('closing_balance', 18, 3).notNullable().defaultTo(0);
     table.integer('transaction_count').notNullable().defaultTo(0);
 
+    table
+      .timestamp('calculated_at', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
     table
       .timestamp('created_at', { useTz: true })
       .notNullable()
       .defaultTo(knex.fn.now());
-    table
-      .timestamp('updated_at', { useTz: true })
-      .notNullable()
-      .defaultTo(knex.fn.now());
 
-    table.primary([
-      'company_id',
-      'coa_id',
-      'fiscal_year',
-      'fiscal_period',
-      'period_type',
-    ]);
+    table.primary(
+      ['company_id', 'coa_id', 'fiscal_year', 'period_number', 'period_type'],
+      {
+        constraintName: 'gl_period_balances_pk',
+      },
+    );
 
-    // FK to fiscal_calendar
     table
-      .foreign(['company_id', 'fiscal_year', 'fiscal_period', 'period_type'])
+      .foreign(['coa_id', 'company_id'], 'gl_period_balances_coa_company_fk')
+      .references(['id', 'company_id'])
+      .inTable(`${schemaName}.coa`)
+      .onDelete('RESTRICT');
+
+    table
+      .foreign(
+        ['company_id', 'fiscal_year', 'period_number', 'period_type'],
+        'gl_period_balances_fiscal_calendar_fk',
+      )
       .references(['company_id', 'fiscal_year', 'period_number', 'period_type'])
-      .inTable('fiscal_calendar')
-      .onDelete('CASCADE');
+      .inTable(`${schemaName}.fiscal_calendar`)
+      .onDelete('RESTRICT');
   });
 
-  // Index for trial balance queries (scan by period, not by account)
+  await knex.raw(`
+    COMMENT ON TABLE ${qualifiedTable} IS
+    'Derived fiscal-period opening, movement, and closing reporting-currency balances per company COA, rebuilt from GL daily balance snapshots for trial balance and financial statement reporting.';
+  `);
+
+  await knex.raw(`
+    ALTER TABLE ${qualifiedTable}
+      ADD CONSTRAINT gl_period_balance_math_chk
+        CHECK (closing_balance = opening_balance + period_debits - period_credits),
+      ADD CONSTRAINT gl_period_balance_nonnegative_activity_chk
+        CHECK (
+          period_debits >= 0
+          AND period_credits >= 0
+          AND transaction_count >= 0
+        );
+  `);
+
   await knex.raw(`
     CREATE INDEX gl_period_balances_period_lookup_idx
-      ON ${tableName} (company_id, fiscal_year, fiscal_period, period_type)
-      INCLUDE (opening_balance, period_debits, period_credits, closing_balance);
+      ON ${qualifiedTable} (company_id, fiscal_year, period_number, period_type)
+      INCLUDE (
+        coa_id,
+        opening_balance,
+        period_debits,
+        period_credits,
+        closing_balance,
+        transaction_count,
+        calculated_at
+      );
   `);
-
-  // Constraint: balance math must work
-  await knex.raw(`
-    ALTER TABLE ${tableName}
-      ADD CONSTRAINT gl_period_balance_math_check
-      CHECK (closing_balance = opening_balance + period_debits - period_credits);
-  `);
-
-  await createUpdateTimestampTrigger(knex, tableName);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP INDEX IF EXISTS gl_period_balances_period_lookup_idx;`);
   await knex.raw(
-    `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS gl_period_balance_math_check;`,
+    `DROP INDEX IF EXISTS "${schemaName}".gl_period_balances_period_lookup_idx;`,
   );
-  await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTableIfExists(tableName);
+
+  await knex.schema.withSchema(schemaName).dropTableIfExists(tableName);
 }

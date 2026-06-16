@@ -19,6 +19,7 @@ export enum QueueName {
   JOURNAL_AUTO_REVERSAL = 'journal-auto-reversal',
   RECURRING_JOURNAL = 'recurring-journal-templates',
   TASK_EVALUATION = 'task-evaluation',
+  CLOSE_SIGNAL_EVAL = 'close-signal-eval',
 }
 
 /**

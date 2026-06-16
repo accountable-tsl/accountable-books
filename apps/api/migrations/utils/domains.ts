@@ -55,3 +55,13 @@ export const CONTACT_TYPES = [
 export function createContactTypeDomain() {
   return createDomainIfNotExists('contact_type', 'TEXT', CONTACT_TYPES);
 }
+
+export const FISCAL_PERIOD_TYPES = ['monthly', 'quarterly', 'yearly'] as const;
+
+export function createFiscalPeriodTypeDomain() {
+  return createDomainIfNotExists(
+    'fiscal_period_type',
+    'TEXT',
+    FISCAL_PERIOD_TYPES,
+  );
+}

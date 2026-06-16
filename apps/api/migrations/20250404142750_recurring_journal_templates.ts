@@ -150,6 +150,7 @@ export async function up(knex: Knex): Promise<void> {
           is_deleted = true
           AND deleted_at IS NOT NULL
           AND deleted_by_id IS NOT NULL
+          AND status = 'draft'
         )
       );
   `);

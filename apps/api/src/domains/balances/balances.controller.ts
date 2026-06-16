@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import z from 'zod';
 
 import {
   errorResponse,
@@ -19,6 +20,7 @@ import {
   recalculateAllGLBalances,
   recalculateBankBalance,
   recalculateGLBalance,
+  refreshTrialBalance,
 } from './balances.model.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
@@ -27,6 +29,138 @@ import type { AuthRequest } from '../../features/auth/auth.types.js';
  * Balance management controller
  * Handles manual balance recalculation and balance queries
  */
+
+function getRequestCompanyId(req: AuthRequest): string {
+  const companyId = req.companyContext?.uuid ?? req.company?.id;
+  if (!companyId) {
+    throw new Error('Authenticated company context is required');
+  }
+  return companyId;
+}
+
+const trialBalanceQuerySchema = z
+  .object({
+    fiscalYear: z.coerce.number().int().min(1900).max(9999).optional(),
+    fiscalPeriod: z.coerce.number().int().min(1).max(12).optional(),
+    periodNumber: z.coerce.number().int().min(1).max(12).optional(),
+    periodType: z.enum(['monthly', 'quarterly', 'yearly']).optional(),
+    includeZeroBalances: booleanParamSchema(true),
+    includeFreshAccounts: booleanParamSchema(false),
+    asOfDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    fromDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    toDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.fiscalPeriod !== undefined &&
+      value.periodNumber !== undefined &&
+      value.fiscalPeriod !== value.periodNumber
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'fiscalPeriod and periodNumber cannot conflict',
+        path: ['periodNumber'],
+      });
+    }
+
+    const periodNumber = value.periodNumber ?? value.fiscalPeriod;
+    const hasDateRange =
+      value.fromDate !== undefined || value.toDate !== undefined;
+    const hasFiscalSelector =
+      value.fiscalYear !== undefined ||
+      periodNumber !== undefined ||
+      value.asOfDate !== undefined ||
+      value.periodType !== undefined;
+
+    if (
+      hasDateRange &&
+      (value.fromDate === undefined || value.toDate === undefined)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'fromDate and toDate are required together',
+        path: ['fromDate'],
+      });
+    }
+
+    if (
+      value.fromDate !== undefined &&
+      value.toDate !== undefined &&
+      value.fromDate > value.toDate
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'fromDate must be on or before toDate',
+        path: ['toDate'],
+      });
+    }
+
+    if (hasDateRange && hasFiscalSelector) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Use either fromDate/toDate or fiscal period selectors, not both',
+        path: ['fromDate'],
+      });
+    }
+
+    if (
+      !hasDateRange &&
+      ((value.fiscalYear === undefined && periodNumber !== undefined) ||
+        (value.fiscalYear !== undefined && periodNumber === undefined))
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'fiscalYear and periodNumber are required together',
+        path: ['fiscalYear'],
+      });
+    }
+
+    const periodType = value.periodType ?? 'monthly';
+    if (periodType === 'quarterly' && periodNumber && periodNumber > 4) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'periodNumber must be between 1 and 4 for quarterly reports',
+        path: ['periodNumber'],
+      });
+    }
+
+    if (periodType === 'yearly' && periodNumber && periodNumber !== 1) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'periodNumber must be 1 for yearly reports',
+        path: ['periodNumber'],
+      });
+    }
+  });
+
+function booleanParamSchema(defaultValue: boolean) {
+  return z
+    .preprocess((value) => {
+      if (value === undefined) return undefined;
+      if (typeof value === 'boolean') return value;
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      return value;
+    }, z.boolean().optional())
+    .transform((value) => value ?? defaultValue);
+}
+
+function parseTrialBalanceInput(req: AuthRequest) {
+  return trialBalanceQuerySchema.safeParse({
+    ...(req.query ?? {}),
+    ...(req.body ?? {}),
+  });
+}
 
 /**
  * Manually trigger GL balance recalculation for a specific COA
@@ -37,7 +171,7 @@ export async function recalculateGLBalanceController(
 ) {
   try {
     const coaId = String(req.params.coaId);
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const { recalcFrom, recalcTo } = req.body;
 
     const result = await recalculateGLBalance({
@@ -66,7 +200,7 @@ export async function recalculateBankBalanceController(
   res: Response,
 ) {
   try {
-    const { id: companyId } = req.company!;
+    const companyId = getRequestCompanyId(req);
     const bankAccountId = String(req.params.bankAccountId);
     const { recalcFrom, recalcTo } = req.body;
 
@@ -96,7 +230,7 @@ export async function recalculateAllGLBalancesController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const { recalcFrom, recalcTo } = req.body;
 
     const result = await recalculateAllGLBalances({
@@ -127,7 +261,7 @@ export async function recalculateAllBankBalancesController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const { recalcFrom, recalcTo } = req.body;
 
     const result = await recalculateAllBankBalances({
@@ -158,7 +292,7 @@ export async function getCurrentGLBalanceController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const coaId = String(req.params.coaId);
 
     const result = await getCurrentGLBalance({
@@ -184,7 +318,7 @@ export async function getCurrentBankBalanceController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const bankAccountId = String(req.params.bankAccountId);
 
     const result = await getCurrentBankBalance({
@@ -210,7 +344,7 @@ export async function getGLBalanceHistoryController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const coaId = String(req.params.coaId);
     const { fromDate, toDate, limit = 30 } = req.query;
 
@@ -239,7 +373,7 @@ export async function getBankBalanceHistoryController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const bankAccountId = String(req.params.bankAccountId);
     const { fromDate, toDate, limit = 30 } = req.query;
 
@@ -268,26 +402,76 @@ export async function getTrialBalanceController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
-    const { fiscalYear, fiscalPeriod, periodType = 'monthly' } = req.query;
+    const companyId = getRequestCompanyId(req);
+    const parsed = parseTrialBalanceInput(req);
 
-    if (!fiscalYear || !fiscalPeriod) {
-      return res
-        .status(400)
-        .json(errorResponse('fiscalYear and fiscalPeriod are required', {}));
+    if (!parsed.success) {
+      return res.status(400).json(
+        errorResponse('Invalid trial balance query', {
+          errors: z.flattenError(parsed.error),
+        }),
+      );
     }
+
+    const periodNumber = parsed.data.periodNumber ?? parsed.data.fiscalPeriod;
 
     const result = await getTrialBalance({
       companyId,
-      fiscalYear: Number(fiscalYear),
-      fiscalPeriod: Number(fiscalPeriod),
-      periodType: periodType as 'monthly' | 'quarterly' | 'yearly',
+      fiscalYear: parsed.data.fiscalYear,
+      periodNumber,
+      periodType: parsed.data.periodType ?? 'monthly',
+      includeZeroBalances: parsed.data.includeZeroBalances,
+      asOfDate: parsed.data.asOfDate,
+      fromDate: parsed.data.fromDate,
+      toDate: parsed.data.toDate,
     });
 
     return result.success ? res.json(result) : res.status(400).json(result);
   } catch (error) {
     return res.status(500).json(
       errorResponse('Failed to get trial balance', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+  }
+}
+
+/**
+ * Queue recalculation for stale or missing trial balance accounts.
+ */
+export async function refreshTrialBalanceController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = getRequestCompanyId(req);
+    const parsed = parseTrialBalanceInput(req);
+
+    if (!parsed.success) {
+      return res.status(400).json(
+        errorResponse('Invalid trial balance refresh request', {
+          errors: z.flattenError(parsed.error),
+        }),
+      );
+    }
+
+    const periodNumber = parsed.data.periodNumber ?? parsed.data.fiscalPeriod;
+
+    const result = await refreshTrialBalance({
+      companyId,
+      fiscalYear: parsed.data.fiscalYear,
+      periodNumber,
+      periodType: parsed.data.periodType ?? 'monthly',
+      asOfDate: parsed.data.asOfDate,
+      fromDate: parsed.data.fromDate,
+      toDate: parsed.data.toDate,
+      includeFreshAccounts: parsed.data.includeFreshAccounts,
+    });
+
+    return result.success ? res.json(result) : res.status(400).json(result);
+  } catch (error) {
+    return res.status(500).json(
+      errorResponse('Failed to refresh trial balance', {
         error: error instanceof Error ? error.message : 'Unknown error',
       }),
     );
@@ -302,7 +486,7 @@ export async function getFiscalPeriodsController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const { fiscalYear, periodType = 'monthly' } = req.query;
 
     const periods = await getFiscalPeriods(
@@ -329,7 +513,7 @@ export async function closeFiscalPeriodController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const { fiscalYear, fiscalPeriod, periodType = 'monthly' } = req.body;
     const { id: userId } = req.user!;
 
@@ -339,13 +523,13 @@ export async function closeFiscalPeriodController(
         .json(errorResponse('fiscalYear and fiscalPeriod are required', {}));
     }
 
-    const result = await closeFiscalPeriod(
+    const result = await closeFiscalPeriod({
       companyId,
-      Number(fiscalYear),
-      Number(fiscalPeriod),
       userId,
-      periodType as 'monthly',
-    );
+      fiscalYear: Number(fiscalYear),
+      periodNumber: Number(fiscalPeriod),
+      periodType: periodType as 'monthly',
+    });
 
     return result.success
       ? res.json(successResponse(result.message, { warnings: result.warnings }))
@@ -369,7 +553,7 @@ export async function reopenFiscalPeriodController(
   res: Response,
 ) {
   try {
-    const companyId = req.company!.id;
+    const companyId = getRequestCompanyId(req);
     const {
       fiscalYear,
       fiscalPeriod,
@@ -389,14 +573,14 @@ export async function reopenFiscalPeriodController(
         );
     }
 
-    const result = await reopenFiscalPeriod(
+    const result = await reopenFiscalPeriod({
       companyId,
-      Number(fiscalYear),
-      Number(fiscalPeriod),
       userId,
+      fiscalYear: Number(fiscalYear),
+      periodNumber: Number(fiscalPeriod),
       reason,
-      periodType as 'monthly',
-    );
+      periodType: periodType as 'monthly',
+    });
 
     return result.success
       ? res.json(successResponse(result.message, {}))

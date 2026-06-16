@@ -1,6 +1,6 @@
 import { zEmail } from '@/shared/types/core';
 import { companyType } from '@accountable-books/contracts/schema';
-import z from 'zod';
+import { z } from 'zod';
 
 import { sanitizeInput, sanitizeOptionalInput, validateSlug } from '../utils';
 

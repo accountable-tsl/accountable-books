@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as currencyUtils from '../../currencies/currencies.utils.js';
 import * as exchangeRateUtils from '../../exchangeRates/exchangeRates.utils.js';
 import {
+  buildOpenEndedGLBalanceRecalcRequests,
   processEntriesDates,
   resolveFx,
   validateBankLegAmount,
@@ -145,7 +146,10 @@ describe('validateIds', () => {
     expect(mockQueryBuilder.where).toHaveBeenCalledWith({
       company_id: 'company-123',
     });
-    expect(mockQueryBuilder.andWhere).not.toHaveBeenCalled();
+    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith({
+      is_deleted: false,
+      status: 'active',
+    });
   });
 
   it('should throw when some IDs are invalid', async () => {
@@ -166,7 +170,9 @@ describe('validateIds', () => {
     await expect(
       validateIds('projects', requestedIds, 'company-123', mockTxn as any),
     ).rejects.toThrow('Invalid projects IDs: id-2, id-4');
-    expect(mockQueryBuilder.andWhere).not.toHaveBeenCalled();
+    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith({
+      is_deleted: false,
+    });
   });
 
   it('should not throw when empty array is provided', async () => {
@@ -702,5 +708,36 @@ describe('processEntriesDates', () => {
     expect(result.minYMD).toBeNull();
     expect(result.maxYMD).toBeNull();
     expect(result.bounds.size).toBe(0);
+  });
+});
+
+describe('buildOpenEndedGLBalanceRecalcRequests', () => {
+  it('builds one open-ended recalculation request per affected COA', () => {
+    const bounds = new Map([
+      ['coa-b', { min: '2025-02-10', max: '2025-02-15' }],
+      ['coa-a', { min: '2025-01-05', max: '2025-03-20' }],
+    ]);
+
+    const requests = buildOpenEndedGLBalanceRecalcRequests({
+      companyId: 'company-1',
+      bounds,
+      triggeredBy: 'ledger_entry',
+    });
+
+    expect(requests).toEqual([
+      {
+        companyId: 'company-1',
+        coaId: 'coa-a',
+        recalcFrom: '2025-01-05',
+        triggeredBy: 'ledger_entry',
+      },
+      {
+        companyId: 'company-1',
+        coaId: 'coa-b',
+        recalcFrom: '2025-02-10',
+        triggeredBy: 'ledger_entry',
+      },
+    ]);
+    expect(requests).not.toHaveProperty('0.recalcTo');
   });
 });

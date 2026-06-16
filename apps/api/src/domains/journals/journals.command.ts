@@ -15,6 +15,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { reverseFxPositionMovementsForLedgerTransaction } from '../fx/index.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
 import {
   persistTxnFiles,
@@ -232,11 +233,13 @@ export async function postJournalRecord({
   companyId,
   userId,
   trx,
+  skipFxPositionTracking = false,
 }: {
   data: JournalBatchData;
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
+  skipFxPositionTracking?: boolean;
 
   // Validate input
   // Validate contact (if provided) exists and is active for this company
@@ -518,6 +521,7 @@ export async function postJournalRecord({
         companyId,
         userId,
         trx: txn,
+        skipFxPositionTracking,
       });
 
       if (
@@ -1357,6 +1361,7 @@ export async function postDraftJournal({
       companyId,
       userId,
       trx: tx,
+      skipFxPositionTracking: false,
     });
 
     if (
@@ -1956,6 +1961,7 @@ export async function reverseJournalRecord({
       companyId: journalBatch.company_id,
       userId,
       trx: tx,
+      skipFxPositionTracking: true,
     });
 
     if (!reversalResult.success || !reversalResult.data) {
@@ -1965,6 +1971,18 @@ export async function reverseJournalRecord({
     log('reversing_journal_created', {
       reversalJournalId: reversalResult.data.journalBatchId,
     });
+
+    if (reversalResult.data.ledgerTransactionId) {
+      await reverseFxPositionMovementsForLedgerTransaction({
+        companyId: journalBatch.company_id,
+        ledgerTransactionId: journalBatch.ledger_transaction_id,
+        reversingLedgerTransactionId: reversalResult.data.ledgerTransactionId,
+        movementDate: effectiveReversalDate,
+        createdById: userId,
+        movementType: 'reversed',
+        trx: tx,
+      });
+    }
 
     await tx('journal_batches')
       .where('id', journalBatchId)

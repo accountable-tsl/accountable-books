@@ -1,6 +1,5 @@
 import type { Knex } from 'knex';
 
-import { ENV, isProd } from '../../../config/env.js';
 import { knexClient } from '../../../db/knexClient.js';
 import { getBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.model.js';
 import { getCountryFromCode } from '../../../domains/countries/countries.utils.js';
@@ -24,6 +23,29 @@ const normalizeOptionalString = (
   const normalized = value?.trim();
   return normalized ? normalized : undefined;
 };
+
+function getProviderInstitutionReferences(
+  institution: ProviderInstitution,
+): Pick<
+  NewBankProviderMapping,
+  | 'provider_institution_alternate_id'
+  | 'provider_institution_secondary_reference'
+> {
+  const routing = normalizeOptionalString(institution.bankCodes?.routing);
+  const local = normalizeOptionalString(institution.bankCodes?.local);
+
+  if (routing && local && routing !== local) {
+    return {
+      provider_institution_alternate_id: routing,
+      provider_institution_secondary_reference: local,
+    };
+  }
+
+  return {
+    provider_institution_alternate_id: routing ?? local,
+    provider_institution_secondary_reference: undefined,
+  };
+}
 
 /**
  * Generate a standardized, unique bank key from name and country.
@@ -148,11 +170,9 @@ async function findExistingBank({
 export interface FindOrCreateBankMappingResponse {
   bankId: string;
   providerId: string;
-  providerBankId: string;
-  providerBankName: string;
+  providerInstitutionId: string;
+  providerInstitutionName: string | null;
   bankLogoUrl: string | null;
-  // bankDisplayName: string;
-  // providerKey: string;
 }
 export async function findOrCreateBankMapping(params: {
   providerKey: string;
@@ -179,7 +199,7 @@ export async function findOrCreateBankMapping(params: {
   ): Promise<FindOrCreateBankMappingResponse> => {
     // Fast Path - check for existing mapping
     const existingMapping = await getBankProviderMapping(
-      { providerKey, providerBankId: institution.providerInstitutionId },
+      { providerKey, providerInstitutionId: institution.providerInstitutionId },
       txn,
     );
 
@@ -189,11 +209,9 @@ export async function findOrCreateBankMapping(params: {
       return {
         bankId: r.bankId,
         providerId: r.providerId,
-        providerBankId: r.providerBankId,
-        providerBankName: r.providerBankName,
+        providerInstitutionId: r.providerInstitutionId,
+        providerInstitutionName: r.providerInstitutionName,
         bankLogoUrl: r.bankLogoUrl,
-        // providerKey: r.providerKey,
-        // bankDisplayName: r.bankDisplayName,
       };
     }
 
@@ -269,41 +287,44 @@ export async function findOrCreateBankMapping(params: {
 
     // Create the bank provider mapping using an atomic upsert.
     const mappingInput: NewBankProviderMapping = {
-      provider_id: resolvedProviderId,
+      bank_feed_provider_id: resolvedProviderId,
       bank_id: bankId,
-      provider_bank_id: institution.providerInstitutionId,
-      provider_bank_name: institution.name,
+      provider_institution_id: institution.providerInstitutionId,
+      ...getProviderInstitutionReferences(institution),
+      provider_institution_name: institution.name,
       raw_provider_data: institution.rawData,
       created_by_id: resolvedUserId,
       updated_by_id: resolvedUserId,
     };
 
-    const insertQuery = txn('bank_provider_mappings').insert(mappingInput);
-    const updateQuery = txn.queryBuilder().update({
-      provider_bank_name: institution.name,
-      raw_provider_data: institution.rawData,
-      updated_at: txn.fn.now(),
-    });
-
-    await txn.raw(`? ON CONFLICT (provider_id, provider_bank_id) DO ?`, [
-      insertQuery,
-      updateQuery,
-    ]);
+    await txn('bank_provider_mappings')
+      .insert(mappingInput)
+      .onConflict(
+        txn.raw(
+          '(bank_feed_provider_id, provider_institution_id) WHERE is_deleted = false',
+        ),
+      )
+      .merge({
+        provider_institution_alternate_id:
+          mappingInput.provider_institution_alternate_id ?? null,
+        provider_institution_secondary_reference:
+          mappingInput.provider_institution_secondary_reference ?? null,
+        provider_institution_name: institution.name,
+        raw_provider_data: institution.rawData,
+        updated_by_id: resolvedUserId,
+      });
 
     const finalMapping = await txn('bank_provider_mappings as bpm')
-      // .join('bank_feed_providers as bfp', 'bfp.id', 'bpm.provider_id')
       .select(
         'bpm.bank_id as bankId',
-        'bpm.provider_id as providerId',
-        'bpm.provider_bank_id as providerBankId',
-        'bpm.provider_bank_name as providerBankName',
-        // 'bfp.key as providerKey',
-        // 'b.display_name as bankDisplayName',
+        'bpm.bank_feed_provider_id as providerId',
+        'bpm.provider_institution_id as providerInstitutionId',
+        'bpm.provider_institution_name as providerInstitutionName',
       )
-      // .join('banks as b', 'b.id', 'bpm.bank_id')
       .where({
-        'bpm.provider_id': resolvedProviderId,
-        'bpm.provider_bank_id': institution.providerInstitutionId,
+        'bpm.bank_feed_provider_id': resolvedProviderId,
+        'bpm.provider_institution_id': institution.providerInstitutionId,
+        'bpm.is_deleted': false,
       })
       .first();
 

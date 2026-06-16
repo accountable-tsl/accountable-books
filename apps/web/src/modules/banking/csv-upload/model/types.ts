@@ -1,6 +1,6 @@
 import { contactType } from '@/modules/contacts/model/types';
 import { debitCredit } from '@/shared/types/core';
-import z from 'zod';
+import { z } from 'zod';
 
 export const bankTransactionSource = z.enum([
   'file_import',

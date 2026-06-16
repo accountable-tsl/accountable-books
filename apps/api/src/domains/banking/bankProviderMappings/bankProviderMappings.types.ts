@@ -1,18 +1,22 @@
 import type { Knex } from 'knex';
 import { z } from 'zod';
 
-import { dbBaseFields } from '../../../core/types/core.js';
 import { createCamelCaseSchema } from '../../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../../shared/utils/formatting.utils.js';
 
 const newBankProviderMappingInput = z.object({
-  provider_id: z.uuid(),
+  bank_feed_provider_id: z.uuid(),
   bank_id: z.uuid(),
-  provider_bank_id: z.string(),
-  provider_alternate_id: z.string().nullish(),
-  provider_bank_secondary_reference: z.string().nullish(),
-  provider_bank_name: z.string().nullish(),
+  provider_institution_id: z.string().trim().min(1).max(128),
+  provider_institution_alternate_id: z.string().trim().min(1).max(64).nullish(),
+  provider_institution_secondary_reference: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .nullish(),
+  provider_institution_name: z.string().trim().min(1).max(256).nullish(),
   raw_provider_data: z.record(z.string(), z.any()).nullish(),
 });
 export type NewBankProviderMappingInput = z.infer<
@@ -28,11 +32,18 @@ export type NewBankProviderMappingInputCamel = SnakeToCamelCaseObject<
 export const newBankProviderMapping = newBankProviderMappingInput.extend({
   id: z.uuid().optional(),
   created_by_id: z.uuid(),
-  updated_by_id: z.uuid().optional(),
+  updated_by_id: z.uuid().nullish(),
 });
 export type NewBankProviderMapping = z.infer<typeof newBankProviderMapping>;
 
-export const bankProviderMapping = newBankProviderMapping.merge(dbBaseFields);
+export const bankProviderMapping = newBankProviderMapping.extend({
+  id: z.uuid(),
+  deleted_by_id: z.uuid().nullish(),
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+  is_deleted: z.boolean().optional(),
+  deleted_at: z.date().nullish(),
+});
 export type BankProviderMapping = z.infer<typeof bankProviderMapping>;
 
 export type CreateBankProviderMappings = {
@@ -44,18 +55,15 @@ export type CreateBankProviderMappings = {
 type ProviderMappingInput = { providerKey: string } | { providerId: string };
 type BankMappingInput =
   | { internalBankId: string }
-  | { providerBankId: string }
-  | { internalBankId: string; providerBankId: string };
+  | { providerInstitutionId: string }
+  | { internalBankId: string; providerInstitutionId: string };
 
-// Simple input type for getBankProviderMapping
 export type GetBankProviderMappingInput = ProviderMappingInput &
   BankMappingInput & {
-    // Optional filters
-    providerBankName?: string;
+    providerInstitutionName?: string;
     search?: string;
   };
 
-// Response type for getBankProviderMapping
 export interface GetBankProviderMappingResponse {
   bankId: string;
   bankKey: string;
@@ -66,10 +74,10 @@ export interface GetBankProviderMappingResponse {
   providerKey: string;
   providerName: string;
   providerStatus: string;
-  providerBankId: string;
-  providerAlternateId: string | null;
-  providerBankSecondaryReference: string | null;
-  providerBankName: string;
+  providerInstitutionId: string;
+  providerInstitutionAlternateId: string | null;
+  providerInstitutionSecondaryReference: string | null;
+  providerInstitutionName: string | null;
 }
 
 export interface MonoInstitution {

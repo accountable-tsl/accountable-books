@@ -184,12 +184,15 @@ export async function syncMonoInstitutionsToMappingsNG(
         .select('id', 'local_code', 'alternate_identifier', 'key'),
 
       knex('bank_provider_mappings')
-        .where({ provider_id: provider.id })
+        .where({
+          bank_feed_provider_id: provider.id,
+          is_deleted: false,
+        })
         .select(
           'bank_id',
-          'provider_bank_id',
+          'provider_institution_id',
           'id',
-          'provider_bank_name',
+          'provider_institution_name',
           'raw_provider_data',
         ),
     ]);
@@ -213,7 +216,7 @@ export async function syncMonoInstitutionsToMappingsNG(
 
     const existingMappingsMap = new Map();
     existingMappings.forEach((mapping) => {
-      existingMappingsMap.set(mapping.provider_bank_id, mapping);
+      existingMappingsMap.set(mapping.provider_institution_id, mapping);
     });
 
     if (!otherFinancialInstitutionBank) {
@@ -244,11 +247,11 @@ export async function syncMonoInstitutionsToMappingsNG(
 
           const mappingData = {
             bank_id: bank.id,
-            provider_id: provider.id,
-            provider_bank_id: inst.id,
-            provider_alternate_id: inst.bank_code,
-            provider_bank_secondary_reference: inst.nip_code,
-            provider_bank_name: inst.institution,
+            bank_feed_provider_id: provider.id,
+            provider_institution_id: inst.id,
+            provider_institution_alternate_id: inst.bank_code,
+            provider_institution_secondary_reference: inst.nip_code,
+            provider_institution_name: inst.institution,
             raw_provider_data: inst,
           };
 
@@ -330,10 +333,14 @@ export async function getBankProviderMapping(
     const providerId = 'providerId' in params ? params.providerId : undefined;
     const internalBankId =
       'internalBankId' in params ? params.internalBankId : undefined;
-    const providerBankId =
-      'providerBankId' in params ? params.providerBankId : undefined;
-    const providerBankName =
-      'providerBankName' in params ? params.providerBankName : undefined;
+    const providerInstitutionId =
+      'providerInstitutionId' in params
+        ? params.providerInstitutionId
+        : undefined;
+    const providerInstitutionName =
+      'providerInstitutionName' in params
+        ? params.providerInstitutionName
+        : undefined;
     const search = 'search' in params ? params.search : undefined;
 
     // Must have exactly one provider identifier
@@ -349,9 +356,9 @@ export async function getBankProviderMapping(
     }
 
     // Must have at least one bank identifier
-    if (!internalBankId && !providerBankId) {
+    if (!internalBankId && !providerInstitutionId) {
       return errorResponse(
-        'Bank identification required: provide either internalBankId or providerBankId (or both)',
+        'Bank identification required: provide either internalBankId or providerInstitutionId (or both)',
       );
     }
 
@@ -377,7 +384,11 @@ export async function getBankProviderMapping(
     const query = knex('bank_provider_mappings as bpm')
       .innerJoin('banks as b', 'bpm.bank_id', 'b.id')
       .innerJoin('countries as c', 'b.country_id', 'c.id')
-      .innerJoin('bank_feed_providers as bfp', 'bpm.provider_id', 'bfp.id')
+      .innerJoin(
+        'bank_feed_providers as bfp',
+        'bpm.bank_feed_provider_id',
+        'bfp.id',
+      )
       .where({
         'bpm.is_deleted': false,
         'b.is_deleted': false,
@@ -395,30 +406,33 @@ export async function getBankProviderMapping(
       query.andWhere('bpm.bank_id', internalBankId);
     }
 
-    if (providerBankId) {
+    if (providerInstitutionId) {
       query.andWhere((builder) => {
         builder
-          .where('bpm.provider_bank_id', providerBankId)
-          .orWhere('bpm.provider_alternate_id', providerBankId)
-          .orWhere('bpm.provider_bank_secondary_reference', providerBankId);
-        // .orWhereRaw("bpm.raw_provider_data->>'id' = ?", [providerBankId])
-        // .orWhereRaw("bpm.raw_provider_data->>'bank_code' = ?", [providerBankId])
-        // .orWhereRaw("bpm.raw_provider_data->>'nip_code' = ?", [providerBankId]);
+          .where('bpm.provider_institution_id', providerInstitutionId)
+          .orWhere(
+            'bpm.provider_institution_alternate_id',
+            providerInstitutionId,
+          )
+          .orWhere(
+            'bpm.provider_institution_secondary_reference',
+            providerInstitutionId,
+          );
       });
     }
 
-    if (providerBankName) {
+    if (providerInstitutionName) {
       query.andWhere(
-        'bpm.provider_bank_name',
+        'bpm.provider_institution_name',
         'ILIKE',
-        `%${providerBankName}%`,
+        `%${providerInstitutionName}%`,
       );
     }
 
     if (search) {
       query.andWhere((builder) => {
         builder
-          .where('bpm.provider_bank_name', 'ILIKE', `%${search}%`)
+          .where('bpm.provider_institution_name', 'ILIKE', `%${search}%`)
           .orWhere('b.search_text', 'ILIKE', `%${search.toLowerCase()}%`)
           .orWhereRaw('bpm.raw_provider_data::text ILIKE ?', [`%${search}%`]);
       });
@@ -430,14 +444,15 @@ export async function getBankProviderMapping(
       bankLogoUrl: 'b.logo_url',
       bankDisplayName: 'b.display_name',
       bankOfficialName: 'b.official_name',
-      providerId: 'bpm.provider_id',
+      providerId: 'bpm.bank_feed_provider_id',
       providerKey: 'bfp.key',
       providerName: 'bfp.display_name',
       providerStatus: 'bfp.status',
-      providerBankId: 'bpm.provider_bank_id',
-      providerAlternateId: 'bpm.provider_alternate_id',
-      providerBankSecondaryReference: 'bpm.provider_bank_secondary_reference',
-      providerBankName: 'bpm.provider_bank_name',
+      providerInstitutionId: 'bpm.provider_institution_id',
+      providerInstitutionAlternateId: 'bpm.provider_institution_alternate_id',
+      providerInstitutionSecondaryReference:
+        'bpm.provider_institution_secondary_reference',
+      providerInstitutionName: 'bpm.provider_institution_name',
     });
 
     if (!result) {

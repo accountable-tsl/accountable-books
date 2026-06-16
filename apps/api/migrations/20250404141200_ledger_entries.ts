@@ -226,14 +226,124 @@ export async function up(knex: Knex): Promise<void> {
       BEFORE DELETE ON ${qualifiedTable}
       FOR EACH ROW EXECUTE FUNCTION "${schemaName}".prevent_ledger_entries_delete();
   `);
+
+  await knex.raw(`
+    CREATE OR REPLACE FUNCTION "${schemaName}".validate_ledger_transaction_balance(
+      target_ledger_transaction_id uuid
+    )
+    RETURNS void AS $$
+    DECLARE
+      target_company_id uuid;
+      entry_count integer;
+      signed_total numeric;
+      debit_total numeric;
+      credit_total numeric;
+    BEGIN
+      SELECT lt.company_id
+      INTO target_company_id
+      FROM "${schemaName}"."ledger_transactions" lt
+      WHERE lt.id = target_ledger_transaction_id;
+
+      IF target_company_id IS NULL THEN
+        RETURN;
+      END IF;
+
+      IF "${schemaName}".is_demo_seed_teardown_allowed(target_company_id) THEN
+        RETURN;
+      END IF;
+
+      SELECT
+        COUNT(le.id)::integer,
+        COALESCE(SUM(le.amount), 0)::numeric,
+        COALESCE(SUM(le.amount) FILTER (WHERE le.amount > 0), 0)::numeric,
+        COALESCE(SUM(abs(le.amount)) FILTER (WHERE le.amount < 0), 0)::numeric
+      INTO entry_count, signed_total, debit_total, credit_total
+      FROM ${qualifiedTable} le
+      WHERE le.ledger_transaction_id = target_ledger_transaction_id
+        AND le.company_id = target_company_id;
+
+      IF entry_count < 2 THEN
+        RAISE EXCEPTION
+          'Ledger transaction % must have at least two entries, found %',
+          target_ledger_transaction_id,
+          entry_count;
+      END IF;
+
+      IF signed_total <> 0 THEN
+        RAISE EXCEPTION
+          'Ledger transaction % entries must balance: debits %, credits %, signed total %',
+          target_ledger_transaction_id,
+          debit_total,
+          credit_total,
+          signed_total;
+      END IF;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE OR REPLACE FUNCTION "${schemaName}".enforce_ledger_transaction_balance_for_transaction()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      PERFORM "${schemaName}".validate_ledger_transaction_balance(NEW.id);
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE OR REPLACE FUNCTION "${schemaName}".enforce_ledger_transaction_balance_for_entry()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF TG_OP = 'DELETE' THEN
+        PERFORM "${schemaName}".validate_ledger_transaction_balance(OLD.ledger_transaction_id);
+        RETURN OLD;
+      END IF;
+
+      PERFORM "${schemaName}".validate_ledger_transaction_balance(NEW.ledger_transaction_id);
+
+      IF TG_OP = 'UPDATE'
+        AND NEW.ledger_transaction_id IS DISTINCT FROM OLD.ledger_transaction_id
+      THEN
+        PERFORM "${schemaName}".validate_ledger_transaction_balance(OLD.ledger_transaction_id);
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE CONSTRAINT TRIGGER ledger_transactions_balance_guard
+      AFTER INSERT OR UPDATE OF status ON "${schemaName}"."ledger_transactions"
+      DEFERRABLE INITIALLY DEFERRED
+      FOR EACH ROW
+      EXECUTE FUNCTION "${schemaName}".enforce_ledger_transaction_balance_for_transaction();
+
+    CREATE CONSTRAINT TRIGGER ledger_entries_balance_guard
+      AFTER INSERT OR UPDATE OF company_id, ledger_transaction_id, source_amount, custom_exchange_rate OR DELETE
+      ON ${qualifiedTable}
+      DEFERRABLE INITIALLY DEFERRED
+      FOR EACH ROW
+      EXECUTE FUNCTION "${schemaName}".enforce_ledger_transaction_balance_for_entry();
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(
+    `DROP TRIGGER IF EXISTS ledger_transactions_balance_guard ON "${schemaName}"."ledger_transactions"`,
+  );
+  await knex.raw(
+    `DROP TRIGGER IF EXISTS ledger_entries_balance_guard ON ${qualifiedTable}`,
+  );
   await knex.schema.withSchema(schemaName).dropTableIfExists(tableName);
   await knex.raw(
     `DROP FUNCTION IF EXISTS "${schemaName}".guard_ledger_entries_update() CASCADE`,
   );
   await knex.raw(
     `DROP FUNCTION IF EXISTS "${schemaName}".prevent_ledger_entries_delete() CASCADE`,
+  );
+  await knex.raw(
+    `DROP FUNCTION IF EXISTS "${schemaName}".enforce_ledger_transaction_balance_for_entry()`,
+  );
+  await knex.raw(
+    `DROP FUNCTION IF EXISTS "${schemaName}".enforce_ledger_transaction_balance_for_transaction()`,
+  );
+  await knex.raw(
+    `DROP FUNCTION IF EXISTS "${schemaName}".validate_ledger_transaction_balance(uuid)`,
   );
 }

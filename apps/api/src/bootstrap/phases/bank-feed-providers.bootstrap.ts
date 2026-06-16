@@ -17,9 +17,11 @@ const MUTABLE_BANK_FEED_PROVIDER_COLUMNS = [
   'status',
   'updated_by_id',
 ] as const;
+
 const BANK_FEED_PROVIDER_DRIFT_SQL = MUTABLE_BANK_FEED_PROVIDER_COLUMNS.map(
   () => '??.?? IS DISTINCT FROM ??.??',
 ).join(' OR ');
+
 const BANK_FEED_PROVIDER_DRIFT_BINDINGS =
   MUTABLE_BANK_FEED_PROVIDER_COLUMNS.flatMap((column) => [
     bankFeedProvidersTable,
@@ -123,8 +125,5 @@ export async function bootstrapBankFeedProviders(
   await trx('app.bank_feed_provider_countries')
     .insert(countryMappings)
     .onConflict(['bank_feed_provider_id', 'country_id'])
-    .merge({
-      active: true,
-      updated_by_id: options.systemUserId,
-    });
+    .ignore();
 }

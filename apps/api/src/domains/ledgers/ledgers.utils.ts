@@ -11,6 +11,15 @@ import type {
   NewLedgerTransactionData,
 } from './ledgers.types.js';
 
+type GLBalanceRecalcTrigger = 'ledger_entry' | 'supersession';
+
+export type OpenEndedGLBalanceRecalcRequest = {
+  companyId: string;
+  coaId: string;
+  recalcFrom: string;
+  triggeredBy: GLBalanceRecalcTrigger;
+};
+
 /**
  * Helper: Validate bank leg amount matches bank transaction native amount
  *
@@ -305,6 +314,25 @@ export function processEntriesDates(entries: LedgerEntryInput[]) {
   }
 
   return { bounds, minYMD, maxYMD };
+}
+
+export function buildOpenEndedGLBalanceRecalcRequests({
+  companyId,
+  bounds,
+  triggeredBy,
+}: {
+  companyId: string;
+  bounds: Map<string, { min: string }>;
+  triggeredBy: GLBalanceRecalcTrigger;
+}): OpenEndedGLBalanceRecalcRequest[] {
+  return Array.from(bounds.entries())
+    .map(([coaId, range]) => ({
+      companyId,
+      coaId,
+      recalcFrom: range.min,
+      triggeredBy,
+    }))
+    .sort((a, b) => a.coaId.localeCompare(b.coaId));
 }
 
 /**

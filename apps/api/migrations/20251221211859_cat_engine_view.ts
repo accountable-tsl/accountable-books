@@ -14,12 +14,6 @@ export async function up(knex: Knex): Promise<void> {
   );
   await knex.raw(viewSql);
 
-  // Create index for fiscal calendar queries (used in is_editable check)
-  await knex.raw(`
-    CREATE INDEX IF NOT EXISTS idx_fc_company_type_status_span
-      ON fiscal_calendar(company_id, period_type, status, period_span);
-  `);
-
   // Create indexes for performance
   await knex.raw(`
     CREATE INDEX IF NOT EXISTS idx_bt_ledger_txn_id 
@@ -53,7 +47,6 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   // Drop indexes
-  await knex.raw(`DROP INDEX IF EXISTS idx_fc_company_type_status_span;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_le_ledger_txn_id;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_ccl_candidate_id;`);
   await knex.raw(`DROP INDEX IF EXISTS idx_cc_bank_txn_id;`);

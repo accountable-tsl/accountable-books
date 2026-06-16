@@ -237,7 +237,7 @@ export class PlaidProvider extends BankingProvider {
 
     const bankAccounts = await this.fetchBankAccounts({ accessToken });
 
-    const { bankId, bankLogoUrl, providerBankName } =
+    const { bankId, bankLogoUrl, providerInstitutionName } =
       await findOrCreateBankMapping({
         providerKey: this.key,
         institution: i,
@@ -251,7 +251,7 @@ export class PlaidProvider extends BankingProvider {
       },
       institution: {
         ...i,
-        name: institutionName || providerBankName,
+        name: institutionName || providerInstitutionName || i.name,
         logoUrl: bankLogoUrl,
         systemInstitutionId: bankId,
         providerInstitutionId,

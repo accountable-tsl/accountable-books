@@ -44,16 +44,23 @@ const bankFeedProvider = z.object({
 });
 export type BankFeedProvider = z.infer<typeof bankFeedProvider>;
 
-export const bankFeedProviderCountries = z.object({
+const newBankFeedProviderCountry = z.object({
   bank_feed_provider_id: z.uuid(),
   country_id: z.uuid(),
   active: z.boolean().optional(),
   created_by_id: z.uuid(),
-  updated_by_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
 });
 export type NewBankFeedProviderCountry = z.infer<
-  typeof bankFeedProviderCountries
+  typeof newBankFeedProviderCountry
 >;
+
+export const bankFeedProviderCountries = z.object({
+  ...newBankFeedProviderCountry.shape,
+  active: z.boolean(),
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+});
 export type BankFeedProviderCountries = z.infer<
   typeof bankFeedProviderCountries
 >;

@@ -659,6 +659,24 @@ export async function deleteBankTransactions({
         };
       }
 
+      const postedLinkedRows = await txn('bank_transactions')
+        .where('company_id', companyUUID)
+        .whereIn('id', bankTransactionIds)
+        .andWhere('is_deleted', false)
+        .whereNotNull('ledger_transaction_id')
+        .select('id', 'ledger_transaction_id');
+
+      if (postedLinkedRows.length > 0) {
+        return {
+          response: errorResponse(
+            'Cannot delete bank transactions that have posted ledger transactions. Reverse or supersede the ledger transaction first.',
+            {
+              bankTransactionIds: postedLinkedRows.map((row) => row.id),
+            },
+          ),
+        };
+      }
+
       const deletedRows = await txn('bank_transactions')
         .where('company_id', companyUUID)
         .whereIn('id', bankTransactionIds)
@@ -725,11 +743,13 @@ export async function reverseBankTransactionBatch({
   userId,
   batchId,
   input,
+  trx,
 }: {
   companyId: string;
   userId: string;
   batchId: string;
   input: ReverseBankTransactionBatchInput;
+  trx?: Knex.Transaction;
 }) {
   const validate = reverseBankTransactionBatchInput.safeParse(input);
   if (!validate.success) {
@@ -737,7 +757,7 @@ export async function reverseBankTransactionBatch({
   }
 
   try {
-    const result = await knexClient.transaction(async (txn) => {
+    const execute = async (txn: Knex.Transaction) => {
       const companyUUID = await getCompanyUUID(companyId, txn);
       if (!companyUUID) {
         throw new AppError('Company not found');
@@ -761,6 +781,25 @@ export async function reverseBankTransactionBatch({
       }
       if (batch.status === 'reversed') {
         throw new AppError('Bank transaction batch has already been reversed');
+      }
+
+      const postedLinkedRows = await txn('bank_transactions')
+        .where({
+          bank_transaction_batch_id: batch.id,
+          bank_account_id: batch.bank_account_id,
+          company_id: companyUUID,
+          is_deleted: false,
+        })
+        .whereNotNull('ledger_transaction_id')
+        .select('id', 'ledger_transaction_id');
+
+      if (postedLinkedRows.length > 0) {
+        throw new AppError(
+          'Cannot reverse a bank transaction batch containing transactions that have posted ledger transactions. Reverse or supersede the ledger transactions first.',
+          {
+            bankTransactionIds: postedLinkedRows.map((row) => row.id),
+          },
+        );
       }
 
       const deletedRows = await txn('bank_transactions')
@@ -801,7 +840,11 @@ export async function reverseBankTransactionBatch({
         deletedIds,
         recalcFrom: toYMD(batch.start_date),
       };
-    });
+    };
+
+    const result = trx
+      ? await execute(trx)
+      : await knexClient.transaction(execute);
 
     if (result.deletedIds.length > 0) {
       try {

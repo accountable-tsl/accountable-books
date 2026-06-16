@@ -1,7 +1,7 @@
 import type { BankTransactionSource } from '@/modules/banking/csv-upload';
 import dayjs from 'dayjs';
 import Decimal from 'decimal.js';
-import z from 'zod';
+import { z } from 'zod';
 
 export const zEmail = z
   .email('Please enter a valid email address')

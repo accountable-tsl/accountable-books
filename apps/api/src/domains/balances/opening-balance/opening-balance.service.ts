@@ -256,13 +256,6 @@ export async function setBankOpeningBalance({
       postJournal = false;
     }
 
-    console.log({
-      llg: 'thisisit',
-      existingBaseline,
-      newRole,
-      reverseOld,
-      postJournal,
-    });
     // If replacing a baseline, flip old to checkpoint and reverse its journal (if any)
     // If a new baseline is being created, demote the old baseline to checkpoint
     // and reverse its journal (if one existed) to maintain a clean audit trail.

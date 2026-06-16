@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import type { Job, JobsOptions } from 'bullmq';
+import type { Knex } from 'knex';
 import { z } from 'zod';
 
 import {
@@ -10,6 +11,7 @@ import {
 import { createQueue } from '../../jobs/queues/queue-factory.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
+import { getLogger } from '../../shared/utils/logger.js';
 
 /**
  * Queue for balance recalculation jobs
@@ -45,6 +47,7 @@ export const glBalanceJobDataSchema = z
     }
   });
 export type GLBalanceJobData = z.infer<typeof glBalanceJobDataSchema>;
+export type EnqueueGLBalanceInput = Omit<GLBalanceJobData, 'type'>;
 
 export const bankBalanceJobDataSchema = z
   .object({
@@ -75,6 +78,7 @@ export const bankBalanceJobDataSchema = z
   });
 
 export type BankBalanceJobData = z.infer<typeof bankBalanceJobDataSchema>;
+export type EnqueueBankBalanceInput = Omit<BankBalanceJobData, 'type'>;
 
 export const BalanceJobDataSchema = z.discriminatedUnion('type', [
   glBalanceJobDataSchema,
@@ -98,6 +102,8 @@ export const balanceRecalcQueue = createQueue<BalanceJobData>(
   },
 );
 
+const logger = getLogger({ component: 'balance-recalc-queue' });
+
 function rangeHash(from: string, to?: string): string {
   return createHash('sha1')
     .update(`${from}|${to ?? ''}`)
@@ -105,22 +111,29 @@ function rangeHash(from: string, to?: string): string {
     .slice(0, 10);
 }
 
-function mergeRanges(
+export function mergeBalanceRecalcRanges(
   aFrom: string,
   aTo?: string,
   bFrom?: string,
   bTo?: string,
 ): { from: string; to?: string } {
   if (!bFrom) {
-    throw new Error('mergeRanges requires bFrom to be defined');
+    throw new Error('mergeBalanceRecalcRanges requires bFrom to be defined');
   }
 
   const from = aFrom < bFrom ? aFrom : bFrom;
-  const to = aTo && bTo ? (aTo > bTo ? aTo : bTo) : (aTo ?? bTo);
+  const to =
+    aTo === undefined || bTo === undefined
+      ? undefined
+      : aTo > bTo
+        ? aTo
+        : bTo;
 
   // Safety check: ensure we didn't produce an invalid range
   if (to && from > to) {
-    throw new Error(`mergeRanges produced invalid range: ${from}..${to}`);
+    throw new Error(
+      `mergeBalanceRecalcRanges produced invalid range: ${from}..${to}`,
+    );
   }
 
   return { from, to };
@@ -178,7 +191,7 @@ const isMergeableState = (s: string) => MERGEABLE_STATES.has(s);
  * Returns null if queues are disabled
  */
 export async function enqueueGLBalance(
-  data: Omit<GLBalanceJobData, 'type'>,
+  data: EnqueueGLBalanceInput,
 ): Promise<Job<GLBalanceJobData> | null> {
   // In test/disabled-queue mode, skip Redis lookups entirely.
   if (!queueBroker.shouldExecute()) {
@@ -205,7 +218,7 @@ export async function enqueueGLBalance(
     const state = await existing.getState();
 
     if (isMergeableState(state)) {
-      const merged = mergeRanges(
+      const merged = mergeBalanceRecalcRanges(
         ex.recalcFrom,
         ex.recalcTo,
         recalcFrom,
@@ -228,11 +241,12 @@ export async function enqueueGLBalance(
       // If new range extends earlier/later than the running job, enqueue a follow-up job
       const extendsEarlier = recalcFrom < ex.recalcFrom;
       const extendsLater =
-        (recalcTo ?? recalcFrom) > (ex.recalcTo ?? ex.recalcFrom);
+        ex.recalcTo !== undefined &&
+        (recalcTo === undefined || recalcTo > ex.recalcTo);
 
       if (extendsEarlier || extendsLater) {
         // Compute the extended range that needs to be covered
-        const merged = mergeRanges(
+        const merged = mergeBalanceRecalcRanges(
           ex.recalcFrom,
           ex.recalcTo,
           recalcFrom,
@@ -273,13 +287,40 @@ export async function enqueueGLBalance(
   return job as Job<GLBalanceJobData> | null;
 }
 
+export async function scheduleGLBalanceAfterCommit(
+  data: EnqueueGLBalanceInput,
+  trx?: Knex.Transaction,
+): Promise<Job<GLBalanceJobData> | null> {
+  if (!trx) {
+    return await enqueueGLBalance(data);
+  }
+
+  trx.on('commit', () => {
+    enqueueGLBalance(data).catch((error) => {
+      logger.error(
+        {
+          companyId: data.companyId,
+          coaId: data.coaId,
+          recalcFrom: data.recalcFrom,
+          recalcTo: data.recalcTo,
+          triggeredBy: data.triggeredBy,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to enqueue GL balance recalculation after transaction commit',
+      );
+    });
+  });
+
+  return null;
+}
+
 /**
  * Enqueue bank balance recalculation with deduplication
  * Uses jobId to ensure only one job per (company, bank_account) pair
  * Returns null if queues are disabled
  */
 export async function enqueueBankBalance(
-  data: Omit<BankBalanceJobData, 'type'>,
+  data: EnqueueBankBalanceInput,
 ): Promise<Job<BankBalanceJobData> | null> {
   // In test/disabled-queue mode, skip Redis lookups entirely.
   if (!queueBroker.shouldExecute()) {
@@ -304,7 +345,7 @@ export async function enqueueBankBalance(
     const state = await existing.getState();
 
     if (isMergeableState(state)) {
-      const merged = mergeRanges(
+      const merged = mergeBalanceRecalcRanges(
         ex.recalcFrom,
         ex.recalcTo,
         recalcFrom,
@@ -327,11 +368,12 @@ export async function enqueueBankBalance(
       // If new range extends earlier/later than the running job, enqueue a follow-up job
       const extendsEarlier = recalcFrom < ex.recalcFrom;
       const extendsLater =
-        (recalcTo ?? recalcFrom) > (ex.recalcTo ?? ex.recalcFrom);
+        ex.recalcTo !== undefined &&
+        (recalcTo === undefined || recalcTo > ex.recalcTo);
 
       if (extendsEarlier || extendsLater) {
         // Compute the extended range that needs to be covered
-        const merged = mergeRanges(
+        const merged = mergeBalanceRecalcRanges(
           ex.recalcFrom,
           ex.recalcTo,
           recalcFrom,

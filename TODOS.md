@@ -2,6 +2,7 @@
 
 ### CRITICAL (Must Fix Before Launch)
 
+- [ ] In CI/CD, we should make sure every DB extension required is available, app schema is used, and related stuff
 - [ ] Noone should be able to mistakenly access the staging environment mistakenly
 - [ ] Make sure noone can access or make a request to a company they do not have access to (special case for support and admin)
 - [ ] URL resolves to null subdomain in frontend, should resolve to app
@@ -24,6 +25,7 @@
 - [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
 - [ ] Privacy Policy, Terms of Use, GDPR,
 - [ ] We should (for now) verify firms manually before they are allowed to add clients
+- [ ] Should Cash basis companies need musthaveaccounts?
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
@@ -34,6 +36,7 @@
 - [ ] Advanced filters (Cat Engine)
 - [ ] Bulk actions (Cat Engine)
 - [ ] Trial balance (ensure accuracy + export)
+- [ ] Accountant-grade exports: XLSX trial balance/GL in V1 where feasible, later formula-linked workbook and Google Sheets export with TB, GL, journals, P&L, balance sheet, notes, mappings, and traceability.
 - [ ] P&L (v1)
 - [ ] Balance sheet (v1)
 - [ ] Client invite flow

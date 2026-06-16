@@ -1,5 +1,4 @@
 import type { Knex } from 'knex';
-import { addMonths, format, isAfter, isBefore, subMonths } from 'date-fns';
 
 import { knexClient as db } from '../../../db/knexClient.js';
 import {
@@ -16,7 +15,7 @@ import {
   checkLaterPeriodsClosed,
   checkUncategorizedTransactions,
 } from '../../tasks/condition-checks.js';
-import { fiscalPeriodType } from './fiscal-calendar.types.js';
+import { newFiscalCalendar } from './fiscal-calendar.types.js';
 
 import type {
   ExtendResult,
@@ -31,117 +30,48 @@ import type {
 
 const logger = getLogger({ component: 'fiscal-calendar-service' });
 
-/**
- * Calculate fiscal year and period for a given date based on company's year-end
- *
- * @example
- * // Company with Dec 31 year-end:
- * // Jan 15, 2024 → FY2024, Period 1 (Jan)
- *
- * // Company with Apr 30 year-end:
- * // May 15, 2024 → FY2025, Period 1 (May 1-31)
- * // Apr 15, 2024 → FY2024, Period 12 (Apr 1-30)
- */
-function calculateFiscalPeriod({
-  date,
-  yearEndMonth,
-  yearEndDay,
-  periodType,
-}: {
-  date: Date;
-  yearEndMonth: number;
-  yearEndDay: number;
-  periodType: 'monthly' | 'quarterly' | 'yearly';
-}): {
+type PeriodTransitionResult = {
+  success: boolean;
+  message: string;
+  warnings?: string[];
+};
+
+type FiscalPeriodLocator = {
+  companyId: string;
   fiscalYear: number;
   periodNumber: number;
-  startDate: Date;
-  endDate: Date;
-} {
-  const calendarYear = date.getFullYear();
+  periodType?: FiscalPeriodType;
+};
 
-  // Determine fiscal year
-  // If current date is AFTER the year-end date, we're in the next fiscal year
-  const currentYearEnd = new Date(calendarYear, yearEndMonth - 1, yearEndDay);
-  const fiscalYear = isAfter(date, currentYearEnd)
-    ? calendarYear + 1
-    : calendarYear;
+type CloseFiscalPeriodParams = FiscalPeriodLocator & {
+  userId: string;
+  trx?: Knex.Transaction;
+};
 
-  // Calculate fiscal period based on type
-  if (periodType === 'yearly') {
-    // Fiscal year start = day after previous year-end
-    const fiscalYearStart = new Date(
-      fiscalYear - 1,
-      yearEndMonth - 1,
-      yearEndDay + 1,
-    );
-    const fiscalYearEnd = new Date(fiscalYear, yearEndMonth - 1, yearEndDay);
+type ReopenFiscalPeriodParams = FiscalPeriodLocator & {
+  userId: string;
+  reason: string;
+  trx?: Knex.Transaction;
+};
 
-    return {
-      fiscalYear,
-      periodNumber: 1,
-      startDate: fiscalYearStart,
-      endDate: fiscalYearEnd,
-    };
-  }
+type LockFiscalPeriodParams = FiscalPeriodLocator & {
+  userId: string;
+  trx?: Knex.Transaction;
+};
 
-  // For monthly/quarterly: Calculate which period we're in
-  // Fiscal month 1 starts the day after year-end
-  const fiscalYearStart = new Date(
-    fiscalYear - 1,
-    yearEndMonth - 1,
-    yearEndDay + 1,
-  );
+async function runInTransaction<T>(
+  trx: Knex.Transaction | undefined,
+  fn: (trx: Knex.Transaction) => Promise<T>,
+): Promise<T> {
+  return trx ? fn(trx) : db.transaction(fn);
+}
 
-  // Calculate months since fiscal year start
-  let monthsSinceFiscalStart = 0;
-  let currentPeriodStart = new Date(fiscalYearStart);
-
-  while (isBefore(currentPeriodStart, date)) {
-    const nextMonth = addMonths(currentPeriodStart, 1);
-    if (
-      isBefore(date, nextMonth) ||
-      date.getTime() === currentPeriodStart.getTime()
-    ) {
-      break;
-    }
-    monthsSinceFiscalStart++;
-    currentPeriodStart = nextMonth;
-  }
-
-  if (periodType === 'monthly') {
-    const periodNumber = (monthsSinceFiscalStart % 12) + 1;
-    const startDate = addMonths(fiscalYearStart, monthsSinceFiscalStart);
-    const endDate = subMonths(addMonths(startDate, 1), 1); // End of month
-
-    return {
-      fiscalYear,
-      periodNumber,
-      startDate,
-      endDate: new Date(
-        endDate.getFullYear(),
-        endDate.getMonth() + 1,
-        0, // Last day of month
-      ),
-    };
-  } else {
-    // Quarterly
-    const periodNumber = Math.floor(monthsSinceFiscalStart / 3) + 1;
-    const quarterStartMonth = Math.floor(monthsSinceFiscalStart / 3) * 3;
-    const startDate = addMonths(fiscalYearStart, quarterStartMonth);
-    const endDate = subMonths(addMonths(startDate, 3), 1); // End of 3rd month
-
-    return {
-      fiscalYear,
-      periodNumber,
-      startDate,
-      endDate: new Date(
-        endDate.getFullYear(),
-        endDate.getMonth() + 1,
-        0, // Last day of month
-      ),
-    };
-  }
+function mapFiscalCalendarRow(period: FiscalCalendar): FiscalCalendar {
+  return {
+    ...period,
+    start_date: toYMD(period.start_date),
+    end_date: toYMD(period.end_date),
+  };
 }
 
 /**
@@ -158,18 +88,119 @@ export async function getFiscalPeriodForDate({
   periodType?: 'monthly' | 'quarterly' | 'yearly';
   trx?: Knex.Transaction;
 }): Promise<FiscalCalendar | null> {
-  const dateStr = typeof date === 'string' ? date : format(date, 'yyyy-MM-dd');
+  const dateStr = toYMD(date);
 
-  const period = await (trx || db)('fiscal_calendar')
+  const periods = await getFiscalCalendar({
+    companyId,
+    startYMD: dateStr,
+    endYMD: dateStr,
+    periodTypes: [periodType],
+    trx,
+  });
+
+  return periods[0] ?? null;
+}
+
+/**
+ * Reads one fiscal period by its canonical fiscal selector.
+ *
+ * Date columns are returned as YYYY-MM-DD strings because fiscal dates are local
+ * calendar dates, not instants. Returning JS Date objects here can shift the day
+ * when callers run in another timezone.
+ */
+export async function getFiscalPeriodBySelector({
+  companyId,
+  fiscalYear,
+  periodNumber,
+  periodType = 'monthly',
+  trx,
+}: FiscalPeriodLocator & {
+  trx?: Knex.Transaction;
+}): Promise<FiscalCalendar | null> {
+  const companyUUID = await getCompanyUUID(companyId, trx);
+  const queryable = trx ?? db;
+
+  const period = await queryable('fiscal_calendar')
     .where({
-      company_id: companyId,
+      company_id: companyUUID,
+      fiscal_year: fiscalYear,
+      period_number: periodNumber,
       period_type: periodType,
     })
-    .where('start_date', '<=', dateStr)
-    .where('end_date', '>=', dateStr)
-    .first();
+    .select(
+      'company_id',
+      'fiscal_year',
+      'period_number',
+      'period_type',
+      queryable.raw('start_date::text as start_date'),
+      queryable.raw('end_date::text as end_date'),
+      'status',
+      'closed_at',
+      'closed_by_id',
+      'locked_at',
+      'locked_by_id',
+      'status_changed_at',
+      'status_changed_by_id',
+      'created_at',
+      'updated_at',
+      'metadata',
+    )
+    .first<FiscalCalendar>();
 
-  return period || null;
+  return period ? mapFiscalCalendarRow(period) : null;
+}
+
+/**
+ * Reads the immediately preceding period of the same type before a local fiscal
+ * start date. Used by close sequencing so callers do not duplicate date-casting
+ * and period ordering rules.
+ */
+export async function getPreviousFiscalPeriod({
+  companyId,
+  beforeStartYMD,
+  periodType = 'monthly',
+  trx,
+}: {
+  companyId: string;
+  beforeStartYMD: string;
+  periodType?: FiscalPeriodType;
+  trx?: Knex.Transaction;
+}): Promise<FiscalCalendar | null> {
+  if (!isValidYMD(beforeStartYMD)) {
+    throw new Error('beforeStartYMD must be a real YYYY-MM-DD date');
+  }
+
+  const companyUUID = await getCompanyUUID(companyId, trx);
+  const queryable = trx ?? db;
+
+  const period = await queryable('fiscal_calendar')
+    .where({
+      company_id: companyUUID,
+      period_type: periodType,
+    })
+    .where('end_date', '<', beforeStartYMD)
+    .orderBy('end_date', 'desc')
+    .select(
+      'company_id',
+      'fiscal_year',
+      'period_number',
+      'period_type',
+      queryable.raw('start_date::text as start_date'),
+      queryable.raw('end_date::text as end_date'),
+      'status',
+      'closed_at',
+      'closed_by_id',
+      'locked_at',
+      'locked_by_id',
+      'status_changed_at',
+      'status_changed_by_id',
+      'created_at',
+      'updated_at',
+      'metadata',
+    )
+    .first<FiscalCalendar>();
+
+  return period ? mapFiscalCalendarRow(period) : null;
 }
 
 /**
@@ -182,90 +213,44 @@ export async function ensureFiscalPeriodExists(
   periodType: FiscalPeriodType = 'monthly',
   trx?: Knex.Transaction,
 ): Promise<FiscalCalendar> {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const dateStr = toYMD(date);
+  const { rows } = await ensureAndFetchFiscalCalendar({
+    companyId,
+    startYMD: dateStr,
+    endYMD: dateStr,
+    fetchTypes: [periodType],
+    requireMonthlyOpen: false,
+    trx,
+  });
 
-  // Get company's fiscal year settings
-  const company = await (trx || db)('companies')
-    .select('year_end_month', 'year_end_day')
-    .where('id', companyId)
-    .first();
-
-  if (!company) {
-    throw new Error(`Company not found: ${companyId}`);
+  const period = rows[0];
+  if (!period) {
+    throw new Error(`No fiscal period found for date ${dateStr}`);
   }
 
-  // Calculate fiscal year and period based on company's year-end
-  const { fiscalYear, periodNumber, startDate, endDate } =
-    calculateFiscalPeriod({
-      date: dateObj,
-      yearEndMonth: company.year_end_month,
-      yearEndDay: company.year_end_day,
-      periodType,
-    });
-
-  // Check if period already exists
-  const existing = await (trx || db)('fiscal_calendar')
-    .where({
-      company_id: companyId,
-      fiscal_year: fiscalYear,
-      period_number: periodNumber,
-      period_type: periodType,
-    })
-    .first();
-
-  if (existing) {
-    return existing;
-  }
-
-  // Create new period with fiscal dates
-  const newPeriod: NewFiscalCalendar = {
-    company_id: companyId,
-    fiscal_year: fiscalYear,
-    period_number: periodNumber,
-    period_type: periodType,
-    start_date: format(startDate, 'yyyy-MM-dd'),
-    end_date: format(endDate, 'yyyy-MM-dd'),
-    status: 'open',
-  };
-
-  const [created] = await (trx || db)('fiscal_calendar')
-    .insert(newPeriod)
-    .returning('*');
-
-  logger.info(
-    {
-      companyId,
-      fiscalYear,
-      periodNumber,
-      periodType,
-      yearEndMonth: company.year_end_month,
-      yearEndDay: company.year_end_day,
-    },
-    `Created fiscal period for company ${companyId}: FY${fiscalYear}-P${periodNumber} (${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')})`,
-  );
-
-  return created;
+  return period;
 }
 
 /**
  * Close a fiscal period
  */
-export async function closeFiscalPeriod(
-  companyId: string,
-  fiscalYear: number,
-  periodNumber: number,
-  userId: string,
-  periodType: 'monthly' = 'monthly',
-): Promise<{ success: boolean; message: string; warnings?: string[] }> {
-  return await db.transaction(async (trx) => {
-    // Get the period
-    const period = await trx('fiscal_calendar')
+export async function closeFiscalPeriod({
+  companyId,
+  fiscalYear,
+  periodNumber,
+  userId,
+  periodType = 'monthly',
+  trx,
+}: CloseFiscalPeriodParams): Promise<PeriodTransitionResult> {
+  return await runInTransaction(trx, async (txn) => {
+    const period = await txn('fiscal_calendar')
       .where({
         company_id: companyId,
         fiscal_year: fiscalYear,
         period_number: periodNumber,
         period_type: periodType,
       })
+      .forUpdate()
       .first();
 
     if (!period) {
@@ -282,8 +267,14 @@ export async function closeFiscalPeriod(
       };
     }
 
-    // Validate period can be closed
-    const validation = await validatePeriodClose(companyId, period, trx);
+    if (period.status === 'locked') {
+      return {
+        success: false,
+        message: `Period ${fiscalYear}-${periodNumber} is locked and cannot be closed`,
+      };
+    }
+
+    const validation = await validatePeriodClose(companyId, period, txn);
     if (!validation.passed) {
       return {
         success: false,
@@ -292,8 +283,7 @@ export async function closeFiscalPeriod(
       };
     }
 
-    // Close the period
-    await trx('fiscal_calendar')
+    await txn('fiscal_calendar')
       .where({
         company_id: companyId,
         fiscal_year: fiscalYear,
@@ -302,9 +292,13 @@ export async function closeFiscalPeriod(
       })
       .update({
         status: 'closed',
-        closed_at: new Date(),
+        closed_at: txn.fn.now(),
         closed_by_id: userId,
-        updated_at: new Date(),
+        locked_at: null,
+        locked_by_id: null,
+        status_changed_at: txn.fn.now(),
+        status_changed_by_id: userId,
+        updated_at: txn.fn.now(),
       });
 
     logger.info(
@@ -317,6 +311,14 @@ export async function closeFiscalPeriod(
       },
       `Closed fiscal period for company ${companyId}: ${fiscalYear}-${periodNumber}`,
     );
+
+    // Note: signal recompute is deliberately NOT triggered here. By the time the
+    // close commits the period is already sealed, and `mergeOpenSignalFindings`
+    // only reads signals while the period is open — so a recompute now would land
+    // in a period nothing re-reads. The staleness backstop is exposed instead as
+    // a manual "refresh checks" action on the *open* period
+    // (`recomputePeriodSignals`), so fresh signals exist before the close
+    // decision rather than after it.
 
     return {
       success: true,
@@ -357,29 +359,37 @@ async function validatePeriodClose(
 /**
  * Reopen a fiscal period
  */
-export async function reopenFiscalPeriod(
-  companyId: string,
-  fiscalYear: number,
-  periodNumber: number,
-  userId: string,
-  reason: string,
-  periodType: 'monthly' = 'monthly',
-): Promise<{ success: boolean; message: string }> {
-  return await db.transaction(async (trx) => {
-    // Get the period
-    const period = await trx('fiscal_calendar')
+export async function reopenFiscalPeriod({
+  companyId,
+  fiscalYear,
+  periodNumber,
+  userId,
+  reason,
+  periodType = 'monthly',
+  trx,
+}: ReopenFiscalPeriodParams): Promise<PeriodTransitionResult> {
+  return await runInTransaction(trx, async (txn) => {
+    const period = await txn('fiscal_calendar')
       .where({
         company_id: companyId,
         fiscal_year: fiscalYear,
         period_number: periodNumber,
         period_type: periodType,
       })
+      .forUpdate()
       .first();
 
     if (!period) {
       return {
         success: false,
         message: `Fiscal period not found: ${fiscalYear}-${periodNumber}`,
+      };
+    }
+
+    if (period.status === 'locked') {
+      return {
+        success: false,
+        message: `Period ${fiscalYear}-${periodNumber} is locked and cannot be reopened through normal workflows`,
       };
     }
 
@@ -390,8 +400,7 @@ export async function reopenFiscalPeriod(
       };
     }
 
-    // Reopen the period
-    await trx('fiscal_calendar')
+    await txn('fiscal_calendar')
       .where({
         company_id: companyId,
         fiscal_year: fiscalYear,
@@ -402,7 +411,15 @@ export async function reopenFiscalPeriod(
         status: 'open',
         closed_at: null,
         closed_by_id: null,
-        updated_at: new Date(),
+        locked_at: null,
+        locked_by_id: null,
+        status_changed_at: txn.fn.now(),
+        status_changed_by_id: userId,
+        metadata: txn.raw(
+          "jsonb_set(metadata, '{last_reopen_reason}', to_jsonb(?::text), true)",
+          [reason],
+        ),
+        updated_at: txn.fn.now(),
       });
 
     logger.info(
@@ -420,6 +437,86 @@ export async function reopenFiscalPeriod(
     return {
       success: true,
       message: `Period ${fiscalYear}-${periodNumber} reopened successfully`,
+    };
+  });
+}
+
+/**
+ * Lock a fiscal period so no further posting or reopening can happen through
+ * normal period-management workflows. Normal product flow is one-way:
+ * open -> closed -> locked. Operational recovery from a locked period must be
+ * handled by a separate, audited support/admin path.
+ */
+export async function lockFiscalPeriod({
+  companyId,
+  fiscalYear,
+  periodNumber,
+  userId,
+  periodType = 'monthly',
+  trx,
+}: LockFiscalPeriodParams): Promise<PeriodTransitionResult> {
+  return await runInTransaction(trx, async (txn) => {
+    const period = await txn('fiscal_calendar')
+      .where({
+        company_id: companyId,
+        fiscal_year: fiscalYear,
+        period_number: periodNumber,
+        period_type: periodType,
+      })
+      .forUpdate()
+      .first();
+
+    if (!period) {
+      return {
+        success: false,
+        message: `Fiscal period not found: ${fiscalYear}-${periodNumber}`,
+      };
+    }
+
+    if (period.status === 'locked') {
+      return {
+        success: false,
+        message: `Period ${fiscalYear}-${periodNumber} is already locked`,
+      };
+    }
+
+    if (period.status !== 'closed') {
+      return {
+        success: false,
+        message: `Period ${fiscalYear}-${periodNumber} must be closed before it can be locked`,
+      };
+    }
+
+    await txn('fiscal_calendar')
+      .where({
+        company_id: companyId,
+        fiscal_year: fiscalYear,
+        period_number: periodNumber,
+        period_type: periodType,
+      })
+      .update({
+        status: 'locked',
+        locked_at: txn.fn.now(),
+        locked_by_id: userId,
+        status_changed_at: txn.fn.now(),
+        status_changed_by_id: userId,
+        updated_at: txn.fn.now(),
+      });
+
+    logger.info(
+      {
+        companyId,
+        fiscalYear,
+        periodNumber,
+        periodType,
+        lockedBy: userId,
+      },
+      `Locked fiscal period for company ${companyId}: ${fiscalYear}-${periodNumber}`,
+    );
+
+    return {
+      success: true,
+      message: `Period ${fiscalYear}-${periodNumber} locked successfully`,
     };
   });
 }
@@ -451,11 +548,16 @@ export async function getFiscalPeriods(
     fiscalYear: period.fiscal_year,
     periodNumber: period.period_number,
     periodType: period.period_type,
-    startDate: period.start_date,
-    endDate: period.end_date,
+    startDate: toYMD(period.start_date),
+    endDate: toYMD(period.end_date),
     status: period.status,
     closedAt: period.closed_at ? period.closed_at.toISOString() : undefined,
     closedById: period.closed_by_id,
+    lockedAt: period.locked_at ? period.locked_at.toISOString() : undefined,
+    lockedById: period.locked_by_id,
+    statusChangedAt: period.status_changed_at.toISOString(),
+    statusChangedById: period.status_changed_by_id,
+    metadata: period.metadata ?? {},
   }));
 }
 
@@ -560,16 +662,10 @@ class FiscalCalendarService {
 
             // Flush in batches to keep memory bounded
             if (rows.length >= batchSize) {
-              const res = await txn('fiscal_calendar')
-                .insert(rows)
-                .onConflict([
-                  'company_id',
-                  'fiscal_year',
-                  'period_number',
-                  'period_type',
-                ])
-                .ignore()
-                .returning('company_id');
+              const res = await this.createFiscalCalendarRecords({
+                data: rows,
+                trx: txn,
+              });
               totalCreated += res.length;
               rows = []; // Reset rows for the next batch
             }
@@ -581,16 +677,10 @@ class FiscalCalendarService {
 
         // Flush any remaining rows
         if (rows.length > 0) {
-          const res = await txn('fiscal_calendar')
-            .insert(rows)
-            .onConflict([
-              'company_id',
-              'fiscal_year',
-              'period_number',
-              'period_type',
-            ])
-            .ignore()
-            .returning('company_id');
+          const res = await this.createFiscalCalendarRecords({
+            data: rows,
+            trx: txn,
+          });
           totalCreated += res.length;
         }
       }
@@ -1036,9 +1126,10 @@ class FiscalCalendarService {
   }) {
     const { data, trx } = p;
     const knex = trx ?? db;
+    const rows = data.map((row) => newFiscalCalendar.parse(row));
 
     const result = await knex('fiscal_calendar')
-      .insert(data)
+      .insert(rows)
       .onConflict(['company_id', 'fiscal_year', 'period_number', 'period_type'])
       .ignore()
       .returning('company_id');
@@ -1049,20 +1140,81 @@ class FiscalCalendarService {
 
 export const fiscalCalendarService = new FiscalCalendarService();
 
-async function createFiscalCalendarRecords(p: {
-  data: NewFiscalCalendar[];
-  trx?: Knex.Transaction;
-}) {
-  const { data, trx } = p;
-  const knex = trx ?? db;
+function getFiscalCalendarCoverageError({
+  rows,
+  startYMD,
+  endYMD,
+  periodTypes,
+}: {
+  rows: FiscalCalendar[];
+  startYMD: string;
+  endYMD: string;
+  periodTypes: FiscalPeriodType[];
+}): string | null {
+  for (const periodType of periodTypes) {
+    const typeRows = rows
+      .filter((period) => period.period_type === periodType)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
 
-  const result = await knex('fiscal_calendar')
-    .insert(data)
-    .onConflict(['company_id', 'fiscal_year', 'period_number', 'period_type'])
-    .ignore()
-    .returning('company_id');
+    let coveredThrough: string | null = null;
 
-  return result;
+    for (const period of typeRows) {
+      if (period.end_date < startYMD) {
+        continue;
+      }
+      if (period.start_date > endYMD) {
+        break;
+      }
+
+      const expectedStart = coveredThrough
+        ? addDaysToYMD(coveredThrough, 1)
+        : startYMD;
+
+      if (period.start_date > expectedStart) {
+        return `Fiscal calendar coverage gap for ${periodType}: ${expectedStart}..${addDaysToYMD(period.start_date, -1)}`;
+      }
+
+      if (!coveredThrough || period.end_date > coveredThrough) {
+        coveredThrough = period.end_date;
+      }
+
+      if (coveredThrough >= endYMD) {
+        break;
+      }
+    }
+
+    if (!coveredThrough || coveredThrough < endYMD) {
+      const gapStart = coveredThrough
+        ? addDaysToYMD(coveredThrough, 1)
+        : startYMD;
+      return `Fiscal calendar coverage missing for ${periodType}: ${gapStart}..${endYMD}`;
+    }
+  }
+
+  return null;
+}
+
+function assertFiscalCalendarCoverage({
+  rows,
+  startYMD,
+  endYMD,
+  periodTypes,
+}: {
+  rows: FiscalCalendar[];
+  startYMD: string;
+  endYMD: string;
+  periodTypes: FiscalPeriodType[];
+}): void {
+  const error = getFiscalCalendarCoverageError({
+    rows,
+    startYMD,
+    endYMD,
+    periodTypes,
+  });
+
+  if (error) {
+    throw new Error(error);
+  }
 }
 
 export async function getFiscalCalendar({
@@ -1103,6 +1255,10 @@ export async function getFiscalCalendar({
       'status',
       'closed_at',
       'closed_by_id',
+      'locked_at',
+      'locked_by_id',
+      'status_changed_at',
+      'status_changed_by_id',
       'created_at',
       'updated_at',
       'metadata',
@@ -1145,8 +1301,8 @@ export async function getFiscalCalendar({
  *
  * Behavior:
  * 1. Validates the date range (throws if invalid or backwards)
- * 2. Idempotently fills any missing fiscal periods for monthly, quarterly, and yearly
- *    (via `fillCoverageGaps` — this is a side-effect)
+ * 2. Reads fiscal calendar coverage and fills missing monthly, quarterly, and
+ *    yearly periods only when a gap is detected
  * 3. If `requireMonthlyOpen = true`, checks that **no monthly period** in the range
  *    is closed or locked → throws descriptive error if any are
  * 4. Returns only the fiscal calendar rows for the requested `fetchTypes`
@@ -1211,25 +1367,57 @@ export async function ensureAndFetchFiscalCalendar({
     );
   }
 
-  // Ensure coverage exists (idempotent)
-  await fiscalCalendarService.fillCoverageGaps({
+  const requestedTypes = fetchTypes.length
+    ? fetchTypes
+    : fiscalCalendarService.PERIOD_TYPES;
+
+  const ensuredTypes = fiscalCalendarService.PERIOD_TYPES;
+  let calendarRows = await getFiscalCalendar({
     companyId,
-    startDate: startYMD,
-    endDate: endYMD,
-    periodTypes: ['monthly', 'quarterly', 'yearly'],
+    startYMD,
+    endYMD,
+    periodTypes: ensuredTypes,
     trx,
   });
 
-  // Enforce “no posting into closed/locked monthly periods” if requested
-  if (requireMonthlyOpen) {
-    const blocking = await getFiscalCalendar({
+  const coverageError = getFiscalCalendarCoverageError({
+    rows: calendarRows,
+    startYMD,
+    endYMD,
+    periodTypes: ensuredTypes,
+  });
+
+  if (coverageError) {
+    await fiscalCalendarService.fillCoverageGaps({
+      companyId,
+      startDate: startYMD,
+      endDate: endYMD,
+      periodTypes: ensuredTypes,
+      trx,
+    });
+
+    calendarRows = await getFiscalCalendar({
       companyId,
       startYMD,
       endYMD,
-      periodTypes: ['monthly'],
-      statuses: ['closed', 'locked'],
+      periodTypes: ensuredTypes,
       trx,
     });
+  }
+
+  assertFiscalCalendarCoverage({
+    rows: calendarRows,
+    startYMD,
+    endYMD,
+    periodTypes: ensuredTypes,
+  });
+
+  if (requireMonthlyOpen) {
+    const blocking = calendarRows.filter(
+      (period) =>
+        period.period_type === 'monthly' &&
+        (period.status === 'closed' || period.status === 'locked'),
+    );
     if (blocking.length) {
       const first = blocking[0];
       throw new Error(
@@ -1238,13 +1426,15 @@ export async function ensureAndFetchFiscalCalendar({
     }
   }
 
-  // Return whatever types the caller wants to use
-  const rows = await getFiscalCalendar({
-    companyId,
+  const rows = calendarRows.filter((period) =>
+    requestedTypes.includes(period.period_type),
+  );
+
+  assertFiscalCalendarCoverage({
+    rows,
     startYMD,
     endYMD,
-    periodTypes: fetchTypes,
-    trx,
+    periodTypes: requestedTypes,
   });
 
   return { rows };

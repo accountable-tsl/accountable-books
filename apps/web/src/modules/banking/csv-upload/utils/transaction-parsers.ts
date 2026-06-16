@@ -9,7 +9,7 @@ import {
   parseDateString,
   safeFormatDate,
 } from '@/shared/utils/formatting-utils';
-import z from 'zod';
+import { z } from 'zod';
 
 export function transformParsedData({
   data,

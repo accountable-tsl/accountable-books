@@ -3,13 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { SYSTEM_USER_ID } from '../../../bootstrap/phases/users.bootstrap.js';
 import { getTestDb } from '../../../../config/test-db.js';
-import {
-  getCurrencyId,
-  getTestCompanyId,
-  getTestUserId,
-  US_USER_EMAIL,
-} from '../../../../test/helpers.js';
 import { archiveCoa, createCoaAccount, deleteCoa } from '../coa.model.js';
 
 describe('COA lifecycle impacts', () => {
@@ -20,9 +15,10 @@ describe('COA lifecycle impacts', () => {
 
   beforeEach(async () => {
     trx = await getTestDb().transaction();
-    companyId = await getTestCompanyId(trx, 'bizDemoUS');
-    userId = await getTestUserId(trx, US_USER_EMAIL);
+    await trx.raw('SET LOCAL search_path TO app, public');
+    userId = SYSTEM_USER_ID;
     currencyId = await getCurrencyId(trx, 'USD');
+    companyId = await createCompany();
   });
 
   afterEach(async () => {
@@ -142,13 +138,12 @@ describe('COA lifecycle impacts', () => {
       success: true,
       data: {
         invalidatedDerivedData: {
-          predictions: 2,
+          predictions: 1,
           candidates: 1,
         },
       },
     });
     expect(await derivedState(derived)).toEqual({
-      legacyPrediction: true,
       prediction: true,
       predictionLine: true,
       candidate: true,
@@ -170,7 +165,6 @@ describe('COA lifecycle impacts', () => {
 
     expect(result.success).toBe(false);
     expect(await derivedState(derived)).toEqual({
-      legacyPrediction: false,
       prediction: false,
       predictionLine: false,
       candidate: false,
@@ -182,7 +176,7 @@ describe('COA lifecycle impacts', () => {
     prefix: string,
     input: { locked?: boolean } = {},
   ): Promise<{ id: string }> {
-    return createCoaAccount({
+    const account = await createCoaAccount({
       trx,
       companyId,
       userId,
@@ -192,6 +186,15 @@ describe('COA lifecycle impacts', () => {
         ...input,
       },
     });
+
+    // Lifecycle versioning closes the current COA version with the row's
+    // database timestamp. Normalize test-created versions so same-transaction
+    // archive/delete operations do not trip the effective range constraint.
+    await trx('coa_versions')
+      .where({ coa_id: account.id, effective_to: null })
+      .update({ effective_from: new Date('2000-01-01T00:00:00.000Z') });
+
+    return account;
   }
 
   async function createDraftJournal(coaId: string): Promise<void> {
@@ -294,24 +297,7 @@ describe('COA lifecycle impacts', () => {
   }
 
   async function createDerivedReferences(coaId: string) {
-    const bankTransaction = await trx('bank_transactions')
-      .where({ company_id: companyId, is_deleted: false })
-      .select('id', 'transaction_date as date')
-      .first<{ id: string; date: string }>();
-    if (!bankTransaction) throw new Error('Expected bank transaction fixture');
-
-    const [legacyPrediction] = await trx('predictions')
-      .insert({
-        bank_transaction_id: bankTransaction.id,
-        bank_transaction_date: bankTransaction.date,
-        company_id: companyId,
-        coa_id: coaId,
-        method: 'human',
-        confidence: 1,
-        created_by_id: userId,
-        updated_by_id: userId,
-      })
-      .returning<{ id: string }[]>('id');
+    const bankTransaction = await createBankTransaction();
 
     const task =
       (await trx('categorization_tasks')
@@ -382,7 +368,6 @@ describe('COA lifecycle impacts', () => {
       .returning<{ id: string }[]>('id');
 
     return {
-      legacyPredictionId: legacyPrediction.id,
       predictionId: prediction.id,
       predictionLineId: predictionLine.id,
       candidateId: candidate.id,
@@ -391,9 +376,8 @@ describe('COA lifecycle impacts', () => {
   }
 
   async function derivedState(ids: Awaited<ReturnType<typeof createDerivedReferences>>) {
-    const [legacyPrediction, prediction, predictionLine, candidate, candidateLine] =
+    const [prediction, predictionLine, candidate, candidateLine] =
       await Promise.all([
-        isDeleted('predictions', ids.legacyPredictionId),
         isDeleted('categorization_predictions', ids.predictionId),
         isDeleted('categorization_prediction_lines', ids.predictionLineId),
         isDeleted('categorization_candidates', ids.candidateId),
@@ -401,7 +385,6 @@ describe('COA lifecycle impacts', () => {
       ]);
 
     return {
-      legacyPrediction,
       prediction,
       predictionLine,
       candidate,
@@ -415,5 +398,106 @@ describe('COA lifecycle impacts', () => {
     );
     if (!row) throw new Error(`Expected ${table} row ${id}`);
     return row.is_deleted;
+  }
+
+  async function createCompany(): Promise<string> {
+    const countryId = await getCountryId(trx, 'US');
+    const token = randomUUID();
+    const [company] = await trx('companies')
+      .insert({
+        accounting_basis: 'modified_accrual_basis',
+        country_id: countryId,
+        created_by_id: userId,
+        display_name: `COA Lifecycle ${token}`,
+        legal_name: `COA Lifecycle ${token} LLC`,
+        reporting_currency_id: currencyId,
+        short_code: `coa_lifecycle_${token.slice(0, 8)}`,
+        type: 'business',
+        year_end_day: 31,
+        year_end_month: 12,
+      })
+      .returning<{ id: string }[]>('id');
+
+    return company.id;
+  }
+
+  async function createBankTransaction(): Promise<{ id: string; date: string }> {
+    const bankAccountCoa = await createAccount('Bank account fixture');
+    const bank = await trx('banks')
+      .where({ is_deleted: false })
+      .select('id')
+      .first<{ id: string }>();
+    if (!bank) throw new Error('Expected canonical bank fixture');
+
+    const [bankAccount] = await trx('bank_accounts')
+      .insert({
+        account_number: `acct_${randomUUID()}`,
+        bank_id: bank.id,
+        coa_id: bankAccountCoa.id,
+        company_id: companyId,
+        created_by_id: userId,
+        currency_id: currencyId,
+        display_name: `Bank Account ${randomUUID()}`,
+      })
+      .returning<{ id: string }[]>('id');
+
+    const transactionDate = '2025-01-15';
+    const [batch] = await trx('bank_transaction_batches')
+      .insert({
+        bank_account_id: bankAccount.id,
+        company_id: companyId,
+        created_by_id: userId,
+        end_date: transactionDate,
+        fingerprint: `batch_${randomUUID()}`,
+        import_row_count: 1,
+        source: 'manual_entry',
+        start_date: transactionDate,
+      })
+      .returning<{ id: string }[]>('id');
+
+    const [transaction] = await trx('bank_transactions')
+      .insert({
+        amount: -100,
+        bank_account_id: bankAccount.id,
+        bank_transaction_batch_id: batch.id,
+        company_id: companyId,
+        created_by_id: userId,
+        idempotency_key: `txn_${randomUUID()}`,
+        system_exchange_rate: 1,
+        transaction_at: new Date(`${transactionDate}T12:00:00.000Z`),
+        transaction_date: transactionDate,
+      })
+      .returning<{ id: string; transaction_date: string }[]>(
+        ['id', 'transaction_date'],
+      );
+
+    return {
+      id: transaction.id,
+      date: transaction.transaction_date,
+    };
+  }
+
+  async function getCurrencyId(
+    trx: Knex.Transaction,
+    code: string,
+  ): Promise<string> {
+    const currency = await trx('currencies')
+      .where({ code })
+      .select('id')
+      .first<{ id: string }>();
+    if (!currency) throw new Error(`Expected currency ${code}`);
+    return currency.id;
+  }
+
+  async function getCountryId(
+    trx: Knex.Transaction,
+    code: string,
+  ): Promise<string> {
+    const country = await trx('countries')
+      .where({ code })
+      .select('id')
+      .first<{ id: string }>();
+    if (!country) throw new Error(`Expected country ${code}`);
+    return country.id;
   }
 });

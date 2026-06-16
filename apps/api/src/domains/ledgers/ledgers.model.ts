@@ -17,11 +17,13 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { enqueueGLBalance } from '../balances/index.js';
+import { scheduleGLBalanceAfterCommit } from '../balances/index.js';
+import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
   makeFxTransactionId,
+  reverseFxPositionMovementsForLedgerTransaction,
   upsertFxPosition,
 } from '../fx/index.js';
 import { getCompanySetting } from '../settings/settings.service.js';
@@ -30,6 +32,7 @@ import { getBankTransactionContactResolution } from './bank-transaction-contact-
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
+  buildOpenEndedGLBalanceRecalcRequests,
   detectChangedFields,
   fetchLookupMap,
   normalizeDateForComparison,
@@ -89,6 +92,7 @@ export async function createLedgerRecord({
   userId,
   trx,
   ledgerTransactionIdOverride,
+  skipFxPositionTracking = false,
 }: {
   data: NewLedgerTransactionData;
   autoPost?: boolean;
@@ -96,6 +100,7 @@ export async function createLedgerRecord({
   userId: string;
   trx?: Knex.Transaction;
   ledgerTransactionIdOverride?: string;
+  skipFxPositionTracking?: boolean;
 }): Promise<ApiResponse<CreateLedgerRecordResult>> {
   // PHASE 1: INPUT VALIDATION
   // Validate that the input data matches our expected schema
@@ -163,7 +168,9 @@ export async function createLedgerRecord({
       trx: txn,
     });
     const trackFxPositions =
-      fxSettingsResult.success && fxSettingsResult.data
+      !skipFxPositionTracking &&
+      fxSettingsResult.success &&
+      fxSettingsResult.data
         ? fxSettingsResult.data.track_fx_positions
         : false;
 
@@ -499,31 +506,6 @@ export async function createLedgerRecord({
         type: 'LEDGER_TX',
         ledgerTransactionId,
       });
-
-      // Only create/update fx_positions table if the company has FX tracking enabled
-      // This table tracks foreign currency exposures for revaluation
-      if (trackFxPositions) {
-        // For each monetary entry, create or update the FX position
-        for (const {
-          index,
-          entry: _baseEntry,
-        } of monetaryResult.monetaryEntries) {
-          const fullEntry = entries[index]!;
-          // Convert the foreign currency amount to reporting currency
-          const calculatedAmount = fullEntry.source_amount * customExRate;
-
-          await upsertFxPosition({
-            companyId: companyUUID,
-            fx_transaction_id: fxTransactionId,
-            account_id: fullEntry.coa_id,
-            foreign_currency_id: fullEntry.source_currency_id,
-            source_amount: fullEntry.source_amount,
-            amount: calculatedAmount,
-            exchange_rate: customExRate,
-            trx: txn,
-          });
-        }
-      }
     }
 
     // STEP 11: BUILD & INSERT LEDGER ENTRIES
@@ -553,20 +535,74 @@ export async function createLedgerRecord({
     );
 
     // Insert all entries into the database
-    await txn('ledger_entries').insert(entriesToInsert);
+    const insertedEntries = await txn('ledger_entries')
+      .insert(entriesToInsert)
+      .returning<
+        Array<{
+          id: string;
+          coa_id: string;
+          source_currency_id: string;
+          source_amount: string | number;
+          amount: string | number;
+          is_monetary: boolean;
+          fx_transaction_id: string | null;
+          fs_date: string | Date;
+        }>
+      >([
+        'id',
+        'coa_id',
+        'source_currency_id',
+        'source_amount',
+        'amount',
+        'is_monetary',
+        'fx_transaction_id',
+        'fs_date',
+      ]);
+
+    if (trackFxPositions && fxTransactionId) {
+      for (const entry of insertedEntries) {
+        if (!entry.is_monetary || !entry.fx_transaction_id) continue;
+
+        await upsertFxPosition({
+          companyId: companyUUID,
+          fx_transaction_id: entry.fx_transaction_id,
+          account_id: entry.coa_id,
+          foreign_currency_id: entry.source_currency_id,
+          source_amount: Number(entry.source_amount),
+          amount: Number(entry.amount),
+          exchange_rate: customExRate,
+          source_type: 'ledger_entry',
+          source_id: entry.id,
+          ledger_transaction_id: ledgerTransactionId,
+          ledger_entry_id: entry.id,
+          movement_date: toYMD(entry.fs_date),
+          created_by_id: userId,
+          trx: txn,
+        });
+      }
+    }
 
     // STEP 12: ENQUEUE BALANCE RECALCULATION
     // After inserting entries, we need to recalculate account balances
     // This is done asynchronously via a job queue for performance
     // We enqueue one job per affected Chart of Account
-    for (const [coaId, range] of bounds) {
-      await enqueueGLBalance({
-        companyId: companyUUID,
-        coaId,
-        recalcFrom: range.min,
-        triggeredBy: 'ledger_entry',
-      });
+    for (const request of buildOpenEndedGLBalanceRecalcRequests({
+      companyId: companyUUID,
+      bounds,
+      triggeredBy: 'ledger_entry',
+    })) {
+      await scheduleGLBalanceAfterCommit(request, txn);
     }
+
+    // Re-evaluate close review signals for this transaction after commit.
+    await scheduleCloseSignalEvalAfterCommit(
+      {
+        companyId: companyUUID,
+        ledgerTransactionId,
+        triggeredBy: 'ledger_write',
+      },
+      txn,
+    );
 
     // STEP 13: CREATE LEDGER AUDIT LOG
     // Automatically create audit log entry for all ledger transactions
@@ -1220,21 +1256,34 @@ export async function supersedeLedgerTransaction({
 
     // 5. Trigger balance recalculation for old entries
     // Get unique COAs and date range from old entries
-    const oldCoaIds = new Set(oldEntries.map((e) => e.coa_id));
-    const oldDates = oldEntries.map((e) => toYMD(e.fs_date));
-    const oldMinDate = oldDates.reduce(
-      (min, d) => (d < min ? d : min),
-      oldDates[0]!,
-    );
-
-    for (const coaId of oldCoaIds) {
-      await enqueueGLBalance({
-        companyId,
-        coaId,
-        recalcFrom: oldMinDate,
-        triggeredBy: 'supersession',
-      });
+    const oldBounds = new Map<string, { min: string }>();
+    for (const entry of oldEntries) {
+      const fsDate = toYMD(entry.fs_date);
+      const existing = oldBounds.get(entry.coa_id);
+      if (!existing || fsDate < existing.min) {
+        oldBounds.set(entry.coa_id, { min: fsDate });
+      }
     }
+
+    for (const request of buildOpenEndedGLBalanceRecalcRequests({
+      companyId: oldTxn.company_id,
+      bounds: oldBounds,
+      triggeredBy: 'supersession',
+    })) {
+      await scheduleGLBalanceAfterCommit(request, trx);
+    }
+
+    // The old transaction is now superseded (no longer posted): reconcile so its
+    // close signals are removed. The new transaction is handled by
+    // createLedgerRecord below.
+    await scheduleCloseSignalEvalAfterCommit(
+      {
+        companyId: oldTxn.company_id,
+        ledgerTransactionId: oldLedgerTransactionId,
+        triggeredBy: 'supersession',
+      },
+      trx,
+    );
 
     // 7. Create new ledger transaction
     const createResult = await createLedgerRecord({
@@ -1253,6 +1302,16 @@ export async function supersedeLedgerTransaction({
         createResult.error,
       );
     }
+
+    await reverseFxPositionMovementsForLedgerTransaction({
+      companyId: oldTxn.company_id,
+      ledgerTransactionId: oldLedgerTransactionId,
+      reversingLedgerTransactionId: newLedgerTransactionId,
+      movementDate: toYMD(oldTxn.transaction_date),
+      createdById: userId,
+      movementType: 'superseded_reversed',
+      trx,
+    });
 
     logger.debug(
       {

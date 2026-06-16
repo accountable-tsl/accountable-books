@@ -14,6 +14,8 @@ import { mlPredictionQueue } from '../domains/categorization/ml/ml-prediction.qu
 import { ruleRunnerQueue } from '../domains/categorization/rules/rule-runner.queue.js';
 import { journalAutoReversalQueue } from '../domains/journals/auto-reversal.queue.js';
 import { startJournalAutoReversalWorker } from '../domains/journals/auto-reversal.worker.js';
+import { closeSignalEvalQueue } from '../domains/reporting/close-readiness/signals/close-signal-eval.queue.js';
+import { startCloseSignalEvalWorker } from '../domains/reporting/close-readiness/signals/close-signal-eval.worker.js';
 import { recurringTemplatesQueue } from '../domains/journals/recurring-templates.queue.js';
 import { startRecurringTemplatesWorker } from '../domains/journals/recurring-templates.worker.js';
 import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal-calendar.queue.js';
@@ -167,6 +169,17 @@ export const JOB_REGISTRY: JobDefinition[] = [
     label: 'Task evaluation worker',
     config: {
       envVar: 'TASK_EVALUATION_CONCURRENCY',
+      defaultValue: 3,
+    },
+  },
+  {
+    name: 'closeSignalEval',
+    queue: closeSignalEvalQueue,
+    factory: (concurrency) => startCloseSignalEvalWorker(concurrency),
+    label: 'Close signal evaluation worker',
+    icon: '🔎',
+    config: {
+      envVar: 'CLOSE_SIGNAL_EVAL_CONCURRENCY',
       defaultValue: 3,
     },
   },

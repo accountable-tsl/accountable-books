@@ -376,7 +376,7 @@ declare module 'knex/types/tables' {
           | 'company_id'
           | 'coa_id'
           | 'fiscal_year'
-          | 'fiscal_period'
+          | 'period_number'
           | 'period_type'
         >
       >

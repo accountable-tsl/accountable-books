@@ -9,7 +9,6 @@ import type {
 } from './coa.types.js';
 
 type DerivedDataIds = {
-  legacyPredictionIds: string[];
   predictionIds: string[];
   candidateIds: string[];
 };
@@ -222,14 +221,6 @@ export async function inspectCoaLifecycleImpacts({
     }
   }
 
-  const legacyPredictions = await trx('predictions')
-    .where({ company_id: companyId, is_deleted: false })
-    .whereIn('coa_id', sortedCoaIds)
-    .orderBy('id')
-    .forUpdate()
-    .select<{ id: string; coa_id: string }[]>('id', 'coa_id');
-  incrementImpacts(impactsByCoaId, legacyPredictions, 'predictions');
-
   const predictionLines = await trx('categorization_prediction_lines as l')
     .join('categorization_predictions as p', 'l.prediction_id', 'p.id')
     .where({
@@ -296,9 +287,6 @@ export async function inspectCoaLifecycleImpacts({
     impactsByCoaId,
     referencesByCoaId,
     derivedDataIds: {
-      legacyPredictionIds: uniqueSorted(
-        legacyPredictions.map((prediction) => prediction.id),
-      ),
       predictionIds,
       candidateIds,
     },
@@ -314,8 +302,7 @@ export async function invalidateCoaDerivedData({
   inspection: CoaLifecycleImpactInspection;
   userId: string;
 }): Promise<CoaDerivedDataInvalidation> {
-  const { legacyPredictionIds, predictionIds, candidateIds } =
-    inspection.derivedDataIds;
+  const { predictionIds, candidateIds } = inspection.derivedDataIds;
   const now = new Date();
   const headDeletion = {
     is_deleted: true,
@@ -327,11 +314,6 @@ export async function invalidateCoaDerivedData({
     deleted_at: now,
   };
 
-  if (legacyPredictionIds.length > 0) {
-    await trx('predictions')
-      .whereIn('id', legacyPredictionIds)
-      .update(headDeletion);
-  }
   if (predictionIds.length > 0) {
     await trx('categorization_prediction_lines')
       .whereIn('prediction_id', predictionIds)
@@ -350,7 +332,7 @@ export async function invalidateCoaDerivedData({
   }
 
   return {
-    predictions: legacyPredictionIds.length + predictionIds.length,
+    predictions: predictionIds.length,
     candidates: candidateIds.length,
   };
 }

@@ -4,11 +4,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { getTestDb } from '../../../../config/test-db.js';
-import {
-  getTestCompanyId,
-  getTestUserId,
-  US_USER_EMAIL,
-} from '../../../../test/helpers.js';
 import { writeAuditEvent } from '../audit.model.js';
 
 describe('writeAuditEvent', () => {
@@ -19,8 +14,45 @@ describe('writeAuditEvent', () => {
   beforeEach(async () => {
     const db = getTestDb();
     trx = await db.transaction();
-    companyId = await getTestCompanyId(trx, 'bizDemoUS');
-    userId = await getTestUserId(trx, US_USER_EMAIL);
+
+    const [user] = await trx('users')
+      .insert({
+        firstname: 'Audit',
+        lastname: 'Tester',
+        email: `audit-${uuidv4()}@example.com`,
+        user_type: 'regular',
+      })
+      .returning<{ id: string }[]>('id');
+    if (!user) throw new Error('Failed to create audit test user');
+    userId = user.id;
+
+    const country = await trx('countries')
+      .where({ code: 'US' })
+      .select<{ id: string }[]>('id')
+      .first();
+    if (!country) throw new Error('US country not found');
+
+    const currency = await trx('currencies')
+      .where({ code: 'USD' })
+      .select<{ id: string }[]>('id')
+      .first();
+    if (!currency) throw new Error('USD currency not found');
+
+    const [company] = await trx('companies')
+      .insert({
+        legal_name: 'Audit Test Company',
+        short_code: `audit-${uuidv4().slice(0, 8)}`,
+        type: 'business',
+        year_end_day: 31,
+        year_end_month: 12,
+        accounting_basis: 'modified_accrual_basis',
+        country_id: country.id,
+        reporting_currency_id: currency.id,
+        created_by_id: userId,
+      })
+      .returning<{ id: string }[]>('id');
+    if (!company) throw new Error('Failed to create audit test company');
+    companyId = company.id;
   });
 
   afterEach(async () => {
@@ -207,5 +239,48 @@ describe('writeAuditEvent', () => {
       .first();
 
     expect(row?.action).toBe('journal.batch.create');
+  });
+
+  it('prevents updates and deletes after an audit event is written', async () => {
+    const payloadSchema = z.object({ ok: z.boolean() });
+    const entityId = uuidv4();
+
+    await writeAuditEvent(
+      payloadSchema,
+      {
+        companyId,
+        entityType: 'journal',
+        entityId,
+        action: 'journal.create',
+        schemaVersion: '1.0.0',
+        payload: { ok: true },
+        actorType: 'user',
+        actorId: userId,
+        userId,
+        eventAt: new Date().toISOString(),
+        source: 'api',
+      },
+      trx,
+    );
+
+    const row = await trx('audit_events')
+      .where({ company_id: companyId, entity_id: entityId })
+      .select('id')
+      .first();
+    if (!row?.id) throw new Error('Expected audit event to be written');
+
+    await expect(
+      trx.transaction(async (attempt) => {
+        await attempt('audit_events')
+          .where({ id: row.id })
+          .update({ notes: 'changed' });
+      }),
+    ).rejects.toThrow(/append-only/i);
+
+    await expect(
+      trx.transaction(async (attempt) => {
+        await attempt('audit_events').where({ id: row.id }).delete();
+      }),
+    ).rejects.toThrow(/append-only/i);
   });
 });

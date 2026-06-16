@@ -186,7 +186,7 @@ export class MonoProvider extends BankingProvider {
         });
       }
 
-      const { bankId, bankLogoUrl, providerBankName } = bankResult;
+      const { bankId } = bankResult;
 
       const accounts: ProviderAccount[] = [
         {
