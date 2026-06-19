@@ -176,7 +176,7 @@ export const API_ENV_SCHEMA: EnvSchema = {
   EMAIL_PROVIDER: {
     description: 'Email service provider',
     type: 'string',
-    local: 'ethereal',
+    local: 'dev',
     staging: 'postmark',
   },
 

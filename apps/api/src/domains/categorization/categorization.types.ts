@@ -172,6 +172,13 @@ export const getCategorizationTransactionsParams = z.object({
   status: categorizationTransactionStatus.array().optional(),
   bankTransactionIds: z.array(z.string()).optional(),
   bankAccountIds: z.array(z.string()).optional(),
+  /**
+   * Deep-link a firm-queue row to exactly its subjects. When set, the result is
+   * constrained to the work item's active bank-transaction subjects (and the
+   * date range is ignored), so a queue row opens the precise transactions that
+   * still need action.
+   */
+  workItemId: z.uuid().optional(),
   searchQuery: z.string().optional(),
   limit: z.number().int().min(1).max(1000).default(100).optional(),
   offset: z.number().int().min(0).optional().default(0).optional(),

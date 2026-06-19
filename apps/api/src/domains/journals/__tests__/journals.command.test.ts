@@ -10,6 +10,11 @@ import {
 } from '../../../../test/helpers.js';
 import { toYMD } from '../../../shared/index.js';
 import {
+  ACTIVITY_EVENT_TYPE,
+  buildActivityEventScopeKey,
+} from '../../activity/index.js';
+import { OUTBOX_INTENT } from '../../work/work.types.js';
+import {
   copyJournal,
   postDraftJournal,
   postDraftJournalsBatch,
@@ -115,6 +120,22 @@ describe('postJournalRecord - Integration Tests', () => {
       'active',
     ]);
     expect(journalRows.every((r) => r.ledger_entry_id)).toBe(true);
+
+    const activity = await trx('app.outbox_intents')
+      .where({
+        intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+        scope_key: buildActivityEventScopeKey(
+          `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_POSTED}:${result.data!.ledgerTransactionId}`,
+        ),
+      })
+      .first('payload');
+    expect(activity?.payload.event).toMatchObject({
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_POSTED,
+      sourceEntity: { type: 'journal', id: result.data!.journalBatchId },
+      ledgerTransactionId: result.data!.ledgerTransactionId,
+      actor: { type: 'user', userId: testUserId },
+      itemCount: 2,
+    });
   });
 
   it('creates a draft journal without sequence fields', async () => {
@@ -156,6 +177,21 @@ describe('postJournalRecord - Integration Tests', () => {
     expect(batch.sequence_number).toBeNull();
     expect(batch.system_reference).toBeNull();
     expect(batch.user_reference).toBe('DRAFT-MANUAL-REF');
+
+    const activity = await trx('app.outbox_intents')
+      .where({
+        intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+        scope_key: buildActivityEventScopeKey(
+          `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_CREATED}:${result.data!.journalBatchId}`,
+        ),
+      })
+      .first('payload');
+    expect(activity?.payload.event).toMatchObject({
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_CREATED,
+      sourceEntity: { type: 'journal', id: result.data!.journalBatchId },
+      actor: { type: 'user', userId: testUserId },
+      itemCount: 2,
+    });
   });
 
   it('lists voided journals with correct totals when includeDeleted=true', async () => {
@@ -652,6 +688,21 @@ describe('postJournalRecord - Integration Tests', () => {
       expect(batch.is_deleted).toBe(true);
       expect(batch.deleted_at).not.toBeNull();
       expect(batch.deleted_by_id).toBe(testUserId);
+
+      const activity = await trx('app.outbox_intents')
+        .where({
+          intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+          scope_key: buildActivityEventScopeKey(
+            `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_VOIDED}:${draft.data!.journalBatchId}`,
+          ),
+        })
+        .first('payload');
+      expect(activity?.payload.event).toMatchObject({
+        eventType: ACTIVITY_EVENT_TYPE.JOURNAL_VOIDED,
+        sourceEntity: { type: 'journal', id: draft.data!.journalBatchId },
+        actor: { type: 'user', userId: testUserId },
+        itemCount: 2,
+      });
     });
 
     it('rejects voiding a posted journal', async () => {
@@ -754,6 +805,22 @@ describe('postJournalRecord - Integration Tests', () => {
       expect(entries.map((e) => e.line_number)).toEqual([1, 2]);
       expect(entries.map((e) => e.entry_status)).toEqual(['active', 'active']);
       expect(entries.every((e) => e.ledger_entry_id)).toBe(true);
+
+      const activity = await trx('app.outbox_intents')
+        .where({
+          intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+          scope_key: buildActivityEventScopeKey(
+            `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_POSTED}:${result.data!.ledgerTransactionId}`,
+          ),
+        })
+        .first('payload');
+      expect(activity?.payload.event).toMatchObject({
+        eventType: ACTIVITY_EVENT_TYPE.JOURNAL_POSTED,
+        sourceEntity: { type: 'journal', id: draft.data!.journalBatchId },
+        ledgerTransactionId: result.data!.ledgerTransactionId,
+        actor: { type: 'user', userId: testUserId },
+        itemCount: 2,
+      });
     });
   });
 
@@ -1184,6 +1251,29 @@ describe('postJournalRecord - Integration Tests', () => {
       expect(supersededEntries.every((e) => e.ledger_entry_id === null)).toBe(
         true,
       );
+
+      const activityRows = await trx('app.outbox_intents').where({
+        intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+      });
+      const updateActivity = activityRows.find((row) => {
+        const payload = row.payload as {
+          event?: {
+            eventType?: string;
+            sourceEntity?: { type?: string; id?: string };
+          };
+        };
+        return (
+          payload.event?.eventType === ACTIVITY_EVENT_TYPE.JOURNAL_UPDATED &&
+          payload.event.sourceEntity?.type === 'journal' &&
+          payload.event.sourceEntity.id === draft.data!.journalBatchId
+        );
+      });
+      expect(updateActivity?.payload.event).toMatchObject({
+        eventType: ACTIVITY_EVENT_TYPE.JOURNAL_UPDATED,
+        sourceEntity: { type: 'journal', id: draft.data!.journalBatchId },
+        actor: { type: 'user', userId: testUserId },
+        itemCount: 2,
+      });
     });
 
     it('voids only the final active draft line set after an edit', async () => {

@@ -173,7 +173,6 @@ export async function validateAndPrepareJournalInput<
   const currency = await p
     .trx('currencies')
     .where('id', journalCurrencyId)
-    .where('is_deleted', false)
     .first<{ id: string }>('id');
 
   if (!currency) {

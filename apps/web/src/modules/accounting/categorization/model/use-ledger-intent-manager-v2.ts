@@ -17,8 +17,8 @@
  * Violating this breaks the entire model.
  */
 import type {
-  LedgerIntent,
   LedgerIntentEntry,
+  LedgerPostingIntent,
 } from '@accountable-books/contracts/schema';
 import type { ReactNode } from 'react';
 import {
@@ -412,10 +412,10 @@ function buildLedgerIntentFromEntries(
   transaction: GroupedTransaction,
   desiredState: PendingDesiredState,
   entries: EntryUI[],
-): LedgerIntent {
+): LedgerPostingIntent {
   const finalEntries = computeFinalEntries(entries, desiredState);
 
-  const finalDesiredState: LedgerIntent['desired_state'] = {};
+  const finalDesiredState: LedgerPostingIntent['desired_state'] = {};
   if (desiredState.custom_exchange_rate !== undefined) {
     finalDesiredState.custom_exchange_rate = desiredState.custom_exchange_rate;
   }

@@ -1,0 +1,38 @@
+from pydantic import BaseModel, conint
+from typing import Any, List, Optional
+from enum import Enum
+from uuid import UUID
+
+class StatusEnum(str, Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+class WorkQueueItemSchema(BaseModel):
+    class Destination(BaseModel):
+        workspace: str
+        filterMode: str
+        filters: Any
+    class SubjectsItem(BaseModel):
+        subjectId: UUID
+        canonicalSubjectKey: str
+        targetType: str
+        targetId: str
+        candidateId: Optional[UUID]
+        bankTransactionId: Optional[UUID]
+        sortDate: Optional[str]
+        amount: Optional[float]
+    workItemId: UUID
+    workType: str
+    status: StatusEnum
+    title: Optional[str]
+    firmCompanyId: UUID
+    clientCompanyId: UUID
+    clientDisplayName: Optional[str]
+    assignedUserId: Optional[UUID]
+    effectiveOwnerUserId: Optional[UUID]
+    activeSubjectCount: conint(ge=0)
+    primaryAction: Optional[str]
+    availableActions: List[str]
+    requiredCapabilities: List[str]
+    destination: Destination
+    subjects: List[SubjectsItem]

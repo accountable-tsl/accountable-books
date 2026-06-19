@@ -22,6 +22,11 @@ import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal
 import { startFiscalCalendarWorker } from '../domains/reporting/fiscal-calendar/index.js';
 import { taskEvaluationQueue } from '../domains/tasks/task-evaluation.queue.js';
 import { startTaskEvaluationWorker } from '../domains/tasks/task-evaluation.worker.js';
+import { outboxDispatchQueue } from '../domains/work/outbox.queue.js';
+import {
+  closeOutboxSchedulers,
+  startOutboxDispatchWorker,
+} from '../domains/work/outbox.worker.js';
 import { emailQueue } from '../features/communications/email/email.queue.js';
 import { startEmailWorker } from '../features/communications/email/index.js';
 import {
@@ -181,6 +186,19 @@ export const JOB_REGISTRY: JobDefinition[] = [
     config: {
       envVar: 'CLOSE_SIGNAL_EVAL_CONCURRENCY',
       defaultValue: 3,
+    },
+  },
+  {
+    name: 'outboxDispatch',
+    queue: outboxDispatchQueue,
+    factory: (concurrency) => startOutboxDispatchWorker(concurrency),
+    teardown: closeOutboxSchedulers,
+    label: 'Outbox dispatch worker',
+    icon: '📬',
+    critical: true,
+    config: {
+      envVar: 'OUTBOX_DISPATCH_CONCURRENCY',
+      defaultValue: 1,
     },
   },
 ];

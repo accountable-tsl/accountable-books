@@ -20,6 +20,7 @@ export enum QueueName {
   RECURRING_JOURNAL = 'recurring-journal-templates',
   TASK_EVALUATION = 'task-evaluation',
   CLOSE_SIGNAL_EVAL = 'close-signal-eval',
+  OUTBOX_DISPATCH = 'outbox-dispatch',
 }
 
 /**

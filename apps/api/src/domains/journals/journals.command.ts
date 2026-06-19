@@ -15,6 +15,10 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../activity/index.js';
 import { reverseFxPositionMovementsForLedgerTransaction } from '../fx/index.js';
 import { createLedgerRecord } from '../ledgers/ledgers.model.js';
 import {
@@ -22,6 +26,7 @@ import {
   syncTxnFilesForTarget,
 } from '../objects/txn-files/txn-files.service.js';
 import { ensureAndFetchFiscalCalendar } from '../reporting/fiscal-calendar/index.js';
+import { scheduleOutboxDispatchKickAfterCommit } from '../work/outbox.queue.js';
 import { scheduleJournalAutoReversal } from './auto-reversal.queue.js';
 import {
   writeJournalCopyAudit,
@@ -585,6 +590,39 @@ export async function postJournalRecord({
       trx: txn,
     });
 
+    const journalActivityEventType =
+      batch.status === 'posted'
+        ? ACTIVITY_EVENT_TYPE.JOURNAL_POSTED
+        : ACTIVITY_EVENT_TYPE.JOURNAL_CREATED;
+    await writeActivityEventIntent(txn, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      ledgerTransactionId,
+      eventType: journalActivityEventType,
+      itemCount: entries.length,
+      amount: prepared.totalDebits,
+      currencyId: journalCurrencyId,
+      idempotencyKey:
+        batch.status === 'posted' && ledgerTransactionId
+          ? `activity:${journalActivityEventType}:${ledgerTransactionId}`
+          : `activity:${journalActivityEventType}:${journalBatchId}`,
+      metadata: {
+        status: batch.status,
+        systemReference,
+        userReference: prepared.userReference,
+        isFx,
+        exchangeRate: isFx ? exchangeRate : null,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId,
+        isRecurring,
+        journalSource: journalBatch.journal_source,
+        recurringTemplateId,
+      },
+    });
+    await scheduleOutboxDispatchKickAfterCommit(txn);
+
     log('audit_event_created', { action: 'journal.create' });
 
     // Auto-reversal scheduling handled after transaction commit
@@ -913,6 +951,29 @@ export async function updateDraftJournal({
       trx: txn,
     });
 
+    await writeActivityEventIntent(txn, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_UPDATED,
+      itemCount: entries.length,
+      amount: prepared.totalDebits,
+      currencyId: prepared.journalCurrencyId,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_UPDATED}:${journalBatchId}:${now.toISOString()}`,
+      metadata: {
+        previousStatus: 'draft',
+        userReference: prepared.userReference,
+        isFx: prepared.isFx,
+        exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId: prepared.contactId,
+        isRecurring: prepared.isRecurring,
+        replacedEntryCount: deletedEntriesCount,
+      },
+    });
+    await scheduleOutboxDispatchKickAfterCommit(txn);
+
     log('audit_event_created', { action: 'journal.update' });
 
     return {
@@ -1021,6 +1082,13 @@ export async function voidDraftJournal({
     }
 
     const now = new Date();
+    const activeEntryCountRow = await tx('journal_entries')
+      .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
+      .where('is_deleted', false)
+      .count<{ count: string }>({ count: 'id' })
+      .first();
+    const activeEntryCount = Number(activeEntryCountRow?.count ?? 0);
 
     await tx('journal_batches').where('id', journalBatchId).update({
       status: 'voided',
@@ -1058,6 +1126,22 @@ export async function voidDraftJournal({
       notes: `Draft journal batch voided by user ${userId}${voidReason ? `: ${voidReason}` : ''}`,
       trx: tx,
     });
+
+    await writeActivityEventIntent(tx, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_VOIDED,
+      itemCount: activeEntryCount > 0 ? activeEntryCount : undefined,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_VOIDED}:${journalBatchId}`,
+      metadata: {
+        previousStatus: 'draft',
+        systemReference: journalBatch.system_reference ?? null,
+        userReference: journalBatch.user_reference ?? null,
+        voidReason: voidReason ?? null,
+      },
+    });
+    await scheduleOutboxDispatchKickAfterCommit(tx);
 
     return {};
   };
@@ -1425,6 +1509,32 @@ export async function postDraftJournal({
       },
       trx: tx,
     });
+
+    await writeActivityEventIntent(tx, {
+      clientCompanyId: context.companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      ledgerTransactionId,
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_POSTED,
+      itemCount: prepared.entries.length,
+      amount: prepared.totalDebits,
+      currencyId: prepared.journalCurrencyId,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_POSTED}:${ledgerTransactionId}`,
+      metadata: {
+        previousStatus: 'draft',
+        systemReference: finalSystemReference,
+        userReference: prepared.userReference,
+        isFx: prepared.isFx,
+        exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId: prepared.contactId,
+        isRecurring: prepared.isRecurring,
+        sequenceMonth: ref.sequenceMonth,
+        sequenceNumber: ref.sequenceNumber,
+      },
+    });
+    await scheduleOutboxDispatchKickAfterCommit(tx);
 
     return {
       journalBatchId,

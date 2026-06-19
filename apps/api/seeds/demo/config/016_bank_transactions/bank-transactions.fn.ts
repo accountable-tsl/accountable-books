@@ -236,7 +236,6 @@ export const createDemoBankTransactions = async (
             generatedFor: company.short_code,
           },
           created_by_id: userId,
-          updated_by_id: userId,
         })
         .onConflict(['bank_account_id', 'fingerprint'])
         .ignore()

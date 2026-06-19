@@ -30,6 +30,8 @@ export async function getCategorizationTransactionsController(
     const statusParam = req.query.status;
     const bankAccountIds = req.query.bankAccountIds;
     const bankTransactionIds = req.query.bankTransactionIds;
+    const workItemId =
+      typeof req.query.workItemId === 'string' ? req.query.workItemId : undefined;
     const bankAccountIdsArray = Array.isArray(bankAccountIds)
       ? bankAccountIds.filter((id): id is string => typeof id === 'string')
       : typeof bankAccountIds === 'string'
@@ -56,6 +58,7 @@ export async function getCategorizationTransactionsController(
       status: statusArray,
       bankAccountIds: bankAccountIdsArray,
       bankTransactionIds: bankTransactionIdsArray,
+      workItemId,
       searchQuery: typeof searchQuery === 'string' ? searchQuery : undefined,
       limit: limit ? parseInt(String(limit), 10) : undefined,
       offset: offset ? parseInt(String(offset), 10) : undefined,

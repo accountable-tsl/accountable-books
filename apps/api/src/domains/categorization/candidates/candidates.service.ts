@@ -9,6 +9,11 @@ import {
 } from '../../../shared/services/advisoryLocks.service.js';
 import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
+import {
+  appendCandidateDisposition,
+  closeCandidateReview,
+  recordCandidateOutcomeForLedger,
+} from './candidate-lifecycle.service.js';
 import { candidateInput, updateCandidateInput } from './candidates.types.js';
 
 import type { ContactType } from '../../contacts/contacts.types.js';
@@ -20,6 +25,32 @@ import type {
   CategorizationCandidateWithLinesFiltered,
   UpdateCandidateInput,
 } from './candidates.types.js';
+
+export type PersistCategorizationCandidateResult =
+  | {
+      outcome: 'created';
+      candidateId: string;
+      reviewState: 'pending_review';
+      previousCandidateId: string | null;
+    }
+  | {
+      outcome: 'replaced';
+      candidateId: string;
+      reviewState: 'pending_review';
+      replacedCandidateId: string;
+    }
+  | {
+      outcome: 'ignored';
+      candidateId: string;
+      reviewState: 'closed';
+      keptCandidateId: string;
+    }
+  | {
+      outcome: 'expired_source_posted';
+      candidateId: string;
+      reviewState: 'closed';
+      ledgerTransactionId: string;
+    };
 
 const SOURCE_RANK: Record<'rule' | 'ml' | 'ml_heuristic', number> = {
   rule: 3,
@@ -86,7 +117,7 @@ export async function persistCategorizationCandidate({
   candidate: CandidateInput;
   trx?: Knex.Transaction;
   runId: string;
-}): Promise<{ candidateId: string }> {
+}): Promise<PersistCategorizationCandidateResult> {
   // Check if there's a candidate for this transaction/task
   // find the candidate with the highest confidence
   // If there's a tie between multiple candidates,
@@ -108,7 +139,7 @@ export async function persistCategorizationCandidate({
 
   const exec = async (
     txn: Knex.Transaction,
-  ): Promise<{ candidateId: string }> => {
+  ): Promise<PersistCategorizationCandidateResult> => {
     await acquireAdvisoryXactLocks(txn, [lockKeyCompany(c.company_id)]);
     const referencedCoaIds = [
       ...new Set(candidate_lines.map((line) => line.coa_id)),
@@ -121,16 +152,103 @@ export async function persistCategorizationCandidate({
       throw new Error('Candidate references invalid or inactive COA IDs');
     }
 
-    // Any existing candidate for this transaction/task?
+    const bankTransaction = await txn('bank_transactions')
+      .where({
+        id: c.bank_transaction_id,
+        company_id: c.company_id,
+        is_deleted: false,
+      })
+      .forUpdate()
+      .first('id', 'ledger_transaction_id');
+
+    if (!bankTransaction) {
+      throw new Error('Candidate references a missing bank transaction');
+    }
+
+    if (bankTransaction.ledger_transaction_id) {
+      const candidate = await insertCandidateSnapshot(txn, {
+        candidate: c,
+        candidateLines: candidate_lines,
+        reviewState: 'closed',
+        runId,
+      });
+
+      await appendCandidateDisposition(txn, {
+        candidateId: candidate.id,
+        bankTransactionId: c.bank_transaction_id,
+        companyId: c.company_id,
+        disposition: 'expired_source_posted',
+        runId,
+        ledgerTransactionId: bankTransaction.ledger_transaction_id,
+        reason: 'Bank transaction was already posted before the candidate became reviewable',
+        idempotencyKey: `candidate:${candidate.id}:expired_source_posted:${bankTransaction.ledger_transaction_id}`,
+      });
+
+      await recordCandidateOutcomeForLedger(txn, {
+        candidateId: candidate.id,
+        ledgerTransactionId: bankTransaction.ledger_transaction_id,
+        comparisonBasis: 'late_candidate_existing_ledger',
+      });
+
+      await logTaskEventSafe({
+        run_id: runId,
+        categorization_task_id: c.categorization_task_id,
+        event_stage: 'candidate',
+        event_type: 'candidate_ignored',
+        event_timestamp: new Date(),
+        metadata: {
+          candidate_id: candidate.id,
+          ledger_transaction_id: bankTransaction.ledger_transaction_id,
+          reason: 'source_already_posted',
+        },
+        trx: txn,
+      });
+
+      return {
+        outcome: 'expired_source_posted',
+        candidateId: candidate.id,
+        reviewState: 'closed',
+        ledgerTransactionId: bankTransaction.ledger_transaction_id,
+      };
+    }
+
+    // Any pending-review candidate for this transaction?
     const existing = await txn('categorization_candidates')
       .select(['id', 'source', 'confidence'])
       .where({
         bank_transaction_id: c.bank_transaction_id,
+        review_state: 'pending_review',
         is_deleted: false,
       })
+      .forUpdate()
       .first();
 
     if (existing && !shouldReplace(existing, c as CandidateConflictInput)) {
+      const candidate = await insertCandidateSnapshot(txn, {
+        candidate: c,
+        candidateLines: candidate_lines,
+        reviewState: 'closed',
+        runId,
+      });
+
+      await appendCandidateDisposition(txn, {
+        candidateId: candidate.id,
+        bankTransactionId: c.bank_transaction_id,
+        companyId: c.company_id,
+        disposition: 'ignored',
+        runId,
+        relatedCandidateId: existing.id,
+        reason: getReplaceReason(existing, c as CandidateConflictInput),
+        metadata: {
+          kept_candidate_id: existing.id,
+          previous_source: existing.source,
+          previous_confidence: existing.confidence,
+          new_source: c.source,
+          new_confidence: c.confidence,
+        },
+        idempotencyKey: `candidate:${candidate.id}:ignored_for:${existing.id}`,
+      });
+
       await logTaskEventSafe({
         run_id: runId,
         categorization_task_id: c.categorization_task_id,
@@ -144,22 +262,35 @@ export async function persistCategorizationCandidate({
           new_source: c.source,
           new_confidence: c.confidence,
           reason: getReplaceReason(existing, c as CandidateConflictInput),
+          ignored_candidate_id: candidate.id,
         },
         trx: txn,
       });
 
-      return { candidateId: existing.id };
+      return {
+        outcome: 'ignored',
+        candidateId: candidate.id,
+        reviewState: 'closed',
+        keptCandidateId: existing.id,
+      };
     }
 
     if (existing) {
-      // Soft delete the existing candidate
-      await txn('categorization_candidates')
-        .where({ id: existing.id })
-        .update({ is_deleted: true, deleted_at: txn.fn.now() });
-
-      await txn('categorization_candidate_lines')
-        .where({ candidate_id: existing.id })
-        .update({ is_deleted: true, deleted_at: txn.fn.now() });
+      await closeCandidateReview(txn, existing.id);
+      await appendCandidateDisposition(txn, {
+        candidateId: existing.id,
+        bankTransactionId: c.bank_transaction_id,
+        companyId: c.company_id,
+        disposition: 'replaced',
+        runId,
+        reason: getReplaceReason(existing, c as CandidateConflictInput),
+        metadata: {
+          previous_source: existing.source,
+          previous_confidence: existing.confidence,
+          new_source: c.source,
+          new_confidence: c.confidence,
+        },
+      });
 
       await logTaskEventSafe({
         run_id: runId,
@@ -179,14 +310,35 @@ export async function persistCategorizationCandidate({
       });
     }
 
-    // If we get here, we need to persist the new candidate
     const [candidate] = await txn('categorization_candidates')
-      .insert(c)
+      .insert({ ...c, run_id: runId, review_state: 'pending_review' })
       .returning<{ id: string }[]>('id');
 
     await txn('categorization_candidate_lines').insert(
       candidate_lines.map((l) => ({ ...l, candidate_id: candidate.id })),
     );
+
+    await appendCandidateDisposition(txn, {
+      candidateId: candidate.id,
+      bankTransactionId: c.bank_transaction_id,
+      companyId: c.company_id,
+      disposition: 'created',
+      runId,
+      relatedCandidateId: existing?.id ?? null,
+      reason: existing
+        ? getReplaceReason(existing, c as CandidateConflictInput)
+        : 'first_candidate',
+      metadata: {
+        replaced_existing: existing ? true : false,
+        previous_candidate_id: existing?.id ?? null,
+        previous_source: existing?.source ?? null,
+        previous_confidence: existing?.confidence ?? null,
+        new_source: c.source,
+        new_confidence: c.confidence,
+        lines_count: candidate_lines.length,
+      },
+      idempotencyKey: `candidate:${candidate.id}:created`,
+    });
 
     await logTaskEventSafe({
       run_id: runId,
@@ -210,7 +362,19 @@ export async function persistCategorizationCandidate({
       trx: txn,
     });
 
-    return { candidateId: candidate.id };
+    return existing
+      ? {
+          outcome: 'replaced',
+          candidateId: candidate.id,
+          reviewState: 'pending_review',
+          replacedCandidateId: existing.id,
+        }
+      : {
+          outcome: 'created',
+          candidateId: candidate.id,
+          reviewState: 'pending_review',
+          previousCandidateId: null,
+        };
   };
 
   if (trx) {
@@ -218,6 +382,33 @@ export async function persistCategorizationCandidate({
   } else {
     return await knexClient.transaction(exec);
   }
+}
+
+async function insertCandidateSnapshot(
+  txn: Knex.Transaction,
+  input: {
+    candidate: Omit<CandidateInput, 'candidate_lines'>;
+    candidateLines: CandidateInput['candidate_lines'];
+    reviewState: 'pending_review' | 'closed';
+    runId: string;
+  },
+): Promise<{ id: string }> {
+  const [candidate] = await txn('categorization_candidates')
+    .insert({
+      ...input.candidate,
+      run_id: input.runId,
+      review_state: input.reviewState,
+    })
+    .returning<{ id: string }[]>('id');
+
+  await txn('categorization_candidate_lines').insert(
+    input.candidateLines.map((line) => ({
+      ...line,
+      candidate_id: candidate.id,
+    })),
+  );
+
+  return candidate;
 }
 
 // For now, I'll just keep it simple
@@ -358,7 +549,12 @@ export async function getCategorizationCandidatesWithLines({
     .where('is_deleted', false)
     .modify((qb) => {
       if (hasCandidateIds) qb.whereIn('id', idsToUse);
-      else qb.whereIn('bank_transaction_id', idsToUse);
+      else {
+        qb.whereIn('bank_transaction_id', idsToUse).andWhere(
+          'review_state',
+          'pending_review',
+        );
+      }
     })
     .orderBy('created_at', 'asc');
 

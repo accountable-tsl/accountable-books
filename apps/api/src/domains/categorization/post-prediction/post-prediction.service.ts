@@ -8,9 +8,15 @@ import {
   lockKeyCategorizationTask,
   lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../../activity/index.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
 import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
 import { getSystemUser } from '../../users/users.model.js';
+import { scheduleOutboxDispatchKickAfterCommit } from '../../work/outbox.queue.js';
+import { writeBankAccountWorkMaterializationIntent } from '../../work/work-materialization-intent.js';
 import {
   checkAutopostEligibility,
   enqueueDelayedAutopost,
@@ -969,11 +975,12 @@ async function processPredictionToCandidate({
     // - Compare sources and confidence
     // - Replace if new candidate is better (rule > ml > ml_heuristic, or higher confidence)
     // - Log events for candidate_created, candidate_replaced, or candidate_ignored
-    const { candidateId } = await persistCategorizationCandidate({
+    const candidateResult = await persistCategorizationCandidate({
       candidate: candidateObj,
       runId,
-      trx,
+      trx: txn,
     });
+    const candidateId = candidateResult.candidateId;
 
     if (!candidateId) {
       throw new Error('Failed to persist candidate');
@@ -1006,6 +1013,7 @@ async function processPredictionToCandidate({
     // Rules: Post immediately if autopost_rules is true
     // ML: Post immediately if delay is 0, otherwise enqueue delayed job
 
+    let immediateAutopostSucceeded = false;
     const eligibility = await checkAutopostEligibility({
       source,
       confidence: p.confidence,
@@ -1013,7 +1021,10 @@ async function processPredictionToCandidate({
       trx: txn,
     });
 
-    if (eligibility.shouldAutopost) {
+    if (
+      candidateResult.reviewState === 'pending_review' &&
+      eligibility.shouldAutopost
+    ) {
       if (eligibility.isImmediate) {
         // Post immediately within the same transaction
         try {
@@ -1031,6 +1042,7 @@ async function processPredictionToCandidate({
           });
 
           if (result.success) {
+            immediateAutopostSucceeded = true;
             logger.info(
               {
                 candidateId,
@@ -1099,6 +1111,58 @@ async function processPredictionToCandidate({
           }
         });
       }
+    }
+
+    if (!immediateAutopostSucceeded) {
+      if (
+        candidateResult.reviewState === 'pending_review' &&
+        (candidateResult.outcome === 'created' ||
+          candidateResult.outcome === 'replaced')
+      ) {
+        const eventType =
+          candidateResult.outcome === 'replaced'
+            ? ACTIVITY_EVENT_TYPE.CATEGORIZATION_SUGGESTION_REPLACED
+            : ACTIVITY_EVENT_TYPE.CATEGORIZATION_SUGGESTION_CREATED;
+        await writeActivityEventIntent(txn, {
+          clientCompanyId: companyUUID,
+          actor: { type: 'system' },
+          sourceEntity: { type: 'categorization_candidate', id: candidateId },
+          eventType,
+          itemCount: 1,
+          amount: bankTxn.amount,
+          currencyId: bankAccountCurrencyId,
+          idempotencyKey: `activity:${eventType}:${candidateId}`,
+          metadata: {
+            bankTransactionId: bankTxnId,
+            bankAccountId: bankTxn.bank_account_id,
+            predictionId,
+            source,
+            confidence: p.confidence,
+            outcome: candidateResult.outcome,
+            previousCandidateId:
+              candidateResult.outcome === 'created'
+                ? candidateResult.previousCandidateId
+                : null,
+            replacedCandidateId:
+              candidateResult.outcome === 'replaced'
+                ? candidateResult.replacedCandidateId
+                : null,
+          },
+        });
+      }
+
+      await writeBankAccountWorkMaterializationIntent(txn, {
+        clientCompanyId: companyUUID,
+        bankAccountId: bankTxn.bank_account_id,
+        change: {
+          type: `categorization_candidate_${candidateResult.outcome}`,
+          companyId: companyUUID,
+          bankAccountId: bankTxn.bank_account_id,
+          bankTransactionId: bankTxnId,
+          candidateId,
+        },
+      });
+      await scheduleOutboxDispatchKickAfterCommit(txn);
     }
   };
 

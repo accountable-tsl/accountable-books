@@ -1,6 +1,6 @@
 import type {
   CategorizationTransaction,
-  LedgerIntent,
+  LedgerPostingIntent,
   LedgerIntentEntry,
 } from '@accountable-books/contracts/schema';
 
@@ -41,9 +41,9 @@ import type {
  * - Latest intent with entries: [] clears all entries.
  */
 export const mergeIntents = (
-  intents: LedgerIntent[],
+  intents: LedgerPostingIntent[],
   useLatest: boolean = false,
-): LedgerIntent | null => {
+): LedgerPostingIntent | null => {
   if (intents.length === 0) {
     return null;
   }
@@ -78,7 +78,7 @@ export const mergeIntents = (
   };
 
   // Base intent = latest intent (metadata preserved verbatim)
-  const mergedIntent: LedgerIntent = structuredClone(latestIntent);
+  const mergedIntent: LedgerPostingIntent = structuredClone(latestIntent);
   const ds = mergedIntent.desired_state || {};
   mergedIntent.desired_state = ds;
 
@@ -213,7 +213,7 @@ function toNumber(value: unknown): number {
  * @returns Resolved exchange rate
  */
 export function resolveExchangeRate(
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateBankLeg: CategorizationCandidateLine | null | undefined,
   bankTransaction: BankTransactionWithFilteredFields,
 ): number {
@@ -235,7 +235,7 @@ export function resolveExchangeRate(
  */
 export function buildBankLeg(
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateBankLeg?: CategorizationCandidateLine | null,
 ): LedgerEntryInput {
   return {
@@ -269,7 +269,7 @@ export function buildBankLeg(
 export function buildNonBankLegFromBankTransaction(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   intentEntriesCount: number,
 ): LedgerEntryInput {
   const isSplit = intentEntriesCount > 1;
@@ -336,7 +336,7 @@ export function buildNonBankLegFromBankTransaction(
 export function buildNonBankLegFromCandidateSingle(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateLine: CategorizationCandidateLine | null,
   candidateBankLeg: CategorizationCandidateLine,
 ): LedgerEntryInput {
@@ -348,7 +348,10 @@ export function buildNonBankLegFromCandidateSingle(
       candidateLine?.fs_date ??
       toYMD(bankTransaction.transaction_date),
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount: toNumber(bankTransaction.amount),
+    source_amount:
+      intentEntry.source_amount !== undefined
+        ? toNumber(intentEntry.source_amount)
+        : toNumber(candidateLine?.signed_native_amount ?? 0),
     custom_exchange_rate: resolveExchangeRate(
       intent,
       candidateBankLeg,
@@ -402,7 +405,7 @@ export function buildNonBankLegFromCandidateSingle(
 export function buildNonBankLegFromCandidateSplit(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateBankLeg: CategorizationCandidateLine,
 ): LedgerEntryInput {
   // Convert source_amount to number
@@ -469,7 +472,7 @@ export function buildNonBankLegFromCandidateSplit(
  */
 export function buildNonBankLegFromLedgerUpdate(
   intentEntry: LedgerIntentEntry,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   ledgerEntry: {
     id: string;
     coa_id: string;
@@ -556,7 +559,7 @@ export function buildNonBankLegFromLedgerUpdate(
 export function buildNonBankLegFromLedgerSplit(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   ledgerTxn: {
     transaction_date: Date;
     source_transaction_currency_id: string;
@@ -645,7 +648,7 @@ export function buildNonBankLegFromLedgerSplit(
  */
 export function buildLedgerTransactionMetadata(
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   categorizationSource: 'manual' | 'ml' | 'ml_heuristic' | 'rule',
   candidateId?: string | null,
 ): Omit<NewLedgerTransactionData, 'transactions'> {

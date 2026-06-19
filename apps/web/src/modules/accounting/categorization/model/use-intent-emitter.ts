@@ -1,6 +1,6 @@
 import type {
-  LedgerIntent,
   LedgerIntentEntry,
+  LedgerPostingIntent,
 } from '@accountable-books/contracts/schema';
 import { useCallback, useEffect, useRef } from 'react';
 import { useSession } from '@/app/session';
@@ -272,11 +272,11 @@ function buildLedgerIntentFromTransaction(
   transaction: GroupedTransaction,
   desiredState: PendingDesiredState,
   entryIdMap: Map<string, string>,
-): LedgerIntent {
+): LedgerPostingIntent {
   const entries = computeFinalEntries(transaction, desiredState, entryIdMap);
 
   // Build final desired_state
-  const finalDesiredState: LedgerIntent['desired_state'] = {};
+  const finalDesiredState: LedgerPostingIntent['desired_state'] = {};
   if (desiredState.custom_exchange_rate !== undefined) {
     finalDesiredState.custom_exchange_rate = desiredState.custom_exchange_rate;
   }
@@ -285,7 +285,7 @@ function buildLedgerIntentFromTransaction(
   }
 
   // Build LedgerIntent
-  const ledgerIntent: LedgerIntent = {
+  const ledgerIntent: LedgerPostingIntent = {
     intent_id: createId(),
     bank_transaction_id: transaction.bankTransactionId,
     ledger_transaction_id: transaction.ledgerTransactionId || undefined,

@@ -8,6 +8,7 @@ import {
   QueueName,
 } from '../../../../jobs/queues/queue-broker.js';
 import { createQueue } from '../../../../jobs/queues/queue-factory.js';
+import { runAfterTransactionCommit } from '../../../../shared/db/after-transaction-commit.js';
 import { withJobTelemetry } from '../../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../../shared/utils/logger.js';
 
@@ -82,7 +83,7 @@ export async function scheduleCloseSignalEvalAfterCommit(
 ): Promise<Job<CloseSignalEvalJobData> | null> {
   if (!trx) return enqueueCloseSignalEval(data);
 
-  trx.on('commit', () => {
+  runAfterTransactionCommit(trx, () => {
     enqueueCloseSignalEval(data).catch((error) => {
       logger.error(
         {

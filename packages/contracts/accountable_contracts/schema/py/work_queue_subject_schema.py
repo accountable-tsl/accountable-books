@@ -1,0 +1,13 @@
+from pydantic import BaseModel
+from typing import Optional
+from uuid import UUID
+
+class WorkQueueSubjectSchema(BaseModel):
+    subjectId: UUID
+    canonicalSubjectKey: str
+    targetType: str
+    targetId: str
+    candidateId: Optional[UUID]
+    bankTransactionId: Optional[UUID]
+    sortDate: Optional[str]
+    amount: Optional[float]

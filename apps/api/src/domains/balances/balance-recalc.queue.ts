@@ -9,6 +9,7 @@ import {
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
 import { createQueue } from '../../jobs/queues/queue-factory.js';
+import { runAfterTransactionCommit } from '../../shared/db/after-transaction-commit.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
 import { getLogger } from '../../shared/utils/logger.js';
@@ -123,11 +124,7 @@ export function mergeBalanceRecalcRanges(
 
   const from = aFrom < bFrom ? aFrom : bFrom;
   const to =
-    aTo === undefined || bTo === undefined
-      ? undefined
-      : aTo > bTo
-        ? aTo
-        : bTo;
+    aTo === undefined || bTo === undefined ? undefined : aTo > bTo ? aTo : bTo;
 
   // Safety check: ensure we didn't produce an invalid range
   if (to && from > to) {
@@ -295,7 +292,7 @@ export async function scheduleGLBalanceAfterCommit(
     return await enqueueGLBalance(data);
   }
 
-  trx.on('commit', () => {
+  runAfterTransactionCommit(trx, () => {
     enqueueGLBalance(data).catch((error) => {
       logger.error(
         {
@@ -420,6 +417,33 @@ export async function enqueueBankBalance(
     ),
   );
   return job as Job<BankBalanceJobData> | null;
+}
+
+export async function scheduleBankBalanceAfterCommit(
+  data: EnqueueBankBalanceInput,
+  trx?: Knex.Transaction,
+): Promise<Job<BankBalanceJobData> | null> {
+  if (!trx) {
+    return await enqueueBankBalance(data);
+  }
+
+  runAfterTransactionCommit(trx, () => {
+    enqueueBankBalance(data).catch((error) => {
+      logger.error(
+        {
+          companyId: data.companyId,
+          bankAccountId: data.bankAccountId,
+          recalcFrom: data.recalcFrom,
+          recalcTo: data.recalcTo,
+          triggeredBy: data.triggeredBy,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to enqueue bank balance recalculation after transaction commit',
+      );
+    });
+  });
+
+  return null;
 }
 
 /**

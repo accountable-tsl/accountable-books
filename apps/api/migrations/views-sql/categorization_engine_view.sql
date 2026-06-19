@@ -107,6 +107,7 @@ WITH uncategorized_txns AS (
       SELECT 1 FROM categorization_candidates cc
       WHERE cc.bank_transaction_id = bt.id
         AND cc.is_deleted = false
+        AND cc.review_state = 'pending_review'
     )
   GROUP BY bt.id, bt.transaction_date, bt.amount, bt.description, bt.reference, bt.payee,
     resolved_contacts.id, resolved_contacts.display_name, btr.contact_type,
@@ -194,6 +195,7 @@ candidate_txns AS (
   LEFT JOIN projects ON ccl.project_id = projects.id
   WHERE bt.is_deleted = false
     AND cc.is_deleted = false
+    AND cc.review_state = 'pending_review'
     AND ccl.is_deleted = false
     AND ccl.is_bank_leg = false  -- Exclude bank leg
     AND bt.ledger_transaction_id IS NULL  -- Not yet posted

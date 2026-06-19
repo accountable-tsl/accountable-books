@@ -24,6 +24,7 @@ export async function fetchCategorizationTransactions(
     limit = 100,
     offset = 0,
     bankAccountIds,
+    workItemId,
     searchQuery,
   } = params;
 
@@ -39,13 +40,16 @@ export async function fetchCategorizationTransactions(
     offset: offset.toString(),
   });
 
-  if (status?.length) {
+  if (workItemId) {
+    queryParams.append('workItemId', workItemId);
+  }
+  if (!workItemId && status?.length) {
     status.forEach((s) => queryParams.append('status', s));
   }
-  if (bankAccountIds?.length) {
+  if (!workItemId && bankAccountIds?.length) {
     bankAccountIds.forEach((id) => queryParams.append('bankAccountIds', id));
   }
-  if (searchQuery) {
+  if (!workItemId && searchQuery) {
     queryParams.append('searchQuery', searchQuery);
   }
 

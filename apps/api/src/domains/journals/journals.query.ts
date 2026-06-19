@@ -78,6 +78,7 @@ const JournalListSelect = {
   reversedAt: 'jb.reversed_at',
   reversalReason: 'jb.reversal_reason',
   reversedById: 'jb.reversed_by_id',
+  voidedAt: `CASE WHEN jb.status = 'voided' THEN jb.deleted_at ELSE NULL END`,
 
   metadata: 'jb.metadata',
 

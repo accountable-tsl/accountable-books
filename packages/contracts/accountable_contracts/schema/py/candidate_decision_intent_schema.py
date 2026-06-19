@@ -1,0 +1,12 @@
+from pydantic import BaseModel
+from typing import Literal, Optional
+from datetime import datetime
+from uuid import UUID
+
+class CandidateDecisionIntentSchema(BaseModel):
+    intent_id: UUID
+    bank_transaction_id: UUID
+    candidate_id: UUID
+    action: Literal["reject_suggestion"]
+    reason: Optional[Optional[str]] = None
+    timestamp: datetime

@@ -3,6 +3,7 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { generateChecksum, logger } from '../../shared/index.js';
+import { runAfterTransactionCommit } from '../../shared/db/after-transaction-commit.js';
 import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
@@ -206,7 +207,7 @@ export async function createCoaAccounts({
     trx,
   });
 
-  trx.on('commit', async () => {
+  runAfterTransactionCommit(trx, async () => {
     try {
       await invalidateAllCoaCaches({ companyUUID: company.id });
     } catch (error) {
@@ -1117,7 +1118,7 @@ export async function updateCoaVersions({
     const snapshotResult = await execute(trx);
     if (snapshotResult.oldSnapshotVersion === undefined) return;
 
-    trx.on('commit', async () => {
+    runAfterTransactionCommit(trx, async () => {
       try {
         await invalidateCoaSnapshotCacheForML({ companyUUID });
       } catch (error) {

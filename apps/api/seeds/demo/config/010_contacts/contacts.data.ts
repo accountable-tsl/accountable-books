@@ -26,7 +26,7 @@ export type DemoContactData = {
   email: string;
   address?: string;
   notes?: string;
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'archived';
 };
 
 // Single type for contact mapping - contacts can be with or without IDs

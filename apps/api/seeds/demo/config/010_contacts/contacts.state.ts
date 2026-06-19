@@ -2,7 +2,7 @@ export type DemoContact = {
   id: string;
   displayName: string;
   email: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'archived';
   companyId: string;
   userId: string;
 };

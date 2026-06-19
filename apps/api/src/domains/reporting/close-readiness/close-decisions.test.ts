@@ -2,6 +2,11 @@ import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDb } from '../../../../config/test-db.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  buildActivityEventScopeKey,
+} from '../../activity/index.js';
+import { OUTBOX_INTENT } from '../../work/work.types.js';
 import { recordCloseReviewDecision } from './close-decisions.js';
 import {
   computeOpenSignalRollups,
@@ -86,6 +91,29 @@ describe('recordCloseReviewDecision', () => {
       trx,
     });
     expect(result.ok).toBe(true);
+
+    if (!result.ok) throw new Error('Expected close decision to be recorded');
+    const activity = await trx('app.outbox_intents')
+      .where({
+        intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+        scope_key: buildActivityEventScopeKey(
+          `activity:${ACTIVITY_EVENT_TYPE.CLOSE_DECISION_RECORDED}:${result.decision.id}`,
+        ),
+      })
+      .first('payload');
+    expect(activity?.payload.event).toMatchObject({
+      eventType: ACTIVITY_EVENT_TYPE.CLOSE_DECISION_RECORDED,
+      sourceEntity: {
+        type: 'close_review_decision',
+        id: result.decision.id,
+      },
+      actor: { type: 'user', userId: fixture.userId },
+      fiscalPeriod: PERIOD,
+      metadata: {
+        findingCode: REVENUE_FINDING,
+        decision: 'acknowledged',
+      },
+    });
 
     // Acknowledged with matching facts → no longer open.
     expect(await merge()).toHaveLength(0);

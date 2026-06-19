@@ -1,6 +1,11 @@
 import type { Knex } from 'knex';
 
 import { knexClient as db } from '../../../db/knexClient.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../../activity/index.js';
+import { scheduleOutboxDispatchKickAfterCommit } from '../../work/outbox.queue.js';
 import { computeOpenDecisionEligibleFindings } from './period-findings.js';
 
 import type { CloseReadinessFindingCode } from './close-readiness.types.js';
@@ -85,85 +90,114 @@ export async function recordCloseReviewDecision(
   input: RecordCloseReviewDecisionInput,
 ): Promise<RecordCloseReviewDecisionResult> {
   const periodType: FiscalPeriodType = input.periodType ?? 'monthly';
-  const queryable = input.trx ?? db;
 
-  const candidates = await computeOpenDecisionEligibleFindings(queryable, {
-    companyId: input.companyId,
-    fiscalYear: input.fiscalYear,
-    periodNumber: input.periodNumber,
-    periodType,
-  });
+  const exec = async (
+    queryable: Knex.Transaction,
+  ): Promise<RecordCloseReviewDecisionResult> => {
+    const candidates = await computeOpenDecisionEligibleFindings(queryable, {
+      companyId: input.companyId,
+      fiscalYear: input.fiscalYear,
+      periodNumber: input.periodNumber,
+      periodType,
+    });
 
-  const candidate = candidates?.find(
-    (entry) => entry.findingCode === input.findingCode,
-  );
+    const candidate = candidates?.find(
+      (entry) => entry.findingCode === input.findingCode,
+    );
 
-  if (!candidate) {
+    if (!candidate) {
+      return {
+        ok: false,
+        reason: 'no_open_finding',
+        message: `No open close review finding "${input.findingCode}" in ${input.fiscalYear}-${input.periodNumber}-${periodType}`,
+      };
+    }
+
+    if (
+      input.expectedFactsHash !== undefined &&
+      input.expectedFactsHash !== candidate.factsHash
+    ) {
+      return {
+        ok: false,
+        reason: 'facts_changed',
+        message:
+          'The finding changed since it was last seen; re-review before deciding.',
+        currentFactsHash: candidate.factsHash,
+      };
+    }
+
+    const [row] = await queryable('close_review_decisions')
+      .insert({
+        company_id: input.companyId,
+        fiscal_year: input.fiscalYear,
+        period_number: input.periodNumber,
+        period_type: periodType,
+        fingerprint: candidate.fingerprint,
+        facts_hash: candidate.factsHash,
+        code: input.findingCode,
+        finding_scope: 'period_finding',
+        ledger_transaction_id: null,
+        ledger_entry_id: null,
+        facts_snapshot: JSON.stringify({
+          relatedCoaIds: candidate.relatedCoaIds,
+          relatedAccountTypeKeys: candidate.relatedAccountTypeKeys,
+          relatedAccountElementKeys: candidate.relatedAccountElementKeys,
+          details: candidate.details,
+        }),
+        decision: input.decision,
+        reason: input.reason.trim(),
+        decided_by_id: input.decidedById,
+      })
+      .returning<InsertedDecisionRow[]>([
+        'id',
+        'fingerprint',
+        'facts_hash',
+        'decision',
+        'decided_at',
+      ]);
+
+    if (!row) {
+      throw new Error('Failed to record close review decision');
+    }
+
+    await writeActivityEventIntent(queryable, {
+      clientCompanyId: input.companyId,
+      actor: { type: 'user', userId: input.decidedById },
+      sourceEntity: { type: 'close_review_decision', id: row.id },
+      fiscalPeriod: {
+        fiscalYear: input.fiscalYear,
+        periodNumber: input.periodNumber,
+        periodType,
+      },
+      eventType: ACTIVITY_EVENT_TYPE.CLOSE_DECISION_RECORDED,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.CLOSE_DECISION_RECORDED}:${row.id}`,
+      metadata: {
+        findingCode: input.findingCode,
+        decision: input.decision,
+        reason: input.reason.trim(),
+        fingerprint: candidate.fingerprint,
+        factsHash: candidate.factsHash,
+      },
+    });
+    await scheduleOutboxDispatchKickAfterCommit(queryable);
+
     return {
-      ok: false,
-      reason: 'no_open_finding',
-      message: `No open close review finding "${input.findingCode}" in ${input.fiscalYear}-${input.periodNumber}-${periodType}`,
+      ok: true,
+      decision: {
+        id: row.id,
+        fingerprint: row.fingerprint,
+        factsHash: row.facts_hash,
+        decision: row.decision,
+        decidedAt:
+          row.decided_at instanceof Date
+            ? row.decided_at.toISOString()
+            : String(row.decided_at),
+      },
     };
-  }
-
-  if (
-    input.expectedFactsHash !== undefined &&
-    input.expectedFactsHash !== candidate.factsHash
-  ) {
-    return {
-      ok: false,
-      reason: 'facts_changed',
-      message:
-        'The finding changed since it was last seen; re-review before deciding.',
-      currentFactsHash: candidate.factsHash,
-    };
-  }
-
-  const [row] = await queryable('close_review_decisions')
-    .insert({
-      company_id: input.companyId,
-      fiscal_year: input.fiscalYear,
-      period_number: input.periodNumber,
-      period_type: periodType,
-      fingerprint: candidate.fingerprint,
-      facts_hash: candidate.factsHash,
-      code: input.findingCode,
-      finding_scope: 'period_finding',
-      ledger_transaction_id: null,
-      ledger_entry_id: null,
-      facts_snapshot: JSON.stringify({
-        relatedCoaIds: candidate.relatedCoaIds,
-        relatedAccountTypeKeys: candidate.relatedAccountTypeKeys,
-        relatedAccountElementKeys: candidate.relatedAccountElementKeys,
-        details: candidate.details,
-      }),
-      decision: input.decision,
-      reason: input.reason.trim(),
-      decided_by_id: input.decidedById,
-    })
-    .returning<InsertedDecisionRow[]>([
-      'id',
-      'fingerprint',
-      'facts_hash',
-      'decision',
-      'decided_at',
-    ]);
-
-  if (!row) {
-    throw new Error('Failed to record close review decision');
-  }
-
-  return {
-    ok: true,
-    decision: {
-      id: row.id,
-      fingerprint: row.fingerprint,
-      factsHash: row.facts_hash,
-      decision: row.decision,
-      decidedAt:
-        row.decided_at instanceof Date
-          ? row.decided_at.toISOString()
-          : String(row.decided_at),
-    },
   };
+
+  if (input.trx) {
+    return exec(input.trx);
+  }
+  return db.transaction(exec);
 }

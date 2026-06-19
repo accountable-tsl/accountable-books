@@ -11,13 +11,19 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { enqueueBankBalance } from '../balances/index.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../activity/index.js';
+import { scheduleBankBalanceAfterCommit } from '../balances/index.js';
 import {
   emitTxnDeletedEvent,
-  enqueueTransactionEnrichment,
   handleTransactionsDeleted,
+  scheduleTransactionEnrichmentAfterCommit,
 } from '../categorization/index.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
+import { scheduleOutboxDispatchKickAfterCommit } from '../work/outbox.queue.js';
+import { writeBankAccountWorkMaterializationIntent } from '../work/work-materialization-intent.js';
 import {
   bankTransactionBatchInput,
   bankTransactionsFilters,
@@ -341,6 +347,7 @@ export async function addNewBankTransactions({
           'payee',
           'description',
           'source_payload',
+          'amount',
         ]);
 
       const inserted = insertedTxns.length;
@@ -398,15 +405,18 @@ export async function addNewBankTransactions({
       if (inserted > 0) {
         try {
           const recalcFrom = toYMD(startDate);
-          await enqueueBankBalance({
-            companyId: companyUUID,
-            bankAccountId: bank_account_id,
-            recalcFrom,
-            triggeredBy:
-              source === 'file_import' ? 'csv_upload' : 'transaction',
-          });
+          await scheduleBankBalanceAfterCommit(
+            {
+              companyId: companyUUID,
+              bankAccountId: bank_account_id,
+              recalcFrom,
+              triggeredBy:
+                source === 'file_import' ? 'csv_upload' : 'transaction',
+            },
+            txn,
+          );
 
-          log('balance_recalc_queued', {
+          log('balance_recalc_scheduled', {
             bankAccountId: bank_account_id,
             recalcFrom,
           });
@@ -422,14 +432,17 @@ export async function addNewBankTransactions({
         // Trigger transaction enrichment for categorization
         try {
           const insertedTransactionIds = insertedTxns.map((txn) => txn.id);
-          await enqueueTransactionEnrichment({
-            companyId: companyUUID,
-            bankAccountId: bank_account_id,
-            bankTransactionIds: insertedTransactionIds,
-            source: 'ingestion',
-          });
+          await scheduleTransactionEnrichmentAfterCommit(
+            {
+              companyId: companyUUID,
+              bankAccountId: bank_account_id,
+              bankTransactionIds: insertedTransactionIds,
+              source: 'ingestion',
+            },
+            txn,
+          );
 
-          log('enrichment_queued', {
+          log('enrichment_scheduled', {
             bankAccountId: bank_account_id,
             transactionCount: insertedTransactionIds.length,
           });
@@ -440,6 +453,76 @@ export async function addNewBankTransactions({
             bankAccountId: bank_account_id,
           });
         }
+
+        // Durable work-materialization hand-off. Written in the SAME save
+        // transaction as the source rows (so it never exists for rolled-back
+        // imports) and debounced per affected bank account. Reconciliation
+        // reads current domain facts, so the payload ids are informational.
+        // NOT swallowed: this insert is part of the atomic save; a failure must
+        // roll the import back rather than commit source rows without the
+        // durable hand-off.
+        const insertedTransactionIds = insertedTxns.map((row) => row.id);
+        const insertedTotalRow = await txn('bank_transactions')
+          .whereIn('id', insertedTransactionIds)
+          .first<{ inserted_total: string }>(
+            txn.raw('COALESCE(SUM(amount), 0)::text as inserted_total'),
+          );
+        const insertedTotal = insertedTotalRow?.inserted_total ?? '0';
+        const { scopeKey } = await writeBankAccountWorkMaterializationIntent(
+          txn,
+          {
+            clientCompanyId: companyUUID,
+            bankAccountId: bank_account_id,
+            change: {
+              type: 'bank_transactions_changed',
+              companyId: companyUUID,
+              bankAccountId: bank_account_id,
+              bankTransactionIds: insertedTransactionIds,
+            },
+          },
+        );
+        await scheduleOutboxDispatchKickAfterCommit(txn);
+        log('work_materialization_intent_written', {
+          bankAccountId: bank_account_id,
+          scopeKey,
+          transactionCount: insertedTransactionIds.length,
+        });
+
+        const activityEventType =
+          source === 'bank_feed'
+            ? ACTIVITY_EVENT_TYPE.BANK_TRANSACTIONS_SYNCED
+            : ACTIVITY_EVENT_TYPE.BANK_TRANSACTIONS_IMPORTED;
+        await writeActivityEventIntent(txn, {
+          clientCompanyId: companyUUID,
+          actor:
+            source === 'bank_feed'
+              ? { type: 'system' }
+              : { type: 'user', userId },
+          sourceEntity: { type: 'bank_transaction_batch', id: batch.id },
+          eventType: activityEventType,
+          itemCount: insertedTransactionIds.length,
+          amount: insertedTotal,
+          currencyId: bankCurrencyId,
+          idempotencyKey: `activity:${activityEventType}:${batch.id}`,
+          metadata: {
+            source,
+            bankAccountId: bank_account_id,
+            connectionCredentialId: connection_credential_id ?? null,
+            startDate: toYMD(startDate),
+            endDate: toYMD(endDate),
+            skippedDuplicates: skipped,
+            sampledBankTransactionIds: insertedTransactionIds.slice(0, 10),
+            sampledBankTransactionCount: Math.min(
+              insertedTransactionIds.length,
+              10,
+            ),
+          },
+        });
+        log('activity_intent_written', {
+          eventType: activityEventType,
+          batchId: batch.id,
+          transactionCount: insertedTransactionIds.length,
+        });
       }
 
       log('completed', {
@@ -570,13 +653,16 @@ export async function getBankTransactionsByIds({
     .whereIn('bt.id', bankTransactionIds)
     .where('bt.is_deleted', false)
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
-    .leftJoin('bank_transaction_contact_resolutions as bcr', function joinBcr() {
-      this.on('bcr.bank_transaction_id', '=', 'bt.id').andOn(
-        'bcr.company_id',
-        '=',
-        'bt.company_id',
-      );
-    })
+    .leftJoin(
+      'bank_transaction_contact_resolutions as bcr',
+      function joinBcr() {
+        this.on('bcr.bank_transaction_id', '=', 'bt.id').andOn(
+          'bcr.company_id',
+          '=',
+          'bt.company_id',
+        );
+      },
+    )
     .leftJoin('contacts as resolved_contact', function joinResolvedContact() {
       this.on('resolved_contact.id', '=', 'bcr.contact_id')
         .andOn('resolved_contact.company_id', '=', 'bcr.company_id')
@@ -866,7 +952,7 @@ export async function reverseBankTransactionBatch({
     }
 
     try {
-      await enqueueBankBalance({
+      await scheduleBankBalanceAfterCommit({
         companyId: result.companyUUID,
         bankAccountId: result.bankAccountId,
         recalcFrom: result.recalcFrom,

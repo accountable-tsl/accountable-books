@@ -41,6 +41,7 @@ import { loadRoles } from './domains/roles/roles.model.js';
 import settingsRoutes from './domains/settings/settings.routes.js';
 import supportAccessRoutes from './domains/support-access/support-access.routes.js';
 import usersCompaniesRolesRoutes from './domains/user-roles/user-roles.routes.js';
+import { workQueueRoutes } from './domains/work/index.js';
 import usersRoutes from './domains/users/users.routes.js';
 import {
   conditionalCsrf,
@@ -200,6 +201,7 @@ export async function setupApp() {
   app.use('/api/:companyId', usersCompaniesRolesRoutes);
   app.use('/api/:companyId', periodStatusRoutes);
   app.use('/api/:companyId', closeReadinessRoutes);
+  app.use('/api/:companyId', workQueueRoutes);
 
   app.use('/api/:companyId/ai', aiRoutes);
   app.use('/api/:companyId/categorization', categorizationRoutes);

@@ -38,6 +38,7 @@ import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { toYMD } from '@/shared/utils/date-utils';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 
 import { catEngineAiRegistration } from '../ai/registration';
@@ -262,6 +263,8 @@ export function CatEngine() {
   useRegisterAiDomain(useMemo(() => catEngineAiRegistration(), []));
 
   const { companyId, company, loading: isLoadingSession } = useSession();
+  const [searchParams] = useSearchParams();
+  const workItemId = searchParams.get('workItemId') || undefined;
   const [view, setView] = useState<'table' | 'group'>('table');
   const ROW_HEIGHT_KEY = `cat-engine-row-height-${companyId || 'default'}`;
   const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>(() => {
@@ -435,9 +438,10 @@ export function CatEngine() {
     companyId: companyId ?? '',
     dateFrom: debouncedDateRange.from,
     dateTo: debouncedDateRange.to || new Date(),
-    status: statusFilterForServer,
-    bankAccountIds: bankAccountIdsForServer,
-    searchQuery: searchQueryForServer,
+    status: workItemId ? undefined : statusFilterForServer,
+    bankAccountIds: workItemId ? undefined : bankAccountIdsForServer,
+    workItemId,
+    searchQuery: workItemId ? undefined : searchQueryForServer,
     limit: 100,
   });
 
