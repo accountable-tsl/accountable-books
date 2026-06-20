@@ -6,6 +6,12 @@ import {
   tryAcquireAdvisoryXactLockWithBackoff,
 } from '../../shared/services/advisoryLocks.service.js';
 import { getLogger } from '../../shared/utils/logger.js';
+import { writeNotificationRequestedIntent } from '../notifications/notification-intent.js';
+import { NOTIFICATION_TYPE } from '../notifications/notifications.types.js';
+import {
+  resolveEffectiveOwnerUserId,
+  resolveFirmCompanyId,
+} from './work-ownership.js';
 import {
   ACTION_INTENT_CATEGORIZE,
   ACTION_INTENT_REJECT_SUGGESTION,
@@ -19,11 +25,8 @@ import {
   WORK_TYPE_CATEGORIZE_TRANSACTIONS,
   WORK_TYPE_REVIEW_SUGGESTIONS,
 } from './work.types.js';
-import {
-  resolveEffectiveOwnerUserId,
-  resolveFirmCompanyId,
-} from './work-ownership.js';
 
+import type { NotifyEvent } from '../notifications/notifications.types.js';
 import type { MaterializeResult, MaterializerScope } from './work.types.js';
 
 const logger = getLogger({ component: 'work-materializer' });
@@ -48,6 +51,11 @@ interface ReconcileWorkTypeResult {
   workItemId: string | null;
   activeSubjectCount: number;
   closed: boolean;
+}
+
+interface UpsertOpenWorkItemResult {
+  id: string;
+  inserted: boolean;
 }
 
 /**
@@ -196,10 +204,10 @@ async function upsertOpenWorkItem(
     destination: Record<string, unknown>;
     config: WorkTypeReconcileConfig;
   },
-): Promise<string> {
+): Promise<UpsertOpenWorkItemResult> {
   const requiredCapabilities = ['categorization.post'];
 
-  const result = (await trx.raw(
+  const insertedResult = (await trx.raw(
     `
     INSERT INTO app.work_items (
       firm_company_id, client_company_id, work_type, status, assigned_user_id,
@@ -209,12 +217,7 @@ async function upsertOpenWorkItem(
     )
     VALUES (?, ?, ?, 'open', ?, ?, ?, ?, 'actionable_now', ?::jsonb, ?::jsonb, ?::jsonb, ?, now(), now())
     ON CONFLICT (group_key) WHERE status = 'open' AND is_deleted = false
-    DO UPDATE SET
-      assigned_user_id = EXCLUDED.assigned_user_id,
-      scope_type = EXCLUDED.scope_type,
-      scope_key = EXCLUDED.scope_key,
-      last_seen_at = now(),
-      updated_at = now()
+    DO NOTHING
     RETURNING id
     `,
     [
@@ -232,7 +235,106 @@ async function upsertOpenWorkItem(
     ],
   )) as { rows: Array<{ id: string }> };
 
-  return result.rows[0].id;
+  const inserted = insertedResult.rows[0];
+  if (inserted) {
+    return { id: inserted.id, inserted: true };
+  }
+
+  const [updated] = await trx('app.work_items')
+    .where({
+      group_key: input.config.groupKey,
+      status: 'open',
+      is_deleted: false,
+    })
+    .update({
+      assigned_user_id: input.assignedUserId,
+      scope_type: input.scopeType,
+      scope_key: input.scopeKey,
+      last_seen_at: trx.fn.now(),
+      updated_at: trx.fn.now(),
+    })
+    .returning<{ id: string }[]>('id');
+
+  if (!updated) {
+    throw new Error(
+      `Open work item conflict could not be reloaded for group_key ${input.config.groupKey}`,
+    );
+  }
+
+  return { id: updated.id, inserted: false };
+}
+
+function buildWorkAssignedNotificationEvent(input: {
+  firmCompanyId: string;
+  clientCompanyId: string;
+  assignedUserId: string;
+  workItemId: string;
+  workType: string;
+  activeSubjectCount: number;
+}): NotifyEvent {
+  const title = buildWorkTitle(input.workType, input.activeSubjectCount);
+
+  return {
+    recipientUserId: input.assignedUserId,
+    firmCompanyId: input.firmCompanyId,
+    clientCompanyId: input.clientCompanyId,
+    eventType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+    priority: 'normal',
+    title,
+    body: 'A new work item has been assigned to you.',
+    destination: {
+      workspace: 'work_queue',
+      workItemId: input.workItemId,
+      clientCompanyId: input.clientCompanyId,
+      workType: input.workType,
+    },
+    sourceEntity: { type: 'work_item', id: input.workItemId },
+    workItemId: input.workItemId,
+    idempotencyKey: [
+      'notification',
+      NOTIFICATION_TYPE.WORK_ASSIGNED,
+      input.assignedUserId,
+      input.workItemId,
+      'created',
+    ].join(':'),
+    data: {
+      workType: input.workType,
+      activeSubjectCount: input.activeSubjectCount,
+    },
+  };
+}
+
+async function writeWorkAssignedNotificationIntent(
+  trx: Knex.Transaction,
+  input: {
+    firmCompanyId: string;
+    clientCompanyId: string;
+    assignedUserId: string | null;
+    workItemId: string;
+    workType: string;
+    activeSubjectCount: number;
+    inserted: boolean;
+  },
+): Promise<void> {
+  if (
+    !input.inserted ||
+    !input.assignedUserId ||
+    input.activeSubjectCount <= 0
+  ) {
+    return;
+  }
+
+  await writeNotificationRequestedIntent(
+    trx,
+    buildWorkAssignedNotificationEvent({
+      firmCompanyId: input.firmCompanyId,
+      clientCompanyId: input.clientCompanyId,
+      assignedUserId: input.assignedUserId,
+      workItemId: input.workItemId,
+      workType: input.workType,
+      activeSubjectCount: input.activeSubjectCount,
+    }),
+  );
 }
 
 async function reconcileWorkType(
@@ -261,7 +363,7 @@ async function reconcileWorkType(
     };
   }
 
-  const workItemId = await upsertOpenWorkItem(trx, {
+  const workItem = await upsertOpenWorkItem(trx, {
     firmCompanyId: input.firmCompanyId,
     clientCompanyId: input.clientCompanyId,
     assignedUserId: input.assignedUserId,
@@ -272,20 +374,30 @@ async function reconcileWorkType(
   });
 
   await insertDesiredSubjects(trx, {
-    workItemId,
+    workItemId: workItem.id,
     clientCompanyId: input.clientCompanyId,
     subjects: input.subjects,
   });
 
-  const currentResult = await recomputeAndMaybeClose(trx, workItemId);
+  const currentResult = await recomputeAndMaybeClose(trx, workItem.id);
   const orphanResult = await closeOrphanedWorkItems(trx, {
     clientCompanyId: input.clientCompanyId,
     workType: input.config.workType,
-    keepWorkItemId: workItemId,
+    keepWorkItemId: workItem.id,
+  });
+
+  await writeWorkAssignedNotificationIntent(trx, {
+    firmCompanyId: input.firmCompanyId,
+    clientCompanyId: input.clientCompanyId,
+    assignedUserId: input.assignedUserId,
+    workItemId: workItem.id,
+    workType: input.config.workType,
+    activeSubjectCount: currentResult.count,
+    inserted: workItem.inserted,
   });
 
   return {
-    workItemId,
+    workItemId: workItem.id,
     activeSubjectCount: currentResult.count,
     closed: currentResult.closed || orphanResult.closed,
   };
@@ -441,9 +553,10 @@ async function insertDesiredSubjects(
       })),
     )
     .onConflict(
-      trx.raw('(canonical_subject_key) WHERE status = ? AND is_deleted = false', [
-        'active',
-      ]),
+      trx.raw(
+        '(canonical_subject_key) WHERE status = ? AND is_deleted = false',
+        ['active'],
+      ),
     )
     .merge({
       work_item_id: trx.raw('excluded.work_item_id'),
@@ -494,7 +607,8 @@ async function recomputeAndMaybeClose(
     .update({
       subject_count: total,
       active_subject_count: count,
-      title: count > 0 ? buildWorkTitle(workItem?.work_type ?? '', count) : null,
+      title:
+        count > 0 ? buildWorkTitle(workItem?.work_type ?? '', count) : null,
       last_seen_at: trx.fn.now(),
       updated_at: trx.fn.now(),
     });

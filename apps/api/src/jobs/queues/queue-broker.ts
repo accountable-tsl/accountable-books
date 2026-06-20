@@ -21,6 +21,7 @@ export enum QueueName {
   TASK_EVALUATION = 'task-evaluation',
   CLOSE_SIGNAL_EVAL = 'close-signal-eval',
   OUTBOX_DISPATCH = 'outbox-dispatch',
+  COMMS_DISPATCH = 'comms-dispatch',
 }
 
 /**

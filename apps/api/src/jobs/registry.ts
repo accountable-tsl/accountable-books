@@ -14,10 +14,10 @@ import { mlPredictionQueue } from '../domains/categorization/ml/ml-prediction.qu
 import { ruleRunnerQueue } from '../domains/categorization/rules/rule-runner.queue.js';
 import { journalAutoReversalQueue } from '../domains/journals/auto-reversal.queue.js';
 import { startJournalAutoReversalWorker } from '../domains/journals/auto-reversal.worker.js';
-import { closeSignalEvalQueue } from '../domains/reporting/close-readiness/signals/close-signal-eval.queue.js';
-import { startCloseSignalEvalWorker } from '../domains/reporting/close-readiness/signals/close-signal-eval.worker.js';
 import { recurringTemplatesQueue } from '../domains/journals/recurring-templates.queue.js';
 import { startRecurringTemplatesWorker } from '../domains/journals/recurring-templates.worker.js';
+import { closeSignalEvalQueue } from '../domains/reporting/close-readiness/signals/close-signal-eval.queue.js';
+import { startCloseSignalEvalWorker } from '../domains/reporting/close-readiness/signals/close-signal-eval.worker.js';
 import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { startFiscalCalendarWorker } from '../domains/reporting/fiscal-calendar/index.js';
 import { taskEvaluationQueue } from '../domains/tasks/task-evaluation.queue.js';
@@ -27,6 +27,11 @@ import {
   closeOutboxSchedulers,
   startOutboxDispatchWorker,
 } from '../domains/work/outbox.worker.js';
+import {
+  closeCommsSchedulers,
+  commsDispatchQueue,
+  startCommsDispatchWorker,
+} from '../features/comms/index.js';
 import { emailQueue } from '../features/communications/email/email.queue.js';
 import { startEmailWorker } from '../features/communications/email/index.js';
 import {
@@ -60,6 +65,18 @@ export const JOB_REGISTRY: JobDefinition[] = [
     critical: true,
     config: {
       envVar: 'EMAIL_WORKER_CONCURRENCY',
+      defaultValue: 5,
+    },
+  },
+  {
+    name: 'commsDispatch',
+    queue: commsDispatchQueue,
+    factory: (concurrency) => startCommsDispatchWorker(concurrency),
+    teardown: closeCommsSchedulers,
+    label: 'Comms dispatch worker',
+    critical: true,
+    config: {
+      envVar: 'COMMS_DISPATCH_CONCURRENCY',
       defaultValue: 5,
     },
   },

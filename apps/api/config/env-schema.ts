@@ -174,7 +174,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
   // EMAIL CONFIGURATION
   // ============================================================================
   EMAIL_PROVIDER: {
-    description: 'Email service provider',
+    description:
+      'App email service provider. Use dev for local/test no-op comms email, or postmark/ses for real delivery.',
     type: 'string',
     local: 'dev',
     staging: 'postmark',
@@ -189,6 +190,22 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Default sender email address',
     type: 'string',
     default: 'support@getaccountable.com',
+  },
+
+  ADMIN_ALERT_EMAILS: {
+    description:
+      'Comma-separated admin email recipients for internal operational alerts',
+    type: 'string',
+    required: false,
+  },
+
+  COMMS_DELIVERY_RETENTION_DAYS: {
+    description:
+      'Days to retain terminal comms delivery audit rows before purge',
+    type: 'number',
+    local: '90',
+    staging: '90',
+    production: '90',
   },
 
   ETHEREAL_EMAIL: {

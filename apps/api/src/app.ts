@@ -16,13 +16,13 @@ import accountRoutes from './domains/account/account.routes.js';
 import firmRoutes from './domains/accountingFirms/firms.routes.js';
 import aiRoutes from './domains/ai/ai.routes.js';
 import { attachAuditContext } from './domains/audit/audit.middleware.js';
+import balancesRoutes from './domains/balances/balances.routes.js';
 import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.routes.js';
 import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
 import bankRoutes from './domains/banking/banks/banks.routes.js';
 import plaidWebhookRoutes from './domains/banking/webhooks/plaid.webhook.js';
 import bankTransactionRoutes from './domains/bankTransactions/bankTransactions.routes.js';
-import balancesRoutes from './domains/balances/balances.routes.js';
 import billingRoutes from './domains/billing/billing.routes.js';
 import categorizationRoutes from './domains/categorization/categorization.routes.js';
 import coaRoutes from './domains/chart-of-accounts/coa.routes.js';
@@ -33,6 +33,7 @@ import currencyRoutes from './domains/currencies/currencies.routes.js';
 import emailRoutes from './domains/email/email.routes.js';
 import journalsRoutes from './domains/journals/journals.routes.js';
 import ledgersRoutes from './domains/ledgers/ledgers.routes.js';
+import { notificationsRoutes } from './domains/notifications/index.js';
 import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
 import closeReadinessRoutes from './domains/reporting/close-readiness/close-readiness.routes.js';
@@ -41,8 +42,8 @@ import { loadRoles } from './domains/roles/roles.model.js';
 import settingsRoutes from './domains/settings/settings.routes.js';
 import supportAccessRoutes from './domains/support-access/support-access.routes.js';
 import usersCompaniesRolesRoutes from './domains/user-roles/user-roles.routes.js';
-import { workQueueRoutes } from './domains/work/index.js';
 import usersRoutes from './domains/users/users.routes.js';
+import { workQueueRoutes } from './domains/work/index.js';
 import {
   conditionalCsrf,
   verifyAccessToken,
@@ -202,6 +203,7 @@ export async function setupApp() {
   app.use('/api/:companyId', periodStatusRoutes);
   app.use('/api/:companyId', closeReadinessRoutes);
   app.use('/api/:companyId', workQueueRoutes);
+  app.use('/api/:companyId', notificationsRoutes);
 
   app.use('/api/:companyId/ai', aiRoutes);
   app.use('/api/:companyId/categorization', categorizationRoutes);

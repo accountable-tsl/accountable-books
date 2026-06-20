@@ -57,6 +57,8 @@ export function buildScopeKey(scope: MaterializerScope): string {
 export const OUTBOX_INTENT = {
   WORK_MATERIALIZATION_REQUESTED: 'work_materialization_requested',
   ACTIVITY_EVENT_REQUESTED: 'activity_event_requested',
+  NOTIFICATION_REQUESTED: 'notification_requested',
+  NOTIFICATION_COMMS_REQUESTED: 'notification_comms_requested',
 } as const;
 
 export type OutboxIntentType =

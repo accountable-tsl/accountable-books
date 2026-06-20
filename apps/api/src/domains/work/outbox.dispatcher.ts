@@ -1,21 +1,26 @@
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
-import { dispatchActivityEventRequested } from '../activity/activity.model.js';
 import { getLogger } from '../../shared/utils/logger.js';
+import { dispatchActivityEventRequested } from '../activity/activity.model.js';
+import {
+  dispatchNotificationCommsRequested,
+  dispatchNotificationRequested,
+} from '../notifications/notification-dispatcher.js';
 import {
   claimNextPendingIntent,
   deferIntent,
   markIntentProcessed,
   recordIntentFailure,
-  type OutboxRow,
 } from './outbox.model.js';
 import { materializeWork } from './work-materialization.js';
 import {
   OUTBOX_INTENT,
   workMaterializationPayloadSchema,
-  type OutboxIntentType,
 } from './work.types.js';
+
+import type { OutboxRow } from './outbox.model.js';
+import type { OutboxIntentType } from './work.types.js';
 
 const logger = getLogger({ component: 'outbox-dispatcher' });
 
@@ -36,11 +41,9 @@ class DeferSignal extends Error {
 type IntentOutcome = 'processed' | 'deferred' | 'failed' | 'empty';
 
 /**
- * Dispatch a single claimed outbox row inside the claim transaction. The
- * resulting domain side-effects (work materialization) commit atomically with
- * marking the intent processed, so the intent is never marked done against
- * rolled-back work. Reconciliation reads current domain facts, so duplicate or
- * stale intents are safe and idempotent.
+ * Dispatch a single claimed outbox row. Reconciliation-style handlers run in
+ * the claim transaction; notification/comms handoffs own their transactions and
+ * rely on idempotency so a crash before marking the intent processed is safe.
  */
 async function dispatchIntent(
   trx: Knex.Transaction,
@@ -55,6 +58,12 @@ async function dispatchIntent(
     case OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED:
       await dispatchActivityEventRequested(row.payload, trx);
       return { status: 'done' };
+    case OUTBOX_INTENT.NOTIFICATION_REQUESTED:
+      await dispatchNotificationRequested(row.payload);
+      return { status: 'done' };
+    case OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED:
+      await dispatchNotificationCommsRequested(row.payload);
+      return { status: 'done' };
     default:
       // No handler yet (a later phase will add one). Surface as a failure so it
       // backs off and retries rather than being silently dropped.
@@ -62,7 +71,9 @@ async function dispatchIntent(
   }
 }
 
-async function processOneIntent(filter?: DispatchFilter): Promise<IntentOutcome> {
+async function processOneIntent(
+  filter?: DispatchFilter,
+): Promise<IntentOutcome> {
   return knexClient.transaction(async (trx) => {
     const row = await claimNextPendingIntent(trx, filter);
     if (!row) {

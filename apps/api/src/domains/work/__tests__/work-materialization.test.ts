@@ -14,6 +14,11 @@ import {
   lockKeyMaterializerScope,
   tryAcquireAdvisoryXactLock,
 } from '../../../shared/services/advisoryLocks.service.js';
+import {
+  devEmailProvider,
+  registerCommsProvider,
+} from '../../../features/comms/providers/index.js';
+import { NOTIFICATION_TYPE } from '../../notifications/notifications.types.js';
 import { dispatchPendingIntents } from '../outbox.dispatcher.js';
 import { writeOutboxIntent } from '../outbox.model.js';
 import { materializeWork } from '../work-materialization.js';
@@ -400,16 +405,98 @@ describe('materializeWork (bank_account scope)', () => {
     expect(Number(activeSubjectCount?.c)).toBe(5);
   });
 
-  it('materializes pending candidates as review_suggestions instead of categorize subjects', async () => {
-    const [candidateTxnId, uncategorizedTxnId] = await insertUnpostedTransactions(
+  it('writes one notification intent for a newly inserted assigned work item and not on rematerialization', async () => {
+    await insertUnpostedTransactions(trx, {
+      companyId,
+      userId,
+      bankAccountId,
+      count: 2,
+    });
+
+    const scope = {
+      type: 'bank_account' as const,
+      clientCompanyId: companyId,
+      bankAccountId,
+    };
+
+    const first = await materializeWork(scope, trx);
+    expect(first.status).toBe('reconciled');
+    if (first.status !== 'reconciled' || !first.workItemId) {
+      throw new Error('Expected assigned work item to materialize');
+    }
+
+    const [intent] = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+      status: 'pending',
+    });
+    expect(intent).toBeDefined();
+    expect(intent.scope_key).toContain(NOTIFICATION_TYPE.WORK_ASSIGNED);
+
+    const payload = intent.payload as {
+      event?: {
+        recipientUserId?: string;
+        eventType?: string;
+        workItemId?: string;
+        idempotencyKey?: string;
+      };
+    };
+    expect(payload.event).toMatchObject({
+      recipientUserId: userId,
+      eventType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      workItemId: first.workItemId,
+    });
+    expect(payload.event?.idempotencyKey).toContain(first.workItemId);
+
+    await trx('app.outbox_intents').where({ id: intent.id }).update({
+      status: 'processed',
+      processed_at: trx.fn.now(),
+      updated_at: trx.fn.now(),
+    });
+
+    const second = await materializeWork(scope, trx);
+    expect(second.status).toBe('reconciled');
+
+    const allNotificationIntents = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+    });
+    expect(allNotificationIntents).toHaveLength(1);
+  });
+
+  it('does not write a notification intent for unassigned pool work', async () => {
+    await trx('app.firm_user_client_assignments')
+      .where({ client_company_id: companyId, is_deleted: false })
+      .update({
+        is_deleted: true,
+        deleted_at: trx.fn.now(),
+        updated_by_id: userId,
+      });
+    await insertUnpostedTransactions(trx, {
+      companyId,
+      userId,
+      bankAccountId,
+      count: 1,
+    });
+
+    const result = await materializeWork(
+      { type: 'bank_account', clientCompanyId: companyId, bankAccountId },
       trx,
-      {
+    );
+    expect(result.status).toBe('reconciled');
+
+    const notificationIntents = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+    });
+    expect(notificationIntents).toHaveLength(0);
+  });
+
+  it('materializes pending candidates as review_suggestions instead of categorize subjects', async () => {
+    const [candidateTxnId, uncategorizedTxnId] =
+      await insertUnpostedTransactions(trx, {
         companyId,
         userId,
         bankAccountId,
         count: 2,
-      },
-    );
+      });
     const candidateId = await insertPendingCandidate(trx, {
       companyId,
       bankTransactionId: candidateTxnId,
@@ -828,8 +915,35 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
     let bankAccountId = '';
     let txnIds: string[] = [];
     let scopeKey = '';
+    let notificationScopeKey = '';
+    let notificationCommsScopeKey = '';
+    let notificationWorkItemId = '';
+    let notificationCorrelationId = '';
+    let insertedAssignmentId = '';
+    const previousEmailProvider = process.env.EMAIL_PROVIDER;
     try {
-      bankAccountId = await createFreshBankAccount(importTrx, companyId, userId);
+      registerCommsProvider(devEmailProvider);
+      process.env.EMAIL_PROVIDER = 'dev';
+
+      const existingOwner = await importTrx('app.firm_user_client_assignments')
+        .where({ client_company_id: companyId, is_deleted: false })
+        .first('id');
+      if (!existingOwner) {
+        const [assignment] = await importTrx('app.firm_user_client_assignments')
+          .insert({
+            client_company_id: companyId,
+            firm_staff_user_id: userId,
+            created_by_id: userId,
+          })
+          .returning('id');
+        insertedAssignmentId = assignment.id;
+      }
+
+      bankAccountId = await createFreshBankAccount(
+        importTrx,
+        companyId,
+        userId,
+      );
       txnIds = await insertUnpostedTransactions(importTrx, {
         companyId,
         userId,
@@ -878,6 +992,110 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
       expect(item?.subjects.map((s) => s.bankTransactionId).sort()).toEqual(
         [...txnIds].sort(),
       );
+      notificationWorkItemId = item!.workItemId;
+
+      const notificationIntent = await knexClient('app.outbox_intents')
+        .where({
+          intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+          status: 'pending',
+        })
+        .andWhereRaw(`payload->'event'->>'workItemId' = ?`, [
+          notificationWorkItemId,
+        ])
+        .first('scope_key', 'payload');
+      expect(notificationIntent).toBeDefined();
+      notificationScopeKey = notificationIntent!.scope_key;
+
+      const notificationDispatch = await dispatchPendingIntents(10, {
+        scopeKey: notificationScopeKey,
+      });
+      expect(notificationDispatch).toMatchObject({
+        processed: 1,
+        failed: 0,
+      });
+
+      const notifications = await knexClient('app.notifications').where({
+        recipient_user_id: userId,
+        client_company_id: companyId,
+        event_type: NOTIFICATION_TYPE.WORK_ASSIGNED,
+        work_item_id: notificationWorkItemId,
+      });
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0].idempotency_key).toContain(
+        notificationWorkItemId,
+      );
+
+      const commsIntent = await knexClient('app.outbox_intents')
+        .where({
+          intent_type: OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED,
+          status: 'pending',
+        })
+        .andWhereRaw(`payload->'payload'->'correlation'->>'source' = ?`, [
+          'notification',
+        ])
+        .andWhereRaw(`payload->'payload'->>'eventType' = ?`, [
+          NOTIFICATION_TYPE.WORK_ASSIGNED,
+        ])
+        .first('scope_key', 'payload');
+      expect(commsIntent).toBeDefined();
+      notificationCommsScopeKey = commsIntent!.scope_key;
+      notificationCorrelationId = String(
+        (
+          commsIntent!.payload as {
+            payload?: { correlation?: { id?: unknown } };
+          }
+        ).payload?.correlation?.id,
+      );
+      expect(notificationCorrelationId).toBeTruthy();
+
+      const commsDispatch = await dispatchPendingIntents(10, {
+        scopeKey: notificationCommsScopeKey,
+      });
+      expect(commsDispatch).toMatchObject({ processed: 1, failed: 0 });
+
+      const commsDeliveries = await knexClient('app.comms_deliveries')
+        .whereRaw(`correlation->>'source' = ?`, ['notification'])
+        .andWhereRaw(`correlation->>'id' = ?`, [notificationCorrelationId]);
+      expect(commsDeliveries).toHaveLength(1);
+
+      await knexClient.transaction(async (trx) => {
+        await writeOutboxIntent(trx, {
+          intentType: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+          scopeKey: notificationScopeKey,
+          payload: notificationIntent!.payload as Record<string, unknown>,
+        });
+      });
+      const duplicateDispatch = await dispatchPendingIntents(10, {
+        scopeKey: notificationScopeKey,
+      });
+      expect(duplicateDispatch).toMatchObject({ processed: 1, failed: 0 });
+
+      const afterDuplicate = await knexClient('app.notifications').where({
+        recipient_user_id: userId,
+        event_type: NOTIFICATION_TYPE.WORK_ASSIGNED,
+        work_item_id: notificationWorkItemId,
+      });
+      expect(afterDuplicate).toHaveLength(1);
+
+      await knexClient.transaction(async (trx) => {
+        await writeOutboxIntent(trx, {
+          intentType: OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED,
+          scopeKey: notificationCommsScopeKey,
+          payload: commsIntent!.payload as Record<string, unknown>,
+        });
+      });
+      const duplicateCommsDispatch = await dispatchPendingIntents(10, {
+        scopeKey: notificationCommsScopeKey,
+      });
+      expect(duplicateCommsDispatch).toMatchObject({
+        processed: 1,
+        failed: 0,
+      });
+
+      const commsAfterDuplicate = await knexClient('app.comms_deliveries')
+        .whereRaw(`correlation->>'source' = ?`, ['notification'])
+        .andWhereRaw(`correlation->>'id' = ?`, [notificationCorrelationId]);
+      expect(commsAfterDuplicate).toHaveLength(1);
     } finally {
       // Critical cleanup: the per-client work item is the only committed row
       // other bizDemoUS tests read, so it must go (cascades its subjects). The
@@ -886,8 +1104,48 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
       // blocks hard deletes), and this residue is inert: it sits on a unique
       // account the per-account materializer never re-touches and the queue read
       // never sees (matching the existing committed-data import test).
+      const notificationRows = notificationWorkItemId
+        ? await knexClient('app.notifications')
+            .where({
+              recipient_user_id: userId,
+              work_item_id: notificationWorkItemId,
+              event_type: NOTIFICATION_TYPE.WORK_ASSIGNED,
+            })
+            .select('id')
+        : [];
+      if (notificationCorrelationId) {
+        await knexClient('app.comms_deliveries')
+          .whereRaw(`correlation->>'source' = ?`, ['notification'])
+          .andWhereRaw(`correlation->>'id' = ?`, [notificationCorrelationId])
+          .del();
+      }
+      if (notificationRows.length > 0) {
+        await knexClient('app.notifications')
+          .whereIn(
+            'id',
+            notificationRows.map((row) => row.id),
+          )
+          .del();
+      }
       await clearCommittedWorkItems();
-      await knexClient('app.outbox_intents').where({ scope_key: scopeKey }).del();
+      await knexClient('app.outbox_intents')
+        .whereIn(
+          'scope_key',
+          [scopeKey, notificationScopeKey, notificationCommsScopeKey].filter(
+            Boolean,
+          ),
+        )
+        .del();
+      if (insertedAssignmentId) {
+        await knexClient('app.firm_user_client_assignments')
+          .where({ id: insertedAssignmentId })
+          .del();
+      }
+      if (previousEmailProvider === undefined) {
+        delete process.env.EMAIL_PROVIDER;
+      } else {
+        process.env.EMAIL_PROVIDER = previousEmailProvider;
+      }
     }
   });
 });
