@@ -9,6 +9,8 @@ import {
 import { NOTIFICATION_CHANNEL } from './notifications.types.js';
 
 import type {
+  CompanyNotificationPreference,
+  EffectiveNotificationPreference,
   NotificationChannel,
   NotificationDeliveryMode,
   NotificationPreference,
@@ -26,6 +28,15 @@ export const SUPPORTED_NOTIFICATION_PREFERENCE_DELIVERY_MODES = [
 
 type SupportedPreferenceChannel =
   (typeof SUPPORTED_NOTIFICATION_PREFERENCE_CHANNELS)[number];
+
+interface NotificationPreferenceRow {
+  owner_type: 'user' | 'company';
+  user_id: string | null;
+  company_id: string | null;
+  notification_type: string;
+  channel: NotificationChannel;
+  delivery_mode: NotificationDeliveryMode;
+}
 
 function isSupportedPreferenceChannel(
   channel: NotificationChannel,
@@ -48,6 +59,18 @@ function codeDefaultFor(
   channel: NotificationChannel,
 ): NotificationDeliveryMode {
   return getDefaultNotificationDeliveryMode(notificationType, channel);
+}
+
+function userPreferenceConflictTarget(client: Knex): Knex.Raw {
+  return client.raw(
+    `(user_id, notification_type, channel) WHERE owner_type = 'user'`,
+  );
+}
+
+function companyPreferenceConflictTarget(client: Knex): Knex.Raw {
+  return client.raw(
+    `(company_id, notification_type, channel) WHERE owner_type = 'company'`,
+  );
 }
 
 function assertSupportedPreference(input: {
@@ -89,6 +112,7 @@ export async function resolveNotificationPreference(input: {
     delivery_mode: NotificationDeliveryMode;
   }>(PREFERENCES_TABLE)
     .where({
+      owner_type: 'user',
       user_id: input.userId,
       notification_type: input.notificationType,
       channel: input.channel,
@@ -127,7 +151,7 @@ export async function listNotificationPreferences(input: {
     channel: NotificationChannel;
     delivery_mode: NotificationDeliveryMode;
   }>(PREFERENCES_TABLE)
-    .where({ user_id: input.userId })
+    .where({ owner_type: 'user', user_id: input.userId })
     .whereIn('notification_type', notificationTypes)
     .whereIn('channel', channels)
     .select('notification_type', 'channel', 'delivery_mode');
@@ -162,12 +186,14 @@ export async function setNotificationPreference(input: {
 
   await client(PREFERENCES_TABLE)
     .insert({
+      owner_type: 'user',
       user_id: input.userId,
+      company_id: null,
       notification_type: input.notificationType,
       channel: input.channel,
       delivery_mode: input.deliveryMode,
     })
-    .onConflict(['user_id', 'notification_type', 'channel'])
+    .onConflict(userPreferenceConflictTarget(client))
     .merge({
       delivery_mode: input.deliveryMode,
       updated_at: client.fn.now(),
@@ -179,5 +205,110 @@ export async function setNotificationPreference(input: {
     channel: input.channel,
     deliveryMode: input.deliveryMode,
     source: 'user',
+  };
+}
+
+export async function setCompanyNotificationPreference(input: {
+  companyId: string;
+  notificationType: string;
+  channel: NotificationChannel;
+  deliveryMode: NotificationDeliveryMode;
+  trx?: Knex.Transaction;
+}): Promise<CompanyNotificationPreference> {
+  assertSupportedPreference(input);
+  const client = input.trx ?? knexClient;
+
+  await client(PREFERENCES_TABLE)
+    .insert({
+      owner_type: 'company',
+      user_id: null,
+      company_id: input.companyId,
+      notification_type: input.notificationType,
+      channel: input.channel,
+      delivery_mode: input.deliveryMode,
+    })
+    .onConflict(companyPreferenceConflictTarget(client))
+    .merge({
+      delivery_mode: input.deliveryMode,
+      updated_at: client.fn.now(),
+    });
+
+  return {
+    companyId: input.companyId,
+    notificationType: input.notificationType,
+    channel: input.channel,
+    deliveryMode: input.deliveryMode,
+    source: 'company',
+  };
+}
+
+export async function resolveEffectiveNotificationPreference(input: {
+  userId: string;
+  policyOwnerCompanyId?: string | null;
+  notificationType: string;
+  channel: NotificationChannel;
+  candidateDeliveryMode: NotificationDeliveryMode;
+  trx?: Knex.Transaction;
+}): Promise<EffectiveNotificationPreference> {
+  const client = input.trx ?? knexClient;
+
+  const rows = await client<NotificationPreferenceRow>(PREFERENCES_TABLE)
+    .where({
+      notification_type: input.notificationType,
+      channel: input.channel,
+    })
+    .andWhere((query) => {
+      query.where({
+        owner_type: 'user',
+        user_id: input.userId,
+      });
+
+      if (input.policyOwnerCompanyId) {
+        query.orWhere({
+          owner_type: 'company',
+          company_id: input.policyOwnerCompanyId,
+        });
+      }
+    })
+    .select(
+      'owner_type',
+      'user_id',
+      'company_id',
+      'notification_type',
+      'channel',
+      'delivery_mode',
+    );
+
+  const userRow = rows.find((row) => row.owner_type === 'user');
+  if (userRow) {
+    return {
+      userId: input.userId,
+      policyOwnerCompanyId: input.policyOwnerCompanyId ?? null,
+      notificationType: input.notificationType,
+      channel: input.channel,
+      deliveryMode: userRow.delivery_mode,
+      source: 'user',
+    };
+  }
+
+  const companyRow = rows.find((row) => row.owner_type === 'company');
+  if (companyRow) {
+    return {
+      userId: input.userId,
+      policyOwnerCompanyId: input.policyOwnerCompanyId ?? null,
+      notificationType: input.notificationType,
+      channel: input.channel,
+      deliveryMode: companyRow.delivery_mode,
+      source: 'company',
+    };
+  }
+
+  return {
+    userId: input.userId,
+    policyOwnerCompanyId: input.policyOwnerCompanyId ?? null,
+    notificationType: input.notificationType,
+    channel: input.channel,
+    deliveryMode: input.candidateDeliveryMode,
+    source: 'default',
   };
 }

@@ -10,7 +10,7 @@ import {
   resolveNotificationChannelRoutes,
 } from './notification-channel-routes.js';
 import {
-  resolveNotificationPreference,
+  resolveEffectiveNotificationPreference,
 } from './notification-preferences.js';
 import {
   NOTIFICATION_CHANNEL,
@@ -69,29 +69,25 @@ function defaultCandidateChannels(
   delivery: NotificationProductDeliveryPolicy,
 ): Array<{
   channel: NotificationDeliveryChannel;
-  deliveryMode: EnabledNotificationDeliveryMode;
+  deliveryMode: NotificationDeliveryMode;
 }> {
   const candidates: Array<{
     channel: NotificationDeliveryChannel;
-    deliveryMode: EnabledNotificationDeliveryMode;
+    deliveryMode: NotificationDeliveryMode;
   }> = [];
 
-  if (delivery.inApp.enabled && delivery.inApp.defaultMode !== 'off') {
+  if (delivery.inApp.enabled) {
     candidates.push({
       channel: NOTIFICATION_CHANNEL.IN_APP,
-      deliveryMode: notificationDeliveryModeSchema
-        .exclude(['off'])
-        .parse(delivery.inApp.defaultMode),
+      deliveryMode: delivery.inApp.defaultMode,
     });
   }
 
-  if (delivery.external.enabled && delivery.external.defaultMode !== 'off') {
+  if (delivery.external.enabled) {
     for (const channel of externalRouteChannels()) {
       candidates.push({
         channel,
-        deliveryMode: notificationDeliveryModeSchema
-          .exclude(['off'])
-          .parse(delivery.external.defaultMode),
+        deliveryMode: delivery.external.defaultMode,
       });
     }
   }
@@ -133,7 +129,7 @@ function resolveCandidateChannels(
   event: ParsedNotifyEvent,
 ): Array<{
   channel: NotificationDeliveryChannel;
-  deliveryMode: EnabledNotificationDeliveryMode;
+  deliveryMode: NotificationDeliveryMode;
 }> {
   const definition = getNotificationEventDefinition(event.eventType);
   if (!definition) {
@@ -182,7 +178,7 @@ function resolveCandidateChannels(
 async function resolveEnabledDeliveryMode(input: {
   event: ParsedNotifyEvent;
   channel: NotificationDeliveryChannel;
-  deliveryMode: EnabledNotificationDeliveryMode;
+  deliveryMode: NotificationDeliveryMode;
   trx?: Knex.Transaction;
 }): Promise<EnabledNotificationDeliveryMode | null> {
   if (
@@ -192,24 +188,22 @@ async function resolveEnabledDeliveryMode(input: {
     return 'immediate';
   }
 
-  const preference = await resolveNotificationPreference({
+  const preference = await resolveEffectiveNotificationPreference({
     userId: input.event.recipientUserId,
+    policyOwnerCompanyId: input.event.policyOwnerCompanyId ?? null,
     notificationType: input.event.eventType,
     channel: input.channel,
+    candidateDeliveryMode: input.deliveryMode,
     trx: input.trx,
   });
 
-  if (preference.source === 'user' && preference.deliveryMode === 'off') {
+  if (preference.deliveryMode === 'off') {
     return null;
   }
 
-  if (preference.source === 'user') {
-    return notificationDeliveryModeSchema
-      .exclude(['off'])
-      .parse(preference.deliveryMode);
-  }
-
-  return input.deliveryMode;
+  return notificationDeliveryModeSchema
+    .exclude(['off'])
+    .parse(preference.deliveryMode);
 }
 
 export async function resolveNotificationDeliveryPlan(input: {

@@ -11,6 +11,7 @@ import {
 import { OUTBOX_INTENT } from '../../work/work.types.js';
 import {
   resolveNotificationPreference,
+  setCompanyNotificationPreference,
   setNotificationPreference,
 } from '../notification-preferences.js';
 import {
@@ -20,6 +21,7 @@ import {
   markNotificationsRead,
   markNotificationsViewed,
   notify,
+  resolveNotificationAttention,
 } from '../notifications.model.js';
 import {
   NOTIFICATION_CHANNEL,
@@ -49,6 +51,7 @@ describe('notifications model', () => {
       recipientUserId: userId,
       clientCompanyId: companyId,
       eventType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      attentionKey: `test_attention:${unique}`,
       priority: 'normal',
       title: `Assigned work ${unique}`,
       body: 'A work item needs attention.',
@@ -99,6 +102,203 @@ describe('notifications model', () => {
     await expect(
       getUnreadCounter({ userId, companyId, trx }),
     ).resolves.toMatchObject({ unreadCount: 1 });
+  });
+
+  it('updates one active attention row for the same attention key', async () => {
+    const attentionKey = `work_item:${randomUUID()}:assignee:${userId}`;
+    const opened = await notify(
+      makeEvent({
+        attentionKey,
+        title: 'Categorize 4 transactions',
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+    await markNotificationsRead({
+      recipientUserId: userId,
+      notificationIds: [opened.notification!.id],
+      companyId,
+      trx,
+    });
+
+    const updated = await notify(
+      makeEvent({
+        attentionKey,
+        attentionTransition: 'routine_update',
+        title: 'Categorize 10 transactions',
+        idempotencyKey: `notification-test:${randomUUID()}`,
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+
+    expect(updated).toMatchObject({
+      inserted: false,
+      updated: true,
+      commsRequested: 0,
+    });
+    expect(updated.notification?.id).toBe(opened.notification!.id);
+    expect(updated.notification).toMatchObject({
+      title: 'Categorize 10 transactions',
+      readAt: expect.any(String),
+      lastAttentionTransition: 'routine_update',
+    });
+
+    const rows = await trx('app.notifications').where({
+      recipient_user_id: userId,
+      attention_key: attentionKey,
+    });
+    expect(rows).toHaveLength(1);
+    await expect(
+      getUnreadCounter({ userId, companyId, trx }),
+    ).resolves.toMatchObject({ unreadCount: 0 });
+  });
+
+  it('re-marks active attention unread on material lifecycle updates', async () => {
+    const attentionKey = `work_item:${randomUUID()}:assignee:${userId}`;
+    const opened = await notify(
+      makeEvent({
+        attentionKey,
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+    await markNotificationsRead({
+      recipientUserId: userId,
+      notificationIds: [opened.notification!.id],
+      companyId,
+      trx,
+    });
+
+    const updated = await notify(
+      makeEvent({
+        attentionKey,
+        attentionTransition: 'material_update',
+        title: 'Categorize 100 transactions',
+        idempotencyKey: `notification-test:${randomUUID()}`,
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+
+    expect(updated).toMatchObject({
+      inserted: false,
+      updated: true,
+      commsRequested: 0,
+    });
+    expect(updated.notification).toMatchObject({
+      id: opened.notification!.id,
+      readAt: null,
+      seenAt: null,
+      lastAttentionTransition: 'material_update',
+      lastMaterialChangeAt: expect.any(String),
+    });
+    await expect(
+      getUnreadCounter({ userId, companyId, trx }),
+    ).resolves.toMatchObject({ unreadCount: 1 });
+  });
+
+  it('resolves attention without marking it read and removes it from current feed/counts', async () => {
+    const attentionKey = `work_item:${randomUUID()}:assignee:${userId}`;
+    const opened = await notify(
+      makeEvent({
+        attentionKey,
+        priority: 'high',
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+
+    const resolved = await resolveNotificationAttention(
+      {
+        recipientUserId: userId,
+        attentionKey,
+        idempotencyKey: `notification-resolve:${randomUUID()}`,
+        companyId,
+      },
+      { trx },
+    );
+
+    expect(resolved).toMatchObject({
+      resolved: true,
+      notification: {
+        id: opened.notification!.id,
+        readAt: null,
+        resolvedAt: expect.any(String),
+      },
+    });
+    await expect(
+      getUnreadCounter({ userId, companyId, trx }),
+    ).resolves.toMatchObject({ unreadCount: 0 });
+
+    const feed = await getNotificationFeed({
+      recipientUserId: userId,
+      companyId,
+      trx,
+    });
+    expect(feed.items.map((item) => item.id)).not.toContain(
+      opened.notification!.id,
+    );
+  });
+
+  it('reopens resolved attention as a new active notification row', async () => {
+    const attentionKey = `work_item:${randomUUID()}:assignee:${userId}`;
+    const opened = await notify(
+      makeEvent({
+        attentionKey,
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+    await resolveNotificationAttention(
+      {
+        recipientUserId: userId,
+        attentionKey,
+        idempotencyKey: `notification-resolve:${randomUUID()}`,
+        companyId,
+      },
+      { trx },
+    );
+
+    const reopened = await notify(
+      makeEvent({
+        attentionKey,
+        idempotencyKey: `notification-test:${randomUUID()}`,
+        deliveryPolicy: {
+          mode: 'only',
+          channels: [NOTIFICATION_CHANNEL.IN_APP],
+        },
+      }),
+      { trx },
+    );
+
+    expect(reopened).toMatchObject({
+      inserted: true,
+      updated: false,
+    });
+    expect(reopened.notification!.id).not.toBe(opened.notification!.id);
+    const activeRows = await trx('app.notifications')
+      .where({ recipient_user_id: userId, attention_key: attentionKey })
+      .whereNull('resolved_at');
+    expect(activeRows).toHaveLength(1);
   });
 
   it('marks auto-read notifications read on view but keeps explicit items unread', async () => {
@@ -557,6 +757,185 @@ describe('notifications model', () => {
     expect(result.inserted).toBe(true);
     expect(result.commsRequested).toBe(0);
     await expect(commsIntentsFor(event)).resolves.toHaveLength(0);
+  });
+
+  it('uses the firm as the default policy owner for firm-managed work notifications', async () => {
+    const firmCompanyId = await getTestCompanyId(trx, 'bizDemoNG');
+    await setCompanyNotificationPreference({
+      companyId: firmCompanyId,
+      notificationType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      channel: NOTIFICATION_CHANNEL.EMAIL,
+      deliveryMode: 'off',
+      trx,
+    });
+
+    const event = makeEvent({
+      firmCompanyId,
+      clientCompanyId: companyId,
+    });
+    const result = await notify(event, { trx });
+
+    expect(result).toMatchObject({
+      inserted: true,
+      suppressed: false,
+      commsRequested: 0,
+    });
+    expect(result.notification).toMatchObject({
+      firmCompanyId,
+      clientCompanyId: companyId,
+      policyOwnerCompanyId: firmCompanyId,
+    });
+    await expect(commsIntentsFor(event)).resolves.toHaveLength(0);
+  });
+
+  it('allows company-scoped events to explicitly choose the client as policy owner', async () => {
+    const firmCompanyId = await getTestCompanyId(trx, 'bizDemoNG');
+    await setCompanyNotificationPreference({
+      companyId: firmCompanyId,
+      notificationType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      channel: NOTIFICATION_CHANNEL.EMAIL,
+      deliveryMode: 'off',
+      trx,
+    });
+
+    const event = makeEvent({
+      firmCompanyId,
+      clientCompanyId: companyId,
+      policyOwnerCompanyId: companyId,
+    });
+    const result = await notify(event, { trx });
+
+    expect(result).toMatchObject({
+      inserted: true,
+      suppressed: false,
+      commsRequested: 1,
+    });
+    expect(result.notification?.policyOwnerCompanyId).toBe(companyId);
+    await expect(commsIntentsFor(event)).resolves.toHaveLength(1);
+  });
+
+  it('lets company defaults turn on enabled external routes whose product default is off', async () => {
+    await setCompanyNotificationPreference({
+      companyId,
+      notificationType: NOTIFICATION_TYPE.CLIENT_QUERY_REQUIRES_RESPONSE,
+      channel: NOTIFICATION_CHANNEL.EMAIL,
+      deliveryMode: 'immediate',
+      trx,
+    });
+
+    const event = makeEvent({
+      eventType: NOTIFICATION_TYPE.CLIENT_QUERY_REQUIRES_RESPONSE,
+      title: 'Client query requires response',
+      body: 'A client question needs your response.',
+    });
+    const result = await notify(event, { trx });
+
+    expect(result).toMatchObject({
+      inserted: true,
+      suppressed: false,
+      commsRequested: 1,
+    });
+    await expect(commsIntentsFor(event)).resolves.toHaveLength(1);
+  });
+
+  it('lets user preferences override company policy defaults during delivery planning', async () => {
+    const firmCompanyId = await getTestCompanyId(trx, 'bizDemoNG');
+    await setCompanyNotificationPreference({
+      companyId: firmCompanyId,
+      notificationType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      channel: NOTIFICATION_CHANNEL.EMAIL,
+      deliveryMode: 'off',
+      trx,
+    });
+    await setNotificationPreference({
+      userId,
+      notificationType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      channel: NOTIFICATION_CHANNEL.EMAIL,
+      deliveryMode: 'immediate',
+      trx,
+    });
+
+    const event = makeEvent({
+      firmCompanyId,
+      clientCompanyId: companyId,
+    });
+    const result = await notify(event, { trx });
+
+    expect(result.commsRequested).toBe(1);
+    await expect(commsIntentsFor(event)).resolves.toHaveLength(1);
+  });
+
+  it('does not apply company policy defaults to global user/account notifications', async () => {
+    await setCompanyNotificationPreference({
+      companyId,
+      notificationType: NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED,
+      channel: NOTIFICATION_CHANNEL.EMAIL,
+      deliveryMode: 'off',
+      trx,
+    });
+
+    const event = makeEvent({
+      eventType: NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED,
+      clientCompanyId: null,
+      firmCompanyId: null,
+      title: 'Profile picture update failed',
+      body: 'Upload a new image to finish updating your profile.',
+      sourceEntity: { type: 'user_profile', id: userId },
+      deliveryPolicy: {
+        mode: 'only',
+        channels: [NOTIFICATION_CHANNEL.EMAIL],
+      },
+    });
+
+    const result = await notify(event, { trx });
+
+    expect(result).toMatchObject({
+      notification: null,
+      inserted: false,
+      suppressed: false,
+      commsRequested: 1,
+    });
+    await expect(commsIntentsFor(event)).resolves.toHaveLength(1);
+  });
+
+  it('rejects company policy owners that do not match notification company scope', async () => {
+    const firmCompanyId = await getTestCompanyId(trx, 'bizDemoNG');
+
+    await expect(
+      notify(
+        makeEvent({
+          firmCompanyId,
+          clientCompanyId: companyId,
+          policyOwnerCompanyId: randomUUID(),
+        }),
+        { trx },
+      ),
+    ).rejects.toThrow(
+      `Notification event ${NOTIFICATION_TYPE.WORK_ASSIGNED} policyOwnerCompanyId must match firmCompanyId or clientCompanyId`,
+    );
+  });
+
+  it('rejects policy owners on explicitly global notifications', async () => {
+    await expect(
+      notify(
+        makeEvent({
+          eventType: NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED,
+          clientCompanyId: null,
+          firmCompanyId: null,
+          policyOwnerCompanyId: companyId,
+          title: 'Profile picture update failed',
+          body: 'Upload a new image to finish updating your profile.',
+          sourceEntity: { type: 'user_profile', id: userId },
+          deliveryPolicy: {
+            mode: 'only',
+            channels: [NOTIFICATION_CHANNEL.IN_APP],
+          },
+        }),
+        { trx },
+      ),
+    ).rejects.toThrow(
+      `Notification event ${NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED} is global and must not include policyOwnerCompanyId`,
+    );
   });
 
   it('maps explicit external delivery to the registered email route', async () => {

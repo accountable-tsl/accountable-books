@@ -6,6 +6,7 @@ export {
   markNotificationsRead,
   markNotificationsViewed,
   notify,
+  resolveNotificationAttention,
 } from './notifications.model.js';
 export {
   getNotificationEventDefinition,
@@ -14,7 +15,9 @@ export {
 } from './notification-event-registry.js';
 export {
   listNotificationPreferences,
+  resolveEffectiveNotificationPreference,
   resolveNotificationPreference,
+  setCompanyNotificationPreference,
   setNotificationPreference,
   SUPPORTED_NOTIFICATION_PREFERENCE_CHANNELS,
   SUPPORTED_NOTIFICATION_PREFERENCE_DELIVERY_MODES,
@@ -23,6 +26,7 @@ export {
   NOTIFICATION_CHANNEL,
   NOTIFICATION_TYPE,
   type Notification,
+  type NotificationAttentionTransition,
   type NotificationCounter,
   type NotificationDeliveryPolicy,
   type NotificationFeedResult,
@@ -30,4 +34,5 @@ export {
   type NotificationType,
   type NotifyEvent,
   type NotifyResult,
+  type ResolveNotificationAttentionResult,
 } from './notifications.types.js';

@@ -6,7 +6,10 @@ import {
   tryAcquireAdvisoryXactLockWithBackoff,
 } from '../../shared/services/advisoryLocks.service.js';
 import { getLogger } from '../../shared/utils/logger.js';
-import { writeNotificationRequestedIntent } from '../notifications/notification-intent.js';
+import {
+  writeNotificationAttentionResolvedIntent,
+  writeNotificationRequestedIntent,
+} from '../notifications/notification-intent.js';
 import { NOTIFICATION_TYPE } from '../notifications/notifications.types.js';
 import {
   resolveEffectiveOwnerUserId,
@@ -26,7 +29,11 @@ import {
   WORK_TYPE_REVIEW_SUGGESTIONS,
 } from './work.types.js';
 
-import type { NotifyEvent } from '../notifications/notifications.types.js';
+import type {
+  NotificationAttentionTransition,
+  NotificationType,
+  NotifyEvent,
+} from '../notifications/notifications.types.js';
 import type { MaterializeResult, MaterializerScope } from './work.types.js';
 
 const logger = getLogger({ component: 'work-materializer' });
@@ -56,6 +63,18 @@ interface ReconcileWorkTypeResult {
 interface UpsertOpenWorkItemResult {
   id: string;
   inserted: boolean;
+}
+
+interface WorkReassignmentCandidate {
+  workItemId: string;
+  assignedUserId: string;
+}
+
+interface RecomputeWorkItemResult {
+  count: number;
+  changed: boolean;
+  closed: boolean;
+  updatedAt: Date | string;
 }
 
 /**
@@ -264,24 +283,35 @@ async function upsertOpenWorkItem(
   return { id: updated.id, inserted: false };
 }
 
-function buildWorkAssignedNotificationEvent(input: {
+function buildWorkNotificationEvent(input: {
   firmCompanyId: string;
   clientCompanyId: string;
   assignedUserId: string;
   workItemId: string;
   workType: string;
   activeSubjectCount: number;
+  eventType: NotificationType;
+  transition: NotificationAttentionTransition;
+  stateVersion: Date | string;
+  sourceAssignedUserIds?: string[];
 }): NotifyEvent {
   const title = buildWorkTitle(input.workType, input.activeSubjectCount);
+  const transitionKey = workNotificationTransitionKey(input.transition);
 
   return {
     recipientUserId: input.assignedUserId,
     firmCompanyId: input.firmCompanyId,
     clientCompanyId: input.clientCompanyId,
-    eventType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+    policyOwnerCompanyId: input.firmCompanyId,
+    eventType: input.eventType,
+    attentionKey: buildWorkAssigneeAttentionKey({
+      workItemId: input.workItemId,
+      assignedUserId: input.assignedUserId,
+    }),
+    attentionTransition: input.transition,
     priority: 'normal',
     title,
-    body: 'A new work item has been assigned to you.',
+    body: buildWorkNotificationBody(input.transition),
     destination: {
       workspace: 'work_queue',
       workItemId: input.workItemId,
@@ -292,19 +322,54 @@ function buildWorkAssignedNotificationEvent(input: {
     workItemId: input.workItemId,
     idempotencyKey: [
       'notification',
-      NOTIFICATION_TYPE.WORK_ASSIGNED,
+      input.eventType,
       input.assignedUserId,
       input.workItemId,
-      'created',
+      transitionKey,
+      toNotificationStateVersion(input.stateVersion),
     ].join(':'),
     data: {
       workType: input.workType,
       activeSubjectCount: input.activeSubjectCount,
+      ...(input.sourceAssignedUserIds && input.sourceAssignedUserIds.length > 0
+        ? { sourceAssignedUserIds: input.sourceAssignedUserIds }
+        : {}),
     },
   };
 }
 
-async function writeWorkAssignedNotificationIntent(
+function buildWorkNotificationBody(
+  transition: NotificationAttentionTransition,
+): string {
+  if (transition === 'opened') {
+    return 'A new work item has been assigned to you.';
+  }
+  if (transition === 'reassigned') {
+    return 'A work item has been reassigned to you.';
+  }
+  return 'Assigned work has been updated.';
+}
+
+function workNotificationTransitionKey(
+  transition: NotificationAttentionTransition,
+): string {
+  if (transition === 'opened') return 'opened';
+  if (transition === 'reassigned') return 'reassigned';
+  return 'updated';
+}
+
+function buildWorkAssigneeAttentionKey(input: {
+  workItemId: string;
+  assignedUserId: string;
+}): string {
+  return `work_item:${input.workItemId}:assignee:${input.assignedUserId}`;
+}
+
+function toNotificationStateVersion(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+async function writeWorkAssigneeNotificationIntent(
   trx: Knex.Transaction,
   input: {
     firmCompanyId: string;
@@ -314,27 +379,81 @@ async function writeWorkAssignedNotificationIntent(
     workType: string;
     activeSubjectCount: number;
     inserted: boolean;
+    changed: boolean;
+    reassignmentCandidates: WorkReassignmentCandidate[];
+    stateVersion: Date | string;
   },
 ): Promise<void> {
+  const reassignmentSourceUserIds = [
+    ...new Set(
+      input.reassignmentCandidates.map((candidate) => candidate.assignedUserId),
+    ),
+  ].sort();
+  const isReassignment = reassignmentSourceUserIds.length > 0;
+
   if (
-    !input.inserted ||
     !input.assignedUserId ||
-    input.activeSubjectCount <= 0
+    input.activeSubjectCount <= 0 ||
+    (!input.inserted && !input.changed && !isReassignment)
   ) {
     return;
   }
+  let transition: NotificationAttentionTransition = 'routine_update';
+  if (isReassignment) {
+    transition = 'reassigned';
+  } else if (input.inserted) {
+    transition = 'opened';
+  }
+  const eventType: NotificationType = isReassignment
+    ? NOTIFICATION_TYPE.WORK_REASSIGNED
+    : NOTIFICATION_TYPE.WORK_ASSIGNED;
 
   await writeNotificationRequestedIntent(
     trx,
-    buildWorkAssignedNotificationEvent({
+    buildWorkNotificationEvent({
       firmCompanyId: input.firmCompanyId,
       clientCompanyId: input.clientCompanyId,
       assignedUserId: input.assignedUserId,
       workItemId: input.workItemId,
       workType: input.workType,
       activeSubjectCount: input.activeSubjectCount,
+      eventType,
+      transition,
+      stateVersion: input.stateVersion,
+      sourceAssignedUserIds: reassignmentSourceUserIds,
     }),
   );
+}
+
+async function writeWorkAssignedNotificationResolutionIntent(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    assignedUserId: string | null;
+    workItemId: string;
+    stateVersion: Date | string;
+  },
+): Promise<void> {
+  if (!input.assignedUserId) {
+    return;
+  }
+
+  await writeNotificationAttentionResolvedIntent(trx, {
+    recipientUserId: input.assignedUserId,
+    attentionKey: buildWorkAssigneeAttentionKey({
+      workItemId: input.workItemId,
+      assignedUserId: input.assignedUserId,
+    }),
+    companyId: input.clientCompanyId,
+    idempotencyKey: [
+      'notification',
+      NOTIFICATION_TYPE.WORK_ASSIGNED,
+      input.assignedUserId,
+      input.workItemId,
+      'resolved',
+      toNotificationStateVersion(input.stateVersion),
+    ].join(':'),
+  });
 }
 
 async function reconcileWorkType(
@@ -373,6 +492,16 @@ async function reconcileWorkType(
     config: input.config,
   });
 
+  const reassignmentCandidates = await loadWorkReassignmentCandidates(trx, {
+    clientCompanyId: input.clientCompanyId,
+    workType: input.config.workType,
+    assignedUserId: input.assignedUserId,
+    keepWorkItemId: workItem.id,
+    desiredSubjectKeys: input.subjects.map(
+      (subject) => subject.canonicalSubjectKey,
+    ),
+  });
+
   await insertDesiredSubjects(trx, {
     workItemId: workItem.id,
     clientCompanyId: input.clientCompanyId,
@@ -386,7 +515,7 @@ async function reconcileWorkType(
     keepWorkItemId: workItem.id,
   });
 
-  await writeWorkAssignedNotificationIntent(trx, {
+  await writeWorkAssigneeNotificationIntent(trx, {
     firmCompanyId: input.firmCompanyId,
     clientCompanyId: input.clientCompanyId,
     assignedUserId: input.assignedUserId,
@@ -394,13 +523,62 @@ async function reconcileWorkType(
     workType: input.config.workType,
     activeSubjectCount: currentResult.count,
     inserted: workItem.inserted,
+    changed: currentResult.changed,
+    reassignmentCandidates,
+    stateVersion: currentResult.updatedAt,
   });
+
+  if (currentResult.closed) {
+    await writeWorkAssignedNotificationResolutionIntent(trx, {
+      clientCompanyId: input.clientCompanyId,
+      assignedUserId: input.assignedUserId,
+      workItemId: workItem.id,
+      stateVersion: currentResult.updatedAt,
+    });
+  }
 
   return {
     workItemId: workItem.id,
     activeSubjectCount: currentResult.count,
     closed: currentResult.closed || orphanResult.closed,
   };
+}
+
+async function loadWorkReassignmentCandidates(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    workType: string;
+    assignedUserId: string | null;
+    keepWorkItemId: string;
+    desiredSubjectKeys: string[];
+  },
+): Promise<WorkReassignmentCandidate[]> {
+  if (!input.assignedUserId || input.desiredSubjectKeys.length === 0) {
+    return [];
+  }
+
+  const rows = await trx('app.work_items as wi')
+    .join('app.work_item_subjects as s', 's.work_item_id', 'wi.id')
+    .where({
+      'wi.client_company_id': input.clientCompanyId,
+      'wi.work_type': input.workType,
+      'wi.status': 'open',
+      'wi.is_deleted': false,
+      's.status': 'active',
+      's.is_deleted': false,
+    })
+    .whereNot('wi.id', input.keepWorkItemId)
+    .whereNotNull('wi.assigned_user_id')
+    .whereNot('wi.assigned_user_id', input.assignedUserId)
+    .whereIn('s.canonical_subject_key', input.desiredSubjectKeys)
+    .groupBy('wi.id', 'wi.assigned_user_id')
+    .select('wi.id as work_item_id', 'wi.assigned_user_id as assigned_user_id');
+
+  return rows.map((row) => ({
+    workItemId: row.work_item_id as string,
+    assignedUserId: row.assigned_user_id as string,
+  }));
 }
 
 async function loadDesiredBankAccountSubjects(
@@ -584,12 +762,12 @@ async function endDeletedActiveSubjects(
 async function recomputeAndMaybeClose(
   trx: Knex.Transaction,
   workItemId: string,
-): Promise<{ count: number; closed: boolean }> {
+): Promise<RecomputeWorkItemResult> {
   await endDeletedActiveSubjects(trx, workItemId);
 
   const workItem = await trx('app.work_items')
     .where({ id: workItemId })
-    .first('work_type');
+    .first('work_type', 'active_subject_count', 'title');
 
   const countRow = (await trx('app.work_item_subjects')
     .where({ work_item_id: workItemId })
@@ -601,17 +779,22 @@ async function recomputeAndMaybeClose(
     .first()) as { total: number; active: number } | undefined;
   const count = Number(countRow?.active ?? 0);
   const total = Number(countRow?.total ?? 0);
+  const nextTitle =
+    count > 0 ? buildWorkTitle(workItem?.work_type ?? '', count) : null;
+  const changed =
+    Number(workItem?.active_subject_count ?? 0) !== count ||
+    (workItem?.title ?? null) !== nextTitle;
 
-  await trx('app.work_items')
+  const [updatedWorkItem] = await trx('app.work_items')
     .where({ id: workItemId })
     .update({
       subject_count: total,
       active_subject_count: count,
-      title:
-        count > 0 ? buildWorkTitle(workItem?.work_type ?? '', count) : null,
+      title: nextTitle,
       last_seen_at: trx.fn.now(),
       updated_at: trx.fn.now(),
-    });
+    })
+    .returning<{ updated_at: Date | string }[]>('updated_at');
 
   let closed = false;
   if (count === 0) {
@@ -626,7 +809,12 @@ async function recomputeAndMaybeClose(
     closed = updated > 0;
   }
 
-  return { count, closed };
+  return {
+    count,
+    changed,
+    closed,
+    updatedAt: updatedWorkItem?.updated_at ?? new Date(),
+  };
 }
 
 function buildWorkTitle(workType: string, count: number): string {
@@ -664,12 +852,20 @@ async function closeOrphanedWorkItems(
         query.whereNot('id', input.keepWorkItemId);
       }
     })
-    .select('id');
+    .select('id', 'assigned_user_id');
 
   let closed = false;
   for (const row of staleRows) {
     const result = await recomputeAndMaybeClose(trx, row.id);
-    closed ||= result.closed;
+    if (result.closed) {
+      closed = true;
+      await writeWorkAssignedNotificationResolutionIntent(trx, {
+        clientCompanyId: input.clientCompanyId,
+        assignedUserId: row.assigned_user_id,
+        workItemId: row.id,
+        stateVersion: result.updatedAt,
+      });
+    }
   }
 
   return { closed };

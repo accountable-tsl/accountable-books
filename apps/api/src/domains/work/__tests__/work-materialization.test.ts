@@ -435,14 +435,24 @@ describe('materializeWork (bank_account scope)', () => {
     const payload = intent.payload as {
       event?: {
         recipientUserId?: string;
+        firmCompanyId?: string;
+        clientCompanyId?: string;
+        policyOwnerCompanyId?: string;
         eventType?: string;
+        attentionKey?: string;
+        attentionTransition?: string;
         workItemId?: string;
         idempotencyKey?: string;
       };
     };
     expect(payload.event).toMatchObject({
       recipientUserId: userId,
+      firmCompanyId,
+      clientCompanyId: companyId,
+      policyOwnerCompanyId: firmCompanyId,
       eventType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      attentionKey: `work_item:${first.workItemId}:assignee:${userId}`,
+      attentionTransition: 'opened',
       workItemId: first.workItemId,
     });
     expect(payload.event?.idempotencyKey).toContain(first.workItemId);
@@ -460,6 +470,217 @@ describe('materializeWork (bank_account scope)', () => {
       intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
     });
     expect(allNotificationIntents).toHaveLength(1);
+  });
+
+  it('writes a routine update notification intent when assigned work changes', async () => {
+    await insertUnpostedTransactions(trx, {
+      companyId,
+      userId,
+      bankAccountId,
+      count: 1,
+    });
+
+    const scope = {
+      type: 'bank_account' as const,
+      clientCompanyId: companyId,
+      bankAccountId,
+    };
+
+    const first = await materializeWork(scope, trx);
+    expect(first.status).toBe('reconciled');
+    if (first.status !== 'reconciled' || !first.workItemId) {
+      throw new Error('Expected assigned work item to materialize');
+    }
+
+    await insertUnpostedTransactions(trx, {
+      companyId,
+      userId,
+      bankAccountId,
+      count: 1,
+    });
+    await materializeWork(scope, trx);
+
+    const notificationIntents = await trx('app.outbox_intents')
+      .where({
+        intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+      })
+      .orderBy('created_at', 'asc');
+    expect(notificationIntents).toHaveLength(2);
+
+    const updatePayload = notificationIntents[1].payload as {
+      event?: {
+        attentionKey?: string;
+        attentionTransition?: string;
+        idempotencyKey?: string;
+        title?: string;
+        workItemId?: string;
+      };
+    };
+    expect(updatePayload.event).toMatchObject({
+      attentionKey: `work_item:${first.workItemId}:assignee:${userId}`,
+      attentionTransition: 'routine_update',
+      title: 'Categorize 2 transactions',
+      workItemId: first.workItemId,
+    });
+    expect(updatePayload.event?.idempotencyKey).toContain('updated');
+  });
+
+  it('writes a resolve notification intent when assigned work closes', async () => {
+    const [bankTransactionId] = await insertUnpostedTransactions(trx, {
+      companyId,
+      userId,
+      bankAccountId,
+      count: 1,
+    });
+
+    const scope = {
+      type: 'bank_account' as const,
+      clientCompanyId: companyId,
+      bankAccountId,
+    };
+
+    const first = await materializeWork(scope, trx);
+    expect(first.status).toBe('reconciled');
+    if (first.status !== 'reconciled' || !first.workItemId) {
+      throw new Error('Expected assigned work item to materialize');
+    }
+
+    await trx('bank_transactions')
+      .where({ id: bankTransactionId })
+      .update({
+        is_deleted: true,
+        deleted_at: trx.fn.now(),
+        deletion_origin: 'provider_sync',
+        deletion_reason: 'test resolved source',
+      });
+    const second = await materializeWork(scope, trx);
+    expect(second.status).toBe('reconciled');
+    if (second.status === 'reconciled') {
+      expect(second.closed).toBe(true);
+    }
+
+    const [resolveIntent] = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
+    });
+    expect(resolveIntent).toBeDefined();
+    expect(resolveIntent.payload).toMatchObject({
+      recipientUserId: userId,
+      attentionKey: `work_item:${first.workItemId}:assignee:${userId}`,
+      companyId,
+    });
+    expect(String(resolveIntent.payload.idempotencyKey)).toContain('resolved');
+  });
+
+  it('resolves old assignee attention and opens reassigned attention when ownership changes', async () => {
+    const nextAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await insertUnpostedTransactions(trx, {
+      companyId,
+      userId,
+      bankAccountId,
+      count: 2,
+    });
+
+    const scope = {
+      type: 'bank_account' as const,
+      clientCompanyId: companyId,
+      bankAccountId,
+    };
+
+    const first = await materializeWork(scope, trx);
+    expect(first.status).toBe('reconciled');
+    if (first.status !== 'reconciled' || !first.workItemId) {
+      throw new Error('Expected first assigned work item to materialize');
+    }
+
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: nextAssigneeId,
+      actorUserId: userId,
+    });
+
+    const second = await materializeWork(scope, trx);
+    expect(second.status).toBe('reconciled');
+    if (second.status !== 'reconciled' || !second.workItemId) {
+      throw new Error('Expected reassigned work item to materialize');
+    }
+    expect(second.workItemId).not.toBe(first.workItemId);
+
+    const oldWorkItem = await trx('app.work_items')
+      .where({ id: first.workItemId })
+      .first('status', 'assigned_user_id', 'active_subject_count');
+    expect(oldWorkItem?.status).toBe('closed');
+    expect(oldWorkItem?.assigned_user_id).toBe(userId);
+    expect(Number(oldWorkItem?.active_subject_count)).toBe(0);
+
+    const newWorkItem = await trx('app.work_items')
+      .where({ id: second.workItemId })
+      .first('status', 'assigned_user_id', 'active_subject_count');
+    expect(newWorkItem?.status).toBe('open');
+    expect(newWorkItem?.assigned_user_id).toBe(nextAssigneeId);
+    expect(Number(newWorkItem?.active_subject_count)).toBe(2);
+
+    const notificationIntents = await trx('app.outbox_intents')
+      .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+      .orderBy('id', 'asc');
+    expect(notificationIntents).toHaveLength(2);
+
+    const openedPayload = notificationIntents[0].payload as {
+      event?: {
+        recipientUserId?: string;
+        eventType?: string;
+        attentionTransition?: string;
+        attentionKey?: string;
+        workItemId?: string;
+      };
+    };
+    expect(openedPayload.event).toMatchObject({
+      recipientUserId: userId,
+      eventType: NOTIFICATION_TYPE.WORK_ASSIGNED,
+      attentionTransition: 'opened',
+      attentionKey: `work_item:${first.workItemId}:assignee:${userId}`,
+      workItemId: first.workItemId,
+    });
+
+    const reassignedPayload = notificationIntents[1].payload as {
+      event?: {
+        recipientUserId?: string;
+        eventType?: string;
+        attentionTransition?: string;
+        attentionKey?: string;
+        workItemId?: string;
+        idempotencyKey?: string;
+        data?: { sourceAssignedUserIds?: string[] };
+      };
+    };
+    expect(reassignedPayload.event).toMatchObject({
+      recipientUserId: nextAssigneeId,
+      eventType: NOTIFICATION_TYPE.WORK_REASSIGNED,
+      attentionTransition: 'reassigned',
+      attentionKey: `work_item:${second.workItemId}:assignee:${nextAssigneeId}`,
+      workItemId: second.workItemId,
+      data: { sourceAssignedUserIds: [userId] },
+    });
+    expect(reassignedPayload.event?.idempotencyKey).toContain('reassigned');
+
+    const [resolveIntent] = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
+    });
+    expect(resolveIntent).toBeDefined();
+    expect(resolveIntent.payload).toMatchObject({
+      recipientUserId: userId,
+      attentionKey: `work_item:${first.workItemId}:assignee:${userId}`,
+      companyId,
+    });
+
+    await materializeWork(scope, trx);
+    const replayNotificationIntents = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+    });
+    expect(replayNotificationIntents).toHaveLength(2);
+    const replayResolutionIntents = await trx('app.outbox_intents').where({
+      intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
+    });
+    expect(replayResolutionIntents).toHaveLength(1);
   });
 
   it('does not write a notification intent for unassigned pool work', async () => {
@@ -1021,6 +1242,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
         work_item_id: notificationWorkItemId,
       });
       expect(notifications).toHaveLength(1);
+      expect(notifications[0].policy_owner_company_id).toBe(firmCompanyId);
       expect(notifications[0].idempotency_key).toContain(
         notificationWorkItemId,
       );

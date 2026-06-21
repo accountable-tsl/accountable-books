@@ -11,6 +11,7 @@ import {
   parseNotificationEventData,
 } from './notification-event-registry.js';
 import { writeNotificationCommsRequestedIntent } from './notification-intent.js';
+import { resolveNotificationPolicyOwner } from './notification-policy-owner.js';
 import { notifyEventSchema } from './notifications.types.js';
 
 import type { CommsSendPayload } from '../../features/comms/index.js';
@@ -18,17 +19,21 @@ import type { NotificationCommsRoute } from './notification-delivery-plan.js';
 import type { NotificationEventDefinition } from './notification-event-registry.js';
 import type {
   Notification,
+  NotificationAttentionTransition,
   NotificationCounter,
   NotificationFeedResult,
+  NotificationIdempotencyEffect,
   NotificationPriority,
   NotificationReadPolicy,
   NotificationRow,
   NotifyEvent,
   NotifyResult,
   ParsedNotifyEvent,
+  ResolveNotificationAttentionResult,
 } from './notifications.types.js';
 
 const NOTIFICATIONS_TABLE = 'app.notifications';
+const NOTIFICATION_IDEMPOTENCY_TABLE = 'app.notification_idempotency_keys';
 const MAX_FEED_LIMIT = 100;
 const NOTIFICATION_CURSOR_CREATED_AT_SQL = `to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
@@ -39,6 +44,16 @@ export interface NotificationFeedCursor {
 
 interface NotificationFeedRow extends NotificationRow {
   cursor_created_at: string;
+}
+
+interface NotificationIdempotencyRow {
+  id: string;
+  recipient_user_id: string;
+  idempotency_key: string;
+  notification_id: string | null;
+  effect: NotificationIdempotencyEffect;
+  created_at: Date | string;
+  updated_at: Date | string;
 }
 
 const notificationFeedCursorSchema = z
@@ -127,7 +142,9 @@ function toNotification(row: NotificationRow): Notification {
     recipientUserId: row.recipient_user_id,
     firmCompanyId: row.firm_company_id,
     clientCompanyId: row.client_company_id,
+    policyOwnerCompanyId: row.policy_owner_company_id,
     eventType: row.event_type,
+    attentionKey: row.attention_key,
     priority: row.priority,
     readPolicy: row.read_policy,
     title: row.title,
@@ -144,9 +161,12 @@ function toNotification(row: NotificationRow): Notification {
     workItemId: row.work_item_id,
     workItemSubjectId: row.work_item_subject_id,
     idempotencyKey: row.idempotency_key,
+    lastAttentionTransition: row.last_attention_transition,
     seenAt: toIsoOrNull(row.seen_at),
     readAt: toIsoOrNull(row.read_at),
+    resolvedAt: toIsoOrNull(row.resolved_at),
     archivedAt: toIsoOrNull(row.archived_at),
+    lastMaterialChangeAt: toIsoOrNull(row.last_material_change_at),
     occurredAt: toIso(row.occurred_at),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
@@ -159,6 +179,30 @@ function readPolicyForPriority(
   return priority === 'low' || priority === 'normal'
     ? 'auto_on_view'
     : 'explicit';
+}
+
+function shouldMarkUnreadOnTransition(
+  transition: NotificationAttentionTransition,
+): boolean {
+  return transition !== 'routine_update';
+}
+
+function shouldSendCommsOnTransition(
+  transition: NotificationAttentionTransition,
+): boolean {
+  return [
+    'opened',
+    'escalated',
+    'reassigned',
+    'overdue',
+    'failed',
+  ].includes(transition);
+}
+
+function activeAttentionConflictTarget(client: Knex): Knex.Raw {
+  return client.raw(
+    `(recipient_user_id, attention_key) WHERE resolved_at IS NULL AND archived_at IS NULL`,
+  );
 }
 
 function assertNotificationEventScope(input: {
@@ -179,6 +223,15 @@ function assertNotificationEventScope(input: {
       `Notification event ${input.event.eventType} is global and must not include firmCompanyId or clientCompanyId`,
     );
   }
+
+  if (
+    input.definition.scope === 'global' &&
+    input.event.policyOwnerCompanyId != null
+  ) {
+    throw new Error(
+      `Notification event ${input.event.eventType} is global and must not include policyOwnerCompanyId`,
+    );
+  }
 }
 
 function normalizeNotifyEvent(rawEvent: NotifyEvent): ParsedNotifyEvent {
@@ -195,9 +248,14 @@ function normalizeNotifyEvent(rawEvent: NotifyEvent): ParsedNotifyEvent {
   };
 
   assertNotificationEventScope({ event, definition });
+  const policyOwnerCompanyId = resolveNotificationPolicyOwner({
+    event,
+    definition,
+  });
 
   return {
     ...event,
+    policyOwnerCompanyId,
     data: parseNotificationEventData(event),
   };
 }
@@ -260,21 +318,110 @@ function buildCommsPayloads(input: {
   );
 }
 
-async function insertNotification(
+async function reserveNotificationLifecycleEvent(
+  trx: Knex.Transaction,
+  input: { recipientUserId: string; idempotencyKey: string },
+): Promise<{ reserved: true; row: NotificationIdempotencyRow } | {
+  reserved: false;
+  row: NotificationIdempotencyRow;
+}> {
+  const [insertedRow] = await trx<NotificationIdempotencyRow>(
+    NOTIFICATION_IDEMPOTENCY_TABLE,
+  )
+    .insert({
+      recipient_user_id: input.recipientUserId,
+      idempotency_key: input.idempotencyKey,
+      effect: 'suppressed',
+    })
+    .onConflict(['recipient_user_id', 'idempotency_key'])
+    .ignore()
+    .returning('*');
+
+  if (insertedRow) {
+    return { reserved: true, row: insertedRow };
+  }
+
+  const existingRow = await trx<NotificationIdempotencyRow>(
+    NOTIFICATION_IDEMPOTENCY_TABLE,
+  )
+    .where({
+      recipient_user_id: input.recipientUserId,
+      idempotency_key: input.idempotencyKey,
+    })
+    .first('*');
+
+  if (!existingRow) {
+    throw new Error(
+      'Notification lifecycle idempotency conflict did not return existing row',
+    );
+  }
+
+  return { reserved: false, row: existingRow };
+}
+
+async function finalizeNotificationLifecycleEvent(
+  trx: Knex.Transaction,
+  input: {
+    idempotencyRowId: string;
+    effect: NotificationIdempotencyEffect;
+    notificationId: string | null;
+  },
+): Promise<void> {
+  await trx(NOTIFICATION_IDEMPOTENCY_TABLE)
+    .where({ id: input.idempotencyRowId })
+    .update({
+      effect: input.effect,
+      notification_id: input.notificationId,
+      updated_at: trx.fn.now(),
+    });
+}
+
+async function loadNotificationById(
+  trx: Knex.Transaction,
+  notificationId: string | null,
+): Promise<Notification | null> {
+  if (!notificationId) return null;
+
+  const row = await trx<NotificationRow>(NOTIFICATIONS_TABLE)
+    .where({ id: notificationId })
+    .first('*');
+
+  return row ? toNotification(row) : null;
+}
+
+async function resultForDuplicateLifecycleEvent(
+  trx: Knex.Transaction,
+  row: NotificationIdempotencyRow,
+): Promise<NotifyResult> {
+  const notification = await loadNotificationById(trx, row.notification_id);
+
+  return {
+    notification,
+    inserted: false,
+    updated: false,
+    suppressed: row.effect === 'suppressed',
+    commsRequested: 0,
+  };
+}
+
+async function upsertAttentionNotification(
   trx: Knex.Transaction,
   event: ParsedNotifyEvent,
-): Promise<{ notification: Notification; inserted: boolean }> {
+): Promise<{ notification: Notification; inserted: boolean; updated: boolean }> {
   const readPolicy = event.readPolicy ?? readPolicyForPriority(event.priority);
   const occurredAt = event.occurredAt
     ? new Date(event.occurredAt)
     : trx.fn.now();
+  const markUnread = shouldMarkUnreadOnTransition(event.attentionTransition);
 
   const [insertedRow] = await trx<NotificationRow>(NOTIFICATIONS_TABLE)
     .insert({
       recipient_user_id: event.recipientUserId,
       firm_company_id: event.firmCompanyId ?? null,
       client_company_id: event.clientCompanyId ?? null,
+      policy_owner_company_id: event.policyOwnerCompanyId ?? null,
       event_type: event.eventType,
+      attention_key: event.attentionKey,
       priority: event.priority,
       read_policy: readPolicy,
       title: event.title,
@@ -287,28 +434,90 @@ async function insertNotification(
       work_item_id: event.workItemId ?? null,
       work_item_subject_id: event.workItemSubjectId ?? null,
       idempotency_key: event.idempotencyKey,
+      last_attention_transition: event.attentionTransition,
+      last_material_change_at: markUnread ? occurredAt : null,
       occurred_at: occurredAt,
     })
-    .onConflict(['recipient_user_id', 'idempotency_key'])
+    .onConflict(activeAttentionConflictTarget(trx))
     .ignore()
     .returning('*');
 
   if (insertedRow) {
-    return { notification: toNotification(insertedRow), inserted: true };
+    return {
+      notification: toNotification(insertedRow),
+      inserted: true,
+      updated: false,
+    };
   }
 
   const existingRow = await trx<NotificationRow>(NOTIFICATIONS_TABLE)
     .where({
       recipient_user_id: event.recipientUserId,
-      idempotency_key: event.idempotencyKey,
+      attention_key: event.attentionKey,
     })
+    .whereNull('resolved_at')
+    .whereNull('archived_at')
+    .forUpdate()
     .first('*');
 
   if (!existingRow) {
-    throw new Error('Notification insert conflict did not return existing row');
+    throw new Error(
+      'Notification active attention conflict did not return existing row',
+    );
   }
 
-  return { notification: toNotification(existingRow), inserted: false };
+  const [updatedRow] = await trx<NotificationRow>(NOTIFICATIONS_TABLE)
+    .where({ id: existingRow.id })
+    .update({
+      firm_company_id: event.firmCompanyId ?? null,
+      client_company_id: event.clientCompanyId ?? null,
+      policy_owner_company_id: event.policyOwnerCompanyId ?? null,
+      event_type: event.eventType,
+      priority: event.priority,
+      read_policy: readPolicy,
+      title: event.title,
+      body: event.body ?? null,
+      destination: event.destination,
+      source_entity_type: event.sourceEntity?.type ?? null,
+      source_entity_id: event.sourceEntity?.id ?? null,
+      source_entity_key: event.sourceEntity?.key ?? null,
+      activity_event_id: event.activityEventId ?? null,
+      work_item_id: event.workItemId ?? null,
+      work_item_subject_id: event.workItemSubjectId ?? null,
+      last_attention_transition: event.attentionTransition,
+      occurred_at: occurredAt,
+      ...(markUnread
+        ? {
+            seen_at: null,
+            read_at: null,
+            last_material_change_at: occurredAt,
+          }
+        : {}),
+      updated_at: trx.fn.now(),
+    })
+    .returning('*');
+
+  if (!updatedRow) {
+    throw new Error('Notification active attention update returned no row');
+  }
+
+  return {
+    notification: toNotification(updatedRow),
+    inserted: false,
+    updated: true,
+  };
+}
+
+function notificationEffectFor(input: {
+  notification: Notification | null;
+  inserted: boolean;
+  updated: boolean;
+  commsRequested: number;
+}): NotificationIdempotencyEffect {
+  if (input.inserted) return 'opened';
+  if (input.updated) return 'updated';
+  if (input.commsRequested > 0) return 'external_only';
+  return 'suppressed';
 }
 
 export async function notify(
@@ -317,41 +526,27 @@ export async function notify(
 ): Promise<NotifyResult> {
   const event = normalizeNotifyEvent(rawEvent);
 
-  if (options.trx) {
-    const plan = await resolveNotificationDeliveryPlan({
-      event,
-      trx: options.trx,
+  const run = async (trx: Knex.Transaction): Promise<NotifyResult> => {
+    const reservation = await reserveNotificationLifecycleEvent(trx, {
+      recipientUserId: event.recipientUserId,
+      idempotencyKey: event.idempotencyKey,
     });
-    const result = plan.inApp.enabled
-      ? await insertNotification(options.trx, event)
-      : { notification: null, inserted: false };
-    const payloads =
-      !plan.inApp.enabled || result.inserted
-        ? buildCommsPayloads({
-            event,
-            routes: plan.comms,
-          })
-        : [];
 
-    for (const payload of payloads) {
-      await writeNotificationCommsRequestedIntent(options.trx, payload);
+    if (!reservation.reserved) {
+      return resultForDuplicateLifecycleEvent(trx, reservation.row);
     }
 
-    return {
-      notification: result.notification,
-      inserted: result.inserted,
-      suppressed: !result.notification && payloads.length === 0,
-      commsRequested: payloads.length,
-    };
-  }
-
-  const result = await knexClient.transaction(async (trx) => {
     const plan = await resolveNotificationDeliveryPlan({ event, trx });
     const notificationResult = plan.inApp.enabled
-      ? await insertNotification(trx, event)
-      : { notification: null, inserted: false };
+      ? await upsertAttentionNotification(trx, event)
+      : { notification: null, inserted: false, updated: false };
+    const shouldSendComms =
+      shouldSendCommsOnTransition(event.attentionTransition) &&
+      (event.attentionTransition !== 'opened' ||
+        notificationResult.inserted ||
+        !plan.inApp.enabled);
     const payloads =
-      !plan.inApp.enabled || notificationResult.inserted
+      shouldSendComms
         ? buildCommsPayloads({
             event,
             routes: plan.comms,
@@ -362,19 +557,101 @@ export async function notify(
       await writeNotificationCommsRequestedIntent(trx, payload);
     }
 
-    return {
+    const result = {
       notification: notificationResult.notification,
       inserted: notificationResult.inserted,
+      updated: notificationResult.updated,
       suppressed: !notificationResult.notification && payloads.length === 0,
       commsRequested: payloads.length,
     } satisfies NotifyResult;
-  });
+
+    await finalizeNotificationLifecycleEvent(trx, {
+      idempotencyRowId: reservation.row.id,
+      notificationId: result.notification?.id ?? null,
+      effect: notificationEffectFor(result),
+    });
+
+    return result;
+  };
+
+  if (options.trx) {
+    return run(options.trx);
+  }
+
+  const result = await knexClient.transaction(run);
 
   if (result.commsRequested > 0) {
     await enqueueOutboxDispatch('kick');
   }
 
   return result;
+}
+
+export async function resolveNotificationAttention(
+  input: {
+    recipientUserId: string;
+    attentionKey: string;
+    idempotencyKey: string;
+    resolvedAt?: Date | string;
+    companyId?: string;
+  },
+  options: { trx?: Knex.Transaction } = {},
+): Promise<ResolveNotificationAttentionResult> {
+  const attentionKey = input.attentionKey.trim();
+  if (!attentionKey) {
+    throw new Error('Notification attentionKey is required for resolution');
+  }
+
+  const run = async (
+    trx: Knex.Transaction,
+  ): Promise<ResolveNotificationAttentionResult> => {
+    const reservation = await reserveNotificationLifecycleEvent(trx, {
+      recipientUserId: input.recipientUserId,
+      idempotencyKey: input.idempotencyKey,
+    });
+
+    if (!reservation.reserved) {
+      return {
+        notification: await loadNotificationById(
+          trx,
+          reservation.row.notification_id,
+        ),
+        resolved: false,
+      };
+    }
+
+    const resolvedAt =
+      input.resolvedAt != null ? new Date(input.resolvedAt) : trx.fn.now();
+    const query = trx<NotificationRow>(NOTIFICATIONS_TABLE)
+      .where({
+        recipient_user_id: input.recipientUserId,
+        attention_key: attentionKey,
+      })
+      .whereNull('resolved_at')
+      .whereNull('archived_at');
+    notificationScope(query, input.companyId);
+
+    const [resolvedRow] = await query
+      .update({
+        resolved_at: resolvedAt,
+        updated_at: trx.fn.now(),
+      })
+      .returning('*');
+    const notification = resolvedRow ? toNotification(resolvedRow) : null;
+
+    await finalizeNotificationLifecycleEvent(trx, {
+      idempotencyRowId: reservation.row.id,
+      notificationId: notification?.id ?? null,
+      effect: notification ? 'resolved' : 'suppressed',
+    });
+
+    return {
+      notification,
+      resolved: Boolean(notification),
+    };
+  };
+
+  return options.trx ? run(options.trx) : knexClient.transaction(run);
 }
 
 export async function getNotificationFeed(input: {
@@ -391,6 +668,7 @@ export async function getNotificationFeed(input: {
 
   const query = client<NotificationRow>(NOTIFICATIONS_TABLE)
     .where('recipient_user_id', input.recipientUserId)
+    .whereNull('resolved_at')
     .whereNull('archived_at');
 
   notificationScope(query, input.companyId);
@@ -448,6 +726,7 @@ export async function getUnreadCounter(input: {
   const query = client<NotificationRow>(NOTIFICATIONS_TABLE)
     .where('recipient_user_id', input.userId)
     .whereNull('read_at')
+    .whereNull('resolved_at')
     .whereNull('archived_at');
 
   notificationScope(query, input.companyId);
@@ -481,6 +760,7 @@ export async function markNotificationsViewed(input: {
     const seenQuery = trx<NotificationRow>(NOTIFICATIONS_TABLE)
       .where('recipient_user_id', input.recipientUserId)
       .whereIn('id', input.notificationIds)
+      .whereNull('resolved_at')
       .whereNull('seen_at');
     notificationScope(seenQuery, input.companyId);
 
@@ -495,6 +775,7 @@ export async function markNotificationsViewed(input: {
       .where('recipient_user_id', input.recipientUserId)
       .whereIn('id', input.notificationIds)
       .where('read_policy', 'auto_on_view')
+      .whereNull('resolved_at')
       .whereNull('read_at');
     notificationScope(readQuery, input.companyId);
 
@@ -526,6 +807,7 @@ export async function markNotificationsRead(input: {
     const query = trx<NotificationRow>(NOTIFICATIONS_TABLE)
       .where('recipient_user_id', input.recipientUserId)
       .whereIn('id', input.notificationIds)
+      .whereNull('resolved_at')
       .whereNull('read_at');
     notificationScope(query, input.companyId);
 
@@ -552,6 +834,7 @@ export async function markAllNotificationsRead(input: {
     const query = trx<NotificationRow>(NOTIFICATIONS_TABLE)
       .where('recipient_user_id', input.recipientUserId)
       .whereNull('archived_at')
+      .whereNull('resolved_at')
       .whereNull('read_at');
     notificationScope(query, input.companyId);
 

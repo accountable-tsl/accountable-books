@@ -85,6 +85,38 @@ export type NotificationDeliveryMode = z.infer<
   typeof notificationDeliveryModeSchema
 >;
 
+export const notificationAttentionTransitionSchema = z.enum([
+  'opened',
+  'routine_update',
+  'material_update',
+  'escalated',
+  'reassigned',
+  'overdue',
+  'failed',
+]);
+export type NotificationAttentionTransition = z.infer<
+  typeof notificationAttentionTransitionSchema
+>;
+
+export const notificationIdempotencyEffectSchema = z.enum([
+  'opened',
+  'updated',
+  'resolved',
+  'suppressed',
+  'external_only',
+]);
+export type NotificationIdempotencyEffect = z.infer<
+  typeof notificationIdempotencyEffectSchema
+>;
+
+export const notificationPreferenceOwnerTypeSchema = z.enum([
+  'user',
+  'company',
+]);
+export type NotificationPreferenceOwnerType = z.infer<
+  typeof notificationPreferenceOwnerTypeSchema
+>;
+
 export type NotificationChannel = NotificationDeliveryChannel | (string & {});
 
 const notificationTypeValues = Object.values(NOTIFICATION_TYPE) as [
@@ -120,7 +152,10 @@ export const notifyEventSchema = z.object({
   recipientUserId: z.uuid(),
   firmCompanyId: z.uuid().nullish(),
   clientCompanyId: z.uuid().nullish(),
+  policyOwnerCompanyId: z.uuid().nullish(),
   eventType: notificationTypeSchema,
+  attentionKey: z.string().trim().min(1),
+  attentionTransition: notificationAttentionTransitionSchema.default('opened'),
   priority: notificationPrioritySchema.default('normal'),
   readPolicy: notificationReadPolicySchema.optional(),
   title: z.string().trim().min(1),
@@ -143,7 +178,9 @@ export interface NotificationRow {
   recipient_user_id: string;
   firm_company_id: string | null;
   client_company_id: string | null;
+  policy_owner_company_id: string | null;
   event_type: string;
+  attention_key: string;
   priority: NotificationPriority;
   read_policy: NotificationReadPolicy;
   title: string;
@@ -156,9 +193,12 @@ export interface NotificationRow {
   work_item_id: string | null;
   work_item_subject_id: string | null;
   idempotency_key: string;
+  last_attention_transition: NotificationAttentionTransition;
   seen_at: Date | string | null;
   read_at: Date | string | null;
+  resolved_at: Date | string | null;
   archived_at: Date | string | null;
+  last_material_change_at: Date | string | null;
   occurred_at: Date | string;
   created_at: Date | string;
   updated_at: Date | string;
@@ -169,7 +209,9 @@ export interface Notification {
   recipientUserId: string;
   firmCompanyId: string | null;
   clientCompanyId: string | null;
+  policyOwnerCompanyId: string | null;
   eventType: string;
+  attentionKey: string;
   priority: NotificationPriority;
   readPolicy: NotificationReadPolicy;
   title: string;
@@ -184,9 +226,12 @@ export interface Notification {
   workItemId: string | null;
   workItemSubjectId: string | null;
   idempotencyKey: string;
+  lastAttentionTransition: NotificationAttentionTransition;
   seenAt: string | null;
   readAt: string | null;
+  resolvedAt: string | null;
   archivedAt: string | null;
+  lastMaterialChangeAt: string | null;
   occurredAt: string;
   createdAt: string;
   updatedAt: string;
@@ -205,8 +250,14 @@ export interface NotificationFeedResult {
 export interface NotifyResult {
   notification: Notification | null;
   inserted: boolean;
+  updated: boolean;
   suppressed: boolean;
   commsRequested: number;
+}
+
+export interface ResolveNotificationAttentionResult {
+  notification: Notification | null;
+  resolved: boolean;
 }
 
 export interface NotificationPreference {
@@ -215,4 +266,21 @@ export interface NotificationPreference {
   channel: NotificationChannel;
   deliveryMode: NotificationDeliveryMode;
   source: 'user' | 'default';
+}
+
+export interface CompanyNotificationPreference {
+  companyId: string;
+  notificationType: string;
+  channel: NotificationChannel;
+  deliveryMode: NotificationDeliveryMode;
+  source: 'company';
+}
+
+export interface EffectiveNotificationPreference {
+  userId: string;
+  policyOwnerCompanyId: string | null;
+  notificationType: string;
+  channel: NotificationChannel;
+  deliveryMode: NotificationDeliveryMode;
+  source: 'user' | 'company' | 'default';
 }

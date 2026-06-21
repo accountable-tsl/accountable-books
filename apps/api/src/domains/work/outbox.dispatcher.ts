@@ -4,6 +4,7 @@ import { knexClient } from '../../db/knexClient.js';
 import { getLogger } from '../../shared/utils/logger.js';
 import { dispatchActivityEventRequested } from '../activity/activity.model.js';
 import {
+  dispatchNotificationAttentionResolved,
   dispatchNotificationCommsRequested,
   dispatchNotificationRequested,
 } from '../notifications/notification-dispatcher.js';
@@ -60,6 +61,9 @@ async function dispatchIntent(
       return { status: 'done' };
     case OUTBOX_INTENT.NOTIFICATION_REQUESTED:
       await dispatchNotificationRequested(row.payload);
+      return { status: 'done' };
+    case OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED:
+      await dispatchNotificationAttentionResolved(row.payload);
       return { status: 'done' };
     case OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED:
       await dispatchNotificationCommsRequested(row.payload);

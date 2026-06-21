@@ -18,6 +18,19 @@ export type NotificationRequestedPayload = z.infer<
   typeof notificationRequestedPayloadSchema
 >;
 
+export const notificationAttentionResolvedPayloadSchema = z
+  .object({
+    recipientUserId: z.uuid(),
+    attentionKey: z.string().trim().min(1),
+    idempotencyKey: z.string().trim().min(1),
+    companyId: z.uuid().optional(),
+    resolvedAt: z.iso.datetime().optional(),
+  })
+  .strict();
+export type NotificationAttentionResolvedPayload = z.infer<
+  typeof notificationAttentionResolvedPayloadSchema
+>;
+
 export const notificationCommsRequestedPayloadSchema = z
   .object({
     payload: commsSendPayloadSchema,
@@ -31,6 +44,12 @@ export function buildNotificationRequestedScopeKey(
   idempotencyKey: string,
 ): string {
   return `${OUTBOX_INTENT.NOTIFICATION_REQUESTED}:${idempotencyKey}`;
+}
+
+export function buildNotificationAttentionResolvedScopeKey(
+  idempotencyKey: string,
+): string {
+  return `${OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED}:${idempotencyKey}`;
 }
 
 export function buildNotificationCommsRequestedScopeKey(
@@ -67,6 +86,24 @@ export async function writeNotificationRequestedIntent(
   });
 
   return { idempotencyKey: parsedEvent.idempotencyKey, scopeKey };
+}
+
+export async function writeNotificationAttentionResolvedIntent(
+  trx: Knex.Transaction,
+  payload: NotificationAttentionResolvedPayload,
+): Promise<{ idempotencyKey: string; scopeKey: string }> {
+  const parsedPayload = notificationAttentionResolvedPayloadSchema.parse(payload);
+  const scopeKey = buildNotificationAttentionResolvedScopeKey(
+    parsedPayload.idempotencyKey,
+  );
+
+  await writeOutboxIntent(trx, {
+    intentType: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
+    scopeKey,
+    payload: parsedPayload,
+  });
+
+  return { idempotencyKey: parsedPayload.idempotencyKey, scopeKey };
 }
 
 export async function writeNotificationCommsRequestedIntent(

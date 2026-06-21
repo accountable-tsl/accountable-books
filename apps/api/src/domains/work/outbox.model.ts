@@ -88,6 +88,7 @@ export async function claimNextPendingIntent(
 
   const row = await query
     .orderBy('available_at', 'asc')
+    .orderBy('id', 'asc')
     .limit(1)
     .forUpdate()
     .skipLocked()
