@@ -17,6 +17,8 @@ import {
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { createCoaAccount } from '../../chart-of-accounts/coa.model.js';
 import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
+import { enqueueOutboxDispatch } from '../../work/outbox.queue.js';
+import { writeBankReconnectNotificationLifecycle } from './bankAccountNotifications.js';
 import {
   bankAccountWithConnectionInput,
   manualBankAccountInputCamel,
@@ -27,6 +29,7 @@ import {
 import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
   BankAccountWithConnectionInput,
+  BankAccountConnectionStatus,
   BankAccountWithMeta,
   CompanyBankingSnapshot,
   ManualBankAccountInput,
@@ -307,6 +310,7 @@ async function createBankAccount({
   }
 
   const v = validatedInput.data;
+  let wroteNotificationIntents = false;
 
   const exec = async (
     tx: Knex.Transaction,
@@ -377,7 +381,12 @@ async function createBankAccount({
       : null;
 
     const existingBankAccount = await tx('bank_accounts')
-      .select(['id', 'coa_id', 'connection_credential_id'])
+      .select([
+        'id',
+        'coa_id',
+        'connection_credential_id',
+        'connection_status',
+      ])
       .where({
         company_id: companyUUID,
         bank_id: bankId,
@@ -423,6 +432,10 @@ async function createBankAccount({
       let bankAccountRow: {
         id: string;
         connection_credential_id: string | null;
+        connection_status: BankAccountConnectionStatus;
+        display_name: string;
+        sync_error: string | null;
+        updated_at: Date | string;
       } | null;
 
       if (existingBankAccount) {
@@ -454,8 +467,22 @@ async function createBankAccount({
           .where({ id: existingBankAccount.id })
           .update(bankAccountUpdate)
           .returning<
-            { id: string; connection_credential_id: string | null }[]
-          >(['id', 'connection_credential_id']);
+            {
+              id: string;
+              connection_credential_id: string | null;
+              connection_status: BankAccountConnectionStatus;
+              display_name: string;
+              sync_error: string | null;
+              updated_at: Date | string;
+            }[]
+          >([
+            'id',
+            'connection_credential_id',
+            'connection_status',
+            'display_name',
+            'sync_error',
+            'updated_at',
+          ]);
       } else {
         [bankAccountRow] = await tx('bank_accounts')
           .insert({
@@ -480,9 +507,23 @@ async function createBankAccount({
             created_by_id: userId,
             updated_by_id: userId,
           })
-          .returning<{ id: string; connection_credential_id: string | null }[]>(
-            ['id', 'connection_credential_id'],
-          );
+          .returning<
+            {
+              id: string;
+              connection_credential_id: string | null;
+              connection_status: BankAccountConnectionStatus;
+              display_name: string;
+              sync_error: string | null;
+              updated_at: Date | string;
+            }[]
+          >([
+            'id',
+            'connection_credential_id',
+            'connection_status',
+            'display_name',
+            'sync_error',
+            'updated_at',
+          ]);
       }
 
       if (!bankAccountRow) {
@@ -491,6 +532,19 @@ async function createBankAccount({
 
       bankAccountId = bankAccountRow.id;
       const newConnectionCredentialId = bankAccountRow.connection_credential_id;
+      const notificationIntentCount =
+        await writeBankReconnectNotificationLifecycle(tx, {
+          bankAccountId,
+          clientCompanyId: companyUUID,
+          previousConnectionStatus:
+            existingBankAccount?.connection_status ?? null,
+          nextConnectionStatus: bankAccountRow.connection_status,
+          bankAccountName: bankAccountRow.display_name,
+          previousSyncError: existingBankAccount?.sync_error ?? null,
+          syncError: bankAccountRow.sync_error,
+          stateVersion: bankAccountRow.updated_at,
+        });
+      wroteNotificationIntents ||= notificationIntentCount > 0;
 
       if (
         oldConnectionCredentialId &&
@@ -617,6 +671,9 @@ async function createBankAccount({
 
   try {
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
+    if (!trx && result.success && wroteNotificationIntents) {
+      await enqueueOutboxDispatch('kick');
+    }
     log.info({ duration: Date.now() - start }, 'created');
     return result;
   } catch (error) {
@@ -689,6 +746,7 @@ export async function updateBankAccounts({
   }
 
   const { data } = validatedInput;
+  let wroteNotificationIntents = false;
   const exec = async (txn: Knex.Transaction): Promise<ApiResponse<number>> => {
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
@@ -696,23 +754,75 @@ export async function updateBankAccounts({
     }
     const results = [];
     for (const i of data) {
-      const result = await txn('bank_accounts')
-        .where('id', i.id)
-        .where('company_id', companyUUID)
-        .update({
-          display_name: i.displayName,
-          account_type: i.accountType,
-          business_or_personal: i.businessOrPersonal,
-          connection_status: i.connectionStatus,
-          notes: i.notes,
-          updated_by_id: userId,
-          updated_at: txn.fn.now(),
-        });
-      if (result === 0) {
+      if (!i.id) {
+        throw new Error('Bank account id is required');
+      }
+
+      const existing = await txn('bank_accounts')
+        .where({ id: i.id, company_id: companyUUID })
+        .forUpdate()
+        .first<{
+          id: string;
+          connection_status: BankAccountConnectionStatus;
+          display_name: string;
+          sync_error: string | null;
+        }>('id', 'connection_status', 'display_name', 'sync_error');
+
+      if (!existing) {
         throw new Error(`Unable to update bank account ${i.id}`);
       }
 
-      results.push(result);
+      const updates: Record<string, unknown> = {
+        updated_by_id: userId,
+        updated_at: txn.fn.now(),
+      };
+      if (i.displayName !== undefined) updates.display_name = i.displayName;
+      if (i.accountType !== undefined) updates.account_type = i.accountType;
+      if (i.businessOrPersonal !== undefined) {
+        updates.business_or_personal = i.businessOrPersonal;
+      }
+      if (i.connectionStatus !== undefined) {
+        updates.connection_status = i.connectionStatus;
+      }
+      if (i.notes !== undefined) updates.notes = i.notes;
+
+      const [updated] = await txn('bank_accounts')
+        .where({ id: i.id, company_id: companyUUID })
+        .update(updates)
+        .returning<
+          {
+            id: string;
+            connection_status: BankAccountConnectionStatus;
+            display_name: string;
+            sync_error: string | null;
+            updated_at: Date | string;
+          }[]
+        >([
+          'id',
+          'connection_status',
+          'display_name',
+          'sync_error',
+          'updated_at',
+        ]);
+
+      if (!updated) {
+        throw new Error(`Unable to update bank account ${i.id}`);
+      }
+
+      const notificationIntentCount =
+        await writeBankReconnectNotificationLifecycle(txn, {
+          bankAccountId: updated.id,
+          clientCompanyId: companyUUID,
+          previousConnectionStatus: existing.connection_status,
+          nextConnectionStatus: updated.connection_status,
+          bankAccountName: updated.display_name,
+          previousSyncError: existing.sync_error,
+          syncError: updated.sync_error,
+          stateVersion: updated.updated_at,
+        });
+      wroteNotificationIntents ||= notificationIntentCount > 0;
+
+      results.push(1);
     }
     return successResponse(
       'Bank accounts updated successfully',
@@ -722,6 +832,9 @@ export async function updateBankAccounts({
 
   try {
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
+    if (!trx && result.success && wroteNotificationIntents) {
+      await enqueueOutboxDispatch('kick');
+    }
     logger.info(
       { userId, companyId, duration: Date.now() - startTime },
       'Bank accounts updated',

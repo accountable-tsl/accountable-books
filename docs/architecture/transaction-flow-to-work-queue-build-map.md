@@ -1,6 +1,6 @@
 # Transaction Flow To Work Queue Build Map
 
-Status: Draft implementation map; Phases 0/1/2/3/4 implemented
+Status: Draft implementation map; Phases 0/1/2/3/4 implemented; Phase 5 partially implemented
 Owner: Product + Engineering
 
 This document is the implementable companion to [Transaction Work Story](./transaction-work-story.md) and [Work Items and Transaction Lifecycle](./work-items-and-transaction-lifecycle.md).
@@ -36,6 +36,7 @@ Those systems matter, but this document only describes their hand-off into trans
 ## Status Markers
 
 - **Built today:** code or tables already exist.
+- **Partial:** some durable foundation exists, but the full target behavior is not launch-complete.
 - **TODO:** behavior we must add or change.
 - **Gap:** expected target behavior does not exist yet.
 - **Smell:** current behavior works but has architectural or product risk.
@@ -94,14 +95,14 @@ This register is deliberately uncomfortable. It names the known issues exposed b
 | G22 | Done | Journal activity | Journal create/update/void/post writes product activity through `activity_event_requested`. | Journal activity is recorded in `activity_events`. |
 | G23 | Gap | Journal queue removal | Posting/voiding/updating a draft journal does not reconcile firm queue work. | Journal mutations trigger materialization for draft and period scopes. |
 | G24 | Done | Manager/admin views | The Phase 1 queue API projects staff, manager, and admin views from the same materialized `work_item_subjects`: staff see assigned/unassigned work, manager/admin see all open firm work. | Later views keep using the same subjects as more work types land. |
-| G25 | Done | Transactional outbox/backstop | Phase 1 has a durable transactional outbox and worker for `work_materialization_requested`, written in the same transaction as bank import source rows and kicked after commit. | Product activity, notifications, and sync hand-off can reuse the same durable outbox pattern in later phases. |
+| G25 | Done | Transactional outbox/backstop | The durable transactional outbox handles `work_materialization_requested`, `activity_event_requested`, `notification_requested`, `notification_attention_resolved`, and `notification_comms_requested` intents. Bank import source rows and follow-up intents are written in the same transaction and kicked after commit. | Initial sync hand-off can reuse the same durable outbox pattern in a later phase. |
 | G26 | Gap | Frontend queue | Firm dashboard queue is still mock-oriented. | Queue UI reads materialized work and routes users to exact destinations. |
 | G27 | Smell | Sync schedule timezone | `transactionSyncDailyScan` declares `tz: UTC` in the schedule registry, but `scheduleDailySyncScan()` currently receives only the cron pattern. | The scheduler passes timezone explicitly, or the schedule docs stop claiming timezone behavior beyond the cron expression. |
 | G28 | Smell | Initial sync hand-off | `connectBankAccounts()` queues initial transaction sync inside the bank-connection database transaction body. | Initial sync is queued after commit or through an outbox so it cannot run for rolled-back connection facts. |
 | G29 | Done | Materializer concurrency | Materialization is serialized per `scope_key` with a DB advisory lock, outbox intents are debounced by scope, and subject ending/count/close operations happen in the same locked transaction. | Later phase handlers must use the same lock and count/close contract. |
 | G30 | Decision | Outbox vs BullMQ ownership | Existing BullMQ queues already execute balance, enrichment, rules, ML, close signal, and sync jobs. A new outbox could accidentally create dual ownership if it directly overlaps those queues. | BullMQ remains the execution engine. The transactional outbox is the durable hand-off for effects that must survive process crashes. Each effect has one owner per path. |
 | G31 | Done | Bank save after-commit | `addNewBankTransactions()` schedules balance recalculation, enrichment, and the outbox dispatch kick through the shared after-commit helper, so rolled-back imports do not enqueue follow-up jobs. | Later decide whether any recoverable derived jobs need to graduate to durable outbox. |
-| G32 | Gap | Notifications | Product-significant work and blockers do not flow through a unified notification system. | Notification rules consume activity and work transitions, create in-app notifications and email deliveries where interruption is warranted, and stay separate from activity/history. |
+| G32 | Partial | Notifications | Phase 5 has in-app notification records, preferences, idempotency keys, notification outbox intents, comms delivery hand-off, and assigned-work notification/resolution from materialized work transitions. Broader launch notification producers are not wired yet. | Notification rules consume activity and work transitions, create in-app notifications and email deliveries where interruption is warranted, and stay separate from activity/history. |
 
 ## Primary Ledger Sources
 
@@ -242,6 +243,17 @@ This subsection records the candidate-review model shipped in Phase 3.
 - **Late/no-work behavior.** Candidates produced after the source bank transaction is already posted are closed with `expired_source_posted`, compared to the existing ledger facts when fair, and never recreate queue work.
 - **Deep-link contract update.** The durable URL filter remains `workItemId`. Queue subjects now include optional `candidateId` metadata, while `getActiveWorkItemBankTransactionIds()` resolves both bank-transaction and candidate subjects to the source bank transaction ids for the categorization workspace.
 
+### Notification Attention Contract (Partially Implemented — Phase 5)
+
+This subsection records the notification foundation shipped in Phase 5 and the remaining boundary.
+
+- **Attention state.** `notifications` stores the in-app feed/read/seen/resolved state. `notification_idempotency_keys` records one lifecycle effect per recipient/idempotency key so retries and duplicate outbox dispatches do not create duplicate user-facing notifications. `notification_preferences` stores user and company overrides; code owns launch defaults.
+- **External delivery boundary.** `comms_deliveries` is the comms-owned delivery audit log for email and future channels. It is correlated to notifications by typed correlation (`{ source: 'notification', id }`) rather than a notification-shaped foreign key, so notification attention state and provider delivery attempts do not become the same table.
+- **Outbox intents.** `notification_requested` creates or updates attention; `notification_attention_resolved` resolves active attention; `notification_comms_requested` hands external delivery to comms. All three are dispatched through the shared transactional outbox.
+- **Work producers.** `materializeWork()` writes notification requests for newly assigned work, reassigned work, and material updates to assigned work. When assigned work closes, the materializer writes a notification-resolution intent so the user is routed to current state instead of stale attention.
+- **Activity separation.** Normal product activity such as import counts and autopost success does not notify by default. Future notification rules may consume activity where attention is warranted, but activity remains history and notification remains interruption/attention management.
+- **Remaining launch producers.** Bank reconnect/client action, client query response, close approval/rejection, stale approval package, overdue/escalated work, report failure/action-needed, and user-fixable sync/import failures still need explicit producers/rules.
+
 ## Canonical Subject Key
 
 ```ts
@@ -349,15 +361,15 @@ Built today:
 - Categorization enrichment is scheduled after commit with `scheduleTransactionEnrichmentAfterCommit()`.
 - A `work_materialization_requested` intent is written in the same save transaction as inserted bank transactions, with scope `{ type: 'bank_account', clientCompanyId, bankAccountId }`.
 - The outbox dispatch kick is scheduled after commit, without a static BullMQ job id, so each committed import can wake the dispatcher while DB-level outbox debounce still coalesces pending work per scope.
+- An `activity_event_requested` intent is written for `bank_transactions_imported` or `bank_transactions_synced` in the same save transaction.
 
 TODO:
 
 - Keep each follow-up effect on its launch owner:
   - `bank_balance_recalc_requested`: existing after-commit BullMQ helper is enough for launch
   - `transaction_enrichment_requested`: existing after-commit BullMQ helper is enough for launch
-  - `activity_event_requested`: durable outbox
+  - `work_materialization_requested` and `activity_event_requested`: durable outbox
 - Keep contact resolution in the save transaction unless we deliberately move it to an asynchronous contact-resolution job.
-- Write `activity_event_requested` for `bank_transactions_imported` or `bank_transactions_synced`.
 - Decide final ownership of bank balance recalculation triggers. Today, `addNewBankTransactions()` queues bank balance recalculation, and provider sync also queues account-level recalculation after successful sync. The queue dedupes/merges by company and bank account, but the ownership must be explicit.
 
 End state:
@@ -462,14 +474,14 @@ Built today:
 - `checkAutopostEligibility()` evaluates autopost policy.
 - `postCandidateToLedger()` posts eligible candidates through `createLedgerRecord()`.
 - Autopost checks whether the bank transaction is already linked to a ledger transaction before posting.
+- Candidate created/replaced/ignored/rejected/posted/source-already-posted lifecycle is recorded in `categorization_candidate_dispositions`.
+- Candidate outcomes compare accounting-significant suggested facts to final ledger facts when comparison is fair.
+- Candidate creation/replacement/rejection/autopost paths write `work_materialization_requested` and `activity_event_requested` outbox intents as needed.
+- A pending-review candidate creates `review_suggestion:categorization_candidate:{id}` instead of plain categorize work.
+- Autopost success records activity and leaves no queue work unless a future firm policy explicitly requires human review.
 
 TODO:
 
-- Convert candidate created/replaced/ignored/posting outcomes into explicit product-facing candidate dispositions.
-- After candidate creation/replacement/ignore/post, write `work_materialization_requested` and `activity_event_requested` outbox intents as needed.
-- If a candidate needs approval, create `review_suggestion:categorization_candidate:{id}`.
-- If no candidate exists, keep or create `categorize:bank_transaction:{id}`.
-- If autopost succeeds, record activity and do not create queue work unless firm policy explicitly requires human review.
 - If autopost fails because of system/internal reasons, record operational telemetry, not bookkeeper work.
 - If candidate validation fails and the user can fix the proposed posting, create `resolve_categorization_blocker`; otherwise treat it as system/operator work.
 
@@ -487,14 +499,13 @@ Built today:
 
 - `processCategorizationIntent()` takes advisory locks per bank transaction before posting.
 - `postCandidateToLedger()` skips if `bank_transactions.ledger_transaction_id` already exists.
+- Candidate materialization reads current domain facts and ignores already-posted bank transactions.
+- Late candidates for already-posted bank transactions are closed with `expired_source_posted`, compared to final ledger facts when fair, and do not recreate work.
+- Posting correctness checks domain facts such as `bank_transactions.ledger_transaction_id`, not `work_items`.
 
 TODO:
 
-- Candidate materialization must check whether the bank transaction is already posted.
-- Candidate persistence should avoid creating an active candidate when `bank_transactions.ledger_transaction_id` already exists; record a superseded/observational disposition instead.
-- Late candidates for already-posted transactions must not create queue work.
-- Late candidates are still compared against final ledger facts for learning and analytics.
-- Posting correctness must check domain facts such as `bank_transactions.ledger_transaction_id`, not `work_items`.
+- Future candidate blocker work must preserve the same no-work-for-solved-sources rule.
 
 End state:
 
@@ -507,19 +518,13 @@ End state:
 Built today:
 
 - The categorization workspace can fetch transaction state through `getCategorizationTransactions()`.
+- The queue API returns grouped work item rows with exact active subjects, target ids, destination workspace data, destination filters, and available actions for the viewer.
+- The categorization workspace supports the durable `workItemId` query filter and constrains the read to the exact active subject set.
 - Current firm queue UI is still mock-oriented.
 
 TODO:
 
-- Queue API returns:
-  - `work_item_id`
-  - exact `work_item_subjects`
-  - bank transaction ids
-  - candidate ids when applicable
-  - destination workspace `categorization`
-  - destination filters
-  - available actions for the viewer
-- Frontend opens categorization filtered to the exact subject set.
+- Replace the firm dashboard's mock queue with the real materialized work queue when the frontend queue migration is in scope.
 
 End state:
 
@@ -533,15 +538,13 @@ Built today:
 - Controller calls `processCategorizationIntent()`.
 - `processCategorizationIntent()` validates intents, groups by bank transaction, locks current rows, reads `categorization_engine_view`, builds ledger input, and calls `updateOrCreateLedger()`.
 - `updateOrCreateLedger()` creates, updates metadata, or supersedes ledger facts.
+- Candidate rejection records disposition/activity, writes materialization intent, and restores categorize work when the source remains unposted.
+- Manual posting records candidate disposition/outcome when applicable, writes product activity, writes materialization intent, and runs fast materialization after commit on the model-owned commit path.
+- Mutation correctness is validated against authoritative domain facts under bank-transaction locks.
 
 TODO:
 
-- Validate capability and use work subject freshness as a UX stale-state guard.
-- Validate mutation correctness against authoritative domain facts under domain locks.
-- Persist suggestion outcome by comparing final ledger facts to candidate/prediction facts.
-- If user rejects without posting, record candidate disposition and rematerialize the bank transaction as categorization work when needed.
-- In the same transaction, write semantic outbox intents for activity and materialization.
-- After commit, run fast materialization before returning when the action came from the queue.
+- Add explicit queue-originated action metadata and subject freshness checks as a UX stale-state guard. Domain locks remain the correctness boundary.
 
 End state:
 
@@ -726,48 +729,53 @@ End state:
 
 Built today:
 
-- There is no unified launch-ready notification system tied to queue, activity, close, and client/bank blockers.
-
-TODO:
-
-- Add notification records for in-app notification center:
+- Phase 5 adds `notifications` for in-app attention/feed state:
   - recipient user id
   - firm company id
   - client company id when relevant
+  - policy owner company id
   - event type
-  - source entity type/id
+  - source entity type/id/key
   - related activity event id when applicable
   - related work item id or subject id when applicable
-  - destination/action
-  - read/seen state
-  - priority
-  - occurred/created timestamps
-- Add notification delivery records for email and future channels:
-  - notification id
+  - destination/action data
+  - read/seen/resolved/archive state
+  - priority/read policy
+  - occurred/created/updated timestamps
+- Phase 5 adds `notification_idempotency_keys` so repeated work/activity transitions and outbox retries do not duplicate attention.
+- Phase 5 adds `notification_preferences` for user and company overrides; safe launch defaults live in code.
+- Phase 5 adds `notification_requested`, `notification_attention_resolved`, and `notification_comms_requested` outbox intents.
+- Phase 5 adds `comms_deliveries` as the comms-owned delivery audit log for email and future channels:
   - channel
   - delivery status
   - attempt count
-  - provider message id/error
-  - sent/delivered/failed timestamps
-- Add notification preferences with safe launch defaults:
-  - immediate for assigned critical blockers, bank reconnect/client action, close approval, rejected/stale approval packages, and overdue/escalated work
-  - digest or in-app-only for normal work volume and informational summaries
-  - no notification for every imported transaction, every autopost, or every internal signal recompute
-- Add `notification_requested` outbox intent for launch-critical notifications.
-- Add notification rules that consume product activity and materialized work transitions. The notification system should not recompute accounting truth.
-- Add idempotency keys so retries do not notify the same user repeatedly for the same transition.
+  - provider key/message id/error/response
+  - queued/sent/delivered/failed/next-attempt timestamps
+  - typed correlation such as `{ source: 'notification', id }`
+- Notification feed, unread count, mark-viewed/read, mark-all-read, and user preference API endpoints exist.
+- Email-capable delivery exists through the comms provider boundary.
+- `materializeWork()` creates notification requests for newly assigned work, reassigned work, and material updates to assigned work.
+- `materializeWork()` resolves assigned-work notification attention when assigned work closes.
+
+TODO:
+
+- Add producers/rules for the remaining launch notification events below.
+- Add overdue/escalation scanning for assigned work.
+- Add rules that consume product activity where interruption is warranted, without notifying for every import, autopost, or internal signal recompute.
+- Add close/approval/staleness notification producers when the close package phases ship.
+- Add client/bank blocker notification producers when those blocker facts are modeled.
 
 Launch notification events:
 
-- work assigned or reassigned to a user
-- assigned work becomes overdue or escalated
-- bank reconnect requires client/user action
-- client query requires a response
-- close package sent for approval
-- close package approved/rejected
-- review package becomes stale after material change
-- reports ready/sent/failed where user action is needed
-- sync/import failure only when a normal user can fix the condition
+- done: work assigned or reassigned to a user
+- TODO: assigned work becomes overdue or escalated
+- TODO: bank reconnect requires client/user action
+- TODO: client query requires a response
+- TODO: close package sent for approval
+- TODO: close package approved/rejected
+- TODO: review package becomes stale after material change
+- TODO: reports ready/sent/failed where user action is needed
+- TODO: sync/import failure only when a normal user can fix the condition
 
 End state:
 
@@ -918,6 +926,7 @@ Built:
 - rejection activity
 - autopost activity
 - journal activity
+- close decision activity
 
 Acceptance test:
 
@@ -927,21 +936,26 @@ Acceptance test:
 
 ### Phase 5: Notifications
 
-Build:
+Built:
 
-- in-app notifications
-- notification delivery records
-- notification preferences with launch defaults
-- `notification_requested` outbox intent
-- notification rules for queue transitions, blockers, close approval, stale packages, and overdue work
-- idempotency keys for repeated work/activity transitions
+- done: in-app notifications
+- done: comms-owned delivery records for email/future channels
+- done: notification preferences with code-owned launch defaults and user/company overrides
+- done: `notification_requested`, `notification_attention_resolved`, and `notification_comms_requested` outbox intents
+- done: assigned-work notification rules for newly assigned, reassigned, materially updated, and resolved work
+- done: idempotency keys for repeated notification lifecycle transitions
+
+Remaining build:
+
+- notification rules/producers for user-fixable blockers, close approval/rejection, stale packages, overdue/escalated work, report failure/action-needed, bank reconnect/client action, and user-fixable sync/import failures
+- activity-consuming notification rules where interruption is warranted
 
 Acceptance test:
 
-- A new assigned work item creates one notification for the assignee.
-- Re-running materialization does not duplicate the notification.
-- Solving the work routes the user to updated state instead of a dead notification.
-- A normal import/autopost activity event does not notify unless policy says user attention is required.
+- done: A new assigned work item creates one notification for the assignee.
+- done: Re-running materialization does not duplicate the notification.
+- done: Solving the work resolves active notification attention so the user is routed to updated state instead of dead attention.
+- done for current rules: A normal import/autopost activity event does not notify unless a future policy says user attention is required.
 
 ### Phase 6: Close Work
 

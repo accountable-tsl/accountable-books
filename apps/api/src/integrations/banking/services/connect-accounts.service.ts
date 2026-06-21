@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { knexClient } from '../../../db/knexClient.js';
 import { createBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
+import { enqueueOutboxDispatch } from '../../../domains/work/outbox.queue.js';
 import { logger } from '../../../shared/utils/logger.js';
 import {
   errorResponse,
@@ -125,7 +126,7 @@ export class ConnectAccountsService {
       });
 
       // ALL DATABASE OPERATIONS IN SINGLE TRANSACTION
-      return await knexClient.transaction(async (trx) => {
+      const response = await knexClient.transaction(async (trx) => {
         log('transaction_start', { accountsCount: providerAccounts.length });
 
         // 1. Save credentials
@@ -305,6 +306,11 @@ export class ConnectAccountsService {
           accounts: createdAccounts,
         });
       });
+
+      if (response.success) {
+        await enqueueOutboxDispatch('kick');
+      }
+      return response;
     } catch (error: unknown) {
       log('transaction_failed', {
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -6,19 +6,12 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import {
-  listNotificationPreferences,
-  setNotificationPreference,
-  SUPPORTED_NOTIFICATION_PREFERENCE_CHANNELS,
-  SUPPORTED_NOTIFICATION_PREFERENCE_DELIVERY_MODES,
-} from './notification-preferences.js';
-import {
   getNotificationFeed,
   getUnreadCounter,
   markAllNotificationsRead,
   markNotificationsRead,
   markNotificationsViewed,
 } from './notifications.model.js';
-import { notificationTypeSchema } from './notifications.types.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 
@@ -26,13 +19,8 @@ const idsBodySchema = z.object({
   notificationIds: z.array(z.uuid()).max(200),
 });
 
-const preferenceBodySchema = z
-  .object({
-    notificationType: notificationTypeSchema,
-    channel: z.enum(SUPPORTED_NOTIFICATION_PREFERENCE_CHANNELS),
-    deliveryMode: z.enum(SUPPORTED_NOTIFICATION_PREFERENCE_DELIVERY_MODES),
-  })
-  .strict();
+const NOTIFICATION_PREFERENCES_MANAGED_MESSAGE =
+  'Notification preferences are managed automatically';
 
 function getRequestUserId(req: AuthRequest): string {
   const userId = req.user?.id;
@@ -127,17 +115,16 @@ export async function getNotificationPreferencesController(
   res: Response,
 ): Promise<Response> {
   try {
-    const preferences = await listNotificationPreferences({
-      userId: getRequestUserId(req),
-    });
+    getRequestUserId(req);
 
+    // V1 is intentionally product-managed: do not expose raw internal event
+    // types or future notification toggles to users.
     return res.status(200).json(
-      successResponse('Notification preferences retrieved', {
-        items: preferences,
-        supportedChannels: [...SUPPORTED_NOTIFICATION_PREFERENCE_CHANNELS],
-        supportedDeliveryModes: [
-          ...SUPPORTED_NOTIFICATION_PREFERENCE_DELIVERY_MODES,
-        ],
+      successResponse(NOTIFICATION_PREFERENCES_MANAGED_MESSAGE, {
+        configurable: false,
+        items: [],
+        supportedChannels: [],
+        supportedDeliveryModes: [],
       }),
     );
   } catch (error) {
@@ -157,31 +144,15 @@ export async function setNotificationPreferenceController(
   res: Response,
 ): Promise<Response> {
   try {
-    const body = preferenceBodySchema.parse(req.body);
-    const preference = await setNotificationPreference({
-      userId: getRequestUserId(req),
-      notificationType: body.notificationType,
-      channel: body.channel,
-      deliveryMode: body.deliveryMode,
-    });
+    getRequestUserId(req);
 
     return res
-      .status(200)
-      .json(successResponse('Notification preference updated', preference));
+      .status(403)
+      .json(errorResponse(NOTIFICATION_PREFERENCES_MANAGED_MESSAGE));
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res
-        .status(400)
-        .json(errorResponse('Invalid notification preference', error));
-    }
-
     const message = error instanceof Error ? error.message : String(error);
     if (message === 'Authenticated user is required') {
       return res.status(401).json(errorResponse(message));
-    }
-
-    if (message.startsWith('Unsupported notification preference')) {
-      return res.status(400).json(errorResponse(message));
     }
 
     return res

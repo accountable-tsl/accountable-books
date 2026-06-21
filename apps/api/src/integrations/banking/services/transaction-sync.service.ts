@@ -1,29 +1,162 @@
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import type { Knex } from 'knex';
 import { startOfMonth } from 'date-fns';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { enqueueBankBalance } from '../../../domains/balances/index.js';
 import { getBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
+import {
+  writeBankReconnectNotificationLifecycle,
+  writeBankSyncFailureRequiresActionNotifications,
+  writeBankSyncFailureResolvedNotifications,
+} from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { addNewBankTransactions } from '../../../domains/bankTransactions/bankTransactions.model.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
+import { enqueueOutboxDispatch } from '../../../domains/work/outbox.queue.js';
+import { alertAdmins } from '../../../features/comms/admin-alerts.js';
 import { redis as redisClient } from '../../../lib/redis.js';
 import { logger } from '../../../shared/utils/logger.js';
 import { providerRegistry } from '../providers/registry.js';
 import { TransactionSyncStrategy } from '../types/base.js';
 
 import type { BankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
+import type { BankAccountConnectionStatus } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 import type {
   BankTransactionBatchInput,
   BankTransactionInput,
 } from '../../../domains/bankTransactions/bankTransactions.types.js';
-import type { ProviderTransaction } from '../types/base.js';
+import type {
+  BankingProvider,
+  ProviderError,
+  ProviderTransaction,
+} from '../types/base.js';
 
 interface BankAccountForSync {
   id: string;
   provider_bank_account_id: string;
   company_id: string;
   currency_id: string;
+}
+
+interface ProcessedTransactionBatchError {
+  batch: {
+    accountId?: string;
+    count?: number;
+  };
+  error: string;
+}
+
+export type TransactionSyncFailureClassification =
+  | 'auth_reconnect'
+  | 'internal_provider_system';
+
+interface ClassifiedTransactionSyncFailure {
+  classification: TransactionSyncFailureClassification;
+  code: string;
+  message: string;
+  displayMessage: string;
+  retryable: boolean;
+}
+
+const AUTH_RECONNECT_ERROR_CODES = new Set([
+  'ITEM_LOGIN_REQUIRED',
+  'INVALID_ACCESS_TOKEN',
+  'INVALID_CREDENTIALS',
+  'INSUFFICIENT_CREDENTIALS',
+  'USER_SETUP_REQUIRED',
+  'MONO_401',
+  'MONO_404',
+]);
+
+const AUTH_RECONNECT_TEXT_PATTERNS = [
+  'please reconnect',
+  'reconnect your bank account',
+  're-auth',
+  'reauth',
+  'login required',
+  'authentication failed',
+  'bank account not found',
+  'credential is not active: expired',
+  'credential is not active: revoked',
+];
+
+function isProviderError(error: unknown): error is ProviderError {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const maybeError = error as Partial<ProviderError>;
+  return (
+    typeof maybeError.code === 'string' &&
+    typeof maybeError.message === 'string' &&
+    typeof maybeError.displayMessage === 'string' &&
+    typeof maybeError.retryable === 'boolean'
+  );
+}
+
+function syncErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (isProviderError(error)) {
+    return error.message || error.displayMessage || error.code;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'Unknown error';
+}
+
+export function classifyTransactionSyncFailure(
+  error: unknown,
+): ClassifiedTransactionSyncFailure {
+  const providerError = isProviderError(error) ? error : null;
+  const code = providerError?.code ?? 'UNKNOWN_TRANSACTION_SYNC_ERROR';
+  const message = providerError?.message ?? syncErrorMessage(error);
+  const displayMessage = providerError?.displayMessage ?? message;
+  const retryable = providerError?.retryable ?? false;
+  const upperCode = code.toUpperCase();
+  const searchableText = [code, message, displayMessage]
+    .join(' ')
+    .toLowerCase();
+  const isAuthReconnect =
+    AUTH_RECONNECT_ERROR_CODES.has(upperCode) ||
+    AUTH_RECONNECT_TEXT_PATTERNS.some((pattern) =>
+      searchableText.includes(pattern),
+    );
+
+  return {
+    classification: isAuthReconnect
+      ? 'auth_reconnect'
+      : 'internal_provider_system',
+    code,
+    message,
+    displayMessage,
+    retryable,
+  };
+}
+
+function syncFailureFingerprint(input: {
+  credentialId: string;
+  providerId: string;
+  failure: ClassifiedTransactionSyncFailure;
+}): string {
+  return createHash('sha256')
+    .update(
+      [
+        input.credentialId,
+        input.providerId,
+        input.failure.classification,
+        input.failure.code,
+        input.failure.message,
+      ].join('|'),
+    )
+    .digest('hex')
+    .slice(0, 24);
+}
+
+function dateBucket(value = new Date()): string {
+  return value.toISOString().slice(0, 10);
 }
 
 export class TransactionSyncService {
@@ -52,6 +185,8 @@ export class TransactionSyncService {
     let totalRemoved = 0;
     let companyId: string = '';
     let providerId: string = '';
+    let providerForFailure: BankingProvider | null = null;
+    let credentialForFailure: BankAccountCredential | null = null;
 
     const acquired = await this.acquireSyncLock(lockKey, lockTTL, traceId);
     if (!acquired) {
@@ -96,6 +231,9 @@ export class TransactionSyncService {
         throw new Error(`Credential not found or invalid: ${credentialId}`);
       }
       const credential = credentialRes.data;
+      credentialForFailure = credential;
+      companyId = credential.company_id;
+      providerId = credential.provider_id;
 
       if (credential.status !== 'active') {
         throw new Error(`Credential is not active: ${credential.status}`);
@@ -106,6 +244,7 @@ export class TransactionSyncService {
       if (!provider) {
         throw new Error(`Provider not found: ${credential.provider_id}`);
       }
+      providerForFailure = provider;
 
       // Check if provider supports transaction sync
       if (!provider.supportsTransactionSync()) {
@@ -116,9 +255,6 @@ export class TransactionSyncService {
         });
         return;
       }
-
-      companyId = credential.company_id;
-      providerId = credential.provider_id;
 
       // Determine sync parameters based on provider strategy
       const isInitialSync = !credential.initial_sync_completed;
@@ -168,6 +304,7 @@ export class TransactionSyncService {
       let totalApiCalls = 0;
       let totalProcessingTime = 0;
       let hasAnyFailures = false; // Track failures across ALL batches
+      const partialImportErrors: ProcessedTransactionBatchError[] = [];
 
       // Track earliest and latest transaction dates per bank account across all batches
       // This will be used to enqueue balance recalculation after sync completes
@@ -226,7 +363,7 @@ export class TransactionSyncService {
         let processedTxns = {
           successful: 0,
           failed: 0,
-          errors: [] as Array<{ batch: any; error: string }>,
+          errors: [] as ProcessedTransactionBatchError[],
         };
 
         // Process modified transactions
@@ -289,14 +426,12 @@ export class TransactionSyncService {
         // Handle failed transactions
         if (processedTxns.failed > 0) {
           hasAnyFailures = true; // Track failures across ALL batches
+          partialImportErrors.push(...processedTxns.errors);
           log('batch_errors', {
             errors: processedTxns.errors,
             failedCount: processedTxns.failed,
             successfulCount: processedTxns.successful,
           });
-
-          // For now, we continue with partial success
-          // In the future, we might implement retry logic here
         }
 
         // Update cursor per batch (for cursor-based providers to avoid infinite loops)
@@ -377,7 +512,20 @@ export class TransactionSyncService {
           last_transactions_sync_at: new Date().toISOString(),
           reason: 'All batches succeeded - safe to update timestamp',
         });
+
+        await this.resolvePartialImportFailureNotificationIntents({
+          credentialId,
+          companyId: credential.company_id,
+          traceId,
+        });
       } else {
+        await this.writePartialImportFailureNotificationIntents({
+          credentialId,
+          companyId: credential.company_id,
+          errors: partialImportErrors,
+          traceId,
+        });
+
         log('timestamp_not_updated_due_to_failures', {
           hasAnyFailures,
           note: 'Next sync will retry the same date range to recover failed transactions',
@@ -496,10 +644,296 @@ export class TransactionSyncService {
         providerId: providerId,
         status: 'error',
       });
+      await this.handleClassifiedSyncFailure({
+        credentialId,
+        companyId: companyId || credentialForFailure?.company_id || '',
+        providerId: providerId || credentialForFailure?.provider_id || '',
+        providerKey: providerForFailure?.key ?? null,
+        error,
+        failure: classifyTransactionSyncFailure(error),
+        traceId,
+      });
       throw error;
     } finally {
       // Always release the lock
       await this.releaseSyncLock(lockKey, traceId);
+    }
+  }
+
+  private async writePartialImportFailureNotificationIntents(input: {
+    credentialId: string;
+    companyId: string;
+    errors: ProcessedTransactionBatchError[];
+    traceId: string;
+  }): Promise<void> {
+    const failures = input.errors.flatMap((error) => {
+      if (!error.batch.accountId) {
+        return [];
+      }
+
+      return [
+        {
+          bankAccountId: error.batch.accountId,
+          error: error.error,
+          failedTransactionCount: error.batch.count,
+        },
+      ];
+    });
+
+    if (failures.length === 0) {
+      logger.warn(
+        {
+          traceId: input.traceId,
+          credentialId: input.credentialId,
+          companyId: input.companyId,
+          errorCount: input.errors.length,
+        },
+        'Transaction sync partial failures had no bank account mapping',
+      );
+      return;
+    }
+
+    try {
+      const intentCount = await knexClient.transaction((trx) =>
+        writeBankSyncFailureRequiresActionNotifications(trx, {
+          clientCompanyId: input.companyId,
+          credentialId: input.credentialId,
+          failures,
+          stateVersion: new Date(),
+        }),
+      );
+
+      if (intentCount > 0) {
+        await enqueueOutboxDispatch('kick');
+      }
+
+      logger.warn(
+        {
+          traceId: input.traceId,
+          credentialId: input.credentialId,
+          companyId: input.companyId,
+          intentCount,
+        },
+        'Transaction sync partial failures opened bookkeeping notifications',
+      );
+    } catch (error) {
+      logger.error(
+        {
+          traceId: input.traceId,
+          credentialId: input.credentialId,
+          companyId: input.companyId,
+          error: syncErrorMessage(error),
+        },
+        'Failed to write transaction sync partial failure notifications',
+      );
+    }
+  }
+
+  private async resolvePartialImportFailureNotificationIntents(input: {
+    credentialId: string;
+    companyId: string;
+    traceId: string;
+  }): Promise<void> {
+    try {
+      const intentCount = await knexClient.transaction((trx) =>
+        writeBankSyncFailureResolvedNotifications(trx, {
+          clientCompanyId: input.companyId,
+          credentialId: input.credentialId,
+          stateVersion: new Date(),
+        }),
+      );
+
+      if (intentCount > 0) {
+        await enqueueOutboxDispatch('kick');
+        logger.info(
+          {
+            traceId: input.traceId,
+            credentialId: input.credentialId,
+            companyId: input.companyId,
+            intentCount,
+          },
+          'Resolved transaction sync partial failure notifications',
+        );
+      }
+    } catch (error) {
+      logger.error(
+        {
+          traceId: input.traceId,
+          credentialId: input.credentialId,
+          companyId: input.companyId,
+          error: syncErrorMessage(error),
+        },
+        'Failed to resolve transaction sync partial failure notifications',
+      );
+    }
+  }
+
+  private async handleClassifiedSyncFailure(input: {
+    credentialId: string;
+    companyId: string;
+    providerId: string;
+    providerKey: string | null;
+    error: unknown;
+    failure: ClassifiedTransactionSyncFailure;
+    traceId: string;
+  }): Promise<void> {
+    if (input.failure.classification === 'auth_reconnect' && input.companyId) {
+      try {
+        const intentCount = await this.markCredentialAccountsReconnectRequired({
+          credentialId: input.credentialId,
+          companyId: input.companyId,
+          syncError: input.failure.displayMessage || input.failure.message,
+        });
+
+        logger.warn(
+          {
+            traceId: input.traceId,
+            credentialId: input.credentialId,
+            companyId: input.companyId,
+            providerId: input.providerId,
+            providerKey: input.providerKey,
+            code: input.failure.code,
+            intentCount,
+          },
+          'Transaction sync auth failure marked bank accounts for reconnect',
+        );
+        return;
+      } catch (handlerError) {
+        logger.error(
+          {
+            traceId: input.traceId,
+            credentialId: input.credentialId,
+            companyId: input.companyId,
+            providerId: input.providerId,
+            providerKey: input.providerKey,
+            error: syncErrorMessage(handlerError),
+          },
+          'Failed to mark bank accounts for reconnect after auth sync failure',
+        );
+      }
+    }
+
+    await this.alertAdminsForSyncFailure(input);
+  }
+
+  private async markCredentialAccountsReconnectRequired(input: {
+    credentialId: string;
+    companyId: string;
+    syncError: string;
+  }): Promise<number> {
+    const fallbackStateVersion = new Date();
+    const intentCount = await knexClient.transaction(async (trx) => {
+      const accounts = await trx('app.bank_accounts')
+        .where({
+          company_id: input.companyId,
+          connection_credential_id: input.credentialId,
+        })
+        .whereIn('connection_status', ['connected', 'error'])
+        .forUpdate()
+        .select('id', 'connection_status', 'display_name', 'sync_error');
+
+      let written = 0;
+      for (const account of accounts) {
+        const previousConnectionStatus =
+          account.connection_status as BankAccountConnectionStatus;
+        const [updated] = await trx('app.bank_accounts')
+          .where({ id: account.id })
+          .update({
+            connection_status: 'error',
+            sync_error: input.syncError,
+            updated_at: trx.fn.now(),
+          })
+          .returning([
+            'id',
+            'connection_status',
+            'display_name',
+            'sync_error',
+            'updated_at',
+          ]);
+
+        if (!updated) {
+          continue;
+        }
+
+        written += await writeBankReconnectNotificationLifecycle(trx, {
+          bankAccountId: updated.id as string,
+          clientCompanyId: input.companyId,
+          previousConnectionStatus,
+          nextConnectionStatus:
+            updated.connection_status as BankAccountConnectionStatus,
+          bankAccountName: updated.display_name as string,
+          previousSyncError: account.sync_error as string | null,
+          syncError: updated.sync_error as string | null,
+          stateVersion: (updated.updated_at as Date | string | null) ??
+            fallbackStateVersion,
+        });
+      }
+
+      return written;
+    });
+
+    if (intentCount > 0) {
+      await enqueueOutboxDispatch('kick');
+    }
+
+    return intentCount;
+  }
+
+  private async alertAdminsForSyncFailure(input: {
+    credentialId: string;
+    companyId: string;
+    providerId: string;
+    providerKey: string | null;
+    error: unknown;
+    failure: ClassifiedTransactionSyncFailure;
+    traceId: string;
+  }): Promise<void> {
+    try {
+      await alertAdmins({
+        idempotencyKey: [
+          'bank-sync',
+          'admin-alert',
+          input.credentialId,
+          syncFailureFingerprint({
+            credentialId: input.credentialId,
+            providerId: input.providerId || 'unknown-provider',
+            failure: input.failure,
+          }),
+          dateBucket(),
+        ].join(':'),
+        eventType: 'bank.transaction_sync_failed',
+        priority: 'critical',
+        title: 'Bank transaction sync failed',
+        body:
+          input.failure.displayMessage ||
+          input.failure.message ||
+          syncErrorMessage(input.error),
+        data: {
+          classification: input.failure.classification,
+          code: input.failure.code,
+          message: input.failure.message,
+          displayMessage: input.failure.displayMessage,
+          retryable: input.failure.retryable,
+          credentialId: input.credentialId,
+          companyId: input.companyId || null,
+          providerId: input.providerId || null,
+          providerKey: input.providerKey,
+          traceId: input.traceId,
+        },
+      });
+    } catch (alertError) {
+      logger.error(
+        {
+          traceId: input.traceId,
+          credentialId: input.credentialId,
+          companyId: input.companyId,
+          providerId: input.providerId,
+          providerKey: input.providerKey,
+          originalError: syncErrorMessage(input.error),
+          alertError: syncErrorMessage(alertError),
+        },
+        'Failed to send admin alert for transaction sync failure',
+      );
     }
   }
 
@@ -519,7 +953,7 @@ export class TransactionSyncService {
   }): Promise<{
     successful: number;
     failed: number;
-    errors: Array<{ batch: any; error: string }>;
+    errors: ProcessedTransactionBatchError[];
   }> {
     const systemUser = await getSystemUser();
     if (!systemUser) {
@@ -534,7 +968,7 @@ export class TransactionSyncService {
     const results = {
       successful: 0,
       failed: 0,
-      errors: [] as Array<{ batch: any; error: string }>,
+      errors: [] as ProcessedTransactionBatchError[],
     };
 
     for (const batch of transactionBatches) {
@@ -560,8 +994,6 @@ export class TransactionSyncService {
               },
               error: res.message || 'Unknown error',
             });
-            // TODO: Add notification system for failed batch imports
-            // Should notify users/admins when transaction sync batches fail
           }
         } else {
           results.successful++;

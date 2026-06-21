@@ -8,11 +8,22 @@ import {
   getCurrencyId,
   getTestCompanyId,
   getTestUserId,
+  NG_USER_EMAIL,
   US_USER_EMAIL,
 } from '../../../../../test/helpers.js';
+import { notify } from '../../../notifications/notifications.model.js';
+import { NOTIFICATION_TYPE } from '../../../notifications/notifications.types.js';
+import { OUTBOX_INTENT } from '../../../work/work.types.js';
+import {
+  buildBankSyncFailureAttentionKey,
+  writeBankReconnectNotificationLifecycle,
+  writeBankSyncFailureRequiresActionNotifications,
+  writeBankSyncFailureResolvedNotifications,
+} from '../bankAccountNotifications.js';
 import {
   createBankAccountWithConnection,
   createManualBankAccount,
+  updateBankAccounts,
 } from '../bankAccounts.model.js';
 
 describe('bank account creation', () => {
@@ -124,7 +135,514 @@ describe('bank account creation', () => {
         .first(),
     ).toBeUndefined();
   });
+
+  it('opens bank reconnect notifications when connection status becomes error', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await ensureClientOwnerRole(trx, {
+      companyId,
+      userId,
+      actorUserId: userId,
+    });
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+
+    const result = await updateBankAccounts({
+      trx,
+      companyId,
+      userId,
+      params: [
+        {
+          id: bankAccount.id,
+          displayName: bankAccount.displayName,
+          accountType: 'checkings_current',
+          businessOrPersonal: 'business',
+          connectionStatus: 'error',
+          notes: 'provider auth failed',
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+
+    const firmCompanyId = await resolveFirmCompanyId(trx, companyId);
+    const intents = await trx('app.outbox_intents')
+      .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+      .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+        NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
+      ])
+      .orderBy('id', 'asc');
+
+    expect(intents).toHaveLength(2);
+    const events = intents.map((intent) => intent.payload.event);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipientUserId: userId,
+          clientCompanyId: companyId,
+          policyOwnerCompanyId: companyId,
+          eventType: NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
+          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionTransition: 'opened',
+          priority: 'high',
+          readPolicy: 'explicit',
+          sourceEntity: { type: 'bank_account', id: bankAccount.id },
+          data: expect.objectContaining({
+            bankAccountId: bankAccount.id,
+            connectionStatus: 'error',
+          }),
+        }),
+        expect.objectContaining({
+          recipientUserId: firmAssigneeId,
+          clientCompanyId: companyId,
+          policyOwnerCompanyId: firmCompanyId,
+          eventType: NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
+          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionTransition: 'opened',
+        }),
+      ]),
+    );
+  });
+
+  it('resolves bank reconnect notifications when reconnect returns status to connected', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await ensureClientOwnerRole(trx, {
+      companyId,
+      userId,
+      actorUserId: userId,
+    });
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+    await updateBankAccounts({
+      trx,
+      companyId,
+      userId,
+      params: [
+        {
+          id: bankAccount.id,
+          displayName: bankAccount.displayName,
+          accountType: 'checkings_current',
+          businessOrPersonal: 'business',
+          connectionStatus: 'revoked',
+          notes: 'credential revoked',
+        },
+      ],
+    });
+
+    const reconnectCredentialId = await createCredentialFixture(trx, {
+      companyId,
+      providerId: bankAccount.providerId,
+      userId,
+    });
+    const reconnect = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: bankAccount.displayName,
+        accountNumber: bankAccount.accountNumber,
+        accountNumberMask: '1234',
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+        providerId: bankAccount.providerId,
+        providerBankAccountId: randomUUID(),
+        connectionCredentialId: reconnectCredentialId,
+        connectionStatus: 'connected',
+      },
+    });
+    expect(reconnect.success).toBe(true);
+    expect(reconnect.data?.wasUpdated).toBe(true);
+
+    const resolutionIntents = await trx('app.outbox_intents')
+      .where({
+        intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
+      })
+      .orderBy('id', 'asc');
+
+    expect(resolutionIntents).toHaveLength(2);
+    expect(resolutionIntents.map((intent) => intent.payload)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipientUserId: userId,
+          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          companyId,
+        }),
+        expect.objectContaining({
+          recipientUserId: firmAssigneeId,
+          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          companyId,
+        }),
+      ]),
+    );
+    for (const intent of resolutionIntents) {
+      expect(String(intent.payload.idempotencyKey)).toContain('resolved');
+      expect(String(intent.payload.idempotencyKey)).toContain(bankAccount.id);
+    }
+  });
+
+  it('emits a reconnect material update when sync error changes on an already-broken connection', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await ensureClientOwnerRole(trx, {
+      companyId,
+      userId,
+      actorUserId: userId,
+    });
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+
+    const intentCount = await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'error',
+      nextConnectionStatus: 'error',
+      bankAccountName: bankAccount.displayName,
+      previousSyncError: 'Previous auth error',
+      syncError: 'Latest auth error',
+      stateVersion: '2026-06-21T00:00:00.000Z',
+    });
+
+    expect(intentCount).toBe(2);
+    const events = await trx('app.outbox_intents')
+      .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+      .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+        NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
+      ])
+      .andWhereRaw(`payload->'event'->>'attentionTransition' = ?`, [
+        'material_update',
+      ])
+      .then((intents) => intents.map((intent) => intent.payload.event));
+
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipientUserId: userId,
+          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionTransition: 'material_update',
+          data: expect.objectContaining({
+            syncError: 'Latest auth error',
+          }),
+        }),
+        expect.objectContaining({
+          recipientUserId: firmAssigneeId,
+          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionTransition: 'material_update',
+        }),
+      ]),
+    );
+  });
+
+  it('opens sync failure notifications for firm assignee when transaction import partially fails', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await ensureClientOwnerRole(trx, {
+      companyId,
+      userId,
+      actorUserId: userId,
+    });
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+    const firmCompanyId = await resolveFirmCompanyId(trx, companyId);
+
+    const intentCount =
+      await writeBankSyncFailureRequiresActionNotifications(trx, {
+        clientCompanyId: companyId,
+        credentialId: bankAccount.credentialId,
+        failures: [
+          {
+            bankAccountId: bankAccount.id,
+            error: 'Missing required transaction field',
+            failedTransactionCount: 4,
+          },
+        ],
+        stateVersion: '2026-06-21T00:00:00.000Z',
+      });
+
+    expect(intentCount).toBe(1);
+    const [intent] = await trx('app.outbox_intents')
+      .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+      .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+        NOTIFICATION_TYPE.SYNC_FAILURE_REQUIRES_ACTION,
+      ]);
+
+    expect(intent?.payload.event).toEqual(
+      expect.objectContaining({
+        recipientUserId: firmAssigneeId,
+        firmCompanyId,
+        clientCompanyId: companyId,
+        policyOwnerCompanyId: firmCompanyId,
+        eventType: NOTIFICATION_TYPE.SYNC_FAILURE_REQUIRES_ACTION,
+        attentionKey: buildBankSyncFailureAttentionKey(bankAccount.id),
+        priority: 'high',
+        readPolicy: 'explicit',
+        sourceEntity: { type: 'bank_account', id: bankAccount.id },
+        data: expect.objectContaining({
+          bankAccountId: bankAccount.id,
+          bankAccountName: bankAccount.displayName,
+          credentialId: bankAccount.credentialId,
+          failedBatchCount: 1,
+          failedTransactionCount: 4,
+          errors: ['Missing required transaction field'],
+        }),
+      }),
+    );
+  });
+
+  it('resolves active sync failure notifications after a clean transaction sync', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+    const firmCompanyId = await resolveFirmCompanyId(trx, companyId);
+    const attentionKey = buildBankSyncFailureAttentionKey(bankAccount.id);
+
+    await notify(
+      {
+        recipientUserId: firmAssigneeId,
+        firmCompanyId,
+        clientCompanyId: companyId,
+        policyOwnerCompanyId: firmCompanyId,
+        eventType: NOTIFICATION_TYPE.SYNC_FAILURE_REQUIRES_ACTION,
+        attentionKey,
+        priority: 'high',
+        readPolicy: 'explicit',
+        title: `Review transaction import for ${bankAccount.displayName}`,
+        destination: {
+          workspace: 'banking',
+          bankAccountId: bankAccount.id,
+          action: 'review_transaction_sync_failure',
+        },
+        sourceEntity: { type: 'bank_account', id: bankAccount.id },
+        idempotencyKey: `test-sync-failure:${bankAccount.id}:open`,
+      },
+      { trx },
+    );
+
+    const intentCount = await writeBankSyncFailureResolvedNotifications(trx, {
+      clientCompanyId: companyId,
+      credentialId: bankAccount.credentialId,
+      stateVersion: '2026-06-21T00:00:00.000Z',
+    });
+
+    expect(intentCount).toBe(1);
+    const [resolutionIntent] = await trx('app.outbox_intents')
+      .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED })
+      .andWhereRaw(`payload->>'attentionKey' = ?`, [attentionKey]);
+
+    expect(resolutionIntent?.payload).toEqual(
+      expect.objectContaining({
+        recipientUserId: firmAssigneeId,
+        attentionKey,
+        companyId,
+      }),
+    );
+  });
 });
+
+async function createConnectedBankAccountFixture(
+  trx: Knex.Transaction,
+  input: {
+    companyId: string;
+    userId: string;
+    bankId: string;
+  },
+): Promise<{
+  id: string;
+  accountNumber: string;
+  displayName: string;
+  providerId: string;
+  credentialId: string;
+}> {
+  const provider = await trx('bank_feed_providers')
+    .select('id')
+    .first<{ id: string }>();
+  if (!provider) {
+    throw new Error('Expected a bank feed provider fixture');
+  }
+  const credentialId = await createCredentialFixture(trx, {
+    companyId: input.companyId,
+    providerId: provider.id,
+    userId: input.userId,
+  });
+  const accountNumber = randomUUID();
+  const displayName = `Connected bank ${randomUUID()}`;
+  const result = await createBankAccountWithConnection({
+    trx,
+    companyId: input.companyId,
+    userId: input.userId,
+    params: {
+      displayName,
+      accountNumber,
+      accountNumberMask: '1234',
+      accountType: 'checkings_current',
+      businessOrPersonal: 'business',
+      bankId: input.bankId,
+      currencyCode: 'USD',
+      providerId: provider.id,
+      providerBankAccountId: randomUUID(),
+      connectionCredentialId: credentialId,
+      connectionStatus: 'connected',
+    },
+  });
+
+  if (!result.success || !result.data?.bankAccountId) {
+    throw new Error(result.message || 'Failed to create connected bank account');
+  }
+
+  return {
+    id: result.data.bankAccountId,
+    accountNumber,
+    displayName,
+    providerId: provider.id,
+    credentialId,
+  };
+}
+
+async function createCredentialFixture(
+  trx: Knex.Transaction,
+  input: { companyId: string; providerId: string; userId: string },
+): Promise<string> {
+  const [credential] = await trx('bank_account_credentials')
+    .insert({
+      company_id: input.companyId,
+      provider_id: input.providerId,
+      item_identifier: randomUUID(),
+      encrypted_access_token: `access-${randomUUID()}`,
+      raw_metadata: JSON.stringify({ source: 'test' }),
+      status: 'active',
+      connected_by_id: input.userId,
+    })
+    .returning('id');
+
+  return credential.id;
+}
+
+async function ensureClientOwnerRole(
+  trx: Knex.Transaction,
+  input: { companyId: string; userId: string; actorUserId: string },
+): Promise<void> {
+  const role = await trx('roles')
+    .where({ key: 'client_owner' })
+    .first<{ id: string }>('id');
+  if (!role) {
+    throw new Error('client_owner role fixture not found');
+  }
+
+  const existing = await trx('user_company_roles')
+    .where({
+      company_id: input.companyId,
+      user_id: input.userId,
+      is_deleted: false,
+    })
+    .first('id');
+
+  if (existing) {
+    await trx('user_company_roles')
+      .where({ id: existing.id })
+      .update({
+        role_id: role.id,
+        updated_by_id: input.actorUserId,
+        updated_at: trx.fn.now(),
+      });
+    return;
+  }
+
+  await trx('user_company_roles').insert({
+    company_id: input.companyId,
+    user_id: input.userId,
+    role_id: role.id,
+    created_by_id: input.actorUserId,
+  });
+}
+
+async function replaceClientAssignee(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    firmStaffUserId: string;
+    actorUserId: string;
+  },
+): Promise<void> {
+  await trx('app.firm_user_client_assignments')
+    .where({ client_company_id: input.clientCompanyId, is_deleted: false })
+    .update({
+      is_deleted: true,
+      deleted_at: trx.fn.now(),
+      updated_by_id: input.actorUserId,
+    });
+
+  await trx('app.firm_user_client_assignments').insert({
+    client_company_id: input.clientCompanyId,
+    firm_staff_user_id: input.firmStaffUserId,
+    created_by_id: input.actorUserId,
+  });
+}
+
+async function resolveFirmCompanyId(
+  trx: Knex.Transaction,
+  clientCompanyId: string,
+): Promise<string> {
+  const assignment = await trx('app.client_firm_assignments')
+    .where({ client_company_id: clientCompanyId, is_deleted: false })
+    .first('accounting_firm_company_id');
+  if (assignment?.accounting_firm_company_id) {
+    return assignment.accounting_firm_company_id;
+  }
+
+  const company = await trx('companies')
+    .where({ id: clientCompanyId })
+    .first('id', 'assigned_firm_id');
+  if (company?.assigned_firm_id) {
+    return company.assigned_firm_id;
+  }
+  if (company?.id) {
+    return company.id;
+  }
+
+  throw new Error(`Company ${clientCompanyId} not found`);
+}
 
 async function countCompanyRows(
   trx: Knex.Transaction,
