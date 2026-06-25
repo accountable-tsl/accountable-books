@@ -23,7 +23,8 @@ import {
   postCandidateToLedger,
 } from '../autopost/index.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
-import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
+// Contact resolution retired (v1): import disabled, caller commented out below.
+// import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
@@ -986,6 +987,8 @@ async function processPredictionToCandidate({
       throw new Error('Failed to persist candidate');
     }
 
+    // Contact resolution retired (v1) — call disabled.
+    /*
     await updateBankTransactionContactResolution({
       trx: txn,
       companyId: companyUUID,
@@ -999,6 +1002,7 @@ async function processPredictionToCandidate({
           ? 'Categorization rule selected contact'
           : 'Categorization prediction selected contact',
     });
+    */
 
     logger.debug(
       {

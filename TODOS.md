@@ -26,6 +26,7 @@
 - [ ] Privacy Policy, Terms of Use, GDPR,
 - [ ] We should (for now) verify firms manually before they are allowed to add clients
 - [ ] Should Cash basis companies need musthaveaccounts?
+- [ ] Client invite/self-serve onboarding must ask whether the client needs historical catch-up bookkeeping.
 
 ### NEAR-TERM (Post-Launch, High Impact)
 

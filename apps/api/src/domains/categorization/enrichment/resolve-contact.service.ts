@@ -144,23 +144,30 @@ export async function resolveContactForEnrichment({
     if (!contactName && !contactId && payee) {
       const normalizedPayee = normalizeContactName(payee);
 
-      const aliasContacts = await tx('contact_aliases as ca')
-        .join('contacts as c', function joinContacts() {
-          this.on('c.id', '=', 'ca.contact_id').andOn(
-            'c.company_id',
-            '=',
-            'ca.company_id',
-          );
-        })
-        .where({
-          'ca.company_id': companyUUID,
-          'ca.normalized_alias': normalizedPayee,
-          'ca.is_deleted': false,
-          'c.status': 'active',
-          'c.is_deleted': false,
-        })
-        .whereNot('ca.verification_status', 'rejected')
-        .select('ca.id as alias_id', 'c.id', 'c.normalized_name');
+      // const aliasContacts = await tx('contact_aliases as ca')
+      //   .join('contacts as c', function joinContacts() {
+      //     this.on('c.id', '=', 'ca.contact_id').andOn(
+      //       'c.company_id',
+      //       '=',
+      //       'ca.company_id',
+      //     );
+      //   })
+      //   .where({
+      //     'ca.company_id': companyUUID,
+      //     'ca.normalized_alias': normalizedPayee,
+      //     'ca.is_deleted': false,
+      //     'c.status': 'active',
+      //     'c.is_deleted': false,
+      //   })
+      //   .whereNot('ca.verification_status', 'rejected')
+      //   .select('ca.id as alias_id', 'c.id', 'c.normalized_name');
+
+      const aliasContacts: Array<{
+        alias_id: string;
+        id: string;
+        normalized_name: string;
+      }> = [];
+
       const contactMatches = await tx('contacts')
         .where({
           company_id: companyUUID,

@@ -30,7 +30,7 @@ export const journalEntryInput = z.object({
   amount: z.number().refine(
     (n) => {
       const parts = n.toString().split('.');
-      return parts.length === 1 || parts[1].length <= 2;
+      return parts.length === 1 || (parts[1]?.length ?? 0) <= 2;
     },
     { message: 'Amount cannot have more than 2 decimal places' },
   ),

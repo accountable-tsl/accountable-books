@@ -23,10 +23,12 @@ function actorFields(actor: ActivityEvent['actor']): {
  */
 export async function insertActivityEvent(
   event: ActivityEvent,
-  client: Knex = knexClient,
+  client: Knex | Knex.Transaction = knexClient,
 ): Promise<{ id: string | null; inserted: boolean }> {
   const parsed = activityEventRequestedPayloadSchema.parse({ event }).event;
   const actor = actorFields(parsed.actor);
+
+  const fiscalCalendarId = parsed.fiscalCalendarId ?? null;
 
   const [row] = await client(ACTIVITY_EVENTS_TABLE)
     .insert({
@@ -38,9 +40,7 @@ export async function insertActivityEvent(
       source_entity_id: parsed.sourceEntity.id ?? null,
       source_entity_key: parsed.sourceEntity.key ?? null,
       ledger_transaction_id: parsed.ledgerTransactionId ?? null,
-      fiscal_year: parsed.fiscalPeriod?.fiscalYear ?? null,
-      period_number: parsed.fiscalPeriod?.periodNumber ?? null,
-      period_type: parsed.fiscalPeriod?.periodType ?? null,
+      fiscal_calendar_id: fiscalCalendarId,
       work_type: parsed.workType ?? null,
       work_item_id: parsed.workItemId ?? null,
       work_item_subject_id: parsed.workItemSubjectId ?? null,

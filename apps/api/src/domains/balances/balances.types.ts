@@ -206,9 +206,7 @@ export interface NewBankDailyBalanceSnapshot {
 export interface GLPeriodBalance {
   company_id: string;
   coa_id: string;
-  fiscal_year: number;
-  period_number: number;
-  period_type: string;
+  fiscal_calendar_id: string;
   opening_balance: string;
   period_debits: string;
   period_credits: string;
@@ -221,9 +219,7 @@ export interface GLPeriodBalance {
 export interface NewGLPeriodBalance {
   company_id: string;
   coa_id: string;
-  fiscal_year: number;
-  period_number: number;
-  period_type: string;
+  fiscal_calendar_id: string;
   opening_balance: string | number;
   period_debits: string | number;
   period_credits: string | number;

@@ -34,7 +34,9 @@ import {
   buildBankTransactionQuery,
   generateBatchFingerprint,
 } from './bankTransactions.utils.js';
-import { createBankTransactionContactResolutions } from './contactResolution.service.js';
+
+// Contact resolution retired (v1): import disabled, callers commented out below.
+// import { createBankTransactionContactResolutions } from './contactResolution.service.js';
 
 import type {
   BankTransaction,
@@ -359,6 +361,8 @@ export async function addNewBankTransactions({
         totalProcessed: preparedTransactions.length,
       });
 
+      // Contact resolution retired (v1) — block disabled.
+      /*
       if (inserted > 0) {
         try {
           const resolutionMetrics = await txn.transaction(
@@ -400,6 +404,7 @@ export async function addNewBankTransactions({
           });
         }
       }
+      */
 
       // Trigger balance recalculation if transactions were inserted
       if (inserted > 0) {
@@ -464,9 +469,9 @@ export async function addNewBankTransactions({
         const insertedTransactionIds = insertedTxns.map((row) => row.id);
         const insertedTotalRow = await txn('bank_transactions')
           .whereIn('id', insertedTransactionIds)
-          .first<{ inserted_total: string }>(
-            txn.raw('COALESCE(SUM(amount), 0)::text as inserted_total'),
-          );
+          .first<{
+            inserted_total: string;
+          }>(txn.raw('COALESCE(SUM(amount), 0)::text as inserted_total'));
         const insertedTotal = insertedTotalRow?.inserted_total ?? '0';
         const { scopeKey } = await writeBankAccountWorkMaterializationIntent(
           txn,
@@ -622,6 +627,62 @@ export async function getBankTransactions(
   }
 }
 
+export type BankPostingSource = {
+  amount: number;
+  systemExchangeRate: number;
+  coaId: string;
+  currencyId: string;
+};
+
+/**
+ * Posting-relevant facts for a set of bank transactions, keyed by id: the native
+ * amount and system FX rate, plus the owning bank account's COA and currency.
+ * Company-scoped through the bank account join, so a foreign id never resolves.
+ * Lets the ledger posting service validate bank legs without owning bank SQL.
+ */
+export async function getBankPostingSources({
+  companyId,
+  bankTransactionIds,
+  trx,
+}: {
+  companyId: string;
+  bankTransactionIds: string[];
+  trx?: Knex.Transaction;
+}): Promise<Map<string, BankPostingSource>> {
+  const sources = new Map<string, BankPostingSource>();
+  if (bankTransactionIds.length === 0) {
+    return sources;
+  }
+
+  const client = trx || knexClient;
+  const rows = await client('bank_transactions as bt')
+    .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
+    .where({
+      'ba.company_id': companyId,
+      'bt.is_deleted': false,
+      'ba.is_deleted': false,
+    })
+    .whereIn('bt.id', bankTransactionIds)
+    .select(
+      'bt.id',
+      'bt.amount',
+      'bt.system_exchange_rate',
+      'ba.coa_id',
+      'ba.currency_id',
+    );
+
+  for (const row of rows) {
+    sources.set(row.id, {
+      amount: Number(row.amount),
+      systemExchangeRate: Number(row.system_exchange_rate),
+      coaId: row.coa_id,
+      currencyId: row.currency_id,
+    });
+  }
+
+  return sources;
+}
+
 /**
  * Get bank transactions by IDs
  *
@@ -653,6 +714,8 @@ export async function getBankTransactionsByIds({
     .whereIn('bt.id', bankTransactionIds)
     .where('bt.is_deleted', false)
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
+    // Contact resolution retired (v1) — bcr + resolved_contact joins disabled; resolved fields default to null.
+    /*
     .leftJoin(
       'bank_transaction_contact_resolutions as bcr',
       function joinBcr() {
@@ -669,10 +732,14 @@ export async function getBankTransactionsByIds({
         .andOnVal('resolved_contact.status', '=', 'active')
         .andOnVal('resolved_contact.is_deleted', '=', false);
     })
+    */
     .select(
       'bt.*',
       'ba.coa_id as bank_account_coa_id',
       'ba.currency_id as bank_account_currency_id',
+      client.raw('NULL as resolved_contact_id'),
+      client.raw('NULL as resolved_contact_type'),
+      /*
       client.raw(
         `CASE
           WHEN bcr.status IN ('inferred', 'confirmed', 'manual_override')
@@ -688,6 +755,7 @@ export async function getBankTransactionsByIds({
           ELSE NULL
         END as resolved_contact_type`,
       ),
+      */
     );
 
   const transactions = await query.orderBy('bt.created_at', 'asc');

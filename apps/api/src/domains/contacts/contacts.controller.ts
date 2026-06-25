@@ -5,6 +5,8 @@ import {
   errorResponse,
   getHttpStatusFromErrorCode,
 } from '../../shared/utils/response.utils.js';
+// Contact resolution retired (v1) — review service import + controllers disabled.
+/*
 import {
   confirmContactResolution,
   createContactFromObservedCounterparty,
@@ -16,6 +18,7 @@ import {
   reassignContactAlias,
   rejectInferredContact,
 } from './contact-resolution-review.service.js';
+*/
 import {
   addNewContacts,
   deleteContact,
@@ -114,6 +117,8 @@ export async function deleteContactController(req: AuthRequest, res: Response) {
   }
 }
 
+// Contact resolution retired (v1) — review controllers disabled below.
+/*
 export async function getContactResolutionReviewQueueController(
   req: AuthRequest,
   res: Response,
@@ -316,3 +321,4 @@ export async function deleteContactAliasController(
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }
+*/

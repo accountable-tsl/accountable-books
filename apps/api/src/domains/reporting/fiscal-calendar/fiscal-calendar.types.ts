@@ -6,103 +6,106 @@ export type FiscalPeriodType = z.infer<typeof fiscalPeriodType>;
 export const fiscalCalendarStatus = z.enum(['open', 'closed', 'locked']);
 export type FiscalCalendarStatus = z.infer<typeof fiscalCalendarStatus>;
 
-const newFiscalCalendar = z.object({
-  company_id: z.uuid(),
-  fiscal_year: z.number().int().min(1900).max(9999),
-  period_number: z.number().int().min(1).max(12),
-  period_type: fiscalPeriodType,
-  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  status: fiscalCalendarStatus.optional().default('open'),
-  closed_at: z.date().nullish(),
-  closed_by_id: z.uuid().nullish(),
-  locked_at: z.date().nullish(),
-  locked_by_id: z.uuid().nullish(),
-  status_changed_at: z.date().optional(),
-  status_changed_by_id: z.uuid().nullish(),
-  created_at: z.date().optional(),
-  updated_at: z.date().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-}).superRefine((value, ctx) => {
-  if (value.end_date < value.start_date) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'end_date must be on or after start_date',
-      path: ['end_date'],
-    });
-  }
-
-  const periodNumberValid =
-    (value.period_type === 'monthly' &&
-      value.period_number >= 1 &&
-      value.period_number <= 12) ||
-    (value.period_type === 'quarterly' &&
-      value.period_number >= 1 &&
-      value.period_number <= 4) ||
-    (value.period_type === 'yearly' && value.period_number === 1);
-
-  if (!periodNumberValid) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'period_number is invalid for period_type',
-      path: ['period_number'],
-    });
-  }
-
-  if (value.status === 'open') {
-    if (
-      value.closed_at ||
-      value.closed_by_id ||
-      value.locked_at ||
-      value.locked_by_id
-    ) {
+const newFiscalCalendar = z
+  .object({
+    company_id: z.uuid(),
+    fiscal_year: z.number().int().min(1900).max(9999),
+    period_number: z.number().int().min(1).max(12),
+    period_type: fiscalPeriodType,
+    start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    status: fiscalCalendarStatus.optional().default('open'),
+    closed_at: z.date().nullish(),
+    closed_by_id: z.uuid().nullish(),
+    locked_at: z.date().nullish(),
+    locked_by_id: z.uuid().nullish(),
+    status_changed_at: z.date().optional(),
+    status_changed_by_id: z.uuid().nullish(),
+    created_at: z.date().optional(),
+    updated_at: z.date().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.end_date < value.start_date) {
       ctx.addIssue({
         code: 'custom',
-        message: 'open periods cannot have close or lock metadata',
+        message: 'end_date must be on or after start_date',
+        path: ['end_date'],
+      });
+    }
+
+    const periodNumberValid =
+      (value.period_type === 'monthly' &&
+        value.period_number >= 1 &&
+        value.period_number <= 12) ||
+      (value.period_type === 'quarterly' &&
+        value.period_number >= 1 &&
+        value.period_number <= 4) ||
+      (value.period_type === 'yearly' && value.period_number === 1);
+
+    if (!periodNumberValid) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'period_number is invalid for period_type',
+        path: ['period_number'],
+      });
+    }
+
+    if (value.status === 'open') {
+      if (
+        value.closed_at ||
+        value.closed_by_id ||
+        value.locked_at ||
+        value.locked_by_id
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'open periods cannot have close or lock metadata',
+          path: ['status'],
+        });
+      }
+      return;
+    }
+
+    if (value.status === 'closed') {
+      if (!value.closed_at || !value.closed_by_id) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'closed periods require closed_at and closed_by_id',
+          path: ['status'],
+        });
+      }
+      if (value.locked_at || value.locked_by_id) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'closed periods cannot have lock metadata',
+          path: ['status'],
+        });
+      }
+      return;
+    }
+
+    if (!value.locked_at || !value.locked_by_id) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'locked periods require locked_at and locked_by_id',
         path: ['status'],
       });
     }
-    return;
-  }
 
-  if (value.status === 'closed') {
     if (!value.closed_at || !value.closed_by_id) {
       ctx.addIssue({
         code: 'custom',
-        message: 'closed periods require closed_at and closed_by_id',
+        message: 'locked periods require closed_at and closed_by_id',
         path: ['status'],
       });
     }
-    if (value.locked_at || value.locked_by_id) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'closed periods cannot have lock metadata',
-        path: ['status'],
-      });
-    }
-    return;
-  }
-
-  if (!value.locked_at || !value.locked_by_id) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'locked periods require locked_at and locked_by_id',
-      path: ['status'],
-    });
-  }
-
-  if (!value.closed_at || !value.closed_by_id) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'locked periods require closed_at and closed_by_id',
-      path: ['status'],
-    });
-  }
-});
+  });
 
 export { newFiscalCalendar };
 
 export interface FiscalCalendar {
+  id: string;
   company_id: string;
   fiscal_year: number;
   period_number: number;
@@ -139,6 +142,7 @@ export interface NewFiscalCalendar {
 }
 
 export interface FiscalPeriodResponse {
+  id: string;
   companyId: string;
   fiscalYear: number;
   periodNumber: number;
@@ -169,6 +173,7 @@ export type PeriodStatusQuery = z.infer<typeof periodStatusQuery>;
 export type PeriodStatusResponse = {
   status: FiscalCalendarStatus;
   periodInfo?: {
+    id: string;
     periodType: FiscalPeriodType;
     fiscalYear: number;
     periodNumber: number;

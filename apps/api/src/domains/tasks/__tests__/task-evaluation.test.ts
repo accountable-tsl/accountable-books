@@ -22,6 +22,8 @@ describe('task-evaluation', () => {
   let clientCompanyId: string;
   let bankAccountId: string;
 
+  let fiscalCalendarId: string;
+
   beforeEach(async () => {
     const db = getTestDb();
     trx = await db.transaction();
@@ -112,15 +114,19 @@ describe('task-evaluation', () => {
     bankAccountId = ba.id;
 
     // One fiscal period for client
-    await trx('fiscal_calendar').insert({
-      company_id: clientCompanyId,
-      fiscal_year: 2025,
-      period_number: 3,
-      period_type: 'monthly',
-      start_date: '2025-03-01',
-      end_date: '2025-03-31',
-      status: 'open',
-    });
+    const [period] = await trx('fiscal_calendar')
+      .insert({
+        company_id: clientCompanyId,
+        fiscal_year: 2025,
+        period_number: 3,
+        period_type: 'monthly',
+        start_date: '2025-03-01',
+        end_date: '2025-03-31',
+        status: 'open',
+      })
+      .returning<{ id: string }[]>(['id']);
+    if (!period) throw new Error('Failed to create fiscal period');
+    fiscalCalendarId = period.id;
   });
 
   afterEach(async () => {
@@ -176,8 +182,7 @@ describe('task-evaluation', () => {
       });
       expect(runs).toHaveLength(1);
       expect(runs[0].domain_area).toBe('bookkeeping');
-      expect(runs[0].fiscal_year).toBe(2025);
-      expect(runs[0].period_number).toBe(3);
+      expect(runs[0].fiscal_calendar_id).toBe(fiscalCalendarId);
 
       const tasks = await trx('engagement_tasks').where({
         client_company_id: clientCompanyId,

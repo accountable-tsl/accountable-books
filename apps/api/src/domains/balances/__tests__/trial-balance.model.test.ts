@@ -96,11 +96,15 @@ describe('trial balance', () => {
       fixture.zeroCoaId,
     );
 
-    const cash = accounts.find((account) => account.coaId === fixture.cashCoaId);
+    const cash = accounts.find(
+      (account) => account.coaId === fixture.cashCoaId,
+    );
     const revenue = accounts.find(
       (account) => account.coaId === fixture.revenueCoaId,
     );
-    const zero = accounts.find((account) => account.coaId === fixture.zeroCoaId);
+    const zero = accounts.find(
+      (account) => account.coaId === fixture.zeroCoaId,
+    );
 
     expect(cash).toMatchObject({
       accountCode: '1000',
@@ -187,11 +191,12 @@ describe('trial balance', () => {
     expect(result.data?.freshness.missingCoaIds).toEqual(
       expect.arrayContaining([fixture.cashCoaId, fixture.revenueCoaId]),
     );
-    expect(result.data?.accounts.find((a) => a.coaId === fixture.cashCoaId))
-      .toMatchObject({
-        hasPeriodBalance: false,
-        freshness: 'missing',
-      });
+    expect(
+      result.data?.accounts.find((a) => a.coaId === fixture.cashCoaId),
+    ).toMatchObject({
+      hasPeriodBalance: false,
+      freshness: 'missing',
+    });
   });
 
   it('marks period balances as stale when newer relevant ledger state exists', async () => {
@@ -216,9 +221,12 @@ describe('trial balance', () => {
     await trx('gl_period_balances')
       .where({
         company_id: fixture.companyId,
-        fiscal_year: 2025,
-        period_number: 4,
-        period_type: 'monthly',
+        fiscal_calendar_id: await fiscalCalendarIdFor(
+          trx,
+          fixture.companyId,
+          2025,
+          4,
+        ),
       })
       .update({ calculated_at: new Date('2025-04-10T00:00:00Z') });
 
@@ -273,9 +281,12 @@ describe('trial balance', () => {
     await trx('gl_period_balances')
       .where({
         company_id: fixture.companyId,
-        fiscal_year: 2025,
-        period_number: 4,
-        period_type: 'monthly',
+        fiscal_calendar_id: await fiscalCalendarIdFor(
+          trx,
+          fixture.companyId,
+          2025,
+          4,
+        ),
       })
       .update({ calculated_at: new Date('2025-04-10T00:00:00Z') });
 
@@ -357,9 +368,12 @@ describe('trial balance', () => {
       .where({
         company_id: fixture.companyId,
         coa_id: fixture.cashCoaId,
-        fiscal_year: 2025,
-        period_number: 2,
-        period_type: 'monthly',
+        fiscal_calendar_id: await fiscalCalendarIdFor(
+          trx,
+          fixture.companyId,
+          2025,
+          2,
+        ),
       })
       .update({ calculated_at: new Date('2025-07-15T00:00:00Z') });
 
@@ -414,7 +428,9 @@ describe('trial balance', () => {
 
     expect(result.success).toBe(true);
     expect(
-      result.data?.accounts.find((account) => account.coaId === fixture.cashCoaId),
+      result.data?.accounts.find(
+        (account) => account.coaId === fixture.cashCoaId,
+      ),
     ).toMatchObject({
       signedOpeningBalance: '700.000',
       signedClosingBalance: '900.000',
@@ -539,7 +555,9 @@ describe('trial balance', () => {
     expect(result.success).toBe(true);
 
     expect(
-      result.data?.accounts.find((account) => account.coaId === fixture.cashCoaId),
+      result.data?.accounts.find(
+        (account) => account.coaId === fixture.cashCoaId,
+      ),
     ).toMatchObject({
       signedOpeningBalance: '0.000',
       periodDebit: '900.00',
@@ -595,7 +613,9 @@ describe('trial balance', () => {
       isOpenRange: true,
     });
     expect(
-      result.data?.accounts.find((account) => account.coaId === fixture.cashCoaId),
+      result.data?.accounts.find(
+        (account) => account.coaId === fixture.cashCoaId,
+      ),
     ).toMatchObject({
       periodDebit: '125.00',
       signedClosingBalance: '125.000',
@@ -987,4 +1007,25 @@ async function recalculateAccounts({
       trx,
     );
   }
+}
+
+async function fiscalCalendarIdFor(
+  trx: Knex.Transaction,
+  companyId: string,
+  fiscalYear: number,
+  periodNumber: number,
+): Promise<string> {
+  const period = await trx('fiscal_calendar')
+    .where({
+      company_id: companyId,
+      fiscal_year: fiscalYear,
+      period_number: periodNumber,
+      period_type: 'monthly',
+    })
+    .select<{ id: string }>('id')
+    .first();
+  if (!period) {
+    throw new Error(`Fiscal period not found: ${fiscalYear}-${periodNumber}`);
+  }
+  return period.id;
 }

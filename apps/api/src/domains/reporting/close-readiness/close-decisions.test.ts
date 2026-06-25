@@ -17,24 +17,41 @@ import {
   createFixture,
   insertLedgerTransaction,
   insertMonthlyPeriod,
-  type Fixture,
 } from './signals/signal-fixtures.js';
 
-const PERIOD = { fiscalYear: 2026, periodNumber: 6, periodType: 'monthly' as const };
+import type { Fixture } from './signals/signal-fixtures.js';
+
+const PERIOD = {
+  fiscalYear: 2026,
+  periodNumber: 6,
+  periodType: 'monthly' as const,
+};
 const REVENUE_FINDING = 'bank_receipt_direct_to_revenue_review' as const;
 
 describe('recordCloseReviewDecision', () => {
   let trx: Knex.Transaction;
   let fixture: Fixture;
+  let periodKey: {
+    companyId: string;
+    fiscalCalendarId: string;
+    fiscalYear: number;
+    periodNumber: number;
+    periodType: 'monthly';
+  };
 
   beforeEach(async () => {
     trx = await getTestDb().transaction();
     fixture = await createFixture(trx);
-    await insertMonthlyPeriod(trx, fixture, {
+    const fiscalCalendarId = await insertMonthlyPeriod(trx, fixture, {
       ...PERIOD,
       startDate: '2026-06-01',
       endDate: '2026-06-30',
     });
+    periodKey = {
+      companyId: fixture.companyId,
+      fiscalCalendarId,
+      ...PERIOD,
+    };
   });
 
   afterEach(async () => {
@@ -58,8 +75,7 @@ describe('recordCloseReviewDecision', () => {
   function merge() {
     return mergeOpenSignalFindings({
       queryable: trx,
-      companyId: fixture.companyId,
-      ...PERIOD,
+      period: periodKey,
     });
   }
 
@@ -108,7 +124,7 @@ describe('recordCloseReviewDecision', () => {
         id: result.decision.id,
       },
       actor: { type: 'user', userId: fixture.userId },
-      fiscalPeriod: PERIOD,
+      fiscalCalendarId: periodKey.fiscalCalendarId,
       metadata: {
         findingCode: REVENUE_FINDING,
         decision: 'acknowledged',
@@ -150,8 +166,7 @@ describe('recordCloseReviewDecision', () => {
   it('returns no_open_finding when the period has no such finding', async () => {
     const rollups = await computeOpenSignalRollups({
       queryable: trx,
-      companyId: fixture.companyId,
-      ...PERIOD,
+      ...periodKey,
     });
     expect(rollups).toHaveLength(0);
 

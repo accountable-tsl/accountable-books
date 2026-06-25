@@ -90,13 +90,11 @@ import {
 import type {
   BankCurrentBalance,
   BankDailyBalanceSnapshot,
-  FiscalCalendar,
   GLCurrentBalance,
   GLDailyBalanceSnapshot,
   GLPeriodBalance,
   NewBankCurrentBalance,
   NewBankDailyBalanceSnapshot,
-  NewFiscalCalendar,
   NewGLCurrentBalance,
   NewGLDailyBalanceSnapshot,
   NewGLPeriodBalance,
@@ -345,12 +343,7 @@ declare module 'knex/types/tables' {
     fiscal_calendar: Knex.CompositeTableType<
       FiscalCalendar,
       NewFiscalCalendar,
-      Partial<
-        Omit<
-          FiscalCalendar,
-          'company_id' | 'fiscal_year' | 'period_number' | 'period_type'
-        >
-      >
+      Partial<Omit<FiscalCalendar, 'id'>>
     >;
 
     gl_daily_balance_snapshots: Knex.CompositeTableType<
@@ -371,14 +364,7 @@ declare module 'knex/types/tables' {
       GLPeriodBalance,
       NewGLPeriodBalance,
       Partial<
-        Omit<
-          GLPeriodBalance,
-          | 'company_id'
-          | 'coa_id'
-          | 'fiscal_year'
-          | 'period_number'
-          | 'period_type'
-        >
+        Omit<GLPeriodBalance, 'company_id' | 'coa_id' | 'fiscal_calendar_id'>
       >
     >;
 

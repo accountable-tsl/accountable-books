@@ -18,6 +18,8 @@ const FISCAL_CALENDAR_STATUSES = ['open', 'closed', 'locked'] as const;
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+
     table
       .uuid('company_id')
       .notNullable()
@@ -63,10 +65,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(`${schemaName}.users`)
       .onDelete('RESTRICT');
 
-    table
-      .jsonb('metadata')
-      .notNullable()
-      .defaultTo(knex.raw(`'{}'::jsonb`));
+    table.jsonb('metadata').notNullable().defaultTo(knex.raw(`'{}'::jsonb`));
 
     table
       .timestamp('created_at', { useTz: true })
@@ -77,12 +76,13 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
-    table.primary(
+    table.unique(
       ['company_id', 'fiscal_year', 'period_number', 'period_type'],
-      {
-        constraintName: 'fiscal_calendar_pk',
-      },
+      { indexName: 'fiscal_calendar_period_unique' },
     );
+    table.unique(['id', 'company_id'], {
+      indexName: 'fiscal_calendar_id_company_uniq',
+    });
   });
 
   await knex.raw(`

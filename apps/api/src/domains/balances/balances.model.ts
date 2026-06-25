@@ -96,6 +96,7 @@ type TrialBalanceResponse = {
 };
 
 type TrialBalancePeriodRow = {
+  id: string;
   fiscal_year: number;
   period_number: number;
   period_type: FiscalPeriodType;
@@ -974,9 +975,7 @@ export async function getTrialBalance({
     });
     const periodBalanceRows = await getTrialBalancePeriodRows({
       companyId: company.id,
-      fiscalYear: period.fiscal_year,
-      periodNumber: period.period_number,
-      periodType: period.period_type,
+      fiscalCalendarId: period.id,
       queryable,
     });
     const activityRows = await getTrialBalanceActivityRows({
@@ -1528,6 +1527,7 @@ async function resolveTrialBalancePeriod({
         period_type: periodType,
       })
       .select(
+        'id',
         'fiscal_year',
         'period_number',
         'period_type',
@@ -1555,6 +1555,7 @@ async function resolveTrialBalancePeriod({
     .where('start_date', '<=', date)
     .where('end_date', '>=', date)
     .select(
+      'id',
       'fiscal_year',
       'period_number',
       'period_type',
@@ -1594,23 +1595,17 @@ async function getTrialBalanceCoas({
 
 async function getTrialBalancePeriodRows({
   companyId,
-  fiscalYear,
-  periodNumber,
-  periodType,
+  fiscalCalendarId,
   queryable,
 }: {
   companyId: string;
-  fiscalYear: number;
-  periodNumber: number;
-  periodType: FiscalPeriodType;
+  fiscalCalendarId: string;
   queryable: Knex | Knex.Transaction;
 }): Promise<TrialBalancePeriodBalanceRow[]> {
   return await queryable('gl_period_balances')
     .where({
       company_id: companyId,
-      fiscal_year: fiscalYear,
-      period_number: periodNumber,
-      period_type: periodType,
+      fiscal_calendar_id: fiscalCalendarId,
     })
     .select(
       'coa_id',

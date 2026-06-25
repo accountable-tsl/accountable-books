@@ -131,6 +131,10 @@ export function lockKeyBankTxn(sourceTxId: string): string {
   return `bank_txn:${sourceTxId}`;
 }
 
+export function lockKeyJournalBatch(sourceTxId: string): string {
+  return `journal_batch:${sourceTxId}`;
+}
+
 export function lockKeyCategorizationIntent(bankTxnId: string): string {
   return `cat_intent:${bankTxnId}`;
 }

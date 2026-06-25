@@ -33,11 +33,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(`${schemaName}.companies`)
       .onDelete('RESTRICT');
 
-    table.integer('fiscal_year').notNullable();
-    table.integer('period_number').notNullable();
-    table
-      .specificType('period_type', `"${schemaName}"."fiscal_period_type"`)
-      .notNullable();
+    table.uuid('fiscal_calendar_id').notNullable();
 
     // The signal or period-level finding this decision applies to.
     table.text('fingerprint').notNullable();
@@ -91,14 +87,12 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
-    // The period the finding belongs to. fiscal_calendar's natural key is the
-    // period columns (no surrogate id), mirroring the gl_period_balances FK.
     table
       .foreign(
-        ['company_id', 'fiscal_year', 'period_number', 'period_type'],
-        'close_review_decisions_fiscal_calendar_fk',
+        ['fiscal_calendar_id', 'company_id'],
+        'close_review_decisions_fiscal_calendar_company_fk',
       )
-      .references(['company_id', 'fiscal_year', 'period_number', 'period_type'])
+      .references(['id', 'company_id'])
       .inTable(`${schemaName}.fiscal_calendar`)
       .onDelete('RESTRICT');
   });
@@ -131,7 +125,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     CREATE INDEX close_review_decisions_period_fingerprint_idx
-      ON ${qualifiedTable} (company_id, fiscal_year, period_number, fingerprint);
+      ON ${qualifiedTable} (company_id, fiscal_calendar_id, fingerprint);
 
     CREATE INDEX close_review_decisions_current_match_idx
       ON ${qualifiedTable} (company_id, fingerprint, facts_hash, decided_at DESC);

@@ -2,13 +2,13 @@ import type { Response } from 'express';
 import { z } from 'zod';
 
 import { errorResponse, successResponse } from '../../../shared/utils/index.js';
+import { fiscalPeriodType } from '../fiscal-calendar/fiscal-calendar.types.js';
 import {
   CLOSE_REVIEW_DECISION_KINDS,
   recordCloseReviewDecision,
 } from './close-decisions.js';
 import { closeReadinessFindingCode } from './close-readiness.types.js';
 import { recomputePeriodSignals } from './signals/close-signals.recompute.js';
-import { fiscalPeriodType } from '../fiscal-calendar/fiscal-calendar.types.js';
 
 import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
@@ -69,14 +69,19 @@ export async function recordCloseReviewDecisionController(
     });
 
     if (!result.ok) {
-      if (result.reason === 'no_open_finding') {
+      if (
+        result.reason === 'no_open_finding' ||
+        result.reason === 'period_not_found'
+      ) {
         return res.status(404).json(errorResponse(result.message, {}));
       }
-      return res.status(409).json(
-        errorResponse(result.message, {
-          currentFactsHash: result.currentFactsHash,
-        }),
-      );
+      if (result.reason === 'facts_changed') {
+        return res.status(409).json(
+          errorResponse(result.message, {
+            currentFactsHash: result.currentFactsHash,
+          }),
+        );
+      }
     }
 
     return res

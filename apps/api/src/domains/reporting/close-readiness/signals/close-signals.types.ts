@@ -4,8 +4,8 @@ import { z } from 'zod';
 import type { AccountElementKey } from '../../../../bootstrap/catalogs/accounting/account-elements.js';
 import type { AccountTypeLabelRole } from '../../../../bootstrap/catalogs/accounting/account-types.js';
 import type { Fingerprint } from '../../../../shared/utils/crypto.utils.js';
-import type { CloseReadinessFindingCode } from '../close-readiness.types.js';
 import type { FiscalPeriodType } from '../../fiscal-calendar/fiscal-calendar.types.js';
+import type { CloseReadinessFindingCode } from '../close-readiness.types.js';
 
 /**
  * Per-transaction close review signal codes.
@@ -147,9 +147,10 @@ export const CLOSE_REVIEW_SIGNAL_METADATA: Record<
 };
 
 /** Signal codes that surface as their own rollup finding at close. */
-export const SURFACED_CLOSE_REVIEW_SIGNAL_CODES = CLOSE_REVIEW_SIGNAL_CODES.filter(
-  (code) => CLOSE_REVIEW_SIGNAL_METADATA[code].surfaced,
-);
+export const SURFACED_CLOSE_REVIEW_SIGNAL_CODES =
+  CLOSE_REVIEW_SIGNAL_CODES.filter(
+    (code) => CLOSE_REVIEW_SIGNAL_METADATA[code].surfaced,
+  );
 
 /**
  * Mirrors the `txn_categorization_source` DB enum. Kept as a local literal so
@@ -193,6 +194,7 @@ export type SignalLedgerEntry = {
 export type SignalLedgerTransaction = {
   ledgerTransactionId: string;
   companyId: string;
+  fiscalCalendarId: string;
   fiscalYear: number;
   periodNumber: number;
   periodType: FiscalPeriodType;

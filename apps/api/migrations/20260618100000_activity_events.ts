@@ -50,11 +50,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(`${schemaName}.ledger_transactions`)
       .onDelete('RESTRICT');
 
-    table.integer('fiscal_year').nullable();
-    table.integer('period_number').nullable();
-    table
-      .specificType('period_type', `"${schemaName}"."fiscal_period_type"`)
-      .nullable();
+    table.uuid('fiscal_calendar_id').nullable();
 
     table.text('work_type').nullable();
     table
@@ -92,17 +88,16 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
-    table
-      .unique(['idempotency_key'], {
-        indexName: 'activity_events_idempotency_unique',
-      });
+    table.unique(['idempotency_key'], {
+      indexName: 'activity_events_idempotency_unique',
+    });
 
     table
       .foreign(
-        ['client_company_id', 'fiscal_year', 'period_number', 'period_type'],
-        'activity_events_fiscal_calendar_fk',
+        ['fiscal_calendar_id', 'client_company_id'],
+        'activity_events_fiscal_calendar_company_fk',
       )
-      .references(['company_id', 'fiscal_year', 'period_number', 'period_type'])
+      .references(['id', 'company_id'])
       .inTable(`${schemaName}.fiscal_calendar`)
       .onDelete('RESTRICT');
   });
@@ -125,12 +120,6 @@ export async function up(knex: Knex): Promise<void> {
           (source_entity_id IS NOT NULL AND source_entity_key IS NULL)
           OR
           (source_entity_id IS NULL AND source_entity_key IS NOT NULL)
-        ),
-      ADD CONSTRAINT activity_events_period_shape_chk
-        CHECK (
-          (fiscal_year IS NULL AND period_number IS NULL AND period_type IS NULL)
-          OR
-          (fiscal_year IS NOT NULL AND period_number IS NOT NULL AND period_type IS NOT NULL)
         ),
       ADD CONSTRAINT activity_events_event_type_format_chk
         CHECK (event_type ~ '^[a-z0-9_]+$'),
@@ -171,8 +160,8 @@ export async function up(knex: Knex): Promise<void> {
       WHERE actor_user_id IS NOT NULL;
 
     CREATE INDEX activity_events_period_idx
-      ON ${qualifiedTable} (client_company_id, fiscal_year, period_number, period_type, occurred_at DESC)
-      WHERE fiscal_year IS NOT NULL;
+      ON ${qualifiedTable} (client_company_id, fiscal_calendar_id, occurred_at DESC)
+      WHERE fiscal_calendar_id IS NOT NULL;
 
     CREATE INDEX activity_events_work_item_idx
       ON ${qualifiedTable} (work_item_id, occurred_at DESC)

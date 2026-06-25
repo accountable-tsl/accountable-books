@@ -1,8 +1,11 @@
+import type { Knex } from 'knex';
 import z from 'zod';
 
 import { debitCredit, zDateYMD } from '../../core/types/core.js';
 import { txnCategorizationSource } from '../categorization/categorization.types.js';
 import { contactType } from '../contacts/index.js';
+
+import type { AuditActorInput, AuditContextInput } from '../audit/index.js';
 
 export const ledgerTransactionSource = z.enum([
   'bank_transaction',
@@ -163,19 +166,21 @@ export const ledgerEntry = z.object({
 });
 export type LedgerEntry = z.infer<typeof ledgerEntry>;
 
-const ledgerTransactionInput = z.object({
-  ...baseLedgerTransaction.shape,
-});
-
 const ledgerEntryInput = z.object({
   ...baseLedgerEntry.shape,
 });
 export type LedgerEntryInput = z.infer<typeof ledgerEntryInput>;
 export const newLedgerTransactionData = z.object({
-  ...ledgerTransactionInput.shape,
+  ...baseLedgerTransaction.shape,
   transactions: z.array(ledgerEntryInput).min(2),
 });
 export type NewLedgerTransactionData = z.infer<typeof newLedgerTransactionData>;
+
+export const ledgerTransactionInput = z.object({
+  ...baseLedgerTransaction.shape,
+  entries: z.array(ledgerEntryInput).min(2),
+});
+export type LedgerTransactionInput = z.infer<typeof ledgerTransactionInput>;
 
 // Updating Ledger Types
 
@@ -260,4 +265,12 @@ export type LedgerTransactionWithEntriesFiltered = Omit<
       | 'search_text'
     >
   >;
+};
+
+export type PostLedgerTransactionsInput = {
+  companyId: string;
+  actor: AuditActorInput;
+  requestContext: AuditContextInput;
+  transactions: LedgerTransactionInput[];
+  trx?: Knex.Transaction;
 };

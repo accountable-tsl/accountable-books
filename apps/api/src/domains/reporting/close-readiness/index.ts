@@ -8,12 +8,14 @@ export {
   dropDecidedAndBuildFindings,
   type DecisionEligibleFinding,
   type PeriodKey,
+  periodKeyFromFiscalCalendar,
 } from './close-finding-decisions.js';
 export {
   computeOpenDecisionEligibleFindings,
   computePeriodFindingCandidates,
   evaluatePeriodFindings,
   type EvaluatePeriodFindingsParams,
+  type OpenDecisionEligibleFindingsResult,
 } from './period-findings.js';
 export {
   CLOSE_REVIEW_DECISION_KINDS,

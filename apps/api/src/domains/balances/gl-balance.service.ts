@@ -759,9 +759,7 @@ class GLBalanceService {
         aggregates.push({
           company_id: companyUUID,
           coa_id: coaId,
-          fiscal_year: period.fiscal_year,
-          period_number: period.period_number,
-          period_type: period.period_type,
+          fiscal_calendar_id: period.id,
           opening_balance: this.toDbAmount(firstRow.opening_balance || 0),
           period_debits: this.toDbAmount(debits),
           period_credits: this.toDbAmount(credits),
@@ -778,13 +776,7 @@ class GLBalanceService {
       // Batch upsert the period balances
       await txn('gl_period_balances')
         .insert(aggregates)
-        .onConflict([
-          'company_id',
-          'coa_id',
-          'fiscal_year',
-          'period_number',
-          'period_type',
-        ])
+        .onConflict(['company_id', 'coa_id', 'fiscal_calendar_id'])
         .merge({
           opening_balance: txn.raw('EXCLUDED.opening_balance'),
           period_debits: txn.raw('EXCLUDED.period_debits'),

@@ -78,16 +78,20 @@ export async function insertMonthlyPeriod(
     startDate: string;
     endDate: string;
   },
-): Promise<void> {
-  await trx('fiscal_calendar').insert({
-    company_id: fixture.companyId,
-    fiscal_year: period.fiscalYear,
-    period_number: period.periodNumber,
-    period_type: 'monthly',
-    start_date: period.startDate,
-    end_date: period.endDate,
-    status: 'open',
-  });
+): Promise<string> {
+  const [row] = await trx('fiscal_calendar')
+    .insert({
+      company_id: fixture.companyId,
+      fiscal_year: period.fiscalYear,
+      period_number: period.periodNumber,
+      period_type: 'monthly',
+      start_date: period.startDate,
+      end_date: period.endDate,
+      status: 'open',
+    })
+    .returning<{ id: string }[]>('id');
+  if (!row) throw new Error('Failed to create fiscal period');
+  return row.id;
 }
 
 export async function createCoa(
@@ -99,7 +103,8 @@ export async function createCoa(
     .where({ key: accountTypeKey })
     .select<{ id: string }[]>('id')
     .first();
-  if (!accountType) throw new Error(`Account type not found: ${accountTypeKey}`);
+  if (!accountType)
+    throw new Error(`Account type not found: ${accountTypeKey}`);
 
   const [coa] = await trx('coa')
     .insert({
@@ -170,7 +175,8 @@ export async function insertLedgerTransaction(
       created_by_id: fixture.userId,
     })
     .returning<{ id: string }[]>('id');
-  if (!ledgerTransaction) throw new Error('Failed to create ledger transaction');
+  if (!ledgerTransaction)
+    throw new Error('Failed to create ledger transaction');
 
   const entryRows = [];
   for (const entry of entries) {

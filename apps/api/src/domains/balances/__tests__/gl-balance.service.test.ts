@@ -31,6 +31,7 @@ type DailySnapshotRow = {
 };
 
 type MonthlyPeriodRow = {
+  id: string;
   fiscal_year: number;
   period_number: number;
 };
@@ -127,9 +128,7 @@ describe('GL balance recalculation', () => {
       .where({
         company_id: fixture.companyId,
         coa_id: fixture.cashCoaId,
-        fiscal_year: monthlyPeriod.fiscal_year,
-        period_number: monthlyPeriod.period_number,
-        period_type: 'monthly',
+        fiscal_calendar_id: monthlyPeriod.id,
       })
       .first();
 
@@ -442,7 +441,7 @@ async function getMonthlyPeriodForDate({
   date: string;
 }): Promise<MonthlyPeriodRow> {
   const period = await trx('fiscal_calendar')
-    .select('fiscal_year', 'period_number')
+    .select('id', 'fiscal_year', 'period_number')
     .where({
       company_id: companyId,
       period_type: 'monthly',

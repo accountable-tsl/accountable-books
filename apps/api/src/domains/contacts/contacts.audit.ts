@@ -94,86 +94,86 @@ export const writeContactDeletedAudit = createAuditWriter({
   payloadSchema: contactDeletedPayload,
 });
 
-export const writeContactResolutionChangedAudit = createAuditWriter({
-  entityType: 'bank_transaction_contact_resolution',
-  action: 'contact_resolution.changed',
-  schemaVersion: '1',
-  payloadSchema: contactResolutionChangedPayload,
-});
+// export const writeContactResolutionChangedAudit = createAuditWriter({
+//   entityType: 'bank_transaction_contact_resolution',
+//   action: 'contact_resolution.changed',
+//   schemaVersion: '1',
+//   payloadSchema: contactResolutionChangedPayload,
+// });
 
-export const writeContactConfirmedAudit = createAuditWriter({
-  entityType: 'contact',
-  action: 'contact.confirmed',
-  schemaVersion: '1',
-  payloadSchema: contactReviewedPayload,
-});
+// export const writeContactConfirmedAudit = createAuditWriter({
+//   entityType: 'contact',
+//   action: 'contact.confirmed',
+//   schemaVersion: '1',
+//   payloadSchema: contactReviewedPayload,
+// });
 
-export const writeContactRejectedAudit = createAuditWriter({
-  entityType: 'contact',
-  action: 'contact.rejected',
-  schemaVersion: '1',
-  payloadSchema: contactReviewedPayload,
-});
+// export const writeContactRejectedAudit = createAuditWriter({
+//   entityType: 'contact',
+//   action: 'contact.rejected',
+//   schemaVersion: '1',
+//   payloadSchema: contactReviewedPayload,
+// });
 
-export const writeContactAliasCreatedAudit = createAuditWriter({
-  entityType: 'contact_alias',
-  action: 'contact_alias.created',
-  schemaVersion: '1',
-  payloadSchema: contactAliasChangedPayload,
-});
+// export const writeContactAliasCreatedAudit = createAuditWriter({
+//   entityType: 'contact_alias',
+//   action: 'contact_alias.created',
+//   schemaVersion: '1',
+//   payloadSchema: contactAliasChangedPayload,
+// });
 
-export const writeContactAliasConfirmedAudit = createAuditWriter({
-  entityType: 'contact_alias',
-  action: 'contact_alias.confirmed',
-  schemaVersion: '1',
-  payloadSchema: contactAliasChangedPayload,
-});
+// export const writeContactAliasConfirmedAudit = createAuditWriter({
+//   entityType: 'contact_alias',
+//   action: 'contact_alias.confirmed',
+//   schemaVersion: '1',
+//   payloadSchema: contactAliasChangedPayload,
+// });
 
-export const writeContactAliasReassignedAudit = createAuditWriter({
-  entityType: 'contact_alias',
-  action: 'contact_alias.reassigned',
-  schemaVersion: '1',
-  payloadSchema: contactAliasChangedPayload,
-});
+// export const writeContactAliasReassignedAudit = createAuditWriter({
+//   entityType: 'contact_alias',
+//   action: 'contact_alias.reassigned',
+//   schemaVersion: '1',
+//   payloadSchema: contactAliasChangedPayload,
+// });
 
-export const writeContactAliasRejectedAudit = createAuditWriter({
-  entityType: 'contact_alias',
-  action: 'contact_alias.rejected',
-  schemaVersion: '1',
-  payloadSchema: contactAliasChangedPayload,
-});
+// export const writeContactAliasRejectedAudit = createAuditWriter({
+//   entityType: 'contact_alias',
+//   action: 'contact_alias.rejected',
+//   schemaVersion: '1',
+//   payloadSchema: contactAliasChangedPayload,
+// });
 
-export const writeContactAliasDeletedAudit = createAuditWriter({
-  entityType: 'contact_alias',
-  action: 'contact_alias.deleted',
-  schemaVersion: '1',
-  payloadSchema: contactAliasChangedPayload,
-});
+// export const writeContactAliasDeletedAudit = createAuditWriter({
+//   entityType: 'contact_alias',
+//   action: 'contact_alias.deleted',
+//   schemaVersion: '1',
+//   payloadSchema: contactAliasChangedPayload,
+// });
 
-export const writeContactResolutionConfirmedAudit = createAuditWriter({
-  entityType: 'bank_transaction_contact_resolution',
-  action: 'contact_resolution.confirmed',
-  schemaVersion: '1',
-  payloadSchema: contactResolutionReviewedPayload,
-});
+// export const writeContactResolutionConfirmedAudit = createAuditWriter({
+//   entityType: 'bank_transaction_contact_resolution',
+//   action: 'contact_resolution.confirmed',
+//   schemaVersion: '1',
+//   payloadSchema: contactResolutionReviewedPayload,
+// });
 
-export const writeContactResolutionLinkedAudit = createAuditWriter({
-  entityType: 'bank_transaction_contact_resolution',
-  action: 'contact_resolution.linked',
-  schemaVersion: '1',
-  payloadSchema: contactResolutionReviewedPayload,
-});
+// export const writeContactResolutionLinkedAudit = createAuditWriter({
+//   entityType: 'bank_transaction_contact_resolution',
+//   action: 'contact_resolution.linked',
+//   schemaVersion: '1',
+//   payloadSchema: contactResolutionReviewedPayload,
+// });
 
-export const writeContactResolutionIgnoredAudit = createAuditWriter({
-  entityType: 'bank_transaction_contact_resolution',
-  action: 'contact_resolution.ignored',
-  schemaVersion: '1',
-  payloadSchema: contactResolutionReviewedPayload,
-});
+// export const writeContactResolutionIgnoredAudit = createAuditWriter({
+//   entityType: 'bank_transaction_contact_resolution',
+//   action: 'contact_resolution.ignored',
+//   schemaVersion: '1',
+//   payloadSchema: contactResolutionReviewedPayload,
+// });
 
-export const writeContactResolutionOverriddenAudit = createAuditWriter({
-  entityType: 'bank_transaction_contact_resolution',
-  action: 'contact_resolution.overridden',
-  schemaVersion: '1',
-  payloadSchema: contactResolutionReviewedPayload,
-});
+// export const writeContactResolutionOverriddenAudit = createAuditWriter({
+//   entityType: 'bank_transaction_contact_resolution',
+//   action: 'contact_resolution.overridden',
+//   schemaVersion: '1',
+//   payloadSchema: contactResolutionReviewedPayload,
+// });

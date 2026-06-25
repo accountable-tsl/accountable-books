@@ -14,6 +14,7 @@ import {
   checkDraftJournals,
   checkLaterPeriodsClosed,
   checkUncategorizedTransactions,
+  periodRangeFromFiscalCalendar,
 } from '../../tasks/condition-checks.js';
 import { newFiscalCalendar } from './fiscal-calendar.types.js';
 
@@ -75,6 +76,28 @@ function mapFiscalCalendarRow(period: FiscalCalendar): FiscalCalendar {
 }
 
 /**
+ * Resolve a fiscal period row id from its natural business key.
+ */
+export async function resolveFiscalCalendarId({
+  companyId,
+  fiscalYear,
+  periodNumber,
+  periodType = 'monthly',
+  trx,
+}: FiscalPeriodLocator & {
+  trx?: Knex | Knex.Transaction;
+}): Promise<string | null> {
+  const period = await getFiscalPeriodBySelector({
+    companyId,
+    fiscalYear,
+    periodNumber,
+    periodType,
+    trx,
+  });
+  return period?.id ?? null;
+}
+
+/**
  * Get fiscal period for a given date
  */
 export async function getFiscalPeriodForDate({
@@ -115,7 +138,7 @@ export async function getFiscalPeriodBySelector({
   periodType = 'monthly',
   trx,
 }: FiscalPeriodLocator & {
-  trx?: Knex.Transaction;
+  trx?: Knex | Knex.Transaction;
 }): Promise<FiscalCalendar | null> {
   const companyUUID = await getCompanyUUID(companyId, trx);
   const queryable = trx ?? db;
@@ -128,6 +151,7 @@ export async function getFiscalPeriodBySelector({
       period_type: periodType,
     })
     .select(
+      'id',
       'company_id',
       'fiscal_year',
       'period_number',
@@ -181,6 +205,7 @@ export async function getPreviousFiscalPeriod({
     .where('end_date', '<', beforeStartYMD)
     .orderBy('end_date', 'desc')
     .select(
+      'id',
       'company_id',
       'fiscal_year',
       'period_number',
@@ -338,11 +363,12 @@ async function validatePeriodClose(
 ): Promise<FiscalPeriodValidation> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const periodRange = periodRangeFromFiscalCalendar(period);
 
   const [uncategorized, draftJournals, laterPeriods] = await Promise.all([
-    checkUncategorizedTransactions(companyId, period, trx),
-    checkDraftJournals(companyId, period, trx),
-    checkLaterPeriodsClosed(companyId, period, trx),
+    checkUncategorizedTransactions(companyId, periodRange, trx),
+    checkDraftJournals(companyId, periodRange, trx),
+    checkLaterPeriodsClosed(companyId, periodRange, trx),
   ]);
 
   if (uncategorized.isActive) warnings.push(uncategorized.message);
@@ -544,6 +570,7 @@ export async function getFiscalPeriods(
     .orderBy('period_number', 'asc');
 
   return periods.map((period) => ({
+    id: period.id,
     companyId: period.company_id,
     fiscalYear: period.fiscal_year,
     periodNumber: period.period_number,
@@ -1246,6 +1273,7 @@ export async function getFiscalCalendar({
   const knex = trx ?? db;
   const query = knex('fiscal_calendar')
     .select(
+      'id',
       'company_id',
       'fiscal_year',
       'period_number',
@@ -1461,6 +1489,7 @@ export async function getPeriodStatusForDate({
 }): Promise<{
   status: FiscalCalendarStatus;
   periodInfo?: {
+    id: string;
     periodType: FiscalPeriodType;
     fiscalYear: number;
     periodNumber: number;
@@ -1485,6 +1514,7 @@ export async function getPeriodStatusForDate({
   return {
     status: monthly.status,
     periodInfo: {
+      id: monthly.id,
       periodType: monthly.period_type,
       fiscalYear: monthly.fiscal_year,
       periodNumber: monthly.period_number,

@@ -501,22 +501,26 @@ async function insertMonthlyPeriod(
     status?: 'open' | 'closed';
     userId?: string | null;
   },
-): Promise<void> {
-  await trx('fiscal_calendar').insert({
-    company_id: companyId,
-    fiscal_year: fiscalYear,
-    period_number: periodNumber,
-    period_type: 'monthly',
-    start_date: startDate,
-    end_date: endDate,
-    status,
-    ...(status === 'closed'
-      ? {
-          closed_at: new Date(`${endDate}T23:59:59.000Z`),
-          closed_by_id: userId,
-        }
-      : {}),
-  });
+): Promise<string> {
+  const [row] = await trx('fiscal_calendar')
+    .insert({
+      company_id: companyId,
+      fiscal_year: fiscalYear,
+      period_number: periodNumber,
+      period_type: 'monthly',
+      start_date: startDate,
+      end_date: endDate,
+      status,
+      ...(status === 'closed'
+        ? {
+            closed_at: new Date(`${endDate}T23:59:59.000Z`),
+            closed_by_id: userId,
+          }
+        : {}),
+    })
+    .returning<{ id: string }[]>('id');
+  if (!row) throw new Error('Failed to create fiscal period');
+  return row.id;
 }
 
 async function createUncategorizedBankTransaction(
@@ -618,12 +622,25 @@ async function insertPeriodBalance(
     closingBalance: number;
   },
 ): Promise<void> {
+  const fiscalCalendar = await trx('fiscal_calendar')
+    .where({
+      company_id: companyId,
+      fiscal_year: fiscalYear,
+      period_number: periodNumber,
+      period_type: 'monthly',
+    })
+    .select<{ id: string }>('id')
+    .first();
+  if (!fiscalCalendar) {
+    throw new Error(
+      `Fiscal period not found: ${fiscalYear}-${periodNumber}-monthly`,
+    );
+  }
+
   await trx('gl_period_balances').insert({
     company_id: companyId,
     coa_id: coaId,
-    fiscal_year: fiscalYear,
-    period_number: periodNumber,
-    period_type: 'monthly',
+    fiscal_calendar_id: fiscalCalendar.id,
     opening_balance: 0,
     period_debits: periodDebits,
     period_credits: periodCredits,

@@ -2,11 +2,10 @@ import type { AccountingBasis } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
 
 import { toYMD } from '../../../shared/utils/date.utils.js';
-import { getAccountActivity, type AccountActivityRow } from './account-activity.js';
+import { getAccountActivity } from './account-activity.js';
 import {
   dropDecidedAndBuildFindings,
-  type DecisionEligibleFinding,
-  type PeriodKey,
+  periodKeyFromFiscalCalendar,
 } from './close-finding-decisions.js';
 import {
   buildRollupFactsHash,
@@ -15,6 +14,11 @@ import {
 } from './open-signal-findings.js';
 
 import type { AccountElementKey } from '../../../bootstrap/catalogs/accounting/account-elements.js';
+import type { AccountActivityRow } from './account-activity.js';
+import type {
+  DecisionEligibleFinding,
+  PeriodKey,
+} from './close-finding-decisions.js';
 import type { CloseReadinessFinding } from './close-readiness.types.js';
 
 export { getAccountActivity, type AccountActivityRow };
@@ -38,6 +42,11 @@ export type EvaluatePeriodFindingsParams = {
   accountActivity: AccountActivityRow[];
 };
 
+export type OpenDecisionEligibleFindingsResult = {
+  period: PeriodKey;
+  candidates: DecisionEligibleFinding[];
+};
+
 /**
  * Period-level close findings: computed at read time from the GL and the FX
  * register (not from a single ledger transaction), and run through the same
@@ -51,7 +60,11 @@ export async function evaluatePeriodFindings(
   params: EvaluatePeriodFindingsParams,
 ): Promise<CloseReadinessFinding[]> {
   const candidates = await computePeriodFindingCandidates(params);
-  return dropDecidedAndBuildFindings(params.queryable, params.period, candidates);
+  return dropDecidedAndBuildFindings(
+    params.queryable,
+    params.period,
+    candidates,
+  );
 }
 
 /**
@@ -76,6 +89,11 @@ export async function computePeriodFindingCandidates(
 }
 
 type PeriodContextRow = {
+  id: string;
+  company_id: string;
+  fiscal_year: number;
+  period_number: number;
+  period_type: PeriodKey['periodType'];
   accounting_basis: AccountingBasis;
   start_date: string;
   end_date: string;
@@ -90,8 +108,11 @@ type PeriodContextRow = {
  */
 export async function computeOpenDecisionEligibleFindings(
   queryable: Knex,
-  selector: PeriodKey,
-): Promise<DecisionEligibleFinding[] | null> {
+  selector: Pick<
+    PeriodKey,
+    'companyId' | 'fiscalYear' | 'periodNumber' | 'periodType'
+  >,
+): Promise<OpenDecisionEligibleFindingsResult | null> {
   const context = await queryable('companies as co')
     .join('fiscal_calendar as fc', function () {
       this.on('fc.company_id', 'co.id');
@@ -101,6 +122,11 @@ export async function computeOpenDecisionEligibleFindings(
     .andWhere('fc.period_number', selector.periodNumber)
     .andWhere('fc.period_type', selector.periodType)
     .first<PeriodContextRow | undefined>(
+      'fc.id',
+      'fc.company_id',
+      'fc.fiscal_year',
+      'fc.period_number',
+      'fc.period_type',
       'co.accounting_basis',
       queryable.raw('fc.start_date::text as start_date'),
       queryable.raw('fc.end_date::text as end_date'),
@@ -108,28 +134,32 @@ export async function computeOpenDecisionEligibleFindings(
 
   if (!context) return null;
 
+  const period = periodKeyFromFiscalCalendar(context);
   const startDate = toYMD(context.start_date);
   const endDate = toYMD(context.end_date);
   const accountActivity = await getAccountActivity({
     queryable,
-    companyId: selector.companyId,
+    companyId: period.companyId,
     startDate,
     endDate,
   });
 
   const [signalCandidates, periodCandidates] = await Promise.all([
-    computeSignalRollupCandidates({ queryable, ...selector }),
+    computeSignalRollupCandidates({ queryable, ...period }),
     computePeriodFindingCandidates({
       queryable,
       accountingBasis: context.accounting_basis,
-      period: selector,
+      period,
       startDate,
       endDate,
       accountActivity,
     }),
   ]);
 
-  return [...signalCandidates, ...periodCandidates];
+  return {
+    period,
+    candidates: [...signalCandidates, ...periodCandidates],
+  };
 }
 
 /**
@@ -158,7 +188,11 @@ function buildCapexWithoutDepreciationCandidate(
 
   return {
     findingCode,
-    fingerprint: buildRollupFingerprint({ ...params.period, findingCode, relatedCoaIds }),
+    fingerprint: buildRollupFingerprint({
+      ...params.period,
+      findingCode,
+      relatedCoaIds,
+    }),
     // Material fact: which fixed-asset accounts moved without depreciation. If
     // depreciation later posts, the candidate is not produced and the finding
     // disappears; if the set of accounts changes, the identity changes.
@@ -195,10 +229,9 @@ async function buildFxBalancesWithoutRevaluationCandidate(
   const openPositions = await queryable('fx_positions')
     .where({ company_id: period.companyId, state: 'open' })
     .whereNot('open_fx_amount', 0)
-    .select<{ account_id: string; open_fx_amount: string | number }[]>(
-      'account_id',
-      'open_fx_amount',
-    );
+    .select<
+      { account_id: string; open_fx_amount: string | number }[]
+    >('account_id', 'open_fx_amount');
   if (openPositions.length === 0) return null;
 
   const revalued = await queryable('fx_position_movements')
@@ -217,7 +250,11 @@ async function buildFxBalancesWithoutRevaluationCandidate(
 
   return {
     findingCode,
-    fingerprint: buildRollupFingerprint({ ...period, findingCode, relatedCoaIds }),
+    fingerprint: buildRollupFingerprint({
+      ...period,
+      findingCode,
+      relatedCoaIds,
+    }),
     // Material facts: the open exposure per account, so a material change in any
     // position re-opens a prior acknowledgement.
     factsHash: buildRollupFactsHash(

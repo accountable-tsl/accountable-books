@@ -7,7 +7,8 @@ import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
-import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
+// Contact resolution retired (v1): import disabled, caller commented out below.
+// import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
   appendCandidateDisposition,
@@ -180,7 +181,8 @@ export async function persistCategorizationCandidate({
         disposition: 'expired_source_posted',
         runId,
         ledgerTransactionId: bankTransaction.ledger_transaction_id,
-        reason: 'Bank transaction was already posted before the candidate became reviewable',
+        reason:
+          'Bank transaction was already posted before the candidate became reviewable',
         idempotencyKey: `candidate:${candidate.id}:expired_source_posted:${bankTransaction.ledger_transaction_id}`,
       });
 
@@ -460,6 +462,8 @@ export async function updateCategorizationCandidate(
         ...(contactType ? { contact_type: contactType } : {}),
       });
 
+    // Contact resolution retired (v1) — block disabled.
+    /*
     if (contactId) {
       const candidate = await txn('categorization_candidates')
         .where({ id: candidate_id, is_deleted: false })
@@ -480,6 +484,7 @@ export async function updateCategorizationCandidate(
         });
       }
     }
+    */
   };
 
   if (p.trx) {

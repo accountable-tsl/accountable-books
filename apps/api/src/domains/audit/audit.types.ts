@@ -158,6 +158,7 @@ export type WriteAuditEventInputCamel<T> = SnakeToCamelCaseObject<
  * Canonical actor input shape used across domains when writing audit events.
  * Domains should not redefine their own actor/source/context types.
  */
+
 export type AuditActorInput =
   | { type: 'user'; userId: string; impersonatedByUserId?: string | null }
   | { type: 'system' }

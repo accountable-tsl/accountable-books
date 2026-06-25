@@ -1,20 +1,40 @@
 import type { Knex } from 'knex';
 
-import {
-  buildCloseReadinessFinding,
-  type CloseReadinessFinding,
-  type CloseReadinessFindingCode,
-} from './close-readiness.types.js';
+import { buildCloseReadinessFinding } from './close-readiness.types.js';
 
 import type { Fingerprint } from '../../../shared/utils/crypto.utils.js';
-import type { FiscalPeriodType } from '../fiscal-calendar/fiscal-calendar.types.js';
+import type {
+  FiscalCalendar,
+  FiscalPeriodType,
+} from '../fiscal-calendar/fiscal-calendar.types.js';
+import type {
+  CloseReadinessFinding,
+  CloseReadinessFindingCode,
+} from './close-readiness.types.js';
 
+/** Resolved fiscal period — natural keys plus the FK anchor for child tables. */
 export type PeriodKey = {
   companyId: string;
+  fiscalCalendarId: string;
   fiscalYear: number;
   periodNumber: number;
   periodType: FiscalPeriodType;
 };
+
+export function periodKeyFromFiscalCalendar(
+  period: Pick<
+    FiscalCalendar,
+    'id' | 'company_id' | 'fiscal_year' | 'period_number' | 'period_type'
+  >,
+): PeriodKey {
+  return {
+    companyId: period.company_id,
+    fiscalCalendarId: period.id,
+    fiscalYear: period.fiscal_year,
+    periodNumber: period.period_number,
+    periodType: period.period_type,
+  };
+}
 
 /**
  * A finding the user can acknowledge: its catalog code, the stable `fingerprint`
@@ -51,9 +71,7 @@ async function loadDecided(
   const rows = await queryable('close_review_decisions')
     .where({
       company_id: period.companyId,
-      fiscal_year: period.fiscalYear,
-      period_number: period.periodNumber,
-      period_type: period.periodType,
+      fiscal_calendar_id: period.fiscalCalendarId,
       finding_scope: 'period_finding',
     })
     .whereIn('fingerprint', fingerprints)
@@ -84,7 +102,8 @@ export async function dropDecidedAndBuildFindings(
 
   return candidates
     .filter(
-      (candidate) => !decided.has(matchKey(candidate.fingerprint, candidate.factsHash)),
+      (candidate) =>
+        !decided.has(matchKey(candidate.fingerprint, candidate.factsHash)),
     )
     .map((candidate) =>
       buildCloseReadinessFinding(candidate.findingCode, {

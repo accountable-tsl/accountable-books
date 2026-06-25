@@ -18,7 +18,6 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { scheduleGLBalanceAfterCommit } from '../balances/index.js';
-import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
@@ -26,9 +25,10 @@ import {
   reverseFxPositionMovementsForLedgerTransaction,
   upsertFxPosition,
 } from '../fx/index.js';
+import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
-import { getBankTransactionContactResolution } from './bank-transaction-contact-resolution.service.js';
+// import { getBankTransactionContactResolution } from './bank-transaction-contact-resolution.service.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
@@ -272,19 +272,19 @@ export async function createLedgerRecord({
         );
       }
 
-      const contactResolution = await getBankTransactionContactResolution({
-        companyId: companyUUID,
-        bankTransactionId: sourceTxId!,
-        trx: txn,
-      });
+      // const contactResolution = await getBankTransactionContactResolution({
+      //   companyId: companyUUID,
+      //   bankTransactionId: sourceTxId!,
+      //   trx: txn,
+      // });
 
       bankTxn = {
         amount: Number(bankTxnResult.amount),
         system_exchange_rate: Number(bankTxnResult.system_exchange_rate),
         bank_coa_id: bankTxnResult.bank_coa_id,
         bank_currency_id: bankTxnResult.bank_currency_id,
-        resolved_contact_id: contactResolution.contact_id,
-        resolved_contact_type: contactResolution.contact_type,
+        resolved_contact_id: null,
+        resolved_contact_type: null,
       };
 
       const bankLeg = bankLegs[0];
@@ -548,16 +548,7 @@ export async function createLedgerRecord({
           fx_transaction_id: string | null;
           fs_date: string | Date;
         }>
-      >([
-        'id',
-        'coa_id',
-        'source_currency_id',
-        'source_amount',
-        'amount',
-        'is_monetary',
-        'fx_transaction_id',
-        'fs_date',
-      ]);
+      >(['id', 'coa_id', 'source_currency_id', 'source_amount', 'amount', 'is_monetary', 'fx_transaction_id', 'fs_date']);
 
     if (trackFxPositions && fxTransactionId) {
       for (const entry of insertedEntries) {

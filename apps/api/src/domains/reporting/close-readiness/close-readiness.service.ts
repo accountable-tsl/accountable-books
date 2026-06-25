@@ -10,7 +10,8 @@ import {
   getFiscalPeriodBySelector,
   getPreviousFiscalPeriod,
 } from '../fiscal-calendar/fiscal-calendar.service.js';
-import { getAccountActivity, type AccountActivityRow } from './account-activity.js';
+import { getAccountActivity } from './account-activity.js';
+import { periodKeyFromFiscalCalendar } from './close-finding-decisions.js';
 import {
   buildCloseReadinessFinding as buildFinding,
   closeReadinessEvaluation,
@@ -24,6 +25,7 @@ import type {
   FiscalCalendar,
   FiscalPeriodType,
 } from '../fiscal-calendar/fiscal-calendar.types.js';
+import type { AccountActivityRow } from './account-activity.js';
 import type {
   CloseReadinessAudience,
   CloseReadinessEvaluation,
@@ -92,6 +94,7 @@ export async function evaluateCloseReadiness({
 
   const startDate = toYMD(fiscalPeriod.start_date);
   const endDate = toYMD(fiscalPeriod.end_date);
+  const periodKey = periodKeyFromFiscalCalendar(fiscalPeriod);
   const timezone = company.default_timezone || 'Etc/UTC';
   const localToday = formatInTimeZone(now, timezone, 'yyyy-MM-dd');
   const stateGateCodes: CloseReadinessStateGateCode[] = [];
@@ -149,22 +152,14 @@ export async function evaluateCloseReadiness({
     findings.push(
       ...(await mergeOpenSignalFindings({
         queryable,
-        companyId: company.id,
-        fiscalYear: fiscalPeriod.fiscal_year,
-        periodNumber: fiscalPeriod.period_number,
-        periodType: fiscalPeriod.period_type,
+        period: periodKey,
       })),
     );
     findings.push(
       ...(await evaluatePeriodFindings({
         queryable,
         accountingBasis: company.accounting_basis,
-        period: {
-          companyId: company.id,
-          fiscalYear: fiscalPeriod.fiscal_year,
-          periodNumber: fiscalPeriod.period_number,
-          periodType: fiscalPeriod.period_type,
-        },
+        period: periodKey,
         startDate,
         endDate,
         accountActivity,

@@ -12,9 +12,13 @@ WITH uncategorized_txns AS (
     bt.amount as bank_amount,
     bt.description as description,
     bt.reference as reference,
-    COALESCE(resolved_contacts.display_name, bt.payee) as contact_name,
-    resolved_contacts.id as contact_id,
-    btr.contact_type as contact_type,
+    -- Contact resolution retired (v1) — resolved_contacts/btr removed; default to payee/null.
+    -- COALESCE(resolved_contacts.display_name, bt.payee) as contact_name,
+    -- resolved_contacts.id as contact_id,
+    -- btr.contact_type as contact_type,
+    bt.payee as contact_name,
+    NULL::uuid as contact_id,
+    NULL as contact_type,
     bt.bank_account_id,
     ba.display_name as bank_account_display_name,
     b.id as bank_id,
@@ -88,13 +92,14 @@ WITH uncategorized_txns AS (
   LEFT JOIN coa ba_coa ON ba.coa_id = ba_coa.id
   JOIN companies c ON ba.company_id = c.id
   LEFT JOIN currencies rc ON c.reporting_currency_id = rc.id
-  LEFT JOIN bank_transaction_contact_resolutions btr
-    ON btr.bank_transaction_id = bt.id
-    AND btr.company_id = ba.company_id
-  LEFT JOIN contacts resolved_contacts
-    ON resolved_contacts.id = btr.contact_id
-    AND resolved_contacts.company_id = ba.company_id
-    AND resolved_contacts.status = 'active'
+  -- Contact resolution retired (v1) — bcr + resolved_contacts joins removed.
+  -- LEFT JOIN bank_transaction_contact_resolutions btr
+  --   ON btr.bank_transaction_id = bt.id
+  --   AND btr.company_id = ba.company_id
+  -- LEFT JOIN contacts resolved_contacts
+  --   ON resolved_contacts.id = btr.contact_id
+  --   AND resolved_contacts.company_id = ba.company_id
+  --   AND resolved_contacts.status = 'active'
   LEFT JOIN file_attachments fa_bank ON fa_bank.source = 'bank'
     AND fa_bank.transaction_id = bt.id
     AND fa_bank.entry_id IS NULL
@@ -110,7 +115,7 @@ WITH uncategorized_txns AS (
         AND cc.review_state = 'pending_review'
     )
   GROUP BY bt.id, bt.transaction_date, bt.amount, bt.description, bt.reference, bt.payee,
-    resolved_contacts.id, resolved_contacts.display_name, btr.contact_type,
+    -- resolved_contacts.id, resolved_contacts.display_name, btr.contact_type, -- contact resolution retired (v1)
     bt.bank_account_id, ba.display_name, b.id, b.display_name,
     ba.currency_id, cur.code, b.logo_url, ba.coa_id, ba_coa.name, ba_coa.code, 
     bt.system_exchange_rate, ba.company_id, rc.id, rc.code, rc.name, rc.symbol

@@ -7,8 +7,9 @@ import {
   createFixture,
   insertLedgerTransaction,
   insertMonthlyPeriod,
-  type Fixture,
 } from './signal-fixtures.js';
+
+import type { Fixture } from './signal-fixtures.js';
 
 const SIGNALS_TABLE = 'close_review_signals';
 
@@ -155,12 +156,21 @@ async function insertStaleSignal(
   ledgerTransactionId: string,
   fingerprint: string,
 ): Promise<void> {
+  const period = await trx('fiscal_calendar')
+    .where({
+      company_id: fixture.companyId,
+      fiscal_year: 2026,
+      period_number: 6,
+      period_type: 'monthly',
+    })
+    .select<{ id: string }>('id')
+    .first();
+  if (!period) throw new Error('Expected June 2026 fiscal period');
+
   await trx('close_review_signals').insert({
     company_id: fixture.companyId,
     ledger_transaction_id: ledgerTransactionId,
-    fiscal_year: 2026,
-    period_number: 6,
-    period_type: 'monthly',
+    fiscal_calendar_id: period.id,
     code: 'posted_to_fallback_account',
     fingerprint,
     facts_hash: 'stale-facts',

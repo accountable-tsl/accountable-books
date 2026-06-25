@@ -46,6 +46,7 @@ function makeTxn(
   return {
     ledgerTransactionId: randomUUID(),
     companyId: randomUUID(),
+    fiscalCalendarId: randomUUID(),
     fiscalYear: 2026,
     periodNumber: 6,
     periodType: 'monthly',

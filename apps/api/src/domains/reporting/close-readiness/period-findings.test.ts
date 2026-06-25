@@ -11,8 +11,9 @@ import {
   createFixture,
   insertLedgerTransaction,
   insertMonthlyPeriod,
-  type Fixture,
 } from './signals/signal-fixtures.js';
+
+import type { Fixture } from './signals/signal-fixtures.js';
 
 const PERIOD = {
   fiscalYear: 2026,
@@ -28,15 +29,27 @@ const FX_FINDING = 'fx_revaluation_decision_review';
 describe('evaluatePeriodFindings', () => {
   let trx: Knex.Transaction;
   let fixture: Fixture;
+  let periodKey: {
+    companyId: string;
+    fiscalCalendarId: string;
+    fiscalYear: number;
+    periodNumber: number;
+    periodType: 'monthly';
+  };
 
   beforeEach(async () => {
     trx = await getTestDb().transaction();
     fixture = await createFixture(trx); // modified_accrual_basis by default
-    await insertMonthlyPeriod(trx, fixture, {
+    const fiscalCalendarId = await insertMonthlyPeriod(trx, fixture, {
       ...PERIOD,
       startDate: START,
       endDate: END,
     });
+    periodKey = {
+      companyId: fixture.companyId,
+      fiscalCalendarId,
+      ...PERIOD,
+    };
   });
 
   afterEach(async () => {
@@ -44,7 +57,9 @@ describe('evaluatePeriodFindings', () => {
   });
 
   async function run(
-    accountingBasis: 'modified_accrual_basis' | 'modified_cash_basis' = 'modified_accrual_basis',
+    accountingBasis:
+      | 'modified_accrual_basis'
+      | 'modified_cash_basis' = 'modified_accrual_basis',
   ) {
     const accountActivity = await getAccountActivity({
       queryable: trx,
@@ -55,7 +70,7 @@ describe('evaluatePeriodFindings', () => {
     return evaluatePeriodFindings({
       queryable: trx,
       accountingBasis,
-      period: { companyId: fixture.companyId, ...PERIOD },
+      period: periodKey,
       startDate: START,
       endDate: END,
       accountActivity,

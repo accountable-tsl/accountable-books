@@ -1,10 +1,7 @@
 import type { Knex } from 'knex';
 
 import { generateFingerprintSync } from '../../../shared/utils/crypto.utils.js';
-import {
-  dropDecidedAndBuildFindings,
-  type DecisionEligibleFinding,
-} from './close-finding-decisions.js';
+import { dropDecidedAndBuildFindings } from './close-finding-decisions.js';
 import {
   type CloseReadinessFinding,
   type CloseReadinessFindingCode,
@@ -12,11 +9,15 @@ import {
 import {
   CLOSE_REVIEW_SIGNAL_METADATA,
   SURFACED_CLOSE_REVIEW_SIGNAL_CODES,
-  type CloseReviewSignalCode,
 } from './signals/close-signals.types.js';
 
 import type { Fingerprint } from '../../../shared/utils/crypto.utils.js';
 import type { FiscalPeriodType } from '../fiscal-calendar/fiscal-calendar.types.js';
+import type {
+  DecisionEligibleFinding,
+  PeriodKey,
+} from './close-finding-decisions.js';
+import type { CloseReviewSignalCode } from './signals/close-signals.types.js';
 
 /**
  * Stable identity of a rollup finding — the unit a user acts on. Identity is the
@@ -74,13 +75,6 @@ type RollupAccumulator = {
   signalCodes: Set<CloseReviewSignalCode>;
 };
 
-export type PeriodSelector = {
-  companyId: string;
-  fiscalYear: number;
-  periodNumber: number;
-  periodType: FiscalPeriodType;
-};
-
 /**
  * One rollup finding's identity and current material state, computed from the
  * period's surfaced signals. The read path (`mergeOpenSignalFindings`) and the
@@ -97,7 +91,7 @@ export type OpenSignalRollup = {
   factsHash: Fingerprint;
 };
 
-export type MergeOpenSignalFindingsParams = Knexed<PeriodSelector>;
+export type MergeOpenSignalFindingsParams = Knexed<PeriodKey>;
 
 type Knexed<T> = T & { queryable: Knex };
 
@@ -113,16 +107,15 @@ type Knexed<T> = T & { queryable: Knex };
 export async function computeOpenSignalRollups({
   queryable,
   companyId,
+  fiscalCalendarId,
   fiscalYear,
   periodNumber,
   periodType,
-}: Knexed<PeriodSelector>): Promise<OpenSignalRollup[]> {
+}: Knexed<PeriodKey>): Promise<OpenSignalRollup[]> {
   const signals = await queryable('close_review_signals')
     .where({
       company_id: companyId,
-      fiscal_year: fiscalYear,
-      period_number: periodNumber,
-      period_type: periodType,
+      fiscal_calendar_id: fiscalCalendarId,
     })
     .whereIn('code', [...SURFACED_CLOSE_REVIEW_SIGNAL_CODES])
     .select<OpenSignalRow[]>(
@@ -163,7 +156,7 @@ export async function computeOpenSignalRollups({
  * decision writer so both resolve the exact same finding identity.
  */
 export async function computeSignalRollupCandidates(
-  params: Knexed<PeriodSelector>,
+  params: Knexed<PeriodKey>,
 ): Promise<DecisionEligibleFinding[]> {
   const rollups = await computeOpenSignalRollups(params);
 
@@ -194,24 +187,17 @@ export async function computeSignalRollupCandidates(
  */
 export async function mergeOpenSignalFindings({
   queryable,
-  companyId,
-  fiscalYear,
-  periodNumber,
-  periodType,
-}: MergeOpenSignalFindingsParams): Promise<CloseReadinessFinding[]> {
+  period,
+}: {
+  queryable: Knex;
+  period: PeriodKey;
+}): Promise<CloseReadinessFinding[]> {
   const candidates = await computeSignalRollupCandidates({
     queryable,
-    companyId,
-    fiscalYear,
-    periodNumber,
-    periodType,
+    ...period,
   });
 
-  return dropDecidedAndBuildFindings(
-    queryable,
-    { companyId, fiscalYear, periodNumber, periodType },
-    candidates,
-  );
+  return dropDecidedAndBuildFindings(queryable, period, candidates);
 }
 
 function groupByFindingCode(
@@ -234,7 +220,8 @@ function groupByFindingCode(
       } satisfies RollupAccumulator);
 
     if (signal.coa_id) acc.coaIds.add(signal.coa_id);
-    if (signal.account_type_key) acc.accountTypeKeys.add(signal.account_type_key);
+    if (signal.account_type_key)
+      acc.accountTypeKeys.add(signal.account_type_key);
     if (signal.account_element_key) {
       acc.accountElementKeys.add(signal.account_element_key);
     }

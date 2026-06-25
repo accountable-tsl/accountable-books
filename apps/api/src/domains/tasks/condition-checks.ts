@@ -1,5 +1,7 @@
 import type { Knex } from 'knex';
 
+import { toYMD } from '../../shared/utils/date.utils.js';
+
 // ── Types ─────────────────────────────────────────────────────────────
 
 export type ConditionCheckResult = {
@@ -11,12 +13,32 @@ export type ConditionCheckResult = {
 };
 
 export type PeriodRange = {
+  fiscal_calendar_id: string;
   start_date: string;
   end_date: string;
   fiscal_year: number;
   period_number: number;
   period_type: string;
 };
+
+/** Map a fiscal_calendar row into the shape condition checks expect. */
+export function periodRangeFromFiscalCalendar(period: {
+  id: string;
+  start_date: string | Date;
+  end_date: string | Date;
+  fiscal_year: number;
+  period_number: number;
+  period_type: string;
+}): PeriodRange {
+  return {
+    fiscal_calendar_id: period.id,
+    start_date: toYMD(period.start_date),
+    end_date: toYMD(period.end_date),
+    fiscal_year: period.fiscal_year,
+    period_number: period.period_number,
+    period_type: period.period_type,
+  };
+}
 
 // ── 1. Uncategorized transactions ─────────────────────────────────────
 

@@ -84,6 +84,7 @@ export function createMockFiscalPeriod(
   overrides?: Partial<FiscalCalendar>,
 ): FiscalCalendar {
   return {
+    id: '550e8400-e29b-41d4-a716-446655440001',
     company_id: '550e8400-e29b-41d4-a716-446655440000',
     fiscal_year: 2024,
     period_number: 1,

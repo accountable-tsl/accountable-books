@@ -8,8 +8,8 @@ import {
 import { scheduleOutboxDispatchKickAfterCommit } from '../../work/outbox.queue.js';
 import { computeOpenDecisionEligibleFindings } from './period-findings.js';
 
-import type { CloseReadinessFindingCode } from './close-readiness.types.js';
 import type { FiscalPeriodType } from '../fiscal-calendar/fiscal-calendar.types.js';
+import type { CloseReadinessFindingCode } from './close-readiness.types.js';
 
 /**
  * The append-only user actions on a close finding. There is deliberately no
@@ -55,6 +55,11 @@ export type RecordCloseReviewDecisionResult =
   | { ok: true; decision: RecordedCloseReviewDecision }
   | {
       ok: false;
+      reason: 'period_not_found';
+      message: string;
+    }
+  | {
+      ok: false;
       reason: 'no_open_finding';
       message: string;
     }
@@ -94,14 +99,22 @@ export async function recordCloseReviewDecision(
   const exec = async (
     queryable: Knex.Transaction,
   ): Promise<RecordCloseReviewDecisionResult> => {
-    const candidates = await computeOpenDecisionEligibleFindings(queryable, {
+    const resolved = await computeOpenDecisionEligibleFindings(queryable, {
       companyId: input.companyId,
       fiscalYear: input.fiscalYear,
       periodNumber: input.periodNumber,
       periodType,
     });
 
-    const candidate = candidates?.find(
+    if (!resolved) {
+      return {
+        ok: false,
+        reason: 'period_not_found',
+        message: `Fiscal period not found: ${input.fiscalYear}-${input.periodNumber}-${periodType}`,
+      };
+    }
+
+    const candidate = resolved.candidates.find(
       (entry) => entry.findingCode === input.findingCode,
     );
 
@@ -129,9 +142,7 @@ export async function recordCloseReviewDecision(
     const [row] = await queryable('close_review_decisions')
       .insert({
         company_id: input.companyId,
-        fiscal_year: input.fiscalYear,
-        period_number: input.periodNumber,
-        period_type: periodType,
+        fiscal_calendar_id: resolved.period.fiscalCalendarId,
         fingerprint: candidate.fingerprint,
         facts_hash: candidate.factsHash,
         code: input.findingCode,
@@ -164,11 +175,7 @@ export async function recordCloseReviewDecision(
       clientCompanyId: input.companyId,
       actor: { type: 'user', userId: input.decidedById },
       sourceEntity: { type: 'close_review_decision', id: row.id },
-      fiscalPeriod: {
-        fiscalYear: input.fiscalYear,
-        periodNumber: input.periodNumber,
-        periodType,
-      },
+      fiscalCalendarId: resolved.period.fiscalCalendarId,
       eventType: ACTIVITY_EVENT_TYPE.CLOSE_DECISION_RECORDED,
       idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.CLOSE_DECISION_RECORDED}:${row.id}`,
       metadata: {

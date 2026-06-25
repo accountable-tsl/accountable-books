@@ -1,10 +1,11 @@
 import type { AccountingBasis } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
 
-import type { AccountElementKey } from '../../../../bootstrap/catalogs/accounting/account-elements.js';
 import { knexClient as db } from '../../../../db/knexClient.js';
 import { getLogger } from '../../../../shared/utils/logger.js';
 import { getFiscalPeriodForDate } from '../../fiscal-calendar/fiscal-calendar.service.js';
+
+import type { AccountElementKey } from '../../../../bootstrap/catalogs/accounting/account-elements.js';
 import type {
   LedgerCategorizationSource,
   LedgerTransactionSource,
@@ -116,6 +117,7 @@ export async function loadLedgerTransactionForSignals(
   const txn: SignalLedgerTransaction = {
     ledgerTransactionId: header.id,
     companyId: header.company_id,
+    fiscalCalendarId: period.id,
     fiscalYear: period.fiscal_year,
     periodNumber: period.period_number,
     periodType: period.period_type,

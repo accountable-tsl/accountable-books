@@ -16,16 +16,16 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { scheduleGLBalanceAfterCommit } from '../balances/index.js';
-import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
   makeFxTransactionId,
   upsertFxPosition,
 } from '../fx/index.js';
+import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
-import { getBankTransactionContactResolutions } from './bank-transaction-contact-resolution.service.js';
+// import { getBankTransactionContactResolutions } from './bank-transaction-contact-resolution.service.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
@@ -215,47 +215,47 @@ export async function createLedgerRecordsBatch({
       }
     >();
 
-    if (bankTxnIds.length > 0) {
-      const contactResolutionByBankTxnId =
-        await getBankTransactionContactResolutions({
-          companyId: companyUUID,
-          bankTransactionIds: bankTxnIds.map((bankTxn) => bankTxn.id),
-          trx: txn,
-        });
+    // if (bankTxnIds.length > 0) {
+    // const contactResolutionByBankTxnId =
+    //   await getBankTransactionContactResolutions({
+    //     companyId: companyUUID,
+    //     bankTransactionIds: bankTxnIds.map((bankTxn) => bankTxn.id),
+    //     trx: txn,
+    //   });
 
-      const bankTxnResults = await txn('bank_transactions as bt')
-        .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
-        .where('ba.company_id', companyUUID)
-        .where('bt.is_deleted', false)
-        .whereIn(
-          'bt.id',
-          bankTxnIds.map((bankTxn) => bankTxn.id),
-        )
-        .select(
-          'bt.id',
-          'bt.transaction_date as date',
-          'bt.amount',
-          'bt.system_exchange_rate',
-          'ba.coa_id as bank_coa_id',
-          'ba.currency_id as bank_currency_id',
-        );
+    // const bankTxnResults = await txn('bank_transactions as bt')
+    //   .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
+    //   .where('ba.company_id', companyUUID)
+    //   .where('bt.is_deleted', false)
+    //   .whereIn(
+    //     'bt.id',
+    //     bankTxnIds.map((bankTxn) => bankTxn.id),
+    //   )
+    //   .select(
+    //     'bt.id',
+    //     'bt.transaction_date as date',
+    //     'bt.amount',
+    //     'bt.system_exchange_rate',
+    //     'ba.coa_id as bank_coa_id',
+    //     'ba.currency_id as bank_currency_id',
+    //   );
 
-      for (const row of bankTxnResults) {
-        const key = `${row.id}|${row.date}`;
-        const contactResolution = contactResolutionByBankTxnId.get(row.id);
-        bankTxnMap.set(key, {
-          amount: Number(row.amount),
-          system_exchange_rate: Number(row.system_exchange_rate),
-          bank_coa_id: row.bank_coa_id,
-          bank_currency_id: row.bank_currency_id,
-          resolved_contact_id: contactResolution?.contact_id ?? null,
-          resolved_contact_type: contactResolution?.contact_type ?? null,
-        });
-        if (contactResolution?.contact_id) {
-          allContactIdsGlobal.add(contactResolution.contact_id);
-        }
-      }
-    }
+    // for (const row of bankTxnResults) {
+    //   const key = `${row.id}|${row.date}`;
+    //   const contactResolution = contactResolutionByBankTxnId.get(row.id);
+    //   bankTxnMap.set(key, {
+    //     amount: Number(row.amount),
+    //     system_exchange_rate: Number(row.system_exchange_rate),
+    //     bank_coa_id: row.bank_coa_id,
+    //     bank_currency_id: row.bank_currency_id,
+    //     resolved_contact_id: contactResolution?.contact_id ?? null,
+    //     resolved_contact_type: contactResolution?.contact_type ?? null,
+    //   });
+    //   if (contactResolution?.contact_id) {
+    //     allContactIdsGlobal.add(contactResolution.contact_id);
+    //   }
+    // }
+    // }
 
     const contactNameByIdGlobal = await fetchLookupMap({
       table: 'contacts',
@@ -510,16 +510,7 @@ export async function createLedgerRecordsBatch({
             fx_transaction_id: string | null;
             fs_date: string | Date;
           }>
-        >([
-          'id',
-          'coa_id',
-          'source_currency_id',
-          'source_amount',
-          'amount',
-          'is_monetary',
-          'fx_transaction_id',
-          'fs_date',
-        ]);
+        >(['id', 'coa_id', 'source_currency_id', 'source_amount', 'amount', 'is_monetary', 'fx_transaction_id', 'fs_date']);
 
       if (trackFxPositions && fxTransactionId) {
         for (const entry of insertedEntries) {

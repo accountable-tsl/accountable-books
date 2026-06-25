@@ -51,10 +51,10 @@ const BANK_TX_SELECT_FIELDS = [
   'btb.source as source',
 
   // Current contact interpretation
-  'bcr.contact_id as resolution_contact_id',
-  'bcr.status as resolution_status',
-  'bcr.source as resolution_source',
-  'bcr.confidence as resolution_confidence',
+  // 'bcr.contact_id as resolution_contact_id',
+  // 'bcr.status as resolution_status',
+  // 'bcr.source as resolution_source',
+  // 'bcr.confidence as resolution_confidence',
 
   // Bank account
   'ba.id as bank_account_id',
@@ -107,16 +107,16 @@ export async function enrichTransaction({
         'b.currency_id',
         'bank_currency.id',
       )
-      .leftJoin(
-        'bank_transaction_contact_resolutions as bcr',
-        'bcr.bank_transaction_id',
-        'bt.id',
-      )
+      // .leftJoin(
+      //   'bank_transaction_contact_resolutions as bcr',
+      //   'bcr.bank_transaction_id',
+      //   'bt.id',
+      // )
       .where('bt.id', bankTransactionId)
       .where('bt.is_deleted', false)
-      .select(
-        'bcr.contact_type as resolution_contact_type',
-      )
+      // .select(
+      //   'bcr.contact_type as resolution_contact_type',
+      // )
       .first();
 
     if (!txn) {

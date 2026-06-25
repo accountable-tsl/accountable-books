@@ -9,7 +9,6 @@ import {
 const tableName = 'workflow_runs';
 
 const DOMAIN_AREAS = ['bookkeeping', 'tax', 'audit'];
-const PERIOD_TYPES = ['monthly', 'quarterly', 'yearly'];
 const SOURCES = ['system_detected', 'manual'];
 const STATUSES = [
   'not_started',
@@ -44,13 +43,7 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .checkIn(DOMAIN_AREAS, 'workflow_runs_domain_area_check');
 
-    table.integer('fiscal_year').notNullable();
-    table.integer('period_number').notNullable();
-    table
-      .string('period_type', 12)
-      .notNullable()
-      .defaultTo('monthly')
-      .checkIn(PERIOD_TYPES, 'workflow_runs_period_type_check');
+    table.uuid('fiscal_calendar_id').notNullable();
 
     table
       .string('status', 20)
@@ -131,13 +124,22 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('SET NULL');
 
     addStandardColumns(knex, table);
+
+    table
+      .foreign(
+        ['fiscal_calendar_id', 'client_company_id'],
+        'workflow_runs_fiscal_calendar_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('app.fiscal_calendar')
+      .onDelete('RESTRICT');
   });
 
   await createUpdateTimestampTrigger(knex, tableName);
 
   await knex.raw(`
     CREATE UNIQUE INDEX workflow_runs_natural_key
-    ON ${tableName} (client_company_id, domain_area, fiscal_year, period_number, period_type)
+    ON ${tableName} (client_company_id, domain_area, fiscal_calendar_id)
     WHERE is_deleted = false;
   `);
 

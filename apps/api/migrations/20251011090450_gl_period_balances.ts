@@ -20,12 +20,7 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table.uuid('coa_id').notNullable();
-
-    table.integer('fiscal_year').notNullable();
-    table.integer('period_number').notNullable();
-    table
-      .specificType('period_type', `"${schemaName}"."fiscal_period_type"`)
-      .notNullable();
+    table.uuid('fiscal_calendar_id').notNullable();
 
     table.decimal('opening_balance', 18, 3).notNullable().defaultTo(0);
     table.decimal('period_debits', 18, 3).notNullable().defaultTo(0);
@@ -42,12 +37,9 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
-    table.primary(
-      ['company_id', 'coa_id', 'fiscal_year', 'period_number', 'period_type'],
-      {
-        constraintName: 'gl_period_balances_pk',
-      },
-    );
+    table.primary(['company_id', 'coa_id', 'fiscal_calendar_id'], {
+      constraintName: 'gl_period_balances_pk',
+    });
 
     table
       .foreign(['coa_id', 'company_id'], 'gl_period_balances_coa_company_fk')
@@ -57,10 +49,10 @@ export async function up(knex: Knex): Promise<void> {
 
     table
       .foreign(
-        ['company_id', 'fiscal_year', 'period_number', 'period_type'],
-        'gl_period_balances_fiscal_calendar_fk',
+        ['fiscal_calendar_id', 'company_id'],
+        'gl_period_balances_fiscal_calendar_company_fk',
       )
-      .references(['company_id', 'fiscal_year', 'period_number', 'period_type'])
+      .references(['id', 'company_id'])
       .inTable(`${schemaName}.fiscal_calendar`)
       .onDelete('RESTRICT');
   });
@@ -84,7 +76,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     CREATE INDEX gl_period_balances_period_lookup_idx
-      ON ${qualifiedTable} (company_id, fiscal_year, period_number, period_type)
+      ON ${qualifiedTable} (company_id, fiscal_calendar_id)
       INCLUDE (
         coa_id,
         opening_balance,

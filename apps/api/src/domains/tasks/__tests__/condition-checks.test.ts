@@ -34,6 +34,7 @@ describe('condition-checks', () => {
   let isolatedCoaId: string;
 
   const march2025: PeriodRange = {
+    fiscal_calendar_id: '00000000-0000-0000-0000-000000000003',
     start_date: '2025-03-01',
     end_date: '2025-03-31',
     fiscal_year: 2025,
@@ -288,7 +289,7 @@ describe('condition-checks', () => {
     it('returns count > 0 and isActive true when draft journal batches exist in period', async () => {
       const [batch] = await trx('journal_batches')
         .insert({
-          company_id: testCompanyId,
+          company_id: isolatedCompanyId,
           date: '2025-03-10',
           title: 'Test draft journal',
           currency_id: testCurrencyId,
@@ -301,28 +302,32 @@ describe('condition-checks', () => {
 
       await trx('journal_entries').insert([
         {
-          company_id: testCompanyId,
+          company_id: isolatedCompanyId,
           journal_batch_id: batch.id,
           line_number: 1,
-          coa_id: testCoaId,
+          coa_id: isolatedCoaId,
           side: 'debit',
           amount: 100,
           entry_status: 'active',
         },
         {
-          company_id: testCompanyId,
+          company_id: isolatedCompanyId,
           journal_batch_id: batch.id,
           line_number: 2,
-          coa_id: testCoaId,
+          coa_id: isolatedCoaId,
           side: 'credit',
           amount: 100,
           entry_status: 'active',
         },
       ]);
 
-      const result = await checkDraftJournals(testCompanyId, march2025, trx);
+      const result = await checkDraftJournals(
+        isolatedCompanyId,
+        march2025,
+        trx,
+      );
       expect(result.isActive).toBe(true);
-      expect(result.details).toMatchObject({ count: 1 });
+      expect(result.details).toMatchObject({ count: 2 });
       expect(result.message).toContain('unposted journal entries found');
     });
   });
@@ -369,6 +374,8 @@ describe('condition-checks', () => {
           start_date: '2025-04-01',
           end_date: '2025-04-30',
           status: 'closed',
+          closed_at: trx.fn.now(),
+          closed_by_id: testUserId,
         },
       ]);
 
@@ -400,6 +407,8 @@ describe('condition-checks', () => {
         start_date: '2026-01-01',
         end_date: '2026-01-31',
         status: 'closed',
+        closed_at: trx.fn.now(),
+        closed_by_id: testUserId,
       });
 
       const result = await checkLaterPeriodsClosed(

@@ -57,23 +57,14 @@ export async function up(knex: Knex): Promise<void> {
       .comment('Offending non-bank leg when the signal is leg-specific');
 
     // Period the signal belongs to, derived from the entry's fs_date.
-    table.integer('fiscal_year').notNullable();
-    table.integer('period_number').notNullable();
-    table
-      .specificType('period_type', `"${schemaName}"."fiscal_period_type"`)
-      .notNullable();
+    table.uuid('fiscal_calendar_id').notNullable();
 
     table
       .string('code', 64)
       .notNullable()
       .checkIn([...SIGNAL_CODES], 'close_review_signals_code_chk');
 
-    table
-      .uuid('coa_id')
-      .nullable()
-      .references('id')
-      .inTable(`${schemaName}.coa`)
-      .onDelete('SET NULL');
+    table.uuid('coa_id').nullable();
     table.text('account_type_key').nullable();
     table.text('account_element_key').nullable();
     table.decimal('amount', 18, 3).nullable();
@@ -124,16 +115,24 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(`${schemaName}.ledger_entries`)
       .onDelete('CASCADE');
 
-    // The period the signal belongs to. fiscal_calendar has no surrogate key —
-    // its natural key is the period columns — so this mirrors the
-    // gl_period_balances FK rather than pointing at a single id.
     table
       .foreign(
-        ['company_id', 'fiscal_year', 'period_number', 'period_type'],
-        'close_review_signals_fiscal_calendar_fk',
+        ['fiscal_calendar_id', 'company_id'],
+        'close_review_signals_fiscal_calendar_company_fk',
       )
-      .references(['company_id', 'fiscal_year', 'period_number', 'period_type'])
+      .references(['id', 'company_id'])
       .inTable(`${schemaName}.fiscal_calendar`)
+      .onDelete('RESTRICT');
+
+    // coa is soft-deleted (is_deleted/deleted_at) and never hard-deleted, so a
+    // cascade never fires in normal flow. RESTRICT is the honest, composite-FK-safe
+    // choice (plain SET NULL would try to null the non-null company_id) and matches
+    // gl_period_balances_coa_company_fk. The denormalized account_type_key /
+    // account_element_key columns preserve the classification facts regardless.
+    table
+      .foreign(['coa_id', 'company_id'], 'close_review_signals_coa_company_fk')
+      .references(['id', 'company_id'])
+      .inTable(`${schemaName}.coa`)
       .onDelete('RESTRICT');
   });
 
@@ -144,7 +143,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     CREATE INDEX close_review_signals_period_code_idx
-      ON ${qualifiedTable} (company_id, fiscal_year, period_number, code);
+      ON ${qualifiedTable} (company_id, fiscal_calendar_id, code);
 
     CREATE INDEX close_review_signals_ledger_transaction_idx
       ON ${qualifiedTable} (ledger_transaction_id);

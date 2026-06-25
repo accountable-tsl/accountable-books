@@ -58,13 +58,6 @@ export const activitySourceEntitySchema = z
   });
 export type ActivitySourceEntity = z.infer<typeof activitySourceEntitySchema>;
 
-export const activityFiscalPeriodSchema = z.object({
-  fiscalYear: z.number().int(),
-  periodNumber: z.number().int(),
-  periodType: z.enum(['monthly', 'quarterly', 'yearly']),
-});
-export type ActivityFiscalPeriod = z.infer<typeof activityFiscalPeriodSchema>;
-
 export const activityEventSchema = z
   .object({
     firmCompanyId: z.uuid(),
@@ -72,7 +65,7 @@ export const activityEventSchema = z
     actor: activityActorSchema,
     sourceEntity: activitySourceEntitySchema,
     ledgerTransactionId: z.uuid().nullish(),
-    fiscalPeriod: activityFiscalPeriodSchema.nullish(),
+    fiscalCalendarId: z.uuid().nullish(),
     workType: z.string().trim().min(1).nullish(),
     workItemId: z.uuid().nullish(),
     workItemSubjectId: z.uuid().nullish(),

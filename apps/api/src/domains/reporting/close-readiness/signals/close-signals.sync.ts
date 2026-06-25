@@ -3,6 +3,7 @@ import type { Knex } from 'knex';
 import { knexClient as db } from '../../../../db/knexClient.js';
 import { evaluateLedgerTransactionSignals } from './close-signals.evaluator.js';
 import { loadLedgerTransactionForSignals } from './close-signals.loader.js';
+
 import type {
   CloseReviewSignalInput,
   SignalLedgerTransaction,
@@ -36,7 +37,10 @@ async function reconcile(
   txn: Knex.Transaction,
   ledgerTransactionId: string,
 ): Promise<SyncLedgerTransactionSignalsResult> {
-  const loaded = await loadLedgerTransactionForSignals(ledgerTransactionId, txn);
+  const loaded = await loadLedgerTransactionForSignals(
+    ledgerTransactionId,
+    txn,
+  );
   const signals: CloseReviewSignalInput[] = loaded
     ? evaluateLedgerTransactionSignals(loaded.txn, loaded.entries, {
         accountingBasis: loaded.accountingBasis,
@@ -87,9 +91,7 @@ function toSignalRow(
     company_id: txn.companyId,
     ledger_transaction_id: signal.ledgerTransactionId,
     ledger_entry_id: signal.ledgerEntryId,
-    fiscal_year: txn.fiscalYear,
-    period_number: txn.periodNumber,
-    period_type: txn.periodType,
+    fiscal_calendar_id: txn.fiscalCalendarId,
     code: signal.code,
     coa_id: signal.coaId,
     account_type_key: signal.accountTypeKey,
