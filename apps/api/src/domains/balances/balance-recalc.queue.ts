@@ -22,21 +22,24 @@ import { getLogger } from '../../shared/utils/logger.js';
  */
 const YMD = z.string().trim().refine(isValidYMD, 'Invalid YMD YYYY-MM-DD');
 
-export const glBalanceJobDataSchema = z
-  .object({
+export const enqueueGLBalanceInput = z.object({
+  companyId: z.string().trim().min(1),
+  coaId: z.string().trim().min(1),
+  recalcFrom: YMD,
+  recalcTo: YMD.optional(),
+  triggeredBy: z.enum([
+    'ledger_entry',
+    'backfill',
+    'soft_delete',
+    'supersession',
+    'manual',
+  ]),
+  userId: z.string().optional(),
+});
+
+export const glBalanceJobDataSchema = enqueueGLBalanceInput
+  .extend({
     type: z.literal('gl-balance'),
-    companyId: z.string().trim().min(1),
-    coaId: z.string().trim().min(1),
-    recalcFrom: YMD,
-    recalcTo: YMD.optional(),
-    triggeredBy: z.enum([
-      'ledger_entry',
-      'backfill',
-      'soft_delete',
-      'supersession',
-      'manual',
-    ]),
-    userId: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.recalcTo && val.recalcFrom > val.recalcTo) {
@@ -47,8 +50,8 @@ export const glBalanceJobDataSchema = z
       });
     }
   });
+export type EnqueueGLBalanceInput = z.infer<typeof enqueueGLBalanceInput>;
 export type GLBalanceJobData = z.infer<typeof glBalanceJobDataSchema>;
-export type EnqueueGLBalanceInput = Omit<GLBalanceJobData, 'type'>;
 
 export const bankBalanceJobDataSchema = z
   .object({

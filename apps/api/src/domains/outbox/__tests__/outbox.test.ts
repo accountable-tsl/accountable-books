@@ -1,4 +1,3 @@
-import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,13 +12,18 @@ import { knexClient } from '../../../db/knexClient.js';
 import { queueBroker } from '../../../jobs/queues/queue-broker.js';
 import { ACTIVITY_EVENT_TYPE } from '../../activity/index.js';
 import { addNewBankTransactions } from '../../bankTransactions/bankTransactions.model.js';
-import { dispatchPendingIntents } from '../outbox.dispatcher.js';
-import { writeOutboxIntent } from '../outbox.model.js';
+import { buildScopeKey } from '../../work/work.types.js';
 import {
-  outboxDispatchQueue,
-  scheduleOutboxDispatchKickAfterCommit,
-} from '../outbox.queue.js';
-import { buildScopeKey, OUTBOX_INTENT } from '../work.types.js';
+  claimNextPendingIntent,
+  dispatchPendingIntents,
+  getOutboxHealthSnapshot,
+  laneFilter,
+  OUTBOX_INTENT,
+  OUTBOX_LANE,
+  OUTBOX_MAX_DISPATCH_ATTEMPTS,
+  recordIntentFailure,
+  writeOutbox,
+} from '../index.js';
 
 async function createFreshBankAccount(
   trx: Knex.Transaction,
@@ -52,7 +56,7 @@ async function createFreshBankAccount(
   return account.id;
 }
 
-describe('work outbox', () => {
+describe('outbox', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     queueBroker.configure({ disableAll: true, logSkipped: false });
@@ -63,27 +67,150 @@ describe('work outbox', () => {
     try {
       const scopeKey = `bank_account:${randomUUID()}:${randomUUID()}`;
 
-      await writeOutboxIntent(trx, {
+      await writeOutbox(trx, {
         intentType: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
         scopeKey,
         payload: { attempt: 1 },
       });
-      await writeOutboxIntent(trx, {
+      await writeOutbox(trx, {
         intentType: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
         scopeKey,
         payload: { attempt: 2 },
       });
 
-      const pending = await trx('app.outbox_intents')
-        .where({
-          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
-          scope_key: scopeKey,
-          status: 'pending',
-        })
+      const pending = await trx('app.outbox').where({
+        intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+        scope_key: scopeKey,
+        status: 'pending',
+      });
 
       expect(pending).toHaveLength(1);
-      // Latest payload wins on the debounced row.
       expect(pending[0].payload).toEqual({ attempt: 2 });
+    } finally {
+      await trx.rollback();
+    }
+  });
+
+  it('reports deadLettered only once dispatch attempts are exhausted', async () => {
+    const exhaustedScope = `deadletter_test:${randomUUID()}`;
+    const retryScope = `retry_test:${randomUUID()}`;
+    try {
+      const [exhausted] = await knexClient('app.outbox')
+        .insert({
+          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+          scope_key: exhaustedScope,
+          dispatch_attempt_count: OUTBOX_MAX_DISPATCH_ATTEMPTS - 1,
+        })
+        .returning('id');
+      const [retryable] = await knexClient('app.outbox')
+        .insert({
+          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+          scope_key: retryScope,
+          dispatch_attempt_count: 0,
+        })
+        .returning('id');
+
+      const exhaustedResult = await recordIntentFailure(
+        exhausted.id,
+        new Error('boom'),
+      );
+      expect(exhaustedResult.deadLettered).toBe(true);
+      const exhaustedRow = await knexClient('app.outbox')
+        .where({ id: exhausted.id })
+        .first('status');
+      expect(exhaustedRow?.status).toBe('failed');
+
+      const retryResult = await recordIntentFailure(
+        retryable.id,
+        new Error('boom'),
+      );
+      expect(retryResult.deadLettered).toBe(false);
+      const retryRow = await knexClient('app.outbox')
+        .where({ id: retryable.id })
+        .first('status');
+      expect(retryRow?.status).toBe('pending');
+    } finally {
+      await knexClient('app.outbox')
+        .whereIn('scope_key', [exhaustedScope, retryScope])
+        .del();
+    }
+  });
+
+  it('health snapshot counts failed and overdue pending rows', async () => {
+    const failedScope = `health_failed:${randomUUID()}`;
+    const pendingScope = `health_pending:${randomUUID()}`;
+    try {
+      await knexClient('app.outbox').insert([
+        {
+          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+          scope_key: failedScope,
+          status: 'failed',
+          completed_at: knexClient.fn.now(),
+          failed_at: knexClient.fn.now(),
+          dispatch_attempt_count: OUTBOX_MAX_DISPATCH_ATTEMPTS,
+        },
+        {
+          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+          scope_key: pendingScope,
+          status: 'pending',
+          available_at: knexClient.raw(`now() - interval '120 seconds'`),
+        },
+      ]);
+
+      const snapshot = await getOutboxHealthSnapshot();
+      expect(snapshot.failedCount).toBeGreaterThanOrEqual(1);
+      expect(snapshot.pendingCount).toBeGreaterThanOrEqual(1);
+      expect(snapshot.oldestPendingAgeSeconds ?? 0).toBeGreaterThanOrEqual(100);
+    } finally {
+      await knexClient('app.outbox')
+        .whereIn('scope_key', [failedScope, pendingScope])
+        .del();
+    }
+  });
+
+  it('lane filters keep heavy and fast intents on separate runners', async () => {
+    const trx = await getTestDb().transaction();
+    try {
+      const heavyScope = `gl:${randomUUID()}`;
+      const fastScope = `notif:${randomUUID()}`;
+      await writeOutbox(trx, {
+        intentType: OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED,
+        scopeKey: heavyScope,
+        payload: {},
+      });
+      await writeOutbox(trx, {
+        intentType: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
+        scopeKey: fastScope,
+        payload: {},
+      });
+
+      // Heavy lane claims the heavy intent, never the fast one.
+      expect(
+        await claimNextPendingIntent(trx, {
+          ...laneFilter(OUTBOX_LANE.HEAVY),
+          scopeKey: heavyScope,
+        }),
+      ).not.toBeNull();
+      expect(
+        await claimNextPendingIntent(trx, {
+          ...laneFilter(OUTBOX_LANE.HEAVY),
+          scopeKey: fastScope,
+        }),
+      ).toBeNull();
+
+      // Fast lane claims the fast intent, never the heavy one.
+      expect(
+        await claimNextPendingIntent(trx, {
+          ...laneFilter(OUTBOX_LANE.FAST),
+          scopeKey: fastScope,
+        }),
+      ).not.toBeNull();
+      expect(
+        await claimNextPendingIntent(trx, {
+          ...laneFilter(OUTBOX_LANE.FAST),
+          scopeKey: heavyScope,
+        }),
+      ).toBeNull();
     } finally {
       await trx.rollback();
     }
@@ -95,7 +222,7 @@ describe('work outbox', () => {
 
     try {
       await knexClient.transaction(async (trx) => {
-        await writeOutboxIntent(trx, {
+        await writeOutbox(trx, {
           intentType: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
           scopeKey,
           payload: { scope, change: { type: 'unsupported_scope_test' } },
@@ -105,51 +232,23 @@ describe('work outbox', () => {
       const result = await dispatchPendingIntents(1, { scopeKey });
       expect(result).toEqual({ processed: 0, deferred: 0, failed: 1 });
 
-      const row = await knexClient('app.outbox_intents')
+      const row = await knexClient('app.outbox')
         .where({ scope_key: scopeKey })
         .first(
           'status',
-          'processed_at',
+          'completed_at',
           'dispatch_attempt_count',
           'last_error',
         );
       expect(row?.status).toBe('pending');
-      expect(row?.processed_at).toBeNull();
+      expect(row?.completed_at).toBeNull();
       expect(Number(row?.dispatch_attempt_count)).toBe(1);
       expect(row?.last_error).toContain(
         'Unsupported materializer scope type: company',
       );
     } finally {
-      await knexClient('app.outbox_intents')
-        .where({ scope_key: scopeKey })
-        .del();
+      await knexClient('app.outbox').where({ scope_key: scopeKey }).del();
     }
-  });
-
-  it('enqueues the outbox dispatch kick only after the transaction commits', async () => {
-    queueBroker.configure({ disableAll: false, logSkipped: false });
-    const add = vi
-      .spyOn(outboxDispatchQueue, 'add')
-      .mockResolvedValue({ id: 'kick' } as never);
-
-    const committing = new EventEmitter() as Knex.Transaction;
-    await scheduleOutboxDispatchKickAfterCommit(committing);
-    expect(add).not.toHaveBeenCalled();
-
-    committing.emit('commit');
-    await new Promise((resolve) => setImmediate(resolve));
-    expect(add).toHaveBeenCalledTimes(1);
-    expect(add).toHaveBeenCalledWith(
-      'dispatch',
-      expect.objectContaining({ trigger: 'kick' }),
-    );
-
-    // A rolled-back transaction must never enqueue the kick.
-    const rollingBack = new EventEmitter() as Knex.Transaction;
-    await scheduleOutboxDispatchKickAfterCommit(rollingBack);
-    rollingBack.emit('rollback');
-    await new Promise((resolve) => setImmediate(resolve));
-    expect(add).toHaveBeenCalledTimes(1);
   });
 
   it('writes the work-materialization intent inside the import transaction and leaves nothing committed on rollback', async () => {
@@ -196,20 +295,18 @@ describe('work outbox', () => {
       const batchId = result.data?.batchId;
       expect(batchId).toBeTruthy();
 
-      // The durable hand-off exists inside the same save transaction...
-      const pendingInTrx = await trx('app.outbox_intents')
-        .where({
-          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
-          scope_key: scopeKey,
-          status: 'pending',
-        })
+      const pendingInTrx = await trx('app.outbox').where({
+        intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+        scope_key: scopeKey,
+        status: 'pending',
+      });
       expect(pendingInTrx).toHaveLength(1);
       const payload = pendingInTrx[0].payload as {
         change?: { bankTransactionIds?: string[] };
       };
       expect(payload.change?.bankTransactionIds).toHaveLength(3);
 
-      const activityPendingInTrx = await trx('app.outbox_intents').where({
+      const activityPendingInTrx = await trx('app.outbox').where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         status: 'pending',
       });
@@ -237,13 +334,12 @@ describe('work outbox', () => {
       await trx.rollback();
     }
 
-    // ...and nothing is committed once the import rolls back.
-    const committed = await knexClient('app.outbox_intents').where({
+    const committed = await knexClient('app.outbox').where({
       scope_key: scopeKey,
     });
     expect(committed).toHaveLength(0);
 
-    const committedActivity = await knexClient('app.outbox_intents').where({
+    const committedActivity = await knexClient('app.outbox').where({
       scope_key: activityScopeKey,
     });
     expect(committedActivity).toHaveLength(0);

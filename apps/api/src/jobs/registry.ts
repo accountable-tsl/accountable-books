@@ -16,17 +16,21 @@ import { journalAutoReversalQueue } from '../domains/journals/auto-reversal.queu
 import { startJournalAutoReversalWorker } from '../domains/journals/auto-reversal.worker.js';
 import { recurringTemplatesQueue } from '../domains/journals/recurring-templates.queue.js';
 import { startRecurringTemplatesWorker } from '../domains/journals/recurring-templates.worker.js';
+import { OUTBOX_LANE } from '../domains/outbox/outbox.lanes.js';
+import {
+  outboxDispatchQueue,
+  outboxHeavyDispatchQueue,
+} from '../domains/outbox/outbox.queue.js';
+import {
+  closeOutboxSchedulers,
+  startOutboxDispatchWorker,
+} from '../domains/outbox/outbox.worker.js';
 import { closeSignalEvalQueue } from '../domains/reporting/close-readiness/signals/close-signal-eval.queue.js';
 import { startCloseSignalEvalWorker } from '../domains/reporting/close-readiness/signals/close-signal-eval.worker.js';
 import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { startFiscalCalendarWorker } from '../domains/reporting/fiscal-calendar/index.js';
 import { taskEvaluationQueue } from '../domains/tasks/task-evaluation.queue.js';
 import { startTaskEvaluationWorker } from '../domains/tasks/task-evaluation.worker.js';
-import { outboxDispatchQueue } from '../domains/work/outbox.queue.js';
-import {
-  closeOutboxSchedulers,
-  startOutboxDispatchWorker,
-} from '../domains/work/outbox.worker.js';
 import {
   closeCommsSchedulers,
   commsDispatchQueue,
@@ -206,16 +210,30 @@ export const JOB_REGISTRY: JobDefinition[] = [
     },
   },
   {
-    name: 'outboxDispatch',
+    name: 'outboxDispatchFast',
     queue: outboxDispatchQueue,
-    factory: (concurrency) => startOutboxDispatchWorker(concurrency),
+    factory: (concurrency) =>
+      startOutboxDispatchWorker(OUTBOX_LANE.FAST, concurrency),
     teardown: closeOutboxSchedulers,
-    label: 'Outbox dispatch worker',
+    label: 'Outbox dispatch worker (fast lane)',
     icon: '📬',
     critical: true,
     config: {
       envVar: 'OUTBOX_DISPATCH_CONCURRENCY',
-      defaultValue: 1,
+      defaultValue: 5,
+    },
+  },
+  {
+    name: 'outboxDispatchHeavy',
+    queue: outboxHeavyDispatchQueue,
+    factory: (concurrency) =>
+      startOutboxDispatchWorker(OUTBOX_LANE.HEAVY, concurrency),
+    label: 'Outbox dispatch worker (heavy lane)',
+    icon: '🏋️',
+    critical: true,
+    config: {
+      envVar: 'OUTBOX_HEAVY_DISPATCH_CONCURRENCY',
+      defaultValue: 2,
     },
   },
 ];

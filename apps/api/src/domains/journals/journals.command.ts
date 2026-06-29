@@ -6,6 +6,7 @@ import type {
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
+import { generateV7Ids } from '../../shared/db/generate-ids.js';
 import { toYMD } from '../../shared/index.js';
 import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
@@ -20,13 +21,13 @@ import {
   writeActivityEventIntent,
 } from '../activity/index.js';
 import { reverseFxPositionMovementsForLedgerTransaction } from '../fx/index.js';
-import { createLedgerRecord } from '../ledgers/ledgers.model.js';
+import { postLedgerTransactions } from '../ledgers/ledger-mutation.service.js';
+import { toLedgerTransactionInput } from '../ledgers/ledgers.utils.js';
 import {
   persistTxnFiles,
   syncTxnFilesForTarget,
 } from '../objects/txn-files/txn-files.service.js';
 import { ensureAndFetchFiscalCalendar } from '../reporting/fiscal-calendar/index.js';
-import { scheduleOutboxDispatchKickAfterCommit } from '../work/outbox.queue.js';
 import { scheduleJournalAutoReversal } from './auto-reversal.queue.js';
 import {
   writeJournalCopyAudit,
@@ -449,12 +450,7 @@ export async function postJournalRecord({
 
     const entryFsDate = toYMD(batch.date);
     const totalIdsNeeded = entries.length * 2;
-    const idResult = await txn.raw<{
-      rows: Array<{ id: string }>;
-    }>('SELECT uuid_generate_v7() as id FROM generate_series(1, ?)', [
-      totalIdsNeeded,
-    ]);
-    const ids = idResult?.rows?.map((row) => row.id) ?? [];
+    const ids = await generateV7Ids(totalIdsNeeded, txn);
     if (ids.length !== totalIdsNeeded) {
       throw new AppError('Failed to allocate entry IDs', {
         traceId,
@@ -521,26 +517,14 @@ export async function postJournalRecord({
         })),
       } as const;
 
-      const ledgerResult = await createLedgerRecord({
-        data: ledgerPayload,
-        companyId,
+      ledgerTransactionId = await postJournalLedgerTransaction({
+        ledgerPayload,
+        companyId: companyUUID,
         userId,
         trx: txn,
         skipFxPositionTracking,
+        traceId,
       });
-
-      if (
-        !ledgerResult.success ||
-        !ledgerResult.data ||
-        !('ledgerTransactionId' in ledgerResult.data)
-      ) {
-        throw new AppError('Failed to create ledger transaction', {
-          traceId,
-          error: ledgerResult.error,
-        });
-      }
-
-      ledgerTransactionId = ledgerResult.data.ledgerTransactionId as string;
 
       await txn('journal_batches').where('id', journalBatchId).update({
         ledger_transaction_id: ledgerTransactionId,
@@ -621,8 +605,6 @@ export async function postJournalRecord({
         recurringTemplateId,
       },
     });
-    await scheduleOutboxDispatchKickAfterCommit(txn);
-
     log('audit_event_created', { action: 'journal.create' });
 
     // Auto-reversal scheduling handled after transaction commit
@@ -972,8 +954,6 @@ export async function updateDraftJournal({
         replacedEntryCount: deletedEntriesCount,
       },
     });
-    await scheduleOutboxDispatchKickAfterCommit(txn);
-
     log('audit_event_created', { action: 'journal.update' });
 
     return {
@@ -1141,8 +1121,6 @@ export async function voidDraftJournal({
         voidReason: voidReason ?? null,
       },
     });
-    await scheduleOutboxDispatchKickAfterCommit(tx);
-
     return {};
   };
 
@@ -1303,16 +1281,7 @@ export async function postDraftJournal({
           project_id: string | null;
           ledger_entry_id: string | null;
         }[]
-      >(
-        'id',
-        'line_number',
-        'description',
-        'side',
-        'amount',
-        'coa_id',
-        'project_id',
-        'ledger_entry_id',
-      );
+      >('id', 'line_number', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id');
 
     if (journalEntries.length < 2) {
       throw new AppError(
@@ -1395,12 +1364,7 @@ export async function postDraftJournal({
     const finalSystemReference = ref.systemReference;
 
     const entryFsDate = toYMD(journalBatch.date);
-    const idResult = await tx.raw<{
-      rows: Array<{ id: string }>;
-    }>('SELECT uuid_generate_v7() as id FROM generate_series(1, ?)', [
-      journalEntries.length,
-    ]);
-    const ledgerEntryIds = idResult?.rows?.map((row) => row.id) ?? [];
+    const ledgerEntryIds = await generateV7Ids(journalEntries.length, tx);
     if (ledgerEntryIds.length !== journalEntries.length) {
       throw new AppError('Failed to allocate ledger entry IDs', {
         traceId,
@@ -1440,26 +1404,14 @@ export async function postDraftJournal({
       })),
     } as const;
 
-    const ledgerResult = await createLedgerRecord({
-      data: ledgerPayload,
+    const ledgerTransactionId = await postJournalLedgerTransaction({
+      ledgerPayload,
       companyId,
       userId,
       trx: tx,
       skipFxPositionTracking: false,
+      traceId,
     });
-
-    if (
-      !ledgerResult.success ||
-      !ledgerResult.data ||
-      !('ledgerTransactionId' in ledgerResult.data)
-    ) {
-      throw new AppError('Failed to create ledger transaction', {
-        traceId,
-        error: ledgerResult.error,
-      });
-    }
-
-    const ledgerTransactionId = ledgerResult.data.ledgerTransactionId as string;
 
     // Update batch + link entries
     await tx('journal_batches').where('id', journalBatchId).update({
@@ -1534,8 +1486,6 @@ export async function postDraftJournal({
         sequenceNumber: ref.sequenceNumber,
       },
     });
-    await scheduleOutboxDispatchKickAfterCommit(tx);
-
     return {
       journalBatchId,
       journalId: journalBatchId,
@@ -2151,6 +2101,47 @@ export async function reverseJournalRecord({
       traceId,
     });
   }
+}
+
+async function postJournalLedgerTransaction({
+  ledgerPayload,
+  companyId,
+  userId,
+  trx,
+  skipFxPositionTracking,
+  traceId,
+}: {
+  ledgerPayload: NewLedgerTransactionData;
+  companyId: string;
+  userId: string;
+  trx: Knex.Transaction;
+  skipFxPositionTracking?: boolean;
+  traceId?: string;
+}): Promise<string> {
+  const postResult = await postLedgerTransactions({
+    companyId,
+    actor: { type: 'user', userId },
+    requestContext: { source: 'web' },
+    transactions: [toLedgerTransactionInput(ledgerPayload)],
+    skipFxPositionTracking,
+    trx,
+  });
+
+  if (!postResult.success) {
+    throw new AppError('Failed to post ledger transaction', {
+      traceId,
+      error: postResult.error,
+    });
+  }
+
+  const ledgerTransactionId = postResult.data?.ledgerTransactionIds?.[0];
+  if (!ledgerTransactionId) {
+    throw new AppError('Ledger transaction ID not returned from post', {
+      traceId,
+    });
+  }
+
+  return ledgerTransactionId;
 }
 
 function mapPostJournalError(error: unknown): Error {

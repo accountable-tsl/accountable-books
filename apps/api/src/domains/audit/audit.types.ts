@@ -11,6 +11,7 @@ export const auditEventEntityType = z.enum([
   'bank_transaction_contact_resolution',
   'contact',
   'contact_alias',
+  'ledger',
   'journal',
   'recurring_journal_template',
   'ai',

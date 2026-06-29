@@ -2,8 +2,8 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
-import { generateChecksum, logger } from '../../shared/index.js';
 import { runAfterTransactionCommit } from '../../shared/db/after-transaction-commit.js';
+import { generateChecksum, logger } from '../../shared/index.js';
 import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
@@ -21,21 +21,18 @@ import {
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { getAccountTypeByKey } from '../account/account.registry.js';
-import { invalidateCompanyContext } from '../categorization/index.js';
+import { invalidateCompanyContext } from '../categorization/enrichment/company-context.service.js';
 import {
   inspectCoaLifecycleImpacts,
   invalidateCoaDerivedData,
 } from './coa-lifecycle-impact.service.js';
 import { MUST_HAVE_ACCOUNTS } from './coa.constants.js';
-import {
-  coaUpdateInput,
-  newCoaInput,
-  updateCoaAction,
-} from './coa.types.js';
+import { coaUpdateInput, newCoaInput, updateCoaAction } from './coa.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type {
   Coa,
+  CoaLifecycleWarning,
   CoaResponse,
   CoaSnapshotVersion,
   CoaUpdateInput,
@@ -43,7 +40,6 @@ import type {
   CoaValidationResponse,
   CoaValidationResult,
   CoaValidationStatus,
-  CoaLifecycleWarning,
   FetchCoaInput,
   NewCoaInput,
   NewCoaInputCamel,
@@ -139,9 +135,7 @@ export async function createCoaAccounts({
           : { short_code: companyId },
       )
       .first<{ id: string; reporting_currency_id: string | null }>(),
-    trx('account_types')
-      .select('id', 'key')
-      .whereIn('key', accountTypeKeys),
+    trx('account_types').select('id', 'key').whereIn('key', accountTypeKeys),
   ]);
 
   if (!company?.id || !company.reporting_currency_id) {
@@ -190,9 +184,7 @@ export async function createCoaAccounts({
     };
   });
 
-  const inserted = await trx('coa')
-    .insert(rows)
-    .returning<Coa[]>('*');
+  const inserted = await trx('coa').insert(rows).returning<Coa[]>('*');
 
   if (inserted.length !== rows.length) {
     throw new AppError('Failed to create all chart of accounts');
@@ -351,10 +343,7 @@ export const createDefaultAccounts = async ({
     versionNote: 'default_coa_creation',
   });
 
-  return successResponse(
-    'Must-have accounts successfully inserted',
-    coaIds,
-  );
+  return successResponse('Must-have accounts successfully inserted', coaIds);
 };
 
 export const fetchCompanyCoa = async ({
@@ -458,10 +447,7 @@ export const fetchCompanyCoa = async ({
   const enhanceCoa = (coa: any) => ({
     ...coa,
     canArchive:
-      !coa.isLocked &&
-      !coa.isBankLinked &&
-      coa.isActive &&
-      !coa.isDeleted,
+      !coa.isLocked && !coa.isBankLinked && coa.isActive && !coa.isDeleted,
     canDelete:
       !coa.isLocked &&
       !coa.hasTransactions &&
@@ -698,7 +684,7 @@ const updateChartOfAccounts = async ({
     | {
         rejected: false;
         companyUUID: string;
-      result: UpdateCoaResponse;
+        result: UpdateCoaResponse;
       }
   > => {
     const companyUUID = await getCompanyUUID(companyId, tx);

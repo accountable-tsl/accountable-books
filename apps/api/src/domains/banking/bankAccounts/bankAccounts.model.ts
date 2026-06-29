@@ -17,7 +17,6 @@ import {
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { createCoaAccount } from '../../chart-of-accounts/coa.model.js';
 import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
-import { enqueueOutboxDispatch } from '../../work/outbox.queue.js';
 import { writeBankReconnectNotificationLifecycle } from './bankAccountNotifications.js';
 import {
   bankAccountWithConnectionInput,
@@ -28,8 +27,8 @@ import {
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
 import type {
-  BankAccountWithConnectionInput,
   BankAccountConnectionStatus,
+  BankAccountWithConnectionInput,
   BankAccountWithMeta,
   CompanyBankingSnapshot,
   ManualBankAccountInput,
@@ -310,7 +309,6 @@ async function createBankAccount({
   }
 
   const v = validatedInput.data;
-  let wroteNotificationIntents = false;
 
   const exec = async (
     tx: Knex.Transaction,
@@ -381,12 +379,7 @@ async function createBankAccount({
       : null;
 
     const existingBankAccount = await tx('bank_accounts')
-      .select([
-        'id',
-        'coa_id',
-        'connection_credential_id',
-        'connection_status',
-      ])
+      .select(['id', 'coa_id', 'connection_credential_id', 'connection_status'])
       .where({
         company_id: companyUUID,
         bank_id: bankId,
@@ -475,14 +468,7 @@ async function createBankAccount({
               sync_error: string | null;
               updated_at: Date | string;
             }[]
-          >([
-            'id',
-            'connection_credential_id',
-            'connection_status',
-            'display_name',
-            'sync_error',
-            'updated_at',
-          ]);
+          >(['id', 'connection_credential_id', 'connection_status', 'display_name', 'sync_error', 'updated_at']);
       } else {
         [bankAccountRow] = await tx('bank_accounts')
           .insert({
@@ -532,19 +518,17 @@ async function createBankAccount({
 
       bankAccountId = bankAccountRow.id;
       const newConnectionCredentialId = bankAccountRow.connection_credential_id;
-      const notificationIntentCount =
-        await writeBankReconnectNotificationLifecycle(tx, {
-          bankAccountId,
-          clientCompanyId: companyUUID,
-          previousConnectionStatus:
-            existingBankAccount?.connection_status ?? null,
-          nextConnectionStatus: bankAccountRow.connection_status,
-          bankAccountName: bankAccountRow.display_name,
-          previousSyncError: existingBankAccount?.sync_error ?? null,
-          syncError: bankAccountRow.sync_error,
-          stateVersion: bankAccountRow.updated_at,
-        });
-      wroteNotificationIntents ||= notificationIntentCount > 0;
+      await writeBankReconnectNotificationLifecycle(tx, {
+        bankAccountId,
+        clientCompanyId: companyUUID,
+        previousConnectionStatus:
+          existingBankAccount?.connection_status ?? null,
+        nextConnectionStatus: bankAccountRow.connection_status,
+        bankAccountName: bankAccountRow.display_name,
+        previousSyncError: existingBankAccount?.sync_error ?? null,
+        syncError: bankAccountRow.sync_error,
+        stateVersion: bankAccountRow.updated_at,
+      });
 
       if (
         oldConnectionCredentialId &&
@@ -671,9 +655,6 @@ async function createBankAccount({
 
   try {
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
-    if (!trx && result.success && wroteNotificationIntents) {
-      await enqueueOutboxDispatch('kick');
-    }
     log.info({ duration: Date.now() - start }, 'created');
     return result;
   } catch (error) {
@@ -746,7 +727,6 @@ export async function updateBankAccounts({
   }
 
   const { data } = validatedInput;
-  let wroteNotificationIntents = false;
   const exec = async (txn: Knex.Transaction): Promise<ApiResponse<number>> => {
     const companyUUID = await getCompanyUUID(companyId);
     if (!companyUUID) {
@@ -797,30 +777,22 @@ export async function updateBankAccounts({
             sync_error: string | null;
             updated_at: Date | string;
           }[]
-        >([
-          'id',
-          'connection_status',
-          'display_name',
-          'sync_error',
-          'updated_at',
-        ]);
+        >(['id', 'connection_status', 'display_name', 'sync_error', 'updated_at']);
 
       if (!updated) {
         throw new Error(`Unable to update bank account ${i.id}`);
       }
 
-      const notificationIntentCount =
-        await writeBankReconnectNotificationLifecycle(txn, {
-          bankAccountId: updated.id,
-          clientCompanyId: companyUUID,
-          previousConnectionStatus: existing.connection_status,
-          nextConnectionStatus: updated.connection_status,
-          bankAccountName: updated.display_name,
-          previousSyncError: existing.sync_error,
-          syncError: updated.sync_error,
-          stateVersion: updated.updated_at,
-        });
-      wroteNotificationIntents ||= notificationIntentCount > 0;
+      await writeBankReconnectNotificationLifecycle(txn, {
+        bankAccountId: updated.id,
+        clientCompanyId: companyUUID,
+        previousConnectionStatus: existing.connection_status,
+        nextConnectionStatus: updated.connection_status,
+        bankAccountName: updated.display_name,
+        previousSyncError: existing.sync_error,
+        syncError: updated.sync_error,
+        stateVersion: updated.updated_at,
+      });
 
       results.push(1);
     }
@@ -832,9 +804,6 @@ export async function updateBankAccounts({
 
   try {
     const result = trx ? await exec(trx) : await knexClient.transaction(exec);
-    if (!trx && result.success && wroteNotificationIntents) {
-      await enqueueOutboxDispatch('kick');
-    }
     logger.info(
       { userId, companyId, duration: Date.now() - startTime },
       'Bank accounts updated',

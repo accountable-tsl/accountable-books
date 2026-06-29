@@ -359,37 +359,34 @@ describe('resolveFx', () => {
     expect(result.customExRate).toBe(1.18);
   });
 
-  it('should warn and use system rate when conflicting custom rates', async () => {
+  it('should throw when conflicting custom rates are provided', async () => {
     mockDetermineExchangeRate.mockResolvedValue(1.15);
 
-    const result = await resolveFx({
-      entries: [
-        {
-          fs_date: '2025-01-15',
-          coa_id: 'coa-1',
-          source_currency_id: 'eur-id',
-          source_amount: -1000,
-          description: 'Test',
-          custom_exchange_rate: 1.18,
-        },
-        {
-          fs_date: '2025-01-15',
-          coa_id: 'coa-2',
-          source_currency_id: 'eur-id',
-          source_amount: 1000,
-          description: 'Test',
-          custom_exchange_rate: 1.22,
-        },
-      ],
-      ledgerTxDate: new Date('2025-01-15'),
-      sourceCurrencyId: 'eur-id',
-      reportingCurrencyId: 'usd-id',
-    });
-
-    expect(result.customExRate).toBe(1.15);
-    expect(result.warnings).toContain(
-      'Conflicting custom FX rates detected for EUR → USD on 2025-01-15. Using system rate.',
-    );
+    await expect(
+      resolveFx({
+        entries: [
+          {
+            fs_date: '2025-01-15',
+            coa_id: 'coa-1',
+            source_currency_id: 'eur-id',
+            source_amount: -1000,
+            description: 'Test',
+            custom_exchange_rate: 1.18,
+          },
+          {
+            fs_date: '2025-01-15',
+            coa_id: 'coa-2',
+            source_currency_id: 'eur-id',
+            source_amount: 1000,
+            description: 'Test',
+            custom_exchange_rate: 1.22,
+          },
+        ],
+        ledgerTxDate: new Date('2025-01-15'),
+        sourceCurrencyId: 'eur-id',
+        reportingCurrencyId: 'usd-id',
+      }),
+    ).rejects.toThrow('Conflicting custom FX rates');
   });
 
   it('should warn for suspiciously large FX rate', async () => {

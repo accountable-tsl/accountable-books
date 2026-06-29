@@ -107,16 +107,8 @@ export async function enrichTransaction({
         'b.currency_id',
         'bank_currency.id',
       )
-      // .leftJoin(
-      //   'bank_transaction_contact_resolutions as bcr',
-      //   'bcr.bank_transaction_id',
-      //   'bt.id',
-      // )
       .where('bt.id', bankTransactionId)
       .where('bt.is_deleted', false)
-      // .select(
-      //   'bcr.contact_type as resolution_contact_type',
-      // )
       .first();
 
     if (!txn) {

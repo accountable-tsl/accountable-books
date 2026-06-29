@@ -9,10 +9,12 @@ import {
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
 import { knexClient } from '../../../db/knexClient.js';
-import { dispatchPendingIntents } from '../../work/outbox.dispatcher.js';
-import { writeOutboxIntent } from '../../work/outbox.model.js';
+import {
+  dispatchPendingIntents,
+  OUTBOX_INTENT,
+  writeOutbox,
+} from '../../outbox/index.js';
 import { resolveFirmCompanyId } from '../../work/work-ownership.js';
-import { OUTBOX_INTENT } from '../../work/work.types.js';
 import { writeActivityEventIntent } from '../activity-intent.js';
 import { ACTIVITY_EVENT_TYPE } from '../activity.types.js';
 
@@ -34,7 +36,7 @@ describe('activity event outbox', () => {
       return;
     }
 
-    await knexClient('app.outbox_intents')
+    await knexClient('app.outbox')
       .whereIn('scope_key', cleanupScopeKeys.splice(0))
       .del();
   });
@@ -56,19 +58,18 @@ describe('activity event outbox', () => {
       });
       scopeKey = result.scopeKey;
 
-      const pendingInTransaction = await trx('app.outbox_intents')
-        .where({
-          intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
-          scope_key: scopeKey,
-          status: 'pending',
-        });
+      const pendingInTransaction = await trx('app.outbox').where({
+        intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
+        scope_key: scopeKey,
+        status: 'pending',
+      });
 
       expect(pendingInTransaction).toHaveLength(1);
     } finally {
       await trx.rollback();
     }
 
-    const committed = await knexClient('app.outbox_intents').where({
+    const committed = await knexClient('app.outbox').where({
       scope_key: scopeKey,
     });
     expect(committed).toHaveLength(0);
@@ -141,11 +142,11 @@ describe('activity event outbox', () => {
       metadata: { origin: 'activity-outbox-test' },
     });
 
-    const outboxRow = await knexClient('app.outbox_intents')
+    const outboxRow = await knexClient('app.outbox')
       .where({ scope_key: scopeKey })
-      .first('status', 'processed_at');
+      .first('status', 'completed_at');
     expect(outboxRow?.status).toBe('processed');
-    expect(outboxRow?.processed_at).not.toBeNull();
+    expect(outboxRow?.completed_at).not.toBeNull();
   });
 
   it('deduplicates duplicate dispatches by activity idempotency key', async () => {
@@ -171,12 +172,12 @@ describe('activity event outbox', () => {
     const secondScopeKey = `${OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED}:${idempotencyKey}:b`;
 
     await knexClient.transaction(async (trx) => {
-      await writeOutboxIntent(trx, {
+      await writeOutbox(trx, {
         intentType: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scopeKey: firstScopeKey,
         payload: { event },
       });
-      await writeOutboxIntent(trx, {
+      await writeOutbox(trx, {
         intentType: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scopeKey: secondScopeKey,
         payload: { event },
@@ -184,9 +185,9 @@ describe('activity event outbox', () => {
       cleanupScopeKeys.push(firstScopeKey, secondScopeKey);
     });
 
-    expect(await dispatchPendingIntents(1, { scopeKey: firstScopeKey })).toEqual(
-      { processed: 1, deferred: 0, failed: 0 },
-    );
+    expect(
+      await dispatchPendingIntents(1, { scopeKey: firstScopeKey }),
+    ).toEqual({ processed: 1, deferred: 0, failed: 0 });
     expect(
       await dispatchPendingIntents(1, { scopeKey: secondScopeKey }),
     ).toEqual({ processed: 1, deferred: 0, failed: 0 });

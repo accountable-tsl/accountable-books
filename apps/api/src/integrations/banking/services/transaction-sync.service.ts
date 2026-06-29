@@ -12,7 +12,6 @@ import {
 } from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { addNewBankTransactions } from '../../../domains/bankTransactions/bankTransactions.model.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
-import { enqueueOutboxDispatch } from '../../../domains/work/outbox.queue.js';
 import { alertAdmins } from '../../../features/comms/admin-alerts.js';
 import { redis as redisClient } from '../../../lib/redis.js';
 import { logger } from '../../../shared/utils/logger.js';
@@ -703,10 +702,6 @@ export class TransactionSyncService {
         }),
       );
 
-      if (intentCount > 0) {
-        await enqueueOutboxDispatch('kick');
-      }
-
       logger.warn(
         {
           traceId: input.traceId,
@@ -744,7 +739,6 @@ export class TransactionSyncService {
       );
 
       if (intentCount > 0) {
-        await enqueueOutboxDispatch('kick');
         logger.info(
           {
             traceId: input.traceId,
@@ -864,17 +858,14 @@ export class TransactionSyncService {
           bankAccountName: updated.display_name as string,
           previousSyncError: account.sync_error as string | null,
           syncError: updated.sync_error as string | null,
-          stateVersion: (updated.updated_at as Date | string | null) ??
+          stateVersion:
+            (updated.updated_at as Date | string | null) ??
             fallbackStateVersion,
         });
       }
 
       return written;
     });
-
-    if (intentCount > 0) {
-      await enqueueOutboxDispatch('kick');
-    }
 
     return intentCount;
   }

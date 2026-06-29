@@ -5,7 +5,6 @@ import {
   ACTIVITY_EVENT_TYPE,
   writeActivityEventIntent,
 } from '../../activity/index.js';
-import { scheduleOutboxDispatchKickAfterCommit } from '../../work/outbox.queue.js';
 import { computeOpenDecisionEligibleFindings } from './period-findings.js';
 
 import type { FiscalPeriodType } from '../fiscal-calendar/fiscal-calendar.types.js';
@@ -186,8 +185,6 @@ export async function recordCloseReviewDecision(
         factsHash: candidate.factsHash,
       },
     });
-    await scheduleOutboxDispatchKickAfterCommit(queryable);
-
     return {
       ok: true,
       decision: {

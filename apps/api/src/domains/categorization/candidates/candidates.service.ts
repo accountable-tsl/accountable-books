@@ -7,8 +7,6 @@ import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
-// Contact resolution retired (v1): import disabled, caller commented out below.
-// import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
   appendCandidateDisposition,
@@ -461,30 +459,6 @@ export async function updateCategorizationCandidate(
         ...(contactId ? { contact_id: contactId } : {}),
         ...(contactType ? { contact_type: contactType } : {}),
       });
-
-    // Contact resolution retired (v1) — block disabled.
-    /*
-    if (contactId) {
-      const candidate = await txn('categorization_candidates')
-        .where({ id: candidate_id, is_deleted: false })
-        .select('company_id', 'bank_transaction_id')
-        .first();
-
-      if (candidate) {
-        await updateBankTransactionContactResolution({
-          trx: txn,
-          companyId: candidate.company_id,
-          bankTransactionId: candidate.bank_transaction_id,
-          contactId,
-          contactType,
-          source: 'user',
-          confidence: 1,
-          reason: 'User updated categorization candidate contact',
-          resolvedById: userId,
-        });
-      }
-    }
-    */
   };
 
   if (p.trx) {

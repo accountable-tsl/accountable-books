@@ -1,7 +1,7 @@
 import type {
+  CandidateDecisionIntent,
   CategorizationStatsResponse,
   CategorizationTransaction,
-  CandidateDecisionIntent,
   GetCategorizationStatsParams,
   LedgerIntent,
   LedgerIntentEntry,
@@ -39,12 +39,11 @@ import {
   getLedgerTransactionsWithEntries,
   updateOrCreateLedger,
 } from '../ledgers/ledgers.model.js';
-import { scheduleOutboxDispatchKickAfterCommit } from '../work/outbox.queue.js';
-import { getActiveWorkItemBankTransactionIds } from '../work/work-queue.read.js';
 import {
   fastMaterializeBankAccountScopes,
   writeBankAccountWorkMaterializationIntent,
 } from '../work/work-materialization-intent.js';
+import { getActiveWorkItemBankTransactionIds } from '../work/work-queue.read.js';
 import {
   WORK_TYPE_CATEGORIZE_TRANSACTIONS,
   WORK_TYPE_REVIEW_SUGGESTIONS,
@@ -71,11 +70,11 @@ import {
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
-import type { FastMaterializationScopeResult } from '../work/work-materialization-intent.js';
 import type {
   LedgerEntryInput,
   NewLedgerTransactionData,
 } from '../ledgers/ledgers.types.js';
+import type { FastMaterializationScopeResult } from '../work/work-materialization-intent.js';
 import type {
   GetCategorizationTransactionsParams,
   GetCategorizationTransactionsResponse,
@@ -311,10 +310,8 @@ export async function getCategorizationTransactions(
               });
           })
           .orWhere((sub) => {
-            sub
-              .where('categorization_status', 'posted')
-              .whereRaw(
-                `lower(concat_ws(' ',
+            sub.where('categorization_status', 'posted').whereRaw(
+              `lower(concat_ws(' ',
                   description,
                   reference,
                   contact_name,
@@ -326,8 +323,8 @@ export async function getCategorizationTransactions(
                   bank_account_coa_name,
                   bank_account_coa_code
                 )) LIKE ?`,
-                [likePattern],
-              );
+              [likePattern],
+            );
           });
       });
     }
@@ -526,8 +523,10 @@ export async function processCategorizationIntent({
 
   // Bank-account scopes touched by a successful post. Populated inside `exec`
   // and consumed after commit to run fast inline materialization.
-  const affectedScopes: Array<{ clientCompanyId: string; bankAccountId: string }> =
-    [];
+  const affectedScopes: Array<{
+    clientCompanyId: string;
+    bankAccountId: string;
+  }> = [];
 
   const exec = async (txn: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, txn);
@@ -537,18 +536,25 @@ export async function processCategorizationIntent({
     }
 
     const postingIntentsByBankTxn = new Map<string, LedgerPostingIntent[]>();
-    const decisionIntentsByBankTxn = new Map<string, CandidateDecisionIntent[]>();
+    const decisionIntentsByBankTxn = new Map<
+      string,
+      CandidateDecisionIntent[]
+    >();
 
     for (const intent of validatedIntents) {
       if (isCandidateDecisionIntent(intent)) {
-        const existing = decisionIntentsByBankTxn.get(intent.bank_transaction_id);
+        const existing = decisionIntentsByBankTxn.get(
+          intent.bank_transaction_id,
+        );
         if (existing) {
           existing.push(intent);
         } else {
           decisionIntentsByBankTxn.set(intent.bank_transaction_id, [intent]);
         }
       } else {
-        const existing = postingIntentsByBankTxn.get(intent.bank_transaction_id);
+        const existing = postingIntentsByBankTxn.get(
+          intent.bank_transaction_id,
+        );
         if (existing) {
           existing.push(intent);
         } else {
@@ -634,8 +640,6 @@ export async function processCategorizationIntent({
       operation: 'candidate_rejected';
       candidate_id: string;
     }> = [];
-    let needsOutboxKick = false;
-
     for (const [bankTransactionId, intents] of decisionIntentsByBankTxn) {
       if (intents.length !== 1) {
         throw new Error(
@@ -693,8 +697,6 @@ export async function processCategorizationIntent({
         clientCompanyId: companyUUID,
         bankAccountId: rejectResult.bankAccountId,
       });
-      needsOutboxKick = true;
-
       candidateDecisionResults.push({
         bank_transaction_id: bankTransactionId,
         operation: 'candidate_rejected',
@@ -1286,6 +1288,7 @@ export async function processCategorizationIntent({
       companyId: companyUUID,
       userId,
       trx: txn,
+      requestContext: { source: 'web' },
     });
 
     if (!ledgerResult.success) {
@@ -1380,7 +1383,8 @@ export async function processCategorizationIntent({
           idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.MANUAL_CATEGORIZATION_POSTED}:${ledgerResultItem.ledgerTransactionId}`,
           metadata: {
             bankTransactionId: bankTxnId,
-            bankAccountId: bankTransactionMap.get(bankTxnId)?.bank_account_id ?? null,
+            bankAccountId:
+              bankTransactionMap.get(bankTxnId)?.bank_account_id ?? null,
             candidateId,
           },
         });
@@ -1438,19 +1442,8 @@ export async function processCategorizationIntent({
       }
     }
 
-    // Phase 2: a manual post is a domain mutation that can solve queue work.
-    // Only a newly-created ledger transitions a bank transaction unposted->posted
-    // and thus ends its `categorize` subject; `updated_metadata`/`superseded` act
-    // on already-posted transactions, so materializing for them would be a pure
-    // no-op. We therefore write a durable work-materialization intent (recovery
-    // path) per affected bank account in THIS transaction only for created
-    // results, and the caller runs fast inline materialization after commit.
-    //
-    // OWNERSHIP: when Phase D1 makes createLedgerRecord the single
-    // materialization owner for all ledger writes, remove this block so the
-    // manual-post path does not double-own the effect (see G30).
     if (results.length > 0) {
-      const postedIdsByBankAccount = new Map<string, string[]>();
+      const affectedBankAccounts = new Set<string>();
       for (const result of results) {
         if (result.operation !== 'created') {
           continue;
@@ -1461,34 +1454,16 @@ export async function processCategorizationIntent({
         if (!bankAccountId) {
           logger.warn(
             { bankTransactionId: result.bank_transaction_id },
-            'Posted bank transaction missing bank_account_id; skipping work materialization intent',
+            'Posted bank transaction missing bank_account_id; skipping work materialization scope',
           );
           continue;
         }
-        const ids = postedIdsByBankAccount.get(bankAccountId) ?? [];
-        ids.push(result.bank_transaction_id);
-        postedIdsByBankAccount.set(bankAccountId, ids);
+        affectedBankAccounts.add(bankAccountId);
       }
 
-      for (const [bankAccountId, bankTransactionIds] of postedIdsByBankAccount) {
-        await writeBankAccountWorkMaterializationIntent(txn, {
-          clientCompanyId: companyUUID,
-          bankAccountId,
-          change: {
-            type: 'bank_transactions_posted',
-            companyId: companyUUID,
-            bankAccountId,
-            bankTransactionIds,
-          },
-        });
+      for (const bankAccountId of affectedBankAccounts) {
         affectedScopes.push({ clientCompanyId: companyUUID, bankAccountId });
       }
-
-      needsOutboxKick ||= postedIdsByBankAccount.size > 0;
-    }
-
-    if (needsOutboxKick) {
-      await scheduleOutboxDispatchKickAfterCommit(txn);
     }
 
     const summary = {
@@ -1513,9 +1488,6 @@ export async function processCategorizationIntent({
 
   try {
     if (trx) {
-      // Caller owns the commit boundary, so we cannot fast-materialize
-      // uncommitted facts here. The durable intent plus the after-commit kick
-      // (both scheduled on the caller's trx) reconcile the queue on commit.
       const res = await exec(trx);
       return successResponse(
         'Categorization intents processed successfully',

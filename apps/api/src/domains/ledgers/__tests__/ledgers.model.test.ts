@@ -221,9 +221,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(transaction).toBeTruthy();
       expect(transaction.company_id).toBe(testCompanyId);
 
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
       expect(entries).toHaveLength(2);
     });
 
@@ -265,9 +267,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Verify contact cascade to entries
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       expect(entries.every((e) => e.contact_id === testContactId)).toBe(true);
       expect(entries.every((e) => e.contact_type === 'vendor')).toBe(true);
@@ -326,7 +330,7 @@ describe('createLedgerRecord - Integration Tests', () => {
       const resultData = result.data as CreateLedgerRecordResult;
       const entries = await trx('ledger_entries')
         .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false)
+        // .where('is_deleted', false)
         .orderBy('coa_id');
 
       // First entry (cash) should have transaction contact (no entry contact provided)
@@ -376,9 +380,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(result.success).toBe(true);
 
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       const projectEntry = entries.find((e) => e.coa_id === testCoaIds.expense);
       expect(projectEntry?.project_id).toBe(testProjectId);
@@ -425,9 +431,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(result.success).toBe(true);
 
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       const bankLeg = entries.find((e) => e.is_bank_leg);
       expect(bankLeg).toBeTruthy();
@@ -481,9 +489,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(result.success).toBe(true);
 
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       expect(entries).toHaveLength(3);
       expect(entries.filter((e) => e.is_bank_leg)).toHaveLength(1);
@@ -553,9 +563,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Verify entries were created with custom exchange rate
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       // Both entries should have the custom exchange rate applied
       entries.forEach((entry) => {

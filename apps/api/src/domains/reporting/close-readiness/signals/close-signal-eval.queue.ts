@@ -1,5 +1,4 @@
 import type { Job, JobsOptions } from 'bullmq';
-import type { Knex } from 'knex';
 import { z } from 'zod';
 
 import {
@@ -8,9 +7,7 @@ import {
   QueueName,
 } from '../../../../jobs/queues/queue-broker.js';
 import { createQueue } from '../../../../jobs/queues/queue-factory.js';
-import { runAfterTransactionCommit } from '../../../../shared/db/after-transaction-commit.js';
 import { withJobTelemetry } from '../../../../shared/telemetry/request-context.js';
-import { getLogger } from '../../../../shared/utils/logger.js';
 
 /**
  * Queue for close review signal evaluation.
@@ -19,18 +16,23 @@ import { getLogger } from '../../../../shared/utils/logger.js';
  * transaction. Deduped by ledger transaction id so a flurry of writes collapses
  * to one pending evaluation; runs off the ledger write path.
  */
-export const closeSignalEvalJobDataSchema = z.object({
-  type: z.literal('close-signal-eval'),
+export const enqueueCloseSignalEvalInput = z.object({
   companyId: z.string().trim().min(1),
   ledgerTransactionId: z.string().trim().min(1),
   triggeredBy: z
     .enum(['ledger_write', 'supersession', 'backfill', 'manual'])
     .optional(),
 });
+
+export const closeSignalEvalJobDataSchema = enqueueCloseSignalEvalInput.extend({
+  type: z.literal('close-signal-eval'),
+});
 export type CloseSignalEvalJobData = z.infer<
   typeof closeSignalEvalJobDataSchema
 >;
-export type EnqueueCloseSignalEvalInput = Omit<CloseSignalEvalJobData, 'type'>;
+export type EnqueueCloseSignalEvalInput = z.infer<
+  typeof enqueueCloseSignalEvalInput
+>;
 
 const DEFAULTS: JobsOptions = {
   attempts: 3,
@@ -44,8 +46,6 @@ export const closeSignalEvalQueue = createQueue<CloseSignalEvalJobData>(
   'close-signal-eval',
   { defaultJobOptions: DEFAULTS },
 );
-
-const logger = getLogger({ component: 'close-signal-eval-queue' });
 
 /**
  * Enqueue signal evaluation for one ledger transaction, deduped by transaction
@@ -71,31 +71,4 @@ export async function enqueueCloseSignalEval(
     }),
   );
   return job as Job<CloseSignalEvalJobData> | null;
-}
-
-/**
- * Enqueue after the surrounding transaction commits, so signal evaluation never
- * runs against rows that may roll back and never blocks the ledger write.
- */
-export async function scheduleCloseSignalEvalAfterCommit(
-  data: EnqueueCloseSignalEvalInput,
-  trx?: Knex.Transaction,
-): Promise<Job<CloseSignalEvalJobData> | null> {
-  if (!trx) return enqueueCloseSignalEval(data);
-
-  runAfterTransactionCommit(trx, () => {
-    enqueueCloseSignalEval(data).catch((error) => {
-      logger.error(
-        {
-          companyId: data.companyId,
-          ledgerTransactionId: data.ledgerTransactionId,
-          triggeredBy: data.triggeredBy,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        'Failed to enqueue close signal evaluation after transaction commit',
-      );
-    });
-  });
-
-  return null;
 }

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -13,7 +12,7 @@ import {
 } from '../../../../../test/helpers.js';
 import { notify } from '../../../notifications/notifications.model.js';
 import { NOTIFICATION_TYPE } from '../../../notifications/notifications.types.js';
-import { OUTBOX_INTENT } from '../../../work/work.types.js';
+import { OUTBOX_INTENT } from '../../../outbox/intents.js';
 import {
   buildBankSyncFailureAttentionKey,
   writeBankReconnectNotificationLifecycle,
@@ -173,7 +172,7 @@ describe('bank account creation', () => {
     expect(result.success).toBe(true);
 
     const firmCompanyId = await resolveFirmCompanyId(trx, companyId);
-    const intents = await trx('app.outbox_intents')
+    const intents = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
       .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
         NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
@@ -271,7 +270,7 @@ describe('bank account creation', () => {
     expect(reconnect.success).toBe(true);
     expect(reconnect.data?.wasUpdated).toBe(true);
 
-    const resolutionIntents = await trx('app.outbox_intents')
+    const resolutionIntents = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
       })
@@ -329,7 +328,7 @@ describe('bank account creation', () => {
     });
 
     expect(intentCount).toBe(2);
-    const events = await trx('app.outbox_intents')
+    const events = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
       .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
         NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
@@ -378,8 +377,9 @@ describe('bank account creation', () => {
     });
     const firmCompanyId = await resolveFirmCompanyId(trx, companyId);
 
-    const intentCount =
-      await writeBankSyncFailureRequiresActionNotifications(trx, {
+    const intentCount = await writeBankSyncFailureRequiresActionNotifications(
+      trx,
+      {
         clientCompanyId: companyId,
         credentialId: bankAccount.credentialId,
         failures: [
@@ -390,10 +390,11 @@ describe('bank account creation', () => {
           },
         ],
         stateVersion: '2026-06-21T00:00:00.000Z',
-      });
+      },
+    );
 
     expect(intentCount).toBe(1);
-    const [intent] = await trx('app.outbox_intents')
+    const [intent] = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
       .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
         NOTIFICATION_TYPE.SYNC_FAILURE_REQUIRES_ACTION,
@@ -467,7 +468,7 @@ describe('bank account creation', () => {
     });
 
     expect(intentCount).toBe(1);
-    const [resolutionIntent] = await trx('app.outbox_intents')
+    const [resolutionIntent] = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED })
       .andWhereRaw(`payload->>'attentionKey' = ?`, [attentionKey]);
 
@@ -528,7 +529,9 @@ async function createConnectedBankAccountFixture(
   });
 
   if (!result.success || !result.data?.bankAccountId) {
-    throw new Error(result.message || 'Failed to create connected bank account');
+    throw new Error(
+      result.message || 'Failed to create connected bank account',
+    );
   }
 
   return {
@@ -579,13 +582,11 @@ async function ensureClientOwnerRole(
     .first('id');
 
   if (existing) {
-    await trx('user_company_roles')
-      .where({ id: existing.id })
-      .update({
-        role_id: role.id,
-        updated_by_id: input.actorUserId,
-        updated_at: trx.fn.now(),
-      });
+    await trx('user_company_roles').where({ id: existing.id }).update({
+      role_id: role.id,
+      updated_by_id: input.actorUserId,
+      updated_at: trx.fn.now(),
+    });
     return;
   }
 
@@ -661,11 +662,9 @@ async function countCompanyRows(
         .where({ 'coa.company_id': companyId }),
     ),
     countRows(trx('bank_accounts').where({ company_id: companyId })),
-    trx('coa_snapshot_versions')
-      .where({ company_id: companyId })
-      .first<{ snapshot_version: string | number | bigint }>(
-        'snapshot_version',
-      ),
+    trx('coa_snapshot_versions').where({ company_id: companyId }).first<{
+      snapshot_version: string | number | bigint;
+    }>('snapshot_version'),
   ]);
 
   return {

@@ -1,5 +1,5 @@
-import type { Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import type { Knex } from 'knex';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDb } from '../../../../../config/test-db.js';
@@ -10,7 +10,7 @@ import {
   US_USER_EMAIL,
 } from '../../../../../test/helpers.js';
 import { NOTIFICATION_TYPE } from '../../../../domains/notifications/notifications.types.js';
-import { OUTBOX_INTENT } from '../../../../domains/work/work.types.js';
+import { OUTBOX_INTENT } from '../../../../domains/outbox/intents.js';
 import { encrypt } from '../../../../shared/utils/crypto.utils.js';
 import { providerRegistry } from '../../providers/registry.js';
 import { TransactionSyncStrategy } from '../../types/base.js';
@@ -59,13 +59,14 @@ describe('transaction sync failure classification', () => {
   });
 
   it('classifies unexpected local errors as admin-alertable', () => {
-    expect(classifyTransactionSyncFailure(new Error('System user not found')))
-      .toEqual(
-        expect.objectContaining({
-          classification: 'internal_provider_system',
-          code: 'UNKNOWN_TRANSACTION_SYNC_ERROR',
-        }),
-      );
+    expect(
+      classifyTransactionSyncFailure(new Error('System user not found')),
+    ).toEqual(
+      expect.objectContaining({
+        classification: 'internal_provider_system',
+        code: 'UNKNOWN_TRANSACTION_SYNC_ERROR',
+      }),
+    );
   });
 
   it('marks connected accounts error and emits reconnect intents on auth sync failure', async () => {
@@ -103,16 +104,16 @@ describe('transaction sync failure classification', () => {
 
       const account = await db('bank_accounts')
         .where({ id: fixture.bankAccountId })
-        .first<{ connection_status: string; sync_error: string | null }>(
-          'connection_status',
-          'sync_error',
-        );
+        .first<{
+          connection_status: string;
+          sync_error: string | null;
+        }>('connection_status', 'sync_error');
       expect(account).toEqual({
         connection_status: 'error',
         sync_error: authError.displayMessage,
       });
 
-      const intents = await db('app.outbox_intents')
+      const intents = await db('app.outbox')
         .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
         .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
           NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
@@ -143,9 +144,7 @@ describe('transaction sync failure classification', () => {
   });
 });
 
-async function createSyncFailureFixture(
-  db: Knex,
-): Promise<{
+async function createSyncFailureFixture(db: Knex): Promise<{
   bankAccountId: string;
   credentialId: string;
   companyId: string;
@@ -237,7 +236,7 @@ async function cleanupSyncFailureFixture(
     restoreRole: () => Promise<void>;
   },
 ): Promise<void> {
-  await db('app.outbox_intents')
+  await db('app.outbox')
     .whereRaw(`payload::text LIKE ?`, [`%${fixture.bankAccountId}%`])
     .delete();
   await db('bank_accounts').where({ id: fixture.bankAccountId }).delete();

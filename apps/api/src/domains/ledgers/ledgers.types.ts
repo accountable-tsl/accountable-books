@@ -267,10 +267,16 @@ export type LedgerTransactionWithEntriesFiltered = Omit<
   >;
 };
 
+export type PostLedgerTransactionsResult = {
+  postedCount: number;
+  ledgerTransactionIds: string[];
+};
+
 export type PostLedgerTransactionsInput = {
   companyId: string;
   actor: AuditActorInput;
   requestContext: AuditContextInput;
   transactions: LedgerTransactionInput[];
   trx?: Knex.Transaction;
+  skipFxPositionTracking?: boolean;
 };

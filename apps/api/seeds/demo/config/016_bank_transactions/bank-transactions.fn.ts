@@ -1,7 +1,6 @@
 import type { Knex } from 'knex';
 
 import { generateBatchFingerprint } from '../../../../src/domains/bankTransactions/bankTransactions.utils.js';
-import { createBankTransactionContactResolutions } from '../../../../src/domains/bankTransactions/contactResolution.service.js';
 import { determineExchangeRate } from '../../../../src/domains/exchangeRates/exchangeRates.utils.js';
 import { generateFingerprintSync } from '../../../../src/shared/index.js';
 import { toYMD } from '../../../../src/shared/utils/date.utils.js';
@@ -337,22 +336,6 @@ export const createDemoBankTransactions = async (
       console.log(
         `✓ Created ${inserted} transactions for ${company.short_code} account ${bankAccount.display_name}${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`,
       );
-
-      // if (inserted > 0) {
-      //   await createBankTransactionContactResolutions({
-      //     trx,
-      //     companyId: companyUUID,
-      //     userId,
-      //     source: batchSource,
-      //     transactions: insertedTxns.map((insertedTxn) => ({
-      //       id: insertedTxn.id,
-      //       idempotency_key: insertedTxn.idempotency_key,
-      //       payee: insertedTxn.payee,
-      //       description: insertedTxn.description,
-      //       source_payload: insertedTxn.source_payload,
-      //     })),
-      //   });
-      // }
 
       // NOTE: We deliberately skip balance recalculation and enrichment queues
       // to avoid Redis connection during seeding. Balances can be recalculated

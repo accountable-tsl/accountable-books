@@ -680,11 +680,6 @@ async function getContactReferenceCounts({
     categorizationCandidateLines: await countCategorizationCandidateLines(),
     categorizationPredictions: await countTable('categorization_predictions'),
     categorizationPredictionLines: await countCategorizationPredictionLines(),
-    // Contact resolution retired (v1) — counts for dropped tables disabled.
-    // bankTransactionContactResolutions: await countTable(
-    //   'bank_transaction_contact_resolutions',
-    // ),
-    // contactAliases: await countTable('contact_aliases'),
     recurringJournalTemplates: await countTable('recurring_journal_templates'),
     journalBatches: await countTable('journal_batches'),
     bankTransactionContactStats: await countTable(

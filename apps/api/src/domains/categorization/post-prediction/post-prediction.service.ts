@@ -13,9 +13,6 @@ import {
   writeActivityEventIntent,
 } from '../../activity/index.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
-import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
-import { getSystemUser } from '../../users/users.model.js';
-import { scheduleOutboxDispatchKickAfterCommit } from '../../work/outbox.queue.js';
 import { writeBankAccountWorkMaterializationIntent } from '../../work/work-materialization-intent.js';
 import {
   checkAutopostEligibility,
@@ -23,8 +20,6 @@ import {
   postCandidateToLedger,
 } from '../autopost/index.js';
 import { persistCategorizationCandidate } from '../candidates/candidates.service.js';
-// Contact resolution retired (v1): import disabled, caller commented out below.
-// import { updateBankTransactionContactResolution } from '../contact-resolution-updates.service.js';
 import { enqueueMLPredictionJob } from '../ml/ml-prediction.queue.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 import {
@@ -987,23 +982,6 @@ async function processPredictionToCandidate({
       throw new Error('Failed to persist candidate');
     }
 
-    // Contact resolution retired (v1) — call disabled.
-    /*
-    await updateBankTransactionContactResolution({
-      trx: txn,
-      companyId: companyUUID,
-      bankTransactionId: bankTxnId,
-      contactId: p.contact_id,
-      contactType: p.contact_type,
-      source: source === 'rule' ? 'rule' : 'system',
-      confidence: p.confidence,
-      reason:
-        source === 'rule'
-          ? 'Categorization rule selected contact'
-          : 'Categorization prediction selected contact',
-    });
-    */
-
     logger.debug(
       {
         bankTransactionId: bankTxnId,
@@ -1166,7 +1144,6 @@ async function processPredictionToCandidate({
           candidateId,
         },
       });
-      await scheduleOutboxDispatchKickAfterCommit(txn);
     }
   };
 

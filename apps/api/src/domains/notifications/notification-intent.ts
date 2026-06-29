@@ -2,8 +2,8 @@ import type { Knex } from 'knex';
 import { z } from 'zod';
 
 import { commsSendPayloadSchema } from '../../features/comms/comms.types.js';
-import { writeOutboxIntent } from '../work/outbox.model.js';
-import { OUTBOX_INTENT } from '../work/work.types.js';
+import { writeOutbox } from '../outbox/index.js';
+import { OUTBOX_INTENT } from '../outbox/intents.js';
 import { notifyEventSchema } from './notifications.types.js';
 
 import type { CommsSendPayload } from '../../features/comms/index.js';
@@ -79,7 +79,7 @@ export async function writeNotificationRequestedIntent(
     parsedEvent.idempotencyKey,
   );
 
-  await writeOutboxIntent(trx, {
+  await writeOutbox(trx, {
     intentType: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
     scopeKey,
     payload: { event: parsedEvent },
@@ -92,12 +92,13 @@ export async function writeNotificationAttentionResolvedIntent(
   trx: Knex.Transaction,
   payload: NotificationAttentionResolvedPayload,
 ): Promise<{ idempotencyKey: string; scopeKey: string }> {
-  const parsedPayload = notificationAttentionResolvedPayloadSchema.parse(payload);
+  const parsedPayload =
+    notificationAttentionResolvedPayloadSchema.parse(payload);
   const scopeKey = buildNotificationAttentionResolvedScopeKey(
     parsedPayload.idempotencyKey,
   );
 
-  await writeOutboxIntent(trx, {
+  await writeOutbox(trx, {
     intentType: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
     scopeKey,
     payload: parsedPayload,
@@ -113,7 +114,7 @@ export async function writeNotificationCommsRequestedIntent(
   const parsedPayload = commsSendPayloadSchema.parse(payload);
   const scopeKey = buildNotificationCommsRequestedScopeKey(parsedPayload);
 
-  await writeOutboxIntent(trx, {
+  await writeOutbox(trx, {
     intentType: OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED,
     scopeKey,
     payload: { payload: parsedPayload },

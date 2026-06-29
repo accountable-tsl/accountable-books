@@ -17,7 +17,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { scheduleGLBalanceAfterCommit } from '../balances/index.js';
+import { writeGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
@@ -25,11 +25,11 @@ import {
   reverseFxPositionMovementsForLedgerTransaction,
   upsertFxPosition,
 } from '../fx/index.js';
-import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
+import { writeCloseSignalEvalOutbox } from '../reporting/close-readiness/signals/close-signal.outbox.js';
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
-// import { getBankTransactionContactResolution } from './bank-transaction-contact-resolution.service.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
+import { postLedgerTransactions } from './ledger-mutation.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
   buildOpenEndedGLBalanceRecalcRequests,
@@ -38,10 +38,12 @@ import {
   normalizeDateForComparison,
   processEntriesDates,
   resolveFx,
+  toLedgerTransactionInput,
   validateBankLegAmount,
 } from './ledgers.utils.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
+import type { AuditContextInput } from '../audit/index.js';
 import type { ContactType } from '../contacts/index.js';
 import type {
   LedgerEntry,
@@ -66,6 +68,9 @@ interface CreateLedgerRecordResult {
 
 /**
  * Create a ledger transaction and its entries atomically
+ *
+ * @deprecated Use {@link postLedgerTransactions} from `ledger-mutation.service.ts`.
+ * Retained temporarily for supersede and integration tests; scheduled for removal.
  *
  * This function creates a complete accounting transaction (journal entry) in the ledger.
  * It ensures all accounting rules are followed and maintains data integrity.
@@ -271,12 +276,6 @@ export async function createLedgerRecord({
           `Bank transaction not found or does not belong to company: ${sourceTxId}`,
         );
       }
-
-      // const contactResolution = await getBankTransactionContactResolution({
-      //   companyId: companyUUID,
-      //   bankTransactionId: sourceTxId!,
-      //   trx: txn,
-      // });
 
       bankTxn = {
         amount: Number(bankTxnResult.amount),
@@ -582,18 +581,16 @@ export async function createLedgerRecord({
       bounds,
       triggeredBy: 'ledger_entry',
     })) {
-      await scheduleGLBalanceAfterCommit(request, txn);
+      await writeGlBalanceRecalcOutbox(txn, request);
     }
 
-    // Re-evaluate close review signals for this transaction after commit.
-    await scheduleCloseSignalEvalAfterCommit(
-      {
-        companyId: companyUUID,
-        ledgerTransactionId,
-        triggeredBy: 'ledger_write',
-      },
-      txn,
-    );
+    // Re-evaluate close review signals for this transaction, written into the
+    // same transaction as the ledger entries so it can't be lost.
+    await writeCloseSignalEvalOutbox(txn, {
+      companyId: companyUUID,
+      ledgerTransactionId,
+      triggeredBy: 'ledger_write',
+    });
 
     // STEP 13: CREATE LEDGER AUDIT LOG
     // Automatically create audit log entry for all ledger transactions
@@ -1261,20 +1258,17 @@ export async function supersedeLedgerTransaction({
       bounds: oldBounds,
       triggeredBy: 'supersession',
     })) {
-      await scheduleGLBalanceAfterCommit(request, trx);
+      await writeGlBalanceRecalcOutbox(trx, request);
     }
 
     // The old transaction is now superseded (no longer posted): reconcile so its
     // close signals are removed. The new transaction is handled by
     // createLedgerRecord below.
-    await scheduleCloseSignalEvalAfterCommit(
-      {
-        companyId: oldTxn.company_id,
-        ledgerTransactionId: oldLedgerTransactionId,
-        triggeredBy: 'supersession',
-      },
-      trx,
-    );
+    await writeCloseSignalEvalOutbox(trx, {
+      companyId: oldTxn.company_id,
+      ledgerTransactionId: oldLedgerTransactionId,
+      triggeredBy: 'supersession',
+    });
 
     // 7. Create new ledger transaction
     const createResult = await createLedgerRecord({
@@ -1393,11 +1387,13 @@ export async function updateOrCreateLedger({
   companyId,
   userId,
   trx,
+  requestContext = { source: 'api' },
 }: {
   data: Partial<NewLedgerTransactionData>[];
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
+  requestContext?: AuditContextInput;
 }): Promise<
   ApiResponse<
     {
@@ -1471,12 +1467,66 @@ export async function updateOrCreateLedger({
       warnings?: Record<string, string>;
     }[]
   > => {
-    const results: {
+    type RouteResult = {
       operation: 'created' | 'updated_metadata' | 'superseded';
       ledgerTransactionId: string;
       oldLedgerTransactionId?: string;
       warnings?: Record<string, string>;
-    }[] = [];
+    };
+
+    const results: (RouteResult | undefined)[] = new Array(data.length);
+    const pendingCreates: Array<{
+      index: number;
+      data: NewLedgerTransactionData;
+    }> = [];
+
+    const commitPendingCreates = async () => {
+      if (pendingCreates.length === 0) {
+        return;
+      }
+
+      const postResult = await postLedgerTransactions({
+        companyId: companyUUID,
+        actor: { type: 'user', userId },
+        requestContext,
+        transactions: pendingCreates.map((p) =>
+          toLedgerTransactionInput(p.data),
+        ),
+        trx: txn,
+      });
+
+      if (!postResult.success) {
+        const errorMessage =
+          typeof postResult.error === 'object'
+            ? JSON.stringify(postResult.error, null, 2)
+            : String(postResult.error);
+
+        throw new AppError(
+          `Failed to create ledger transactions: ${errorMessage}`,
+          postResult.error,
+        );
+      }
+
+      const ids = postResult.data?.ledgerTransactionIds ?? [];
+      if (ids.length !== pendingCreates.length) {
+        throw new AppError(
+          'Ledger post returned unexpected transaction count',
+          {
+            expected: pendingCreates.length,
+            actual: ids.length,
+          },
+        );
+      }
+
+      for (let j = 0; j < pendingCreates.length; j++) {
+        const slot = pendingCreates[j]!;
+        results[slot.index] = {
+          operation: 'created',
+          ledgerTransactionId: ids[j]!,
+        };
+      }
+      pendingCreates.length = 0;
+    };
 
     // Resolve company UUID once
     const company: { id: string; reporting_currency_id: string } =
@@ -1495,7 +1545,8 @@ export async function updateOrCreateLedger({
     const companyUUID = company.id;
 
     // Process each transaction
-    for (const txnData of data) {
+    for (let i = 0; i < data.length; i++) {
+      const txnData = data[i];
       // STEP 1: Validate required fields
       if (!txnData.transaction_source) {
         throw new AppError('transaction_source is required');
@@ -1555,37 +1606,21 @@ export async function updateOrCreateLedger({
 
       // STEP 3: Route to appropriate handler
       if (!existingLedgerTransactionId) {
-        // ROUTE A: CREATE NEW LEDGER TRANSACTION
+        // ROUTE A: CREATE NEW LEDGER TRANSACTION (batched via postLedgerTransactions)
         logger.debug(
           { sourceTransactionId: txnData.source_transaction_id },
-          'No existing ledger transaction found, creating new one',
+          'No existing ledger transaction found, queuing create',
         );
 
-        const createResult = await createLedgerRecord({
-          data: txnData as NewLedgerTransactionData,
-          autoPost: false, // This is explicit user action
-          companyId: companyUUID,
-          userId,
-          trx: txn,
-        });
-
-        if (!createResult.success) {
-          const errorMessage =
-            typeof createResult.error === 'object'
-              ? JSON.stringify(createResult.error, null, 2)
-              : String(createResult.error);
-
+        const parsed = newLedgerTransactionData.safeParse(txnData);
+        if (!parsed.success) {
           throw new AppError(
-            `Failed to create ledger transaction: ${errorMessage}`,
-            createResult,
+            'Invalid ledger transaction data for create',
+            z.treeifyError(parsed.error),
           );
         }
 
-        results.push({
-          operation: 'created',
-          ledgerTransactionId: createResult.data!.ledgerTransactionId,
-          warnings: createResult.data?.warnings,
-        });
+        pendingCreates.push({ index: i, data: parsed.data });
       } else {
         // There's an existing ledger transaction - need to determine if update or supersede
         logger.debug(
@@ -1705,10 +1740,10 @@ export async function updateOrCreateLedger({
             'No changes detected, returning existing transaction',
           );
 
-          results.push({
+          results[i] = {
             operation: 'updated_metadata', // Technically no update, but closest semantic
             ledgerTransactionId: existingLedgerTransactionId,
-          });
+          };
         } else if (changes.isMetadataOnly) {
           // ROUTE B: UPDATE METADATA IN-PLACE
           logger.debug(
@@ -1820,10 +1855,10 @@ export async function updateOrCreateLedger({
             );
           }
 
-          results.push({
+          results[i] = {
             operation: 'updated_metadata',
             ledgerTransactionId: existingLedgerTransactionId,
-          });
+          };
         } else {
           // ROUTE C: SUPERSEDE TRANSACTION (accounting changes)
           logger.debug(
@@ -1914,18 +1949,25 @@ export async function updateOrCreateLedger({
             );
           }
 
-          results.push({
+          results[i] = {
             operation: 'superseded',
             ledgerTransactionId: supersedeResult.data!.newLedgerTransactionId,
             oldLedgerTransactionId:
               supersedeResult.data!.oldLedgerTransactionId,
             warnings: supersedeResult.data?.warnings,
-          });
+          };
         }
       }
     }
 
-    return results;
+    await commitPendingCreates();
+
+    return results.map((result, index) => {
+      if (!result) {
+        throw new AppError(`Missing ledger route result at index ${index}`);
+      }
+      return result;
+    });
   };
 
   // Execute in transaction (use provided or create new)

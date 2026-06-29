@@ -22,7 +22,6 @@ import {
   scheduleTransactionEnrichmentAfterCommit,
 } from '../categorization/index.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
-import { scheduleOutboxDispatchKickAfterCommit } from '../work/outbox.queue.js';
 import { writeBankAccountWorkMaterializationIntent } from '../work/work-materialization-intent.js';
 import {
   bankTransactionBatchInput,
@@ -35,13 +34,9 @@ import {
   generateBatchFingerprint,
 } from './bankTransactions.utils.js';
 
-// Contact resolution retired (v1): import disabled, callers commented out below.
-// import { createBankTransactionContactResolutions } from './contactResolution.service.js';
-
 import type {
   BankTransaction,
   BankTransactionBatchInput,
-  BankTransactionContactResolutionInput,
   BankTransactionFilters,
   BankTransactionInput,
   BankTransactionWithFilteredFields,
@@ -280,13 +275,9 @@ export async function addNewBankTransactions({
 
       // Prepare transactions (now synchronous since rates are pre-fetched)
       const generatedKeyOccurrences = new Map<string, number>();
-      const contactResolutionByIdempotencyKey = new Map<
-        string,
-        BankTransactionContactResolutionInput
-      >();
       const preparedTransactions: NewBankTransaction[] = bank_transactions.map(
         (tx) => {
-          const { contact_resolution, ...rawTransaction } = tx;
+          const rawTransaction = tx;
           const rate = sameCurrency
             ? 1
             : fxRates.get(toYMD(tx.transaction_date));
@@ -307,13 +298,6 @@ export async function addNewBankTransactions({
           generatedKeyOccurrences.set(generatedIdempotencyKey, occurrence);
           const idempotencyKey =
             tx.idempotency_key || `${generatedIdempotencyKey}:${occurrence}`;
-
-          if (contact_resolution) {
-            contactResolutionByIdempotencyKey.set(
-              idempotencyKey,
-              contact_resolution,
-            );
-          }
 
           return {
             ...rawTransaction,
@@ -360,51 +344,6 @@ export async function addNewBankTransactions({
         skipped,
         totalProcessed: preparedTransactions.length,
       });
-
-      // Contact resolution retired (v1) — block disabled.
-      /*
-      if (inserted > 0) {
-        try {
-          const resolutionMetrics = await txn.transaction(
-            async (resolutionTrx) =>
-              await createBankTransactionContactResolutions({
-                trx: resolutionTrx,
-                companyId: companyUUID,
-                userId,
-                source,
-                transactions: insertedTxns.map((insertedTxn) => {
-                  const importResolution =
-                    contactResolutionByIdempotencyKey.get(
-                      insertedTxn.idempotency_key,
-                    );
-
-                  return {
-                    id: insertedTxn.id,
-                    idempotency_key: insertedTxn.idempotency_key,
-                    payee: insertedTxn.payee,
-                    description: insertedTxn.description,
-                    source_payload: insertedTxn.source_payload,
-                    importResolution: importResolution
-                      ? {
-                          contactId: importResolution.contact_id,
-                          contactType: importResolution.contact_type ?? null,
-                          reason: importResolution.reason ?? null,
-                        }
-                      : null,
-                  };
-                }),
-              }),
-          );
-
-          log('contact_resolution_created', resolutionMetrics);
-        } catch (error) {
-          log('contact_resolution_failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            inserted,
-          });
-        }
-      }
-      */
 
       // Trigger balance recalculation if transactions were inserted
       if (inserted > 0) {
@@ -486,7 +425,6 @@ export async function addNewBankTransactions({
             },
           },
         );
-        await scheduleOutboxDispatchKickAfterCommit(txn);
         log('work_materialization_intent_written', {
           bankAccountId: bank_account_id,
           scopeKey,
@@ -632,6 +570,7 @@ export type BankPostingSource = {
   systemExchangeRate: number;
   coaId: string;
   currencyId: string;
+  bankAccountId: string;
 };
 
 /**
@@ -669,6 +608,7 @@ export async function getBankPostingSources({
       'bt.system_exchange_rate',
       'ba.coa_id',
       'ba.currency_id',
+      'ba.id as bank_account_id',
     );
 
   for (const row of rows) {
@@ -677,6 +617,7 @@ export async function getBankPostingSources({
       systemExchangeRate: Number(row.system_exchange_rate),
       coaId: row.coa_id,
       currencyId: row.currency_id,
+      bankAccountId: row.bank_account_id,
     });
   }
 
@@ -714,48 +655,12 @@ export async function getBankTransactionsByIds({
     .whereIn('bt.id', bankTransactionIds)
     .where('bt.is_deleted', false)
     .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
-    // Contact resolution retired (v1) — bcr + resolved_contact joins disabled; resolved fields default to null.
-    /*
-    .leftJoin(
-      'bank_transaction_contact_resolutions as bcr',
-      function joinBcr() {
-        this.on('bcr.bank_transaction_id', '=', 'bt.id').andOn(
-          'bcr.company_id',
-          '=',
-          'bt.company_id',
-        );
-      },
-    )
-    .leftJoin('contacts as resolved_contact', function joinResolvedContact() {
-      this.on('resolved_contact.id', '=', 'bcr.contact_id')
-        .andOn('resolved_contact.company_id', '=', 'bcr.company_id')
-        .andOnVal('resolved_contact.status', '=', 'active')
-        .andOnVal('resolved_contact.is_deleted', '=', false);
-    })
-    */
     .select(
       'bt.*',
       'ba.coa_id as bank_account_coa_id',
       'ba.currency_id as bank_account_currency_id',
       client.raw('NULL as resolved_contact_id'),
       client.raw('NULL as resolved_contact_type'),
-      /*
-      client.raw(
-        `CASE
-          WHEN bcr.status IN ('inferred', 'confirmed', 'manual_override')
-            THEN resolved_contact.id
-          ELSE NULL
-        END as resolved_contact_id`,
-      ),
-      client.raw(
-        `CASE
-          WHEN bcr.status IN ('inferred', 'confirmed', 'manual_override')
-            AND resolved_contact.id IS NOT NULL
-            THEN bcr.contact_type
-          ELSE NULL
-        END as resolved_contact_type`,
-      ),
-      */
     );
 
   const transactions = await query.orderBy('bt.created_at', 'asc');

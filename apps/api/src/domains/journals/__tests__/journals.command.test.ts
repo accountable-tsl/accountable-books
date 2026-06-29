@@ -13,7 +13,7 @@ import {
   ACTIVITY_EVENT_TYPE,
   buildActivityEventScopeKey,
 } from '../../activity/index.js';
-import { OUTBOX_INTENT } from '../../work/work.types.js';
+import { OUTBOX_INTENT } from '../../outbox/intents.js';
 import {
   copyJournal,
   postDraftJournal,
@@ -121,7 +121,7 @@ describe('postJournalRecord - Integration Tests', () => {
     ]);
     expect(journalRows.every((r) => r.ledger_entry_id)).toBe(true);
 
-    const activity = await trx('app.outbox_intents')
+    const activity = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scope_key: buildActivityEventScopeKey(
@@ -171,14 +171,19 @@ describe('postJournalRecord - Integration Tests', () => {
 
     const batch = await trx('journal_batches')
       .where('id', result.data!.journalBatchId)
-      .first('sequence_month', 'sequence_number', 'system_reference', 'user_reference');
+      .first(
+        'sequence_month',
+        'sequence_number',
+        'system_reference',
+        'user_reference',
+      );
 
     expect(batch.sequence_month).toBeNull();
     expect(batch.sequence_number).toBeNull();
     expect(batch.system_reference).toBeNull();
     expect(batch.user_reference).toBe('DRAFT-MANUAL-REF');
 
-    const activity = await trx('app.outbox_intents')
+    const activity = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scope_key: buildActivityEventScopeKey(
@@ -689,7 +694,7 @@ describe('postJournalRecord - Integration Tests', () => {
       expect(batch.deleted_at).not.toBeNull();
       expect(batch.deleted_by_id).toBe(testUserId);
 
-      const activity = await trx('app.outbox_intents')
+      const activity = await trx('app.outbox')
         .where({
           intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
           scope_key: buildActivityEventScopeKey(
@@ -788,7 +793,12 @@ describe('postJournalRecord - Integration Tests', () => {
 
       const batch = await trx('journal_batches')
         .where('id', draft.data!.journalBatchId)
-        .first('status', 'sequence_month', 'sequence_number', 'system_reference');
+        .first(
+          'status',
+          'sequence_month',
+          'sequence_number',
+          'system_reference',
+        );
 
       expect(batch.status).toBe('posted');
       expect(batch.sequence_month).not.toBeNull();
@@ -806,7 +816,7 @@ describe('postJournalRecord - Integration Tests', () => {
       expect(entries.map((e) => e.entry_status)).toEqual(['active', 'active']);
       expect(entries.every((e) => e.ledger_entry_id)).toBe(true);
 
-      const activity = await trx('app.outbox_intents')
+      const activity = await trx('app.outbox')
         .where({
           intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
           scope_key: buildActivityEventScopeKey(
@@ -1252,7 +1262,7 @@ describe('postJournalRecord - Integration Tests', () => {
         true,
       );
 
-      const activityRows = await trx('app.outbox_intents').where({
+      const activityRows = await trx('app.outbox').where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
       });
       const updateActivity = activityRows.find((row) => {

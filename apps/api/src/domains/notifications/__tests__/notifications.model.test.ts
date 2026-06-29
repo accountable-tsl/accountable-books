@@ -8,7 +8,7 @@ import {
   getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
-import { OUTBOX_INTENT } from '../../work/work.types.js';
+import { OUTBOX_INTENT } from '../../outbox/intents.js';
 import {
   resolveNotificationPreference,
   setCompanyNotificationPreference,
@@ -67,7 +67,7 @@ describe('notifications model', () => {
   async function commsIntentsFor(event: NotifyEvent) {
     const fixture = event.data?.fixture;
 
-    return trx('app.outbox_intents')
+    return trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED,
       })
@@ -429,10 +429,12 @@ describe('notifications model', () => {
     }
 
     const sharedCreatedAt = '2026-06-19T12:00:00.123456Z';
-    await trx('app.notifications').whereIn('id', createdIds).update({
-      created_at: trx.raw('?::timestamptz', [sharedCreatedAt]),
-      updated_at: trx.raw('?::timestamptz', [sharedCreatedAt]),
-    });
+    await trx('app.notifications')
+      .whereIn('id', createdIds)
+      .update({
+        created_at: trx.raw('?::timestamptz', [sharedCreatedAt]),
+        updated_at: trx.raw('?::timestamptz', [sharedCreatedAt]),
+      });
 
     const orderedRows = await trx('app.notifications')
       .whereIn('id', createdIds)

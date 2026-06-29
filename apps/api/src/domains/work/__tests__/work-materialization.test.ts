@@ -11,16 +11,19 @@ import {
 } from '../../../../test/helpers.js';
 import { knexClient } from '../../../db/knexClient.js';
 import {
-  lockKeyMaterializerScope,
-  tryAcquireAdvisoryXactLock,
-} from '../../../shared/services/advisoryLocks.service.js';
-import {
   devEmailProvider,
   registerCommsProvider,
 } from '../../../features/comms/providers/index.js';
+import {
+  lockKeyMaterializerScope,
+  tryAcquireAdvisoryXactLock,
+} from '../../../shared/services/advisoryLocks.service.js';
 import { NOTIFICATION_TYPE } from '../../notifications/notifications.types.js';
-import { dispatchPendingIntents } from '../outbox.dispatcher.js';
-import { writeOutboxIntent } from '../outbox.model.js';
+import {
+  dispatchPendingIntents,
+  OUTBOX_INTENT,
+  writeOutbox,
+} from '../../outbox/index.js';
 import { materializeWork } from '../work-materialization.js';
 import { resolveFirmCompanyId } from '../work-ownership.js';
 import { getWorkQueue } from '../work-queue.read.js';
@@ -29,7 +32,6 @@ import {
   ACTION_INTENT_REVIEW_SUGGESTION,
   buildCategorizeGroupKey,
   buildScopeKey,
-  OUTBOX_INTENT,
   WORK_TYPE_CATEGORIZE_TRANSACTIONS,
   WORK_TYPE_REVIEW_SUGGESTIONS,
 } from '../work.types.js';
@@ -425,7 +427,7 @@ describe('materializeWork (bank_account scope)', () => {
       throw new Error('Expected assigned work item to materialize');
     }
 
-    const [intent] = await trx('app.outbox_intents').where({
+    const [intent] = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
       status: 'pending',
     });
@@ -457,16 +459,16 @@ describe('materializeWork (bank_account scope)', () => {
     });
     expect(payload.event?.idempotencyKey).toContain(first.workItemId);
 
-    await trx('app.outbox_intents').where({ id: intent.id }).update({
+    await trx('app.outbox').where({ id: intent.id }).update({
       status: 'processed',
-      processed_at: trx.fn.now(),
+      completed_at: trx.fn.now(),
       updated_at: trx.fn.now(),
     });
 
     const second = await materializeWork(scope, trx);
     expect(second.status).toBe('reconciled');
 
-    const allNotificationIntents = await trx('app.outbox_intents').where({
+    const allNotificationIntents = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
     });
     expect(allNotificationIntents).toHaveLength(1);
@@ -500,7 +502,7 @@ describe('materializeWork (bank_account scope)', () => {
     });
     await materializeWork(scope, trx);
 
-    const notificationIntents = await trx('app.outbox_intents')
+    const notificationIntents = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
       })
@@ -545,21 +547,19 @@ describe('materializeWork (bank_account scope)', () => {
       throw new Error('Expected assigned work item to materialize');
     }
 
-    await trx('bank_transactions')
-      .where({ id: bankTransactionId })
-      .update({
-        is_deleted: true,
-        deleted_at: trx.fn.now(),
-        deletion_origin: 'provider_sync',
-        deletion_reason: 'test resolved source',
-      });
+    await trx('bank_transactions').where({ id: bankTransactionId }).update({
+      is_deleted: true,
+      deleted_at: trx.fn.now(),
+      deletion_origin: 'provider_sync',
+      deletion_reason: 'test resolved source',
+    });
     const second = await materializeWork(scope, trx);
     expect(second.status).toBe('reconciled');
     if (second.status === 'reconciled') {
       expect(second.closed).toBe(true);
     }
 
-    const [resolveIntent] = await trx('app.outbox_intents').where({
+    const [resolveIntent] = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
     });
     expect(resolveIntent).toBeDefined();
@@ -619,7 +619,7 @@ describe('materializeWork (bank_account scope)', () => {
     expect(newWorkItem?.assigned_user_id).toBe(nextAssigneeId);
     expect(Number(newWorkItem?.active_subject_count)).toBe(2);
 
-    const notificationIntents = await trx('app.outbox_intents')
+    const notificationIntents = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
       .orderBy('id', 'asc');
     expect(notificationIntents).toHaveLength(2);
@@ -662,7 +662,7 @@ describe('materializeWork (bank_account scope)', () => {
     });
     expect(reassignedPayload.event?.idempotencyKey).toContain('reassigned');
 
-    const [resolveIntent] = await trx('app.outbox_intents').where({
+    const [resolveIntent] = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
     });
     expect(resolveIntent).toBeDefined();
@@ -673,11 +673,11 @@ describe('materializeWork (bank_account scope)', () => {
     });
 
     await materializeWork(scope, trx);
-    const replayNotificationIntents = await trx('app.outbox_intents').where({
+    const replayNotificationIntents = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
     });
     expect(replayNotificationIntents).toHaveLength(2);
-    const replayResolutionIntents = await trx('app.outbox_intents').where({
+    const replayResolutionIntents = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
     });
     expect(replayResolutionIntents).toHaveLength(1);
@@ -704,7 +704,7 @@ describe('materializeWork (bank_account scope)', () => {
     );
     expect(result.status).toBe('reconciled');
 
-    const notificationIntents = await trx('app.outbox_intents').where({
+    const notificationIntents = await trx('app.outbox').where({
       intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
     });
     expect(notificationIntents).toHaveLength(0);
@@ -1177,7 +1177,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
         bankAccountId,
       };
       scopeKey = buildScopeKey(scope);
-      await writeOutboxIntent(importTrx, {
+      await writeOutbox(importTrx, {
         intentType: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
         scopeKey,
         payload: { scope, change: { type: 'bank_transactions_changed' } },
@@ -1196,11 +1196,11 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
       expect(result.failed).toBe(0);
 
       // The intent is durably marked processed.
-      const intentRow = await knexClient('app.outbox_intents')
+      const intentRow = await knexClient('app.outbox')
         .where({ scope_key: scopeKey })
-        .first('status', 'processed_at');
+        .first('status', 'completed_at');
       expect(intentRow?.status).toBe('processed');
-      expect(intentRow?.processed_at).not.toBeNull();
+      expect(intentRow?.completed_at).not.toBeNull();
 
       // The committed queue read shows the grouped row with the exact subjects.
       const queue = await getWorkQueue({ firmCompanyId });
@@ -1215,7 +1215,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
       );
       notificationWorkItemId = item!.workItemId;
 
-      const notificationIntent = await knexClient('app.outbox_intents')
+      const notificationIntent = await knexClient('app.outbox')
         .where({
           intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
           status: 'pending',
@@ -1247,7 +1247,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
         notificationWorkItemId,
       );
 
-      const commsIntent = await knexClient('app.outbox_intents')
+      const commsIntent = await knexClient('app.outbox')
         .where({
           intent_type: OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED,
           status: 'pending',
@@ -1281,7 +1281,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
       expect(commsDeliveries).toHaveLength(1);
 
       await knexClient.transaction(async (trx) => {
-        await writeOutboxIntent(trx, {
+        await writeOutbox(trx, {
           intentType: OUTBOX_INTENT.NOTIFICATION_REQUESTED,
           scopeKey: notificationScopeKey,
           payload: notificationIntent!.payload as Record<string, unknown>,
@@ -1300,7 +1300,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
       expect(afterDuplicate).toHaveLength(1);
 
       await knexClient.transaction(async (trx) => {
-        await writeOutboxIntent(trx, {
+        await writeOutbox(trx, {
           intentType: OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED,
           scopeKey: notificationCommsScopeKey,
           payload: commsIntent!.payload as Record<string, unknown>,
@@ -1350,7 +1350,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
           .del();
       }
       await clearCommittedWorkItems();
-      await knexClient('app.outbox_intents')
+      await knexClient('app.outbox')
         .whereIn(
           'scope_key',
           [scopeKey, notificationScopeKey, notificationCommsScopeKey].filter(

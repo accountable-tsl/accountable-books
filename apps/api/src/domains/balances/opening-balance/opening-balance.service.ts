@@ -11,10 +11,7 @@ import {
   postJournalRecord,
   reverseJournalRecord,
 } from '../../journals/journals.model.js';
-import {
-  bankBalanceService,
-  formatDateToYMD,
-} from '../bank-balance.service.js';
+import { updateBankCurrentBalance } from '../bank-current-balance.js';
 import { bankOpeningBalanceParams } from './opening-balance.types.js';
 import {
   asOfDateYmdFromCoverageStart,
@@ -310,7 +307,7 @@ export async function setBankOpeningBalance({
       })
       .first();
     if (!x) {
-      await bankBalanceService.updateCurrentBalance({
+      await updateBankCurrentBalance({
         companyId: bankAccount.company_id,
         bankAccountId: bank_account_id,
         balance: amount,

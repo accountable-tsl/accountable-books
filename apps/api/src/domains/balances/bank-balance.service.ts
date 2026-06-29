@@ -12,6 +12,7 @@ import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import { getLogger } from '../../shared/utils/logger.js';
 import { getSystemUser } from '../users/users.model.js';
 import { bankBalanceRecalcParamsSchema } from './balances.types.js';
+import { updateBankCurrentBalance } from './bank-current-balance.js';
 import { setBankOpeningBalance } from './opening-balance/opening-balance.service.js';
 
 import type {
@@ -877,33 +878,14 @@ class BankBalanceService {
    * Update the current balance record for a bank account
    * Uses upsert to handle conflicts
    */
-  async updateCurrentBalance({
-    companyId,
-    bankAccountId,
-    balance,
-    asOf,
-    client = db,
-  }: {
+  async updateCurrentBalance(params: {
     companyId: string;
     bankAccountId: string;
     balance: number;
     asOf?: Date;
-    client: Queryable;
+    client?: Queryable;
   }): Promise<void> {
-    const now = asOf ?? new Date();
-
-    await client('bank_account_current_native_balances')
-      .insert({
-        company_id: companyId,
-        bank_account_id: bankAccountId,
-        native_balance: this.toNumber(balance).toFixed(10),
-        as_of_time: now,
-      })
-      .onConflict(['company_id', 'bank_account_id'])
-      .merge({
-        native_balance: this.toNumber(balance).toFixed(10),
-        as_of_time: now,
-      });
+    await updateBankCurrentBalance(params);
   }
 
   /**

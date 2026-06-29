@@ -18,7 +18,8 @@ import {
   buildActivityEventScopeKey,
 } from '../../activity/index.js';
 import { addNewBankTransactions } from '../../bankTransactions/bankTransactions.model.js';
-import { dispatchPendingIntents } from '../../work/outbox.dispatcher.js';
+import { dispatchPendingIntents } from '../../outbox/index.js';
+import { OUTBOX_INTENT } from '../../outbox/intents.js';
 import { materializeWork } from '../../work/work-materialization.js';
 import { resolveFirmCompanyId } from '../../work/work-ownership.js';
 import {
@@ -27,15 +28,14 @@ import {
 } from '../../work/work-queue.read.js';
 import {
   buildScopeKey,
-  OUTBOX_INTENT,
   WORK_TYPE_CATEGORIZE_TRANSACTIONS,
   WORK_TYPE_REVIEW_SUGGESTIONS,
 } from '../../work/work.types.js';
+import { postCandidateToLedger } from '../autopost/autopost.service.js';
 import {
   getCategorizationTransactions,
   processCategorizationIntent,
 } from '../categorization.model.js';
-import { postCandidateToLedger } from '../autopost/autopost.service.js';
 
 import type { CandidateInput } from '../candidates/candidates.types.js';
 
@@ -325,8 +325,7 @@ async function loadCandidateInput(
       description: line.description,
       is_bank_leg: Boolean(line.is_bank_leg),
       split_type: line.split_type,
-      split_value:
-        line.split_value == null ? null : Number(line.split_value),
+      split_value: line.split_value == null ? null : Number(line.split_value),
       explanation: line.explanation,
       metadata: line.metadata ?? {},
     })),
@@ -374,9 +373,7 @@ describe('Phase 2: manual post reconciles the firm queue', () => {
       await clearCommittedCategorizeWorkItems(clientCompanyId);
     }
     if (scopeKey) {
-      await knexClient('app.outbox_intents')
-        .where({ scope_key: scopeKey })
-        .del();
+      await knexClient('app.outbox').where({ scope_key: scopeKey }).del();
     }
     scopeKey = '';
     clientCompanyId = '';
@@ -498,7 +495,7 @@ describe('Phase 2: manual post reconciles the firm queue', () => {
 
     // Exactly one pending intent for the scope (import's was processed; the post
     // wrote one, debounced per scope).
-    const pendingAfterPost = await knexClient('app.outbox_intents').where({
+    const pendingAfterPost = await knexClient('app.outbox').where({
       scope_key: scopeKey,
       status: 'pending',
     });
@@ -648,7 +645,7 @@ describe('Phase 3: candidate review work reconciles through categorization inten
       .first('id');
     expect(disposition).toBeDefined();
 
-    const rejectionActivity = await trx('app.outbox_intents')
+    const rejectionActivity = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scope_key: buildActivityEventScopeKey(
@@ -709,7 +706,8 @@ describe('Phase 3: candidate review work reconciles through categorization inten
 
     expect(response.success).toBe(true);
     expect(response.data?.summary.created).toBe(1);
-    const ledgerTransactionId = response.data?.results[0]?.ledger_transaction_id;
+    const ledgerTransactionId =
+      response.data?.results[0]?.ledger_transaction_id;
     expect(ledgerTransactionId).toBeTruthy();
 
     const candidate = await trx('categorization_candidates')
@@ -730,7 +728,7 @@ describe('Phase 3: candidate review work reconciles through categorization inten
       comparison_basis: 'manual_post',
     });
 
-    const manualPostActivity = await trx('app.outbox_intents')
+    const manualPostActivity = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scope_key: buildActivityEventScopeKey(
@@ -789,7 +787,7 @@ describe('Phase 3: candidate review work reconciles through categorization inten
     expect(result.success).toBe(true);
     expect(result.ledgerTransactionId).toBeTruthy();
 
-    const activity = await trx('app.outbox_intents')
+    const activity = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scope_key: buildActivityEventScopeKey(

@@ -4,7 +4,6 @@ import type { Knex } from 'knex';
 import { z } from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
-import { enqueueOutboxDispatch } from '../work/outbox.queue.js';
 import { resolveNotificationDeliveryPlan } from './notification-delivery-plan.js';
 import {
   getNotificationEventDefinition,
@@ -190,13 +189,9 @@ function shouldMarkUnreadOnTransition(
 function shouldSendCommsOnTransition(
   transition: NotificationAttentionTransition,
 ): boolean {
-  return [
-    'opened',
-    'escalated',
-    'reassigned',
-    'overdue',
-    'failed',
-  ].includes(transition);
+  return ['opened', 'escalated', 'reassigned', 'overdue', 'failed'].includes(
+    transition,
+  );
 }
 
 function activeAttentionConflictTarget(client: Knex): Knex.Raw {
@@ -321,10 +316,13 @@ function buildCommsPayloads(input: {
 async function reserveNotificationLifecycleEvent(
   trx: Knex.Transaction,
   input: { recipientUserId: string; idempotencyKey: string },
-): Promise<{ reserved: true; row: NotificationIdempotencyRow } | {
-  reserved: false;
-  row: NotificationIdempotencyRow;
-}> {
+): Promise<
+  | { reserved: true; row: NotificationIdempotencyRow }
+  | {
+      reserved: false;
+      row: NotificationIdempotencyRow;
+    }
+> {
   const [insertedRow] = await trx<NotificationIdempotencyRow>(
     NOTIFICATION_IDEMPOTENCY_TABLE,
   )
@@ -407,7 +405,11 @@ async function resultForDuplicateLifecycleEvent(
 async function upsertAttentionNotification(
   trx: Knex.Transaction,
   event: ParsedNotifyEvent,
-): Promise<{ notification: Notification; inserted: boolean; updated: boolean }> {
+): Promise<{
+  notification: Notification;
+  inserted: boolean;
+  updated: boolean;
+}> {
   const readPolicy = event.readPolicy ?? readPolicyForPriority(event.priority);
   const occurredAt = event.occurredAt
     ? new Date(event.occurredAt)
@@ -545,13 +547,12 @@ export async function notify(
       (event.attentionTransition !== 'opened' ||
         notificationResult.inserted ||
         !plan.inApp.enabled);
-    const payloads =
-      shouldSendComms
-        ? buildCommsPayloads({
-            event,
-            routes: plan.comms,
-          })
-        : [];
+    const payloads = shouldSendComms
+      ? buildCommsPayloads({
+          event,
+          routes: plan.comms,
+        })
+      : [];
 
     for (const payload of payloads) {
       await writeNotificationCommsRequestedIntent(trx, payload);
@@ -579,10 +580,6 @@ export async function notify(
   }
 
   const result = await knexClient.transaction(run);
-
-  if (result.commsRequested > 0) {
-    await enqueueOutboxDispatch('kick');
-  }
 
   return result;
 }
@@ -679,13 +676,11 @@ export async function getNotificationFeed(input: {
     const cursorId = cursor.id;
     if (cursorId) {
       query.andWhere((page) => {
-        page
-          .where('created_at', '<', cursorTimestamp)
-          .orWhere((tie) => {
-            tie
-              .where('created_at', '=', cursorTimestamp)
-              .andWhere('id', '<', cursorId);
-          });
+        page.where('created_at', '<', cursorTimestamp).orWhere((tie) => {
+          tie
+            .where('created_at', '=', cursorTimestamp)
+            .andWhere('id', '<', cursorId);
+        });
       });
     } else {
       query.andWhere('created_at', '<', cursorTimestamp);
@@ -711,9 +706,8 @@ export async function getNotificationFeed(input: {
 
   return {
     items: pageRows.map(toNotification),
-    nextCursor: hasMore && lastRow
-      ? encodeNotificationFeedCursor(lastRow)
-      : null,
+    nextCursor:
+      hasMore && lastRow ? encodeNotificationFeedCursor(lastRow) : null,
   };
 }
 

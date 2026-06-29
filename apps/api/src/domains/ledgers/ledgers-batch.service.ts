@@ -15,17 +15,16 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { scheduleGLBalanceAfterCommit } from '../balances/index.js';
+import { writeGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
   makeFxTransactionId,
   upsertFxPosition,
 } from '../fx/index.js';
-import { scheduleCloseSignalEvalAfterCommit } from '../reporting/close-readiness/signals/close-signal-eval.queue.js';
+import { writeCloseSignalEvalOutbox } from '../reporting/close-readiness/signals/close-signal.outbox.js';
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
-// import { getBankTransactionContactResolutions } from './bank-transaction-contact-resolution.service.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
@@ -46,6 +45,9 @@ import type {
 
 /**
  * Batch create multiple ledger transactions atomically
+ *
+ * @deprecated Use {@link postLedgerTransactions} from `ledger-mutation.service.ts`.
+ * No production callers remain; scheduled for removal.
  *
  * This is more efficient than calling createLedgerRecord multiple times because:
  * 1. Single database transaction for all records (atomic)
@@ -214,48 +216,6 @@ export async function createLedgerRecordsBatch({
         resolved_contact_type: ContactType | null;
       }
     >();
-
-    // if (bankTxnIds.length > 0) {
-    // const contactResolutionByBankTxnId =
-    //   await getBankTransactionContactResolutions({
-    //     companyId: companyUUID,
-    //     bankTransactionIds: bankTxnIds.map((bankTxn) => bankTxn.id),
-    //     trx: txn,
-    //   });
-
-    // const bankTxnResults = await txn('bank_transactions as bt')
-    //   .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
-    //   .where('ba.company_id', companyUUID)
-    //   .where('bt.is_deleted', false)
-    //   .whereIn(
-    //     'bt.id',
-    //     bankTxnIds.map((bankTxn) => bankTxn.id),
-    //   )
-    //   .select(
-    //     'bt.id',
-    //     'bt.transaction_date as date',
-    //     'bt.amount',
-    //     'bt.system_exchange_rate',
-    //     'ba.coa_id as bank_coa_id',
-    //     'ba.currency_id as bank_currency_id',
-    //   );
-
-    // for (const row of bankTxnResults) {
-    //   const key = `${row.id}|${row.date}`;
-    //   const contactResolution = contactResolutionByBankTxnId.get(row.id);
-    //   bankTxnMap.set(key, {
-    //     amount: Number(row.amount),
-    //     system_exchange_rate: Number(row.system_exchange_rate),
-    //     bank_coa_id: row.bank_coa_id,
-    //     bank_currency_id: row.bank_currency_id,
-    //     resolved_contact_id: contactResolution?.contact_id ?? null,
-    //     resolved_contact_type: contactResolution?.contact_type ?? null,
-    //   });
-    //   if (contactResolution?.contact_id) {
-    //     allContactIdsGlobal.add(contactResolution.contact_id);
-    //   }
-    // }
-    // }
 
     const contactNameByIdGlobal = await fetchLookupMap({
       table: 'contacts',
@@ -629,19 +589,17 @@ export async function createLedgerRecordsBatch({
       bounds: globalCoaBounds,
       triggeredBy: 'ledger_entry',
     })) {
-      await scheduleGLBalanceAfterCommit(request, txn);
+      await writeGlBalanceRecalcOutbox(txn, request);
     }
 
-    // Re-evaluate close review signals once per created ledger transaction.
+    // Re-evaluate close review signals once per created ledger transaction,
+    // written into the same transaction so they can't be lost.
     for (const result of results) {
-      await scheduleCloseSignalEvalAfterCommit(
-        {
-          companyId: companyUUID,
-          ledgerTransactionId: result.ledgerTransactionId,
-          triggeredBy: 'ledger_write',
-        },
-        txn,
-      );
+      await writeCloseSignalEvalOutbox(txn, {
+        companyId: companyUUID,
+        ledgerTransactionId: result.ledgerTransactionId,
+        triggeredBy: 'ledger_write',
+      });
     }
 
     // STEP 8: LINK BACK TO SOURCE ENTITIES

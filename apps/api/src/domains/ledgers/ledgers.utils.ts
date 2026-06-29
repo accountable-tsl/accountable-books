@@ -8,6 +8,7 @@ import type {
   LedgerEntry,
   LedgerEntryInput,
   LedgerTransaction,
+  LedgerTransactionInput,
   NewLedgerTransactionData,
 } from './ledgers.types.js';
 
@@ -215,10 +216,18 @@ export async function resolveFx({
     // All identical
     finalCustomRate = [...uniqueRates][0]!;
   } else if (uniqueRates.size > 1) {
-    warnings.push(
-      `Conflicting custom FX rates detected for ${sourceCurr.code} → ${reportingCurr.code} on ${toYMD(ledgerTxDate)}. Using system rate.`,
+    throw new AppError(
+      `Conflicting custom FX rates for ${sourceCurr.code} → ${reportingCurr.code} on ${toYMD(ledgerTxDate)}: ${[...uniqueRates].join(', ')}`,
+      {
+        sourceCurrencyId,
+        sourceCurrencyCode: sourceCurr.code,
+        reportingCurrencyId,
+        reportingCurrencyCode: reportingCurr.code,
+        date: toYMD(ledgerTxDate),
+        customRates: [...uniqueRates],
+      },
+      true,
     );
-    finalCustomRate = systemRate;
   }
 
   // Validate Rates
@@ -736,5 +745,16 @@ export function detectChangedFields({
     isMetadataOnly,
     isAccountingChange,
     ...(bankLegViolation && { bankLegViolation }),
+  };
+}
+
+/** Map legacy create payload (`transactions`) to batch post input (`entries`). */
+export function toLedgerTransactionInput(
+  data: NewLedgerTransactionData,
+): LedgerTransactionInput {
+  const { transactions, ...header } = data;
+  return {
+    ...header,
+    entries: transactions,
   };
 }

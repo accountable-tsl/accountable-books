@@ -10,10 +10,9 @@ import {
   ACTIVITY_EVENT_TYPE,
   writeActivityEventIntent,
 } from '../../activity/index.js';
-import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
+import { postLedgerTransactions } from '../../ledgers/ledger-mutation.service.js';
+import { toLedgerTransactionInput } from '../../ledgers/ledgers.utils.js';
 import { getCompanySetting } from '../../settings/settings.service.js';
-import { getSystemUser } from '../../users/users.model.js';
-import { scheduleOutboxDispatchKickAfterCommit } from '../../work/outbox.queue.js';
 import { writeBankAccountWorkMaterializationIntent } from '../../work/work-materialization-intent.js';
 import { WORK_TYPE_REVIEW_SUGGESTIONS } from '../../work/work.types.js';
 import {
@@ -187,8 +186,6 @@ export async function postCandidateToLedger({
           candidateId,
         },
       });
-      await scheduleOutboxDispatchKickAfterCommit(txn);
-
       logger.info(
         {
           bankTransactionId,
@@ -219,7 +216,8 @@ export async function postCandidateToLedger({
         disposition: 'expired_source_posted',
         runId,
         ledgerTransactionId: bankTxnAfterLock.ledger_transaction_id,
-        reason: 'Bank transaction was posted while autopost was waiting for the company lock',
+        reason:
+          'Bank transaction was posted while autopost was waiting for the company lock',
         idempotencyKey: `candidate:${candidateId}:expired_source_posted:${bankTxnAfterLock.ledger_transaction_id}`,
       });
       await recordCandidateOutcomeForLedger(txn, {
@@ -238,8 +236,6 @@ export async function postCandidateToLedger({
           candidateId,
         },
       });
-      await scheduleOutboxDispatchKickAfterCommit(txn);
-
       logger.info(
         {
           bankTransactionId,
@@ -253,66 +249,55 @@ export async function postCandidateToLedger({
       };
     }
 
-    // Get system user ID
-    const systemUser = await getSystemUser({ trx: txn });
-    if (!systemUser?.id) {
-      logger.error({ companyId }, 'System user not found');
-      return { success: false, error: 'System user not found' };
-    }
-
-    // Convert candidate to ledger format
     const ledgerData = buildLedgerTxnFromCandidate({
       candidateInput,
       bankTransaction,
       candidateId,
     });
 
-    // Create ledger transaction
-    const ledgerResult = await createLedgerRecord({
-      data: ledgerData,
-      autoPost: true, // This is an autopost operation
-      companyId,
-      userId: systemUser.id,
+    const postResult = await postLedgerTransactions({
+      companyId: companyUUID,
+      actor: { type: 'system' },
+      requestContext: { source: 'worker' },
+      transactions: [toLedgerTransactionInput(ledgerData)],
       trx: txn,
     });
 
-    if (!ledgerResult.success) {
+    if (!postResult.success) {
       logger.error(
         {
           candidateId,
           bankTransactionId,
-          error: ledgerResult.error,
+          error: postResult.error,
         },
-        'Failed to create ledger transaction for autopost',
+        'Failed to post ledger transaction for autopost',
       );
       const errorMessage =
-        typeof ledgerResult.error === 'string'
-          ? ledgerResult.error
-          : 'Failed to create ledger transaction';
+        typeof postResult.error === 'string'
+          ? postResult.error
+          : typeof postResult.error === 'object' &&
+              postResult.error !== null &&
+              'message' in postResult.error &&
+              typeof postResult.error.message === 'string'
+            ? postResult.error.message
+            : 'Failed to post ledger transaction';
       return {
         success: false,
         error: errorMessage,
       };
     }
 
-    if (
-      !ledgerResult.data ||
-      typeof ledgerResult.data !== 'object' ||
-      !('ledgerTransactionId' in ledgerResult.data)
-    ) {
+    const ledgerTransactionId = postResult.data?.ledgerTransactionIds?.[0];
+    if (!ledgerTransactionId) {
       logger.error(
-        { candidateId, bankTransactionId, ledgerResult },
-        'Ledger transaction ID not returned from createLedgerRecord',
+        { candidateId, bankTransactionId, postResult },
+        'Ledger transaction ID not returned from postLedgerTransactions',
       );
       return {
         success: false,
         error: 'Ledger transaction ID not returned',
       };
     }
-
-    const ledgerTransactionId = (
-      ledgerResult.data as { ledgerTransactionId: string }
-    ).ledgerTransactionId;
 
     await closeCandidateReview(txn, candidateId);
     await appendCandidateDisposition(txn, {
@@ -359,8 +344,6 @@ export async function postCandidateToLedger({
         ledgerTransactionId,
       },
     });
-    await scheduleOutboxDispatchKickAfterCommit(txn);
-
     // Log categorization task event
     await logTaskEventSafe({
       categorization_task_id: candidateInput.categorization_task_id,

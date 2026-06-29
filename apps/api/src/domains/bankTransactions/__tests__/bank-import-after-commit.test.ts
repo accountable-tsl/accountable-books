@@ -9,13 +9,8 @@ import {
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
 import { queueBroker } from '../../../jobs/queues/queue-broker.js';
-import {
-  balanceRecalcQueue,
-} from '../../balances/balance-recalc.queue.js';
-import {
-  enrichmentQueue,
-} from '../../categorization/enrichment/enrichment.queue.js';
-import { outboxDispatchQueue } from '../../work/outbox.queue.js';
+import { balanceRecalcQueue } from '../../balances/balance-recalc.queue.js';
+import { enrichmentQueue } from '../../categorization/enrichment/enrichment.queue.js';
 import { addNewBankTransactions } from '../bankTransactions.model.js';
 
 async function createFreshBankAccount(
@@ -70,7 +65,7 @@ describe('addNewBankTransactions after-commit side effects (Phase 0)', () => {
     queueBroker.configure({ disableAll: true, logSkipped: false });
   });
 
-  it('does not enqueue balance, enrichment, or outbox kick when the import rolls back', async () => {
+  it('does not enqueue balance or enrichment when the import rolls back', async () => {
     queueBroker.configure({ disableAll: false, logSkipped: false });
 
     const balanceGetJob = vi
@@ -82,15 +77,16 @@ describe('addNewBankTransactions after-commit side effects (Phase 0)', () => {
     const enrichmentAdd = vi
       .spyOn(enrichmentQueue, 'add')
       .mockResolvedValue({ id: 'enrichment-job' } as never);
-    const outboxKick = vi
-      .spyOn(outboxDispatchQueue, 'add')
-      .mockResolvedValue({ id: 'outbox-kick' } as never);
 
     const trx = await getTestDb().transaction();
     try {
       const companyId = await getTestCompanyId(trx, 'bizDemoUS');
       const userId = await getTestUserId(trx, US_USER_EMAIL);
-      const bankAccountId = await createFreshBankAccount(trx, companyId, userId);
+      const bankAccountId = await createFreshBankAccount(
+        trx,
+        companyId,
+        userId,
+      );
 
       const result = await addNewBankTransactions({
         userId,
@@ -108,10 +104,9 @@ describe('addNewBankTransactions after-commit side effects (Phase 0)', () => {
     expect(balanceGetJob).not.toHaveBeenCalled();
     expect(balanceAdd).not.toHaveBeenCalled();
     expect(enrichmentAdd).not.toHaveBeenCalled();
-    expect(outboxKick).not.toHaveBeenCalled();
   });
 
-  it('enqueues balance, enrichment, and outbox kick when the import commits', async () => {
+  it('enqueues balance and enrichment when the import commits', async () => {
     queueBroker.configure({ disableAll: false, logSkipped: false });
 
     const balanceGetJob = vi
@@ -123,9 +118,6 @@ describe('addNewBankTransactions after-commit side effects (Phase 0)', () => {
     const enrichmentAdd = vi
       .spyOn(enrichmentQueue, 'add')
       .mockResolvedValue({ id: 'enrichment-job' } as never);
-    const outboxKick = vi
-      .spyOn(outboxDispatchQueue, 'add')
-      .mockResolvedValue({ id: 'outbox-kick' } as never);
 
     const trx = await getTestDb().transaction();
     const companyId = await getTestCompanyId(trx, 'bizDemoUS');
@@ -146,6 +138,5 @@ describe('addNewBankTransactions after-commit side effects (Phase 0)', () => {
     expect(balanceGetJob).toHaveBeenCalled();
     expect(balanceAdd).toHaveBeenCalled();
     expect(enrichmentAdd).toHaveBeenCalled();
-    expect(outboxKick).toHaveBeenCalledTimes(1);
   });
 });

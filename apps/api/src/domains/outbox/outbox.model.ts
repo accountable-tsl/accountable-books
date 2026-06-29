@@ -2,18 +2,17 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
 import { getLogger } from '../../shared/utils/logger.js';
-import { OUTBOX_INTENT } from './work.types.js';
+import { scheduleOutboxDrainNudge } from './outbox.queue.js';
 
-import type { OutboxIntentType } from './work.types.js';
+import type { OutboxClaimFilter, OutboxIntentType } from './intents.js';
+
+export type { OutboxClaimFilter };
 
 const logger = getLogger({ component: 'outbox-model' });
 
-const OUTBOX_TABLE = 'app.outbox_intents';
+const OUTBOX_TABLE = 'app.outbox';
 
-/** Stop retrying and dead-letter (status `failed`, `processed_at`, `failed_at`) after this many failed dispatch attempts. */
 export const OUTBOX_MAX_DISPATCH_ATTEMPTS = 10;
-
-/** Purge processed rows older than this many days (maintenance). */
 export const OUTBOX_PROCESSED_RETENTION_DAYS = 7;
 
 export interface OutboxRow {
@@ -23,25 +22,14 @@ export interface OutboxRow {
   payload: unknown;
   status: 'pending' | 'processed' | 'failed';
   available_at: Date;
-  processed_at: Date | null;
+  completed_at: Date | null;
   dispatch_attempt_count: number;
   last_error: string | null;
   failed_at: Date | null;
 }
 
-/**
- * Write (or debounce) a semantic outbox intent inside the caller's transaction.
- *
- * Debounce: a partial UNIQUE index on (intent_type, scope_key) WHERE
- * status = 'pending' guarantees at most one pending row per scope. Repeated
- * intents for the same scope collapse onto that row (latest payload wins,
- * earliest available_at preserved), so a burst of domain mutations produces a
- * single scope recompute rather than one per mutation.
- *
- * MUST be called with the same `trx` as the owning domain fact so the intent is
- * committed atomically with it and is never written for rolled-back facts.
- */
-export async function writeOutboxIntent(
+/** Must use the same `trx` as the owning domain fact. */
+export async function writeOutbox(
   trx: Knex.Transaction,
   input: {
     intentType: OutboxIntentType;
@@ -49,31 +37,29 @@ export async function writeOutboxIntent(
     payload: Record<string, unknown>;
   },
 ): Promise<{ id: string }> {
-  const [row] = (await trx.raw(
-    `
+  const [row] = (await trx
+    .raw(
+      `
     INSERT INTO ${OUTBOX_TABLE} (intent_type, scope_key, payload, available_at)
     VALUES (?, ?, ?::jsonb, now())
     ON CONFLICT (intent_type, scope_key) WHERE status = 'pending'
     DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
     RETURNING id
     `,
-    [input.intentType, input.scopeKey, JSON.stringify(input.payload)],
-  ).then((result: { rows: Array<{ id: string }> }) => result.rows)) as Array<{
+      [input.intentType, input.scopeKey, JSON.stringify(input.payload)],
+    )
+    .then((result: { rows: Array<{ id: string }> }) => result.rows)) as Array<{
     id: string;
   }>;
+
+  scheduleOutboxDrainNudge(trx, input.intentType);
 
   return { id: row.id };
 }
 
-/**
- * Claim a single pending intent for processing using FOR UPDATE SKIP LOCKED, so
- * concurrent dispatcher workers never grab the same row. The returned row stays
- * locked for the lifetime of `trx`; the caller dispatches and then marks it
- * processed (or rolls back so it can be retried) within that same transaction.
- */
 export async function claimNextPendingIntent(
   trx: Knex.Transaction,
-  options?: { intentType?: OutboxIntentType; scopeKey?: string },
+  options?: OutboxClaimFilter,
 ): Promise<OutboxRow | null> {
   const query = trx<OutboxRow>(OUTBOX_TABLE)
     .where('status', 'pending')
@@ -81,6 +67,12 @@ export async function claimNextPendingIntent(
 
   if (options?.intentType) {
     query.andWhere('intent_type', options.intentType);
+  }
+  if (options?.intentTypes?.length) {
+    query.whereIn('intent_type', options.intentTypes);
+  }
+  if (options?.excludeIntentTypes?.length) {
+    query.whereNotIn('intent_type', options.excludeIntentTypes);
   }
   if (options?.scopeKey) {
     query.andWhere('scope_key', options.scopeKey);
@@ -97,7 +89,6 @@ export async function claimNextPendingIntent(
   return row ?? null;
 }
 
-/** Mark a claimed intent durably handled (must run in the claim's trx). */
 export async function markIntentProcessed(
   trx: Knex.Transaction,
   id: string,
@@ -106,7 +97,7 @@ export async function markIntentProcessed(
     .where({ id })
     .update({
       status: 'processed',
-      processed_at: trx.fn.now(),
+      completed_at: trx.fn.now(),
       dispatch_attempt_count: trx.raw('dispatch_attempt_count + 1'),
       last_error: null,
       failed_at: null,
@@ -114,23 +105,17 @@ export async function markIntentProcessed(
     });
 }
 
-/**
- * Record a failed dispatch attempt while the claimed row is still locked. The
- * dispatcher runs materialization in a nested transaction/savepoint, so failed
- * side-effects are discarded before this retry state is written.
- */
 export async function recordIntentFailure(
   id: string,
   error: unknown,
   client: Knex = knexClient,
-): Promise<void> {
+): Promise<{ deadLettered: boolean }> {
   const message = error instanceof Error ? error.message : String(error);
   const row = await client<OutboxRow>(OUTBOX_TABLE)
     .where({ id })
     .first('dispatch_attempt_count');
   const dispatchAttemptCount = (row?.dispatch_attempt_count ?? 0) + 1;
   const exhausted = dispatchAttemptCount >= OUTBOX_MAX_DISPATCH_ATTEMPTS;
-  // Exponential-ish backoff capped at 5 minutes.
   const backoffSeconds = Math.min(300, 2 ** Math.min(dispatchAttemptCount, 8));
 
   await client(OUTBOX_TABLE)
@@ -141,7 +126,7 @@ export async function recordIntentFailure(
       ...(exhausted
         ? {
             status: 'failed',
-            processed_at: client.fn.now(),
+            completed_at: client.fn.now(),
             failed_at: client.fn.now(),
           }
         : {
@@ -158,16 +143,16 @@ export async function recordIntentFailure(
       { outboxId: id, dispatchAttemptCount, error: message },
       'Outbox intent dead-lettered after exhausting max dispatch attempts',
     );
-    return;
+    return { deadLettered: true };
   }
 
   logger.warn(
     { outboxId: id, dispatchAttemptCount, backoffSeconds, error: message },
     'Outbox intent dispatch failed; scheduled for retry',
   );
+  return { deadLettered: false };
 }
 
-/** Re-mark a deferred intent so it is retried shortly (no failure recorded). */
 export async function deferIntent(
   id: string,
   client: Knex = knexClient,
@@ -184,9 +169,6 @@ export async function deferIntent(
     });
 }
 
-/**
- * Delete processed outbox rows older than `retentionDays` (maintenance).
- */
 export async function purgeProcessedOutboxIntents(
   retentionDays = OUTBOX_PROCESSED_RETENTION_DAYS,
   client: Knex = knexClient,
@@ -194,20 +176,52 @@ export async function purgeProcessedOutboxIntents(
   const deleted = await client(OUTBOX_TABLE)
     .whereIn('status', ['processed', 'failed'])
     .andWhere(
-      'processed_at',
+      'completed_at',
       '<',
       client.raw(`now() - (interval '1 day' * ?)`, [retentionDays]),
     )
     .delete();
 
   if (deleted > 0) {
-    logger.info(
-      { deleted, retentionDays },
-      'Purged processed outbox intents',
-    );
+    logger.info({ deleted, retentionDays }, 'Purged terminal outbox intents');
   }
 
   return { deleted };
 }
 
-export { OUTBOX_INTENT };
+export interface OutboxHealthSnapshot {
+  failedCount: number;
+  pendingCount: number;
+  /** Age of the oldest due pending row; null when nothing is overdue. */
+  oldestPendingAgeSeconds: number | null;
+}
+
+export async function getOutboxHealthSnapshot(
+  client: Knex = knexClient,
+): Promise<OutboxHealthSnapshot> {
+  const result = await client.raw(
+    `
+    SELECT
+      count(*) FILTER (WHERE status = 'failed')::int AS failed_count,
+      count(*) FILTER (WHERE status = 'pending')::int AS pending_count,
+      EXTRACT(EPOCH FROM (
+        now() - min(available_at) FILTER (
+          WHERE status = 'pending' AND available_at <= now()
+        )
+      ))::int AS oldest_pending_age_seconds
+    FROM ${OUTBOX_TABLE}
+    `,
+  );
+
+  const row = (result.rows?.[0] ?? {}) as {
+    failed_count: number | null;
+    pending_count: number | null;
+    oldest_pending_age_seconds: number | null;
+  };
+
+  return {
+    failedCount: row.failed_count ?? 0,
+    pendingCount: row.pending_count ?? 0,
+    oldestPendingAgeSeconds: row.oldest_pending_age_seconds ?? null,
+  };
+}

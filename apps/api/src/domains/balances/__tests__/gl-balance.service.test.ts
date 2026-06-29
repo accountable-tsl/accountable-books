@@ -5,10 +5,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getTestDb } from '../../../../config/test-db.js';
 import { createLedgerRecord } from '../../ledgers/index.js';
 import {
+  claimNextPendingIntent,
+  markIntentProcessed,
+  OUTBOX_INTENT,
+} from '../../outbox/index.js';
+import {
   closeFiscalPeriod,
   fiscalCalendarService,
   lockFiscalPeriod,
 } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import { handleGlBalanceRecalcOutbox } from '../gl-balance.outbox.js';
 import { glBalanceService } from '../gl-balance.service.js';
 
 import type { NewLedgerTransactionData } from '../../ledgers/index.js';
@@ -151,6 +157,66 @@ describe('GL balance recalculation', () => {
     expect(asYMD(currentBalance.as_of_date)).toBe('2025-01-16');
     expect(numberValue(currentBalance.reporting_currency_balance)).toBe(750);
     expect(currentBalance.calculated_at).toBeInstanceOf(Date);
+  });
+
+  it('post -> drain GL-recalc outbox intent -> balances materialized in the DB (no mocks)', async () => {
+    // 1. Posting a journal writes a GL_BALANCE_RECALC_REQUESTED outbox row in
+    //    the same transaction (the Phase 4 front door) — but no balances yet.
+    await postCashMovement({
+      trx,
+      fixture,
+      date: '2025-01-15',
+      cashAmount: 1000,
+      description: 'Customer receipt',
+    });
+
+    const balancesBefore = await trx('gl_daily_balance_snapshots').where({
+      company_id: fixture.companyId,
+      coa_id: fixture.cashCoaId,
+    });
+    expect(balancesBefore).toHaveLength(0);
+
+    // 2. The post produced a pending recalc intent for the cash account. Claim
+    //    it the way the dispatcher does.
+    const scopeKey = `${OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED}:${fixture.companyId}:${fixture.cashCoaId}`;
+    const intent = await claimNextPendingIntent(trx, {
+      intentType: OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED,
+      scopeKey,
+    });
+    expect(intent).not.toBeNull();
+    expect(intent!.payload).toMatchObject({
+      companyId: fixture.companyId,
+      coaId: fixture.cashCoaId,
+      recalcFrom: '2025-01-15',
+      triggeredBy: 'ledger_entry',
+    });
+
+    // 3. Drain it through the REAL handler (no mock): this runs the actual
+    //    recalc, then mark the intent processed.
+    await handleGlBalanceRecalcOutbox(intent!.payload, trx);
+    await markIntentProcessed(trx, intent!.id);
+
+    // 4. Balances are now materialized in the DB.
+    const daily = await trx('gl_daily_balance_snapshots')
+      .where({
+        company_id: fixture.companyId,
+        coa_id: fixture.cashCoaId,
+        day: '2025-01-15',
+      })
+      .first();
+    expect(daily).toBeTruthy();
+    expect(numberValue(daily.closing_balance)).toBe(1000);
+
+    const current = await trx('gl_current_balances')
+      .where({ company_id: fixture.companyId, coa_id: fixture.cashCoaId })
+      .first();
+    expect(current).toBeTruthy();
+    expect(numberValue(current.reporting_currency_balance)).toBe(1000);
+
+    const processed = await trx('app.outbox')
+      .where({ id: intent!.id })
+      .first('status');
+    expect(processed?.status).toBe('processed');
   });
 
   it('does not move current balance backward during a bounded historical recalculation', async () => {

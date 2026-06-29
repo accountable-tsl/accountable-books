@@ -3,6 +3,10 @@ import type { Knex } from 'knex';
 import { knexClient } from '../../db/knexClient.js';
 import { AppError } from '../../shared/utils/response.utils.js';
 import {
+  buildMonetaryMap,
+  prefetchMonetaryCoaIds,
+} from '../chart-of-accounts/coa-monetary.js';
+import {
   processFxPositionsParamsSchema,
   reverseFxPositionMovementsParamsSchema,
   upsertFxPositionParamsSchema,
@@ -88,19 +92,15 @@ function movementTypeForDelta({
 }
 
 /**
- * Determine which entries are monetary (create FX exposure)
+ * Determine which entries are monetary (create FX exposure).
  *
- * Logic:
- * 1. If entry has explicit is_monetary, use that
- * 2. Else if account type has default_monetary=true, entry is monetary
- * 3. Else if source_currency_id !== reporting_currency_id, entry is monetary
- * 4. Else entry is not monetary
+ * @deprecated Use `prefetchMonetaryCoaIds` and `buildMonetaryMap` from
+ * `chart-of-accounts/coa-monetary` instead.
  */
 export async function determineMonetaryEntries(
   params: DetermineMonetaryEntriesParams,
 ): Promise<DetermineMonetaryResult> {
   const { entries, companyId, reportingCurrencyId, trx } = params;
-  const db = trx ?? knexClient;
 
   if (entries.length === 0) {
     return {
@@ -109,64 +109,34 @@ export async function determineMonetaryEntries(
     };
   }
 
-  // Batch fetch account types' default_monetary for all COAs
-  const uniqueCoaIds = Array.from(new Set(entries.map((e) => e.coa_id)));
-  const coaRows = await db('coa')
-    .join('account_types', 'coa.account_type_id', 'account_types.id')
-    .where('coa.company_id', companyId)
-    .whereIn('coa.id', uniqueCoaIds)
-    .where('coa.is_deleted', false)
-    .select('coa.id', 'account_types.default_monetary');
-
-  const coaMonetary = new Map<string, boolean>(
-    coaRows.map((r: any) => [r.id, r.default_monetary ?? false]),
+  const monetaryCoaIds = await prefetchMonetaryCoaIds(
+    companyId,
+    entries.map((e) => e.coa_id),
+    trx,
+  );
+  const monetaryMap = buildMonetaryMap(
+    entries,
+    reportingCurrencyId,
+    monetaryCoaIds,
   );
 
-  // Determine monetary status for each entry
-  const monetaryMap = new Map<number, boolean>();
   const monetaryEntries: Array<{ index: number; entry: MonetaryEntry }> = [];
-
   for (let i = 0; i < entries.length; i++) {
+    if (!monetaryMap.get(i)) continue;
     const entry = entries[i]!;
-    let isMonetary: boolean;
-
-    // Priority 1: Explicit override
-    if (entry.is_monetary !== undefined) {
-      isMonetary = entry.is_monetary;
-    }
-    // Priority 2: Account type default
-    else if (coaMonetary.get(entry.coa_id) === true) {
-      isMonetary = true;
-    }
-    // Priority 3: Currency mismatch
-    else if (entry.source_currency_id !== reportingCurrencyId) {
-      isMonetary = true;
-    }
-    // Default: not monetary
-    else {
-      isMonetary = false;
-    }
-
-    monetaryMap.set(i, isMonetary);
-
-    if (isMonetary) {
-      monetaryEntries.push({
-        index: i,
-        entry: {
-          coa_id: entry.coa_id,
-          source_currency_id: entry.source_currency_id,
-          source_amount: 0, // Will be filled by caller
-          amount: 0, // Will be filled by caller
-          is_monetary: isMonetary,
-        },
-      });
-    }
+    monetaryEntries.push({
+      index: i,
+      entry: {
+        coa_id: entry.coa_id,
+        source_currency_id: entry.source_currency_id,
+        source_amount: 0,
+        amount: 0,
+        is_monetary: true,
+      },
+    });
   }
 
-  return {
-    monetaryMap,
-    monetaryEntries,
-  };
+  return { monetaryMap, monetaryEntries };
 }
 
 /**
@@ -183,7 +153,11 @@ export async function determineMonetaryEntries(
  */
 export async function upsertFxPosition(
   params: UpsertFxPositionParams,
-): Promise<{ positionId: string; movementId: string; state: 'open' | 'closed' }> {
+): Promise<{
+  positionId: string;
+  movementId: string;
+  state: 'open' | 'closed';
+}> {
   const { trx, ...paramsWithoutTrx } = params;
 
   // Validate input parameters

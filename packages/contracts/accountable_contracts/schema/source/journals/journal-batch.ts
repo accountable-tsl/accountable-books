@@ -24,7 +24,7 @@ export type JournalBatchSource = z.infer<typeof journalBatchSource>;
 // Journal Entry Schemas
 // =============================================================================
 
-export const journalEntryInput = z.object({
+const journalEntryInput = z.object({
   description: z.string().max(512).nullish(),
   side: debitCredit,
   amount: z.number().refine(

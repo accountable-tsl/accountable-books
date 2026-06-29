@@ -6,7 +6,7 @@ import {
   ACTIVITY_EVENT_TYPE,
   buildActivityEventScopeKey,
 } from '../../activity/index.js';
-import { OUTBOX_INTENT } from '../../work/work.types.js';
+import { OUTBOX_INTENT } from '../../outbox/intents.js';
 import { recordCloseReviewDecision } from './close-decisions.js';
 import {
   computeOpenSignalRollups,
@@ -109,7 +109,7 @@ describe('recordCloseReviewDecision', () => {
     expect(result.ok).toBe(true);
 
     if (!result.ok) throw new Error('Expected close decision to be recorded');
-    const activity = await trx('app.outbox_intents')
+    const activity = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
         scope_key: buildActivityEventScopeKey(

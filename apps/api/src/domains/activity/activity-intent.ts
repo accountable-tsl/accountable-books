@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 
-import { writeOutboxIntent } from '../work/outbox.model.js';
+import { writeOutbox } from '../outbox/index.js';
+import { OUTBOX_INTENT } from '../outbox/intents.js';
 import { resolveFirmCompanyId } from '../work/work-ownership.js';
-import { OUTBOX_INTENT } from '../work/work.types.js';
 import { activityEventSchema } from './activity.types.js';
 
 import type { ActivityEvent } from './activity.types.js';
@@ -41,8 +41,7 @@ export async function writeActivityEventIntent(
   const firmCompanyId =
     input.firmCompanyId ??
     (await resolveFirmCompanyId(trx, input.clientCompanyId));
-  const idempotencyKey =
-    input.idempotencyKey ?? defaultIdempotencyKey(input);
+  const idempotencyKey = input.idempotencyKey ?? defaultIdempotencyKey(input);
 
   const event = activityEventSchema.parse({
     ...input,
@@ -52,7 +51,7 @@ export async function writeActivityEventIntent(
   });
   const scopeKey = buildActivityEventScopeKey(event.idempotencyKey);
 
-  await writeOutboxIntent(trx, {
+  await writeOutbox(trx, {
     intentType: OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED,
     scopeKey,
     payload: { event },

@@ -2,9 +2,10 @@ import { z } from 'zod';
 
 import { dbBaseFields, zDate } from '../../core/types/core.js';
 import { createCamelCaseSchema } from '../../shared/utils/formatting.utils.js';
+import { contactType } from '../contacts/index.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
-import { contactType, type ContactType } from '../contacts/index.js';
+import type { ContactType } from '../contacts/index.js';
 
 // ENUMS
 export const bankTransactionSource = z.enum([
@@ -23,15 +24,6 @@ export const bankTransactionDeletionSource = z.enum([
   'provider_sync',
 ]);
 
-export const bankTransactionContactResolutionInput = z.object({
-  contact_id: z.uuid(),
-  contact_type: contactType.nullish(),
-  reason: z.string().trim().max(512).optional(),
-});
-export type BankTransactionContactResolutionInput = z.infer<
-  typeof bankTransactionContactResolutionInput
->;
-
 // BANK TRANSACTIONS
 export const bankTransactionInput = z.object({
   transaction_date: zDate,
@@ -44,8 +36,6 @@ export const bankTransactionInput = z.object({
   additional_notes: z.string().nullish(),
   source_payload: z.record(z.string(), z.unknown()).optional(),
   idempotency_key: z.string().trim().min(1).max(256).optional(),
-  contact_resolution: bankTransactionContactResolutionInput.optional(),
-  //   id: z.uuid().optional(),
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
 
