@@ -1,6 +1,7 @@
 import type {
   EmployeeRecord,
   PayrollCompanyDefaults,
+  PayrollComputedItem,
   PayrollComputedRun,
   PayrollRun,
   PayrollRunIndexEntry,
@@ -480,7 +481,7 @@ function moneyToNumber(money: string | undefined): number {
 
 function getOtherDeductionsTotal(computed: PayrollComputedRun | null) {
   return (
-    computed?.items?.reduce((sum, item) => {
+    computed?.items?.reduce((sum: number, item: PayrollComputedItem) => {
       if (!item.totalDeductions) {
         return sum;
       }
@@ -1211,7 +1212,7 @@ export function Payroll() {
 
     setCurrentRun(run);
     setIsSampleRun(true);
-    setCompanyDefaults((prev) => ({
+    setCompanyDefaults((prev: PayrollCompanyDefaults) => ({
       ...prev,
       companyName: run.companyName,
       settings: run.settings ?? prev.settings,
@@ -1751,9 +1752,9 @@ export function Payroll() {
         return money ? Number.parseFloat(money) : 0;
       };
 
-      const rows = currentRun.items.map((item) => {
+      const rows = currentRun.items.map((item: PayrollRunItem) => {
         const computedItem = computed.items.find(
-          (ci) => ci.runItemId === item.id,
+          (ci: PayrollComputedItem) => ci.runItemId === item.id,
         );
         const rowData = getTableRowData(item, computedItem);
 
@@ -1761,7 +1762,8 @@ export function Payroll() {
         const oneOffAllowancesTotal =
           computedItem?.taxBreakdown?.oneOffAllowances?.total == null
             ? (item.edits?.oneOffAllowances?.reduce(
-                (sum, allowance) => sum + moneyToNumber(allowance.amount),
+                (sum: number, allowance: { amount: string }) =>
+                  sum + moneyToNumber(allowance.amount),
                 0,
               ) ?? 0)
             : moneyToNumber(computedItem.taxBreakdown.oneOffAllowances.total);
@@ -1769,7 +1771,8 @@ export function Payroll() {
         // Calculate one-off deductions total
         const oneOffDeductionsTotal =
           item.edits?.oneOffDeductions?.reduce(
-            (sum, deduction) => sum + moneyToNumber(deduction.amount),
+            (sum: number, deduction: { amount: string }) =>
+              sum + moneyToNumber(deduction.amount),
             0,
           ) ?? 0;
 
@@ -1798,7 +1801,7 @@ export function Payroll() {
 
       const csv = [
         header.map(escapeCsv).join(','),
-        ...rows.map((r) => r.join(',')),
+        ...rows.map((r: string[]) => r.join(',')),
       ].join('\n');
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1859,7 +1862,9 @@ export function Payroll() {
     try {
       // Check for finalized runs
       const runsIndex = await loadRunsIndex();
-      const finalizedRuns = runsIndex.runs.filter((r) => r.status === 'final');
+      const finalizedRuns = runsIndex.runs.filter(
+        (r: PayrollRunIndexEntry) => r.status === 'final',
+      );
       const hasFinalized = finalizedRuns.length > 0;
 
       setHasFinalizedRuns(hasFinalized);
@@ -1993,7 +1998,7 @@ export function Payroll() {
       if (isDraft) {
         const updatedRun = {
           ...currentRun,
-          items: currentRun.items.map((item) =>
+          items: currentRun.items.map((item: PayrollRunItem) =>
             item.id === nextRunItem.id ? nextRunItem : item,
           ),
           updatedAt: getCurrentTimestamp(),
@@ -2029,12 +2034,16 @@ export function Payroll() {
         return;
       }
 
-      const runItem = currentRun.items.find((item) => item.id === runItemId);
+      const runItem = currentRun.items.find(
+        (item: PayrollRunItem) => item.id === runItemId,
+      );
 
       // Remove item from current run and save
       const updatedRun = {
         ...currentRun,
-        items: currentRun.items.filter((item) => item.id !== runItemId),
+        items: currentRun.items.filter(
+          (item: PayrollRunItem) => item.id !== runItemId,
+        ),
         updatedAt: getCurrentTimestamp(),
       };
       setCurrentRun(updatedRun);
