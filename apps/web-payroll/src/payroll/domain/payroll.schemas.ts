@@ -478,9 +478,7 @@ export const TaxBandBreakdownItemSchema = z.object({
   taxAmount: MoneySchema,
 });
 
-export type TaxBandBreakdownItem = z.infer<
-  typeof TaxBandBreakdownItemSchema
->;
+export type TaxBandBreakdownItem = z.infer<typeof TaxBandBreakdownItemSchema>;
 
 export const TaxBreakdownSchema = z.object({
   /** Whether YTD calculation was used */
@@ -561,6 +559,10 @@ export const TaxBreakdownSchema = z.object({
 
   /** Tax calculation details */
   taxCalculation: z.object({
+    /** Annual taxable gross the tax was computed from (projected when YTD) */
+    annualTaxableGross: MoneySchema.optional(),
+    /** Annual allowable deductions used in the computation (projected when YTD) */
+    annualAllowableDeductions: MoneySchema.optional(),
     /** Annual taxable income (gross - rent relief - allowable deductions) */
     annualTaxableIncome: MoneySchema,
     /** Annual tax computed */
@@ -596,6 +598,41 @@ export const TaxBreakdownSchema = z.object({
   taxBandBreakdown: z.array(TaxBandBreakdownItemSchema).optional(),
 });
 
+/** Where a resolved setting came from (employee override > run/company settings > system defaults). */
+export const SettingSourceSchema = z.enum(['employee', 'company', 'system']);
+
+/**
+ * Per-employee record of how the compute engine resolved each setting.
+ * Emitted so the UI can explain a computation without re-deriving any of it.
+ */
+export const SettingsResolutionSchema = z.object({
+  state: z.object({
+    value: StateSchema,
+    source: SettingSourceSchema,
+    /** State that would apply without an employee override. */
+    companyDefault: StateSchema,
+  }),
+  pension: z.object({
+    config: PensionConfigSchema,
+    source: SettingSourceSchema,
+    /** Whether pension is enabled at run/system level, ignoring the employee override. */
+    companyEnabled: z.boolean(),
+  }),
+  nhf: z.object({
+    config: NhfConfigSchema,
+    source: SettingSourceSchema,
+  }),
+  nhis: z.object({
+    config: NhisConfigSchema,
+    source: SettingSourceSchema,
+  }),
+  bhtBreakdown: z.object({
+    source: SettingSourceSchema,
+  }),
+  /** Count of profile recurring deductions active in this run's month. */
+  appliedRecurringDeductions: z.number().int().nonnegative(),
+});
+
 /** Computed result for a single run item (per employee for this run). */
 export const PayrollComputedItemSchema = z.object({
   runItemId: IdSchema,
@@ -610,6 +647,8 @@ export const PayrollComputedItemSchema = z.object({
   employeeNhis: MoneySchema.optional(),
   employerNhis: MoneySchema.optional(),
 
+  /** Recurring deductions applied this month (part of totalDeductions). */
+  recurringDeductions: MoneySchema.optional(),
   totalDeductions: MoneySchema.optional(),
   netPay: MoneySchema,
   employerCost: MoneySchema.optional(),
@@ -618,6 +657,9 @@ export const PayrollComputedItemSchema = z.object({
 
   /** Detailed tax breakdown for explainability and auditability */
   taxBreakdown: TaxBreakdownSchema.optional(),
+
+  /** How each setting was resolved for this employee (provenance for UI explanations). */
+  settingsResolution: SettingsResolutionSchema.optional(),
 });
 
 /** Run totals across all computed items. */
@@ -833,6 +875,9 @@ export type EmployeeDirectory = z.infer<typeof EmployeeDirectorySchema>;
 
 export type PayrollRunItem = z.infer<typeof PayrollRunItemSchema>;
 export type PayrollRun = z.infer<typeof PayrollRunSchema>;
+export type PayrollRunSettings = z.infer<typeof PayrollRunSettingsSchema>;
+export type SettingSource = z.infer<typeof SettingSourceSchema>;
+export type SettingsResolution = z.infer<typeof SettingsResolutionSchema>;
 export type PayrollComputedItem = z.infer<typeof PayrollComputedItemSchema>;
 export type PayrollComputedRun = z.infer<typeof PayrollComputedRunSchema>;
 export type PayrollRunIndexEntry = z.infer<typeof PayrollRunIndexEntrySchema>;

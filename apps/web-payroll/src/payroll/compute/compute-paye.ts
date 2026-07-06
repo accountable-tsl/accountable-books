@@ -43,7 +43,7 @@ export interface TaxBandBreakdownEntry {
   taxAmount: number;
 }
 
-function getBandLabel(band: typeof TAX_BANDS[number]): string {
+function getBandLabel(band: (typeof TAX_BANDS)[number]): string {
   const lower = BAND_LABEL_FORMATTER.format(band.min);
   const range =
     band.max === Number.POSITIVE_INFINITY
@@ -52,9 +52,32 @@ function getBandLabel(band: typeof TAX_BANDS[number]): string {
   return range;
 }
 
-function computeAnnualTaxWithBreakdown(
-  annualTaxableIncome: number,
-): { annualTax: number; breakdown: TaxBandBreakdownEntry[] } {
+export interface TaxBand {
+  label: string;
+  min: number;
+  /** Upper bound of the band; null for the open-ended top band. */
+  max: number | null;
+  rate: number;
+}
+
+/**
+ * The statutory PAYE bands the engine computes with (identical for every
+ * employee). Exposed so exports/UI can present the bands without hardcoding
+ * tax law outside the engine.
+ */
+export function getTaxBands(): TaxBand[] {
+  return TAX_BANDS.map((band) => ({
+    label: getBandLabel(band),
+    min: band.min,
+    max: Number.isFinite(band.max) ? band.max : null,
+    rate: band.rate,
+  }));
+}
+
+function computeAnnualTaxWithBreakdown(annualTaxableIncome: number): {
+  annualTax: number;
+  breakdown: TaxBandBreakdownEntry[];
+} {
   const normalizedIncome = Math.max(0, annualTaxableIncome);
   let tax = 0;
   const breakdown: TaxBandBreakdownEntry[] = [];
@@ -145,6 +168,10 @@ export interface ComputePayeResult {
   annualRent: number;
   /** Annual rent relief (20% of annual rent, capped at 500,000) */
   annualRentRelief: number;
+  /** Annual taxable gross the tax was computed from (projected when YTD) */
+  annualTaxableGross: number;
+  /** Annual allowable deductions used in the computation (projected when YTD) */
+  annualAllowableDeductions: number;
   /** Annual taxable income (gross - rent relief - allowable deductions) */
   annualTaxableIncome: number;
   /** Annual tax computed */
@@ -222,6 +249,8 @@ export function computePaye(params: {
   const baseResult = {
     annualRent,
     annualRentRelief,
+    annualTaxableGross,
+    annualAllowableDeductions,
     annualTaxableIncome,
     annualTax,
     taxBandBreakdown,

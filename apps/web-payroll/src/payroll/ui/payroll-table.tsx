@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,10 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-  Sheet,
-  SheetContent,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -32,6 +29,8 @@ import {
 
 import { PayrollComputedItemSchema } from '../domain';
 import { ComputationDetailsSheet } from './computation-details-sheet';
+import { getEmployeeComputationNotes } from './employee-computation-notes';
+import { EmployeeComputationNotesIndicator } from './employee-computation-notes-indicator';
 import {
   PayrollTableCard,
   usePayrollEmployeeEditor,
@@ -68,7 +67,7 @@ export function PayrollTable({
   runStatus = 'draft',
   runPeriod,
   finalizedPeriodKeys = [],
-}: PayrollTableProps) {
+}: Readonly<PayrollTableProps>) {
   // Pass runStatus to rows for editing control
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const prevItemCountRef = useRef(runItems.length);
@@ -179,18 +178,6 @@ export function PayrollTable({
       {/* Mobile View Cards */}
       <div className="md:hidden">
         <div className="divide-border divide-y">
-          {/* {employees.map((e) => {
-            // const result = calculatePayroll(e);
-
-            return (
-              <PayrollTableCard
-              key={e.id}
-              employee={e}
-              onEdit={() => onEdit(e)}
-              onDelete={() => onDelete(e.id)}
-              />
-            );
-          })} */}
           {runItems.map((item) => (
             <PayrollTableCard
               key={item.id}
@@ -306,7 +293,7 @@ function PayrollTableRow({
   runStatus = 'draft',
   runPeriod,
   finalizedPeriodKeys = [],
-}: PayrollTableRowProps) {
+}: Readonly<PayrollTableRowProps>) {
   const editor = usePayrollEmployeeEditor({
     runItem,
     computedItem,
@@ -339,6 +326,11 @@ function PayrollTableRow({
     renderDetailsPanel,
   } = editor;
 
+  const computationNotes = useMemo(
+    () => getEmployeeComputationNotes({ runItem, computedItem }),
+    [runItem, computedItem],
+  );
+
   // Helper to render cell content based on header key
   const renderCell = (header: HeaderConfig) => {
     if (!header.show || !header.visible) return null;
@@ -347,14 +339,17 @@ function PayrollTableRow({
       case 'employee':
         return (
           <TableCell key={header.key} className={header.className}>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={commitEmployeeEdits}
-              disabled={isReadOnly}
-              className="border-border/50 bg-background focus-visible:ring-ring focus-visible:border-ring h-8 rounded border p-1.5 font-normal disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Name"
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={commitEmployeeEdits}
+                disabled={isReadOnly}
+                className="border-border/50 bg-background focus-visible:ring-ring focus-visible:border-ring h-8 min-w-0 flex-1 rounded border p-1.5 font-normal disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Name"
+              />
+              <EmployeeComputationNotesIndicator notes={computationNotes} />
+            </div>
           </TableCell>
         );
 
@@ -443,7 +438,7 @@ function PayrollTableRow({
             onClick={() => setComputationDrawerOpen(true)}
           >
             <span className="text-destructive/80 font-mono tracking-wide tabular-nums">
-              {rowData.paye != null ? ngnMoneyFormatter(rowData.paye) : '-'}
+              {rowData.paye == null ? '-' : ngnMoneyFormatter(rowData.paye)}
             </span>
           </TableCell>
         );
@@ -548,7 +543,10 @@ function PayrollTableRow({
       </TableRow>
 
       {/* View Details Sheet */}
-      <Sheet open={detailsDrawerOpen} onOpenChange={handleDetailsDrawerOpenChange}>
+      <Sheet
+        open={detailsDrawerOpen}
+        onOpenChange={handleDetailsDrawerOpenChange}
+      >
         <SheetContent side="right" className="w-full sm:max-w-lg">
           {renderDetailsPanel('sheet')}
         </SheetContent>
@@ -568,314 +566,3 @@ function PayrollTableRow({
     </>
   );
 }
-
-// interface PayrollTableCardOldProps {
-//   runItem: PayrollRunItem;
-//   computedItem?: PayrollComputedItem;
-//   onEdit: (runItem: PayrollRunItem) => void;
-//   onDelete: (runItemId: string) => void;
-//   runStatus?: 'draft' | 'final';
-// }
-
-// export function PayrollTableCardOld({
-//   runItem,
-//   computedItem,
-//   onEdit,
-//   onDelete,
-//   runStatus = 'draft',
-// }: PayrollTableCardOldProps) {
-//   const rowData = getTableRowData(runItem, computedItem);
-//   const [name, setName] = useState(runItem?.employeeSnapshot?.fullName || '');
-//   const [role, setRole] = useState(runItem?.employeeSnapshot?.role || '');
-//   const compHistory = runItem?.payProfileSnapshot?.compensationHistory || [];
-//   const annualGross =
-//     compHistory.length > 0 ? parseFloat(compHistory[0].annualGross) : 0;
-//   const [annualGrossInput, setAnnualGrossInput] = useState(
-//     annualGross.toString(),
-//   );
-
-//   const monthlyGross = rowData.monthlyGross;
-//   const computed = {
-//     basic: monthlyGross * 0.6,
-//     housing: monthlyGross * 0.3,
-//     transport: monthlyGross * 0.1,
-//     gross: monthlyGross,
-//     paye: 12000,
-//     pension: 25000,
-//     nhf: 8000,
-//     nhis: 5000,
-//     otherDeductions: 0,
-//     net: 85000,
-//   };
-
-//   const totalDeductions = computed.paye + computed.pension;
-
-//   const handleSave = () => {
-//     // Update runItem with new values
-//     onEdit({
-//       ...runItem,
-//       employeeSnapshot: {
-//         ...runItem.employeeSnapshot,
-//         fullName: name,
-//         role: role || undefined,
-//       },
-//     });
-//   };
-
-//   return (
-//     <>
-//       <div className="space-y-1 p-4">
-//         <div className="space-y-2">
-//           <div className="flex">
-//             <div className="flex flex-1 flex-col gap-2">
-//               <div className="flex-1 pr-1">
-//                 <Input
-//                   placeholder="Name"
-//                   value={name}
-//                   onChange={(e) => setName(e.target.value)}
-//                   className="h-7.5 rounded text-[16px]"
-//                 />
-//               </div>
-
-//               <div className="flex gap-1">
-//                 <div className="flex-1">
-//                   <Input
-//                     placeholder="Role"
-//                     value={role}
-//                     onChange={(e) => setRole(e.target.value)}
-//                     className="h-7.5 rounded text-[16px]"
-//                   />
-//                 </div>
-
-//                 <Drawer repositionInputs={false} fixed>
-//                   <DrawerTrigger asChild>
-//                     <div
-//                       className="bg-muted hover:bg-muted/80 flex w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded rounded-r-none"
-//                       role="button"
-//                       tabIndex={0}
-//                     >
-//                       <Pencil className="size-4 text-gray-500" />
-//                     </div>
-//                   </DrawerTrigger>
-//                   <DrawerContent className="!max-h-[65vh] !max-w-full !rounded-none">
-//                     <DrawerHeader>
-//                       <DrawerTitle>Edit Employee</DrawerTitle>
-//                       <DrawerDescription>
-//                         Update employee information and compensation details
-//                       </DrawerDescription>
-//                     </DrawerHeader>
-//                     <div className="scrollbar-thin-2px space-y-4 overflow-y-auto p-4">
-//                       <div className="">
-//                         <label className="text-muted-foreground text-sm">
-//                           Full Name
-//                         </label>
-//                         <Input
-//                           value={name}
-//                           onChange={(e) => setName(e.target.value)}
-//                           placeholder="Employee name"
-//                           className="rounded text-base"
-//                         />
-//                       </div>
-//                       <div className="">
-//                         <label className="text-muted-foreground text-sm">
-//                           Role/Position
-//                         </label>
-//                         <Input
-//                           value={role}
-//                           onChange={(e) => setRole(e.target.value)}
-//                           placeholder="Job title"
-//                           className="rounded text-base"
-//                         />
-//                       </div>
-//                       <div className="">
-//                         <label className="text-muted-foreground text-sm">
-//                           Annual Gross Salary
-//                         </label>
-//                         <Input
-//                           type="number"
-//                           value={annualGrossInput}
-//                           onChange={(e) => setAnnualGrossInput(e.target.value)}
-//                           placeholder="0.00"
-//                           className="rounded text-base"
-//                         />
-//                       </div>
-//                       <div className="">
-//                         <label className="text-muted-foreground text-sm">
-//                           Email
-//                         </label>
-//                         <Input
-//                           type="email"
-//                           value=""
-//                           placeholder="employee@example.com"
-//                           disabled
-//                           className="rounded text-base"
-//                         />
-//                       </div>
-//                       <div className="">
-//                         <label className="text-muted-foreground text-sm">
-//                           Staff ID
-//                         </label>
-//                         <Input
-//                           value={runItem?.employeeSnapshot?.employeeId || ''}
-//                           placeholder="Employee ID"
-//                           disabled
-//                           className="rounded text-base"
-//                         />
-//                       </div>
-//                       <div className="">
-//                         <label className="text-muted-foreground text-sm">
-//                           Department
-//                         </label>
-//                         <Input
-//                           value={runItem?.employeeSnapshot?.department || ''}
-//                           placeholder="Department"
-//                           disabled
-//                           className="rounded text-base"
-//                         />
-//                       </div>
-//                     </div>
-//                     <DrawerFooter>
-//                       <Button onClick={handleSave}>Save Changes</Button>
-//                       <DrawerClose asChild>
-//                         <Button variant="outline">Cancel</Button>
-//                       </DrawerClose>
-//                     </DrawerFooter>
-//                   </DrawerContent>
-//                 </Drawer>
-//               </div>
-//             </div>
-
-//             <div className="bg-muted flex w-8 flex-shrink-0 flex-col items-center justify-between gap-2 rounded rounded-bl-none py-2 pt-3">
-//               <div
-//                 className="cursor-pointer hover:opacity-80"
-//                 onClick={() => onDelete(runItem.id)}
-//                 role="button"
-//                 tabIndex={0}
-//                 onKeyDown={(e) => {
-//                   if (e.key === 'Enter' || e.key === ' ') {
-//                     e.preventDefault();
-//                     onDelete(runItem.id);
-//                   }
-//                 }}
-//               >
-//                 <Trash2 className="size-4 text-red-500" />
-//               </div>
-//               <Drawer>
-//                 <DrawerTrigger asChild>
-//                   <div
-//                     className="cursor-pointer hover:opacity-80"
-//                     role="button"
-//                     tabIndex={0}
-//                   >
-//                     <Eye className="size-4 text-gray-500" />
-//                   </div>
-//                 </DrawerTrigger>
-//                 <DrawerContent className="max-h-[60vh]">
-//                   <DrawerHeader>
-//                     <DrawerTitle>Payroll Calculation Details</DrawerTitle>
-//                     <DrawerDescription>
-//                       Breakdown of {name || 'employee'}'s pay calculation
-//                     </DrawerDescription>
-//                   </DrawerHeader>
-//                   <div className="space-y-4 overflow-y-auto p-4">
-//                     <div className="space-y-3">
-//                       <h4 className="text-sm font-semibold">Gross Pay</h4>
-//                       <div className="text-muted-foreground space-y-1.5 text-sm">
-//                         <div className="flex justify-between">
-//                           <span>Annual Gross:</span>
-//                           <span className="font-medium tabular-nums">
-//                             {ngnMoneyFormatter(Number(annualGross) || 0)}
-//                           </span>
-//                         </div>
-//                         <div className="flex justify-between">
-//                           <span>Monthly Gross:</span>
-//                           <span className="font-medium tabular-nums">
-//                             {ngnMoneyFormatter(
-//                               (Number(annualGross) || 0) / 12,
-//                             )}
-//                           </span>
-//                         </div>
-//                       </div>
-//                     </div>
-
-//                     <div className="space-y-3 border-t pt-4">
-//                       <h4 className="text-sm font-semibold">Deductions</h4>
-//                       <div className="text-muted-foreground space-y-1.5 text-sm">
-//                         <div className="flex justify-between">
-//                           <span>PAYE:</span>
-//                           <span className="font-medium tabular-nums">
-//                             {ngnMoneyFormatter(computed.paye)}
-//                           </span>
-//                         </div>
-//                         <div className="flex justify-between">
-//                           <span>Pension:</span>
-//                           <span className="font-medium tabular-nums">
-//                             {ngnMoneyFormatter(computed.pension)}
-//                           </span>
-//                         </div>
-//                         <div className="text-foreground flex justify-between border-t pt-1.5 font-semibold">
-//                           <span>Total Deductions:</span>
-//                           <span className="tabular-nums">
-//                             {ngnMoneyFormatter(totalDeductions)}
-//                           </span>
-//                         </div>
-//                       </div>
-//                     </div>
-
-//                     <div className="space-y-3 border-t pt-4">
-//                       <h4 className="text-sm font-semibold">Net Pay</h4>
-//                       <div className="text-lg font-semibold tabular-nums">
-//                         {ngnMoneyFormatter(computed.net)}
-//                       </div>
-//                     </div>
-//                   </div>
-//                 </DrawerContent>
-//               </Drawer>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="space-y-1">
-//           <div className="grid grid-cols-2 gap-2">
-//             {/* annual gross */}
-//             <div className="flex flex-col">
-//               <label
-//                 htmlFor={`annual-gross-${runItem.id}`}
-//                 className="text-muted-foreground text-xs font-medium"
-//               >
-//                 Annual Gross
-//               </label>
-//               <Input
-//                 id={`annual-gross-${runItem.id}`}
-//                 type="number"
-//                 placeholder="0.00"
-//                 value={annualGrossInput}
-//                 onChange={(e) => setAnnualGrossInput(e.target.value)}
-//                 className="h-7.5 rounded text-base"
-//               />
-//             </div>
-//             {/* computed net pay */}
-//             <div className="flex flex-col text-right text-green-600">
-//               <span className="text-muted-foreground text-xs font-medium">
-//                 Net Pay
-//               </span>
-//               <div className="text-right font-mono text-lg font-semibold tabular-nums">
-//                 {ngnMoneyFormatter(computed.net)}
-//               </div>
-//             </div>
-//           </div>
-//           <div className="bg-muted text-muted-foreground flex w-full flex-nowrap justify-between gap-1 rounded p-1 text-xs *:truncate">
-//             <span title={`PAYE: ${ngnMoneyFormatter(computed.paye)}`}>
-//               PAYE: {ngnMoneyFormatter(computed.paye)}
-//             </span>
-//             <span
-//               title={`Pension: ${ngnMoneyFormatter(computed.pension)}`}
-//             >
-//               Pension: {ngnMoneyFormatter(computed.pension)}
-//             </span>
-//           </div>
-//         </div>
-//       </div>
-//     </>
-//   );
-// }

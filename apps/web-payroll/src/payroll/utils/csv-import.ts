@@ -3,14 +3,17 @@
  */
 
 import Papa from 'papaparse';
-import { NIGERIAN_STATES } from '../data/states';
+
 import { PFA_KEYS, PFAS } from '../data/pfa';
-import type { EmployeeRecord } from '../domain';
+import { NIGERIAN_STATES } from '../data/states';
 import { makeNewEmployeeRecord } from '../domain';
 import { generateId } from '../utils';
+import { downloadBlob } from './download';
 import { logger } from './logger';
-import type { StateValue } from '../data/states';
+
 import type { PfaKey } from '../data/pfa';
+import type { StateValue } from '../data/states';
+import type { EmployeeRecord } from '../domain';
 
 /**
  * Constants for CSV import validation
@@ -25,7 +28,12 @@ const MAX_YEAR = 2100;
 /**
  * Valid file types and extensions for CSV import
  */
-const VALID_MIME_TYPES = ['text/csv', 'text/plain', 'application/vnd.ms-excel', 'application/csv'];
+const VALID_MIME_TYPES = [
+  'text/csv',
+  'text/plain',
+  'application/vnd.ms-excel',
+  'application/csv',
+];
 const VALID_EXTENSIONS = ['.csv'];
 
 /**
@@ -110,7 +118,7 @@ export function generateCsvTemplate(
     if (!includeSampleData) {
       return header;
     }
-    
+
     // Sample data rows
     // State: Must be exact match (e.g., "Lagos", "Abuja", "Kano")
     // Tax ID: Optional, can be left empty
@@ -121,7 +129,7 @@ export function generateCsvTemplate(
       'Jane Smith,Product Manager,Abuja,,monthly,,300000,200000,100000',
       'Mike Johnson,Designer,Kano,TAX789012,annual,7200000,,,',
     ];
-    
+
     // Add reference rows formatted as CSV columns (label in col A, list in col B)
     // We'll detect and skip rows where first column is "REFERENCE" during parsing
     const referenceRows = [
@@ -169,15 +177,7 @@ export function generateCsvTemplate(
 export function downloadCsvTemplate(format: CsvImportFormat): void {
   const content = generateCsvTemplate(format, true);
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `payroll-import-template-${format}.csv`;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `payroll-import-template-${format}.csv`);
 }
 
 /**
@@ -318,32 +318,35 @@ function validatePfa(pfa: string | undefined): {
   }
 
   const normalized = pfa.trim().toLowerCase();
-  
+
   // Try to find by key (lowercase)
   let foundPfa = PFAS.find((p) => p.key.toLowerCase() === normalized);
-  
+
   // If not found by key, try by label
   if (!foundPfa) {
     foundPfa = PFAS.find((p) => p.label.toLowerCase() === normalized);
   }
-  
+
   // If not found by label, try by code
   if (!foundPfa) {
     foundPfa = PFAS.find((p) => p.code.toLowerCase() === normalized);
   }
-  
+
   // If not found by code, try by name (partial match)
   if (!foundPfa) {
-    foundPfa = PFAS.find((p) => 
-      p.name.toLowerCase().includes(normalized) ||
-      normalized.includes(p.name.toLowerCase())
+    foundPfa = PFAS.find(
+      (p) =>
+        p.name.toLowerCase().includes(normalized) ||
+        normalized.includes(p.name.toLowerCase()),
     );
   }
 
   if (!foundPfa) {
     // Show examples with different formats
     const keyExamples = PFA_KEYS.slice(0, 3).join(', ');
-    const labelExamples = PFAS.slice(0, 3).map(p => p.label).join(', ');
+    const labelExamples = PFAS.slice(0, 3)
+      .map((p) => p.label)
+      .join(', ');
     return {
       valid: false,
       error: `Invalid PFA: "${pfa}". Accepts key (${keyExamples}...), label (${labelExamples}...), code (033, 037...), or name.`,
@@ -367,18 +370,20 @@ function parseMoney(value: string | undefined): {
 
   // Remove all non-numeric characters except decimal point
   const cleaned = value.replace(/[^\d.]/g, '');
-  
+
   // Handle multiple decimal points (take first, ignore rest)
   const parts = cleaned.split('.');
-  const cleanedValue = parts.length > 1 
-    ? parts[0] + '.' + parts.slice(1).join('')
-    : parts[0];
-  
+  const cleanedValue =
+    parts.length > 1 ? parts[0] + '.' + parts.slice(1).join('') : parts[0];
+
   // Reject scientific notation and other edge cases
   if (cleanedValue.includes('e') || cleanedValue.includes('E')) {
-    return { valid: false, error: `Invalid amount format: "${value}". Scientific notation not supported.` };
+    return {
+      valid: false,
+      error: `Invalid amount format: "${value}". Scientific notation not supported.`,
+    };
   }
-  
+
   const parsed = parseFloat(cleanedValue);
 
   if (isNaN(parsed) || parsed < 0) {
@@ -387,9 +392,9 @@ function parseMoney(value: string | undefined): {
 
   // Validate maximum to prevent overflow
   if (parsed > MAX_MONEY_AMOUNT) {
-    return { 
-      valid: false, 
-      error: `Amount too large: "${value}". Maximum is ${MAX_MONEY_AMOUNT.toLocaleString()}` 
+    return {
+      valid: false,
+      error: `Amount too large: "${value}". Maximum is ${MAX_MONEY_AMOUNT.toLocaleString()}`,
     };
   }
 
@@ -409,52 +414,61 @@ function parseDate(value: string | undefined): {
   }
 
   const trimmed = value.trim();
-  
+
   // Try YYYY-MM-DD format first (preferred)
   const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
     const year = parseInt(isoMatch[1], 10);
     const month = parseInt(isoMatch[2], 10);
     const day = parseInt(isoMatch[3], 10);
-    
+
     // Validate month and day ranges
     if (month < 1 || month > 12 || day < 1 || day > 31) {
-      return { valid: false, error: `Invalid date: "${value}". Month must be 1-12, day must be 1-31` };
-    }
-    
-    // Validate year range
-    if (year < MIN_YEAR || year > MAX_YEAR) {
-      return { 
-        valid: false, 
-        error: `Date out of range: "${value}". Use dates between ${MIN_YEAR}-${MAX_YEAR}` 
+      return {
+        valid: false,
+        error: `Invalid date: "${value}". Month must be 1-12, day must be 1-31`,
       };
     }
-    
+
+    // Validate year range
+    if (year < MIN_YEAR || year > MAX_YEAR) {
+      return {
+        valid: false,
+        error: `Date out of range: "${value}". Use dates between ${MIN_YEAR}-${MAX_YEAR}`,
+      };
+    }
+
     // Create date and verify it's valid (catches invalid dates like 2024-02-30)
     const date = new Date(year, month - 1, day);
     if (
-      date.getFullYear() !== year || 
-      date.getMonth() !== month - 1 || 
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
       date.getDate() !== day
     ) {
-      return { valid: false, error: `Invalid date: "${value}" (e.g., day 30 in February)` };
+      return {
+        valid: false,
+        error: `Invalid date: "${value}" (e.g., day 30 in February)`,
+      };
     }
-    
+
     return { valid: true, date: trimmed };
   }
 
   // Fallback to Date parsing for other formats
   const date = new Date(trimmed);
   if (isNaN(date.getTime())) {
-    return { valid: false, error: `Invalid date format: "${value}". Use YYYY-MM-DD` };
+    return {
+      valid: false,
+      error: `Invalid date format: "${value}". Use YYYY-MM-DD`,
+    };
   }
 
   // Validate year range for parsed date
   const year = date.getFullYear();
   if (year < MIN_YEAR || year > MAX_YEAR) {
-    return { 
-      valid: false, 
-      error: `Date out of range: "${value}". Use dates between ${MIN_YEAR}-${MAX_YEAR}` 
+    return {
+      valid: false,
+      error: `Date out of range: "${value}". Use dates between ${MIN_YEAR}-${MAX_YEAR}`,
     };
   }
 
@@ -507,7 +521,11 @@ function parseSimpleFormatRow(
   const errors: CsvRowError[] = [];
 
   // Get required fields
-  const name = getColumnValue(row, headers, ['Name', 'Full Name', 'Employee Name']);
+  const name = getColumnValue(row, headers, [
+    'Name',
+    'Full Name',
+    'Employee Name',
+  ]);
   const role = getColumnValue(row, headers, ['Role', 'Position', 'Job Title']);
   const state = getColumnValue(row, headers, ['State', 'State of Employment']);
   const taxId = getColumnValue(row, headers, ['Tax ID', 'TaxID', 'TIN']);
@@ -523,7 +541,10 @@ function parseSimpleFormatRow(
     'Annual Gross',
   ]);
   const basic = getColumnValue(row, headers, ['Basic', 'Basic Salary']);
-  const housing = getColumnValue(row, headers, ['Housing', 'Housing Allowance']);
+  const housing = getColumnValue(row, headers, [
+    'Housing',
+    'Housing Allowance',
+  ]);
   const transport = getColumnValue(row, headers, [
     'Transport',
     'Transport Allowance',
@@ -607,7 +628,7 @@ function parseSimpleFormatRow(
   // Parse and validate gross salary
   let grossNum = 0;
   let hasGross = false;
-  
+
   // Validate gross salary if provided
   if (grossSalary) {
     const grossResult = parseMoney(grossSalary);
@@ -651,7 +672,9 @@ function parseSimpleFormatRow(
   // Determine if amounts are monthly or annual
   const isMonthly =
     normalizedPeriodType === 'monthly' ||
-    (!normalizedPeriodType && grossNum > 0 && grossNum < ANNUAL_SALARY_THRESHOLD);
+    (!normalizedPeriodType &&
+      grossNum > 0 &&
+      grossNum < ANNUAL_SALARY_THRESHOLD);
 
   // Calculate annual gross
   let annualGross: string;
@@ -661,9 +684,7 @@ function parseSimpleFormatRow(
 
   if (hasGross) {
     // Use provided gross, convert to annual if monthly
-    annualGross = isMonthly
-      ? (grossNum * 12).toFixed(2)
-      : grossNum.toFixed(2);
+    annualGross = isMonthly ? (grossNum * 12).toFixed(2) : grossNum.toFixed(2);
   } else {
     // Calculate from BHT components
     const monthlyGross = bhtSum;
@@ -733,21 +754,45 @@ function parseFullFormatRow(
   const errors: CsvRowError[] = [];
 
   // Get all fields
-  const employeeId = getColumnValue(row, headers, ['Employee ID', 'EmployeeID']);
-  const name = getColumnValue(row, headers, ['Name', 'Full Name', 'Employee Name']);
+  const employeeId = getColumnValue(row, headers, [
+    'Employee ID',
+    'EmployeeID',
+  ]);
+  const name = getColumnValue(row, headers, [
+    'Name',
+    'Full Name',
+    'Employee Name',
+  ]);
   const role = getColumnValue(row, headers, ['Role', 'Position', 'Job Title']);
-  const joinDate = getColumnValue(row, headers, ['Join Date', 'JoinDate', 'Start Date']);
-  const exitDate = getColumnValue(row, headers, ['Exit Date', 'ExitDate', 'End Date']);
+  const joinDate = getColumnValue(row, headers, [
+    'Join Date',
+    'JoinDate',
+    'Start Date',
+  ]);
+  const exitDate = getColumnValue(row, headers, [
+    'Exit Date',
+    'ExitDate',
+    'End Date',
+  ]);
   const state = getColumnValue(row, headers, ['State', 'State of Employment']);
   const taxId = getColumnValue(row, headers, ['Tax ID', 'TaxID', 'TIN']);
-  const pfa = getColumnValue(row, headers, ['PFA', 'Pension Fund Administrator']);
+  const pfa = getColumnValue(row, headers, [
+    'PFA',
+    'Pension Fund Administrator',
+  ]);
   const rsaPin = getColumnValue(row, headers, ['RSA PIN', 'RSAPIN', 'RSA Pin']);
   // Note: NHF and NHIS are extracted but not used in employee record creation
   // They are typically set per payroll run, not per employee
   const rent = getColumnValue(row, headers, ['Rent', 'Monthly Rent']);
-  const rentPeriod = getColumnValue(row, headers, ['Rent Period', 'RentPeriod']);
+  const rentPeriod = getColumnValue(row, headers, [
+    'Rent Period',
+    'RentPeriod',
+  ]);
   const basic = getColumnValue(row, headers, ['Basic', 'Basic Salary']);
-  const housing = getColumnValue(row, headers, ['Housing', 'Housing Allowance']);
+  const housing = getColumnValue(row, headers, [
+    'Housing',
+    'Housing Allowance',
+  ]);
   const transport = getColumnValue(row, headers, [
     'Transport',
     'Transport Allowance',
@@ -797,14 +842,17 @@ function parseFullFormatRow(
     const basicNum = parseFloat(basic?.replace(/[₦$,\s]/g, '') || '0');
     const housingNum = parseFloat(housing?.replace(/[₦$,\s]/g, '') || '0');
     const transportNum = parseFloat(transport?.replace(/[₦$,\s]/g, '') || '0');
-    const otherNum = parseFloat(otherAllowances?.replace(/[₦$,\s]/g, '') || '0');
+    const otherNum = parseFloat(
+      otherAllowances?.replace(/[₦$,\s]/g, '') || '0',
+    );
     const monthlyTotal = basicNum + housingNum + transportNum + otherNum;
     if (monthlyTotal > 0) {
       annualGross = (monthlyTotal * 12).toFixed(2);
     } else {
       errors.push({
         row: csvRowNumber,
-        message: 'Either Gross Salary or salary components (Basic, Housing, Transport) must be provided',
+        message:
+          'Either Gross Salary or salary components (Basic, Housing, Transport) must be provided',
       });
     }
   } else {
@@ -927,28 +975,38 @@ function parseFullFormatRow(
       const basicResult = parseMoney(basic);
       if (basicResult.valid && basicResult.amount) {
         const basicNum = parseFloat(basicResult.amount);
-        compensation.annualBasic = (basicNum < ANNUAL_SALARY_THRESHOLD ? basicNum * 12 : basicNum).toFixed(2);
+        compensation.annualBasic = (
+          basicNum < ANNUAL_SALARY_THRESHOLD ? basicNum * 12 : basicNum
+        ).toFixed(2);
       }
     }
     if (housing) {
       const housingResult = parseMoney(housing);
       if (housingResult.valid && housingResult.amount) {
         const housingNum = parseFloat(housingResult.amount);
-        compensation.annualHousing = (housingNum < ANNUAL_SALARY_THRESHOLD ? housingNum * 12 : housingNum).toFixed(2);
+        compensation.annualHousing = (
+          housingNum < ANNUAL_SALARY_THRESHOLD ? housingNum * 12 : housingNum
+        ).toFixed(2);
       }
     }
     if (transport) {
       const transportResult = parseMoney(transport);
       if (transportResult.valid && transportResult.amount) {
         const transportNum = parseFloat(transportResult.amount);
-        compensation.annualTransport = (transportNum < ANNUAL_SALARY_THRESHOLD ? transportNum * 12 : transportNum).toFixed(2);
+        compensation.annualTransport = (
+          transportNum < ANNUAL_SALARY_THRESHOLD
+            ? transportNum * 12
+            : transportNum
+        ).toFixed(2);
       }
     }
     if (otherAllowances) {
       const otherResult = parseMoney(otherAllowances);
       if (otherResult.valid && otherResult.amount) {
         const otherNum = parseFloat(otherResult.amount);
-        compensation.annualOtherAllowances = (otherNum < ANNUAL_SALARY_THRESHOLD ? otherNum * 12 : otherNum).toFixed(2);
+        compensation.annualOtherAllowances = (
+          otherNum < ANNUAL_SALARY_THRESHOLD ? otherNum * 12 : otherNum
+        ).toFixed(2);
       }
     }
   }
@@ -961,11 +1019,12 @@ function parseFullFormatRow(
     const rentResult = parseMoney(rent);
     if (rentResult.valid && rentResult.amount) {
       const rentNum = parseFloat(rentResult.amount);
-      const monthlyRent = rentNum < ANNUAL_SALARY_THRESHOLD ? rentNum : rentNum / 12;
+      const monthlyRent =
+        rentNum < ANNUAL_SALARY_THRESHOLD ? rentNum : rentNum / 12;
       const rentPeriodKey = rentPeriod
         ? parseMonthKey(rentPeriod).monthKey || fromMonth
         : fromMonth;
-      
+
       employee.payProfile.rentHistory = [
         {
           id: generateId(),
@@ -1011,7 +1070,8 @@ export function parseCsvFile(
   const fileName = file.name.toLowerCase();
   const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
   const isValidExtension = VALID_EXTENSIONS.includes(fileExtension);
-  const isValidMimeType = file.type === '' || VALID_MIME_TYPES.includes(file.type);
+  const isValidMimeType =
+    file.type === '' || VALID_MIME_TYPES.includes(file.type);
 
   if (!isValidExtension && !isValidMimeType) {
     logger.warn('CSV import rejected: invalid file type', {
@@ -1024,7 +1084,8 @@ export function parseCsvFile(
       errors: [
         {
           row: 0,
-          message: 'Invalid file type. Please upload a CSV file (.csv extension).',
+          message:
+            'Invalid file type. Please upload a CSV file (.csv extension).',
         },
       ],
       warnings: [],
@@ -1091,7 +1152,7 @@ export function parseCsvFile(
           // Track actual CSV row number (accounting for header row = row 1)
           // Header is row 0, first data row is row 1
           let csvRowNumber = 1; // Start at 1 (will be incremented before processing first row)
-          
+
           results.data.forEach((row) => {
             // Skip completely empty rows
             const hasData = Object.values(row).some(
@@ -1108,7 +1169,10 @@ export function parseCsvFile(
             }
 
             // Skip reference rows (rows where first column is "REFERENCE")
-            const firstColumnValue = Object.values(row)[0]?.toString().trim().toUpperCase();
+            const firstColumnValue = Object.values(row)[0]
+              ?.toString()
+              .trim()
+              .toUpperCase();
             if (firstColumnValue === 'REFERENCE') {
               return;
             }
@@ -1117,11 +1181,24 @@ export function parseCsvFile(
             // This ensures skipped rows don't affect row numbering
             csvRowNumber++;
 
-            let parseResult: { employee?: EmployeeRecord; errors: CsvRowError[] };
+            let parseResult: {
+              employee?: EmployeeRecord;
+              errors: CsvRowError[];
+            };
             if (format === 'simple') {
-              parseResult = parseSimpleFormatRow(row, headers, csvRowNumber, fromMonth);
+              parseResult = parseSimpleFormatRow(
+                row,
+                headers,
+                csvRowNumber,
+                fromMonth,
+              );
             } else {
-              parseResult = parseFullFormatRow(row, headers, csvRowNumber, fromMonth);
+              parseResult = parseFullFormatRow(
+                row,
+                headers,
+                csvRowNumber,
+                fromMonth,
+              );
             }
 
             if (parseResult.errors.length > 0) {
@@ -1133,7 +1210,9 @@ export function parseCsvFile(
 
           // Check if we have any valid employees after parsing
           if (employees.length === 0 && errors.length === 0) {
-            warnings.push('No valid employee data found in CSV file. Please check your file format.');
+            warnings.push(
+              'No valid employee data found in CSV file. Please check your file format.',
+            );
             logger.warn('CSV import: no valid employees found');
           }
 
@@ -1166,7 +1245,9 @@ export function parseCsvFile(
           });
           resolve({
             employees: [],
-            errors: [{ row: 0, message: `Failed to parse CSV: ${error.message}` }],
+            errors: [
+              { row: 0, message: `Failed to parse CSV: ${error.message}` },
+            ],
             warnings: [],
           });
         },
@@ -1179,9 +1260,9 @@ export function parseCsvFile(
       resolve({
         employees: [],
         errors: [
-          { 
-            row: 0, 
-            message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` 
+          {
+            row: 0,
+            message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`,
           },
         ],
         warnings: [],
