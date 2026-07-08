@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * work_items-native firm work queue contract.
+ * work_item-native firm work queue contract.
  *
  * This is the materialized-queue read shape (grouped work items + their exact
  * subjects). It is intentionally separate from the legacy FirmTaskQueueResponse

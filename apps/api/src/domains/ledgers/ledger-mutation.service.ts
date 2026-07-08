@@ -232,7 +232,7 @@ const assertBankLeg = (
     });
   }
 
-  const bankLeg = bankLegs[0]!;
+  const bankLeg = bankLegs[0];
   if (bankLeg.contact_id) {
     throw new AppError('Bank legs must not carry a contact', { sourceId });
   }
@@ -387,7 +387,7 @@ const prepareBatch = async (
         errors.push({
           sourceId,
           message: err.message,
-          ...(err.details !== undefined ? { details: err.details } : {}),
+          ...(err.details ? { details: err.details } : {}),
         });
         continue;
       }
@@ -406,7 +406,7 @@ const assignLedgerIds = (
   ids: string[],
 ): IdentifiedLedger[] =>
   prepared.map((p, i) => {
-    const id = ids[i]!;
+    const id = ids[i];
     const fxTransactionId =
       p.isFx && p.entries.some((e) => e.is_monetary)
         ? makeFxTransactionId({ type: 'LEDGER_TX', ledgerTransactionId: id })

@@ -1,5 +1,5 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -22,13 +22,17 @@ const devServerMessages = () => ({
 });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const env = process.env.NODE_ENV;
+const env = process.env['NODE_ENV'] ?? 'development';
 const isDev = env === 'development' || env === 'local';
 const isStaging = env === 'staging';
 
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      babel: {
+        plugins: [['babel-plugin-react-compiler']],
+      },
+    }),
     tailwindcss(),
     // Only add dev server messages in development
     ...(isDev ? [devServerMessages()] : []),

@@ -6,7 +6,7 @@ import {
 } from './utils/db.js';
 
 /**
- * `work_items` are the grouped, actionable rows users see in the firm queue.
+ * `legacy_work_items` are the grouped, actionable rows users see in the firm queue.
  * They are materialized PROJECTIONS of domain truth, never the source of
  * accounting truth: the materializer reconciles them from current domain facts
  * (see work-materialization.ts) and closes a row only when its active subject
@@ -17,7 +17,7 @@ import {
  * omitted.
  */
 const schemaName = 'app';
-const tableName = 'work_items';
+const tableName = 'legacy_work_items';
 const qualifiedTable = `"${schemaName}"."${tableName}"`;
 
 const STATUSES = ['open', 'closed'] as const;
@@ -53,7 +53,7 @@ export async function up(knex: Knex): Promise<void> {
       .string('status', 16)
       .notNullable()
       .defaultTo('open')
-      .checkIn([...STATUSES], 'work_items_status_chk');
+      .checkIn([...STATUSES], 'legacy_work_items_status_chk');
 
     // Stored effective owner. NULL == firm-level / unassigned pool.
     table
@@ -74,7 +74,10 @@ export async function up(knex: Knex): Promise<void> {
       .string('actionability_state', 32)
       .notNullable()
       .defaultTo('actionable_now')
-      .checkIn([...ACTIONABILITY_STATES], 'work_items_actionability_chk');
+      .checkIn(
+        [...ACTIONABILITY_STATES],
+        'legacy_work_items_actionability_chk',
+      );
 
     table.jsonb('destination').notNullable().defaultTo(knex.raw(`'{}'::jsonb`));
     table
@@ -123,9 +126,9 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     ALTER TABLE ${qualifiedTable}
-      ADD CONSTRAINT work_items_counts_nonnegative_chk
+      ADD CONSTRAINT legacy_work_items_counts_nonnegative_chk
         CHECK (subject_count >= 0 AND active_subject_count >= 0),
-      ADD CONSTRAINT work_items_deleted_state_chk
+      ADD CONSTRAINT legacy_work_items_deleted_state_chk
         CHECK (
           (is_deleted = false AND deleted_at IS NULL)
           OR
@@ -135,25 +138,25 @@ export async function up(knex: Knex): Promise<void> {
 
   // One open grouped row per grouping identity.
   await knex.raw(`
-    CREATE UNIQUE INDEX work_items_open_group_unique
+    CREATE UNIQUE INDEX legacy_work_items_open_group_unique
       ON ${qualifiedTable} (group_key)
       WHERE status = 'open' AND is_deleted = false;
   `);
 
   await knex.raw(`
-    CREATE INDEX work_items_firm_open_type_idx
+    CREATE INDEX legacy_work_items_firm_open_type_idx
       ON ${qualifiedTable} (firm_company_id, work_type, first_seen_at)
       WHERE status = 'open' AND is_deleted = false;
   `);
 
   await knex.raw(`
-    CREATE INDEX work_items_client_open_type_idx
+    CREATE INDEX legacy_work_items_client_open_type_idx
       ON ${qualifiedTable} (client_company_id, work_type)
       WHERE status = 'open' AND is_deleted = false;
   `);
 
   await knex.raw(`
-    CREATE INDEX work_items_assigned_open_idx
+    CREATE INDEX legacy_work_items_assigned_open_idx
       ON ${qualifiedTable} (assigned_user_id)
       WHERE status = 'open' AND is_deleted = false AND assigned_user_id IS NOT NULL;
   `);

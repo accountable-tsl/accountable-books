@@ -124,5 +124,16 @@ describe('computeRun', () => {
     expect(result.items).toHaveLength(1);
     expect(result.periodTotals.employeeCount).toBe(1);
     expect(result.items[0].gross).toBeDefined();
+
+    // Engine reports how each setting was resolved (provenance for UI notes)
+    const resolution = result.items[0].settingsResolution;
+    expect(resolution).toBeDefined();
+    expect(resolution?.pension.source).toBe('company');
+    expect(resolution?.state).toEqual({
+      value: 'Lagos',
+      source: 'company',
+      companyDefault: 'Lagos',
+    });
+    expect(resolution?.appliedRecurringDeductions).toBe(0);
   });
 });

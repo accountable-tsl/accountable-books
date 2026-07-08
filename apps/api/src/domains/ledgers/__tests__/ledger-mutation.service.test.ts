@@ -9,6 +9,7 @@ import {
   getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
+import { handleGlBalanceRecalcOutbox } from '../../balances/gl-balance.outbox.js';
 import { OUTBOX_INTENT } from '../../outbox/intents.js';
 import { setCompanySettings } from '../../settings/settings.service.js';
 import { buildScopeKey } from '../../work/work.types.js';
@@ -575,5 +576,155 @@ describe('postLedgerTransactions - persist', () => {
     expect(
       await getTestDb()('fx_positions').where({ company_id: testCompanyId }),
     ).toHaveLength(0);
+  });
+
+  describe('batch hardening', () => {
+    /** Keep in sync with MAX_BATCH_SIZE in ledger-mutation.service.ts */
+    const MAX_BATCH_SIZE = 1000;
+
+    async function glIntentsForCompany() {
+      return trx('app.outbox')
+        .where({
+          intent_type: OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED,
+          status: 'pending',
+        })
+        .whereRaw("payload->>'companyId' = ?", [testCompanyId]);
+    }
+
+    it('posts a 25-transaction batch with one merged GL intent per COA', async () => {
+      const batchSize = 25;
+      const bankTxns: Array<{ id: string; amount: number }> = [];
+      const inputs = [];
+
+      for (let i = 0; i < batchSize; i += 1) {
+        const day = String(i + 1).padStart(2, '0');
+        const date = `2025-01-${day}`;
+        const bankTxn = await createBankTransaction(
+          -(i + 1) * 10,
+          `Batch payment ${i}`,
+          date,
+        );
+        bankTxns.push(bankTxn);
+        inputs.push(buildBankPostInput(bankTxn, date));
+      }
+
+      const result = await postLedgerTransactions({
+        companyId: testCompanyId,
+        actor: { type: 'user', userId: testUserId },
+        requestContext: { source: 'api' },
+        transactions: inputs,
+        trx,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.postedCount).toBe(batchSize);
+      expect(result.data?.ledgerTransactionIds).toHaveLength(batchSize);
+
+      const glIntents = await glIntentsForCompany();
+      expect(glIntents).toHaveLength(2);
+
+      const cashGl = glIntents.find(
+        (row) => (row.payload as { coaId: string }).coaId === testCoaIds.cash,
+      );
+      const expenseGl = glIntents.find(
+        (row) =>
+          (row.payload as { coaId: string }).coaId === testCoaIds.expense,
+      );
+      expect(cashGl?.payload).toMatchObject({
+        recalcFrom: '2025-01-01',
+        triggeredBy: 'ledger_entry',
+      });
+      expect(expenseGl?.payload).toMatchObject({
+        recalcFrom: '2025-01-01',
+        triggeredBy: 'ledger_entry',
+      });
+
+      const closeIntents = await trx('app.outbox')
+        .where({
+          intent_type: OUTBOX_INTENT.CLOSE_SIGNAL_EVAL_REQUESTED,
+          status: 'pending',
+        })
+        .whereRaw("payload->>'companyId' = ?", [testCompanyId]);
+      expect(closeIntents).toHaveLength(batchSize);
+
+      const materializationScopeKey = buildScopeKey({
+        type: 'bank_account',
+        clientCompanyId: testCompanyId,
+        bankAccountId: testBankAccountId,
+      });
+      const materializationIntent = await trx('app.outbox')
+        .where({
+          intent_type: OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED,
+          scope_key: materializationScopeKey,
+          status: 'pending',
+        })
+        .first();
+      const postedIds = (
+        materializationIntent?.payload as {
+          change?: { bankTransactionIds?: string[] };
+        }
+      )?.change?.bankTransactionIds;
+      expect(postedIds).toHaveLength(batchSize);
+      expect(new Set(postedIds)).toEqual(new Set(bankTxns.map((t) => t.id)));
+    });
+
+    it(`rejects more than ${MAX_BATCH_SIZE} transactions in one call`, async () => {
+      const bankTxn = await createBankTransaction(-1, 'Max batch probe');
+      const template = buildBankPostInput(bankTxn, '2025-01-15');
+      const transactions = Array.from({ length: MAX_BATCH_SIZE + 1 }, () => ({
+        ...template,
+        source_transaction_id: randomUUID(),
+      }));
+
+      const result = await postLedgerTransactions({
+        companyId: testCompanyId,
+        actor: { type: 'user', userId: testUserId },
+        requestContext: { source: 'api' },
+        transactions,
+        trx,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(
+        new RegExp(`Cannot post more than ${MAX_BATCH_SIZE}`),
+      );
+    });
+
+    it('materializes GL daily balances when the GL outbox intent is drained', async () => {
+      const bankTxn = await createBankTransaction(
+        -400,
+        'GL drain integration',
+        '2025-03-10',
+      );
+
+      const postResult = await postLedgerTransactions({
+        companyId: testCompanyId,
+        actor: { type: 'user', userId: testUserId },
+        requestContext: { source: 'api' },
+        transactions: [buildBankPostInput(bankTxn, '2025-03-10')],
+        trx,
+      });
+      expect(postResult.success).toBe(true);
+
+      const scopeKey = `${OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED}:${testCompanyId}:${testCoaIds.cash}`;
+      const intent = await trx('app.outbox')
+        .where({ scope_key: scopeKey, status: 'pending' })
+        .first('payload');
+      expect(intent?.payload).toBeTruthy();
+
+      await handleGlBalanceRecalcOutbox(intent!.payload, trx);
+
+      const snapshot = await trx('gl_daily_balance_snapshots')
+        .where({
+          company_id: testCompanyId,
+          coa_id: testCoaIds.cash,
+          day: '2025-03-10',
+        })
+        .first();
+
+      expect(snapshot).toBeTruthy();
+      expect(Number(snapshot!.transaction_count)).toBe(1);
+      expect(Number(snapshot!.closing_balance)).toBe(-400);
+    });
   });
 });

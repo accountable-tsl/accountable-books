@@ -99,7 +99,7 @@ export async function up(knex: Knex): Promise<void> {
         .uuid('work_item_id')
         .nullable()
         .references('id')
-        .inTable(`${schemaName}.work_items`)
+        .inTable(`${schemaName}.legacy_work_items`)
         .onDelete('RESTRICT');
       table
         .uuid('work_item_subject_id')
@@ -121,9 +121,7 @@ export async function up(knex: Knex): Promise<void> {
       table.timestamp('read_at', { useTz: true }).nullable();
       table.timestamp('resolved_at', { useTz: true }).nullable();
       table.timestamp('archived_at', { useTz: true }).nullable();
-      table
-        .timestamp('last_material_change_at', { useTz: true })
-        .nullable();
+      table.timestamp('last_material_change_at', { useTz: true }).nullable();
       table.timestamp('occurred_at', { useTz: true }).notNullable();
       table
         .timestamp('created_at', { useTz: true })

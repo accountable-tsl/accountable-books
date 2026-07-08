@@ -57,7 +57,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid('work_item_id')
       .nullable()
       .references('id')
-      .inTable(`${schemaName}.work_items`)
+      .inTable(`${schemaName}.legacy_work_items`)
       .onDelete('RESTRICT');
     table
       .uuid('work_item_subject_id')

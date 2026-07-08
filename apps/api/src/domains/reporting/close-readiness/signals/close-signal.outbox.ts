@@ -1,7 +1,7 @@
 import type { Knex } from 'knex';
 
+import { writeOutbox } from '../../../outbox/index.js';
 import { OUTBOX_INTENT } from '../../../outbox/intents.js';
-import { writeOutbox } from '../../../outbox/outbox.model.js';
 import { enqueueCloseSignalEvalInput } from './close-signal-eval.queue.js';
 import { syncLedgerTransactionSignals } from './close-signals.sync.js';
 

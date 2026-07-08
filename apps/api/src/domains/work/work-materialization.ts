@@ -228,7 +228,7 @@ async function upsertOpenWorkItem(
 
   const insertedResult = (await trx.raw(
     `
-    INSERT INTO app.work_items (
+    INSERT INTO app.legacy_work_items (
       firm_company_id, client_company_id, work_type, status, assigned_user_id,
       scope_type, scope_key, primary_action, actionability_state,
       destination, required_capabilities, available_actions, group_key,
@@ -259,7 +259,7 @@ async function upsertOpenWorkItem(
     return { id: inserted.id, inserted: true };
   }
 
-  const [updated] = await trx('app.work_items')
+  const [updated] = await trx('app.legacy_work_items')
     .where({
       group_key: input.config.groupKey,
       status: 'open',
@@ -558,7 +558,7 @@ async function loadWorkReassignmentCandidates(
     return [];
   }
 
-  const rows = await trx('app.work_items as wi')
+  const rows = await trx('app.legacy_work_items as wi')
     .join('app.work_item_subjects as s', 's.work_item_id', 'wi.id')
     .where({
       'wi.client_company_id': input.clientCompanyId,
@@ -641,7 +641,7 @@ async function endUndesiredAccountSubjects(
     `
     UPDATE app.work_item_subjects s
     SET status = 'ended', ended_at = now(), ended_reason = 'source_resolved', updated_at = now()
-    FROM app.work_items wi, bank_transactions bt
+    FROM app.legacy_work_items wi, bank_transactions bt
     WHERE s.work_item_id = wi.id
       AND wi.client_company_id = ?
       AND wi.work_type = ?
@@ -676,7 +676,7 @@ async function endUndesiredAccountSubjects(
     `
     UPDATE app.work_item_subjects s
     SET status = 'ended', ended_at = now(), ended_reason = 'source_resolved', updated_at = now()
-    FROM app.work_items wi, categorization_candidates cc, bank_transactions bt
+    FROM app.legacy_work_items wi, categorization_candidates cc, bank_transactions bt
     WHERE s.work_item_id = wi.id
       AND wi.client_company_id = ?
       AND wi.work_type = ?
@@ -765,7 +765,7 @@ async function recomputeAndMaybeClose(
 ): Promise<RecomputeWorkItemResult> {
   await endDeletedActiveSubjects(trx, workItemId);
 
-  const workItem = await trx('app.work_items')
+  const workItem = await trx('app.legacy_work_items')
     .where({ id: workItemId })
     .first('work_type', 'active_subject_count', 'title');
 
@@ -785,7 +785,7 @@ async function recomputeAndMaybeClose(
     Number(workItem?.active_subject_count ?? 0) !== count ||
     (workItem?.title ?? null) !== nextTitle;
 
-  const [updatedWorkItem] = await trx('app.work_items')
+  const [updatedWorkItem] = await trx('app.legacy_work_items')
     .where({ id: workItemId })
     .update({
       subject_count: total,
@@ -799,7 +799,7 @@ async function recomputeAndMaybeClose(
   let closed = false;
   if (count === 0) {
     // Conditional close: only when no active subjects remain.
-    const updated = await trx('app.work_items')
+    const updated = await trx('app.legacy_work_items')
       .where({ id: workItemId, status: 'open', active_subject_count: 0 })
       .update({
         status: 'closed',
@@ -840,7 +840,7 @@ async function closeOrphanedWorkItems(
     keepWorkItemId: string | null;
   },
 ): Promise<{ closed: boolean }> {
-  const staleRows = await trx('app.work_items')
+  const staleRows = await trx('app.legacy_work_items')
     .where({
       client_company_id: input.clientCompanyId,
       work_type: input.workType,

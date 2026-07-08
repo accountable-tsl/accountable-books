@@ -239,7 +239,7 @@ const NO_CLIENTS_NO_INVITE_PERMISSION_COPY =
 const THIS_WEEK_VISIBLE_KEY = 'firm-dashboard-this-week-visible';
 
 /** Dev-only: set `true` to hide no-access overlays and show normal roster/queue chrome. */
-const FIRM_DASHBOARD_DEV_BYPASS_BOOK_ACCESS_UI = import.meta.env.DEV && false;
+const FIRM_DASHBOARD_DEV_BYPASS_BOOK_ACCESS_UI = import.meta.env.DEV && true;
 
 const EMPTY_FIRM_PERF: FirmAggregatePerformanceStats = {
   transactionsToday: 0,

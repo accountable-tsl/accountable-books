@@ -351,7 +351,7 @@ async function clearCommittedCategorizeWorkItems(
   // Only this suite commits categorize work items for the demo client, so a
   // blanket delete (cascades subjects) is a safe slate. Mirrors the Phase 1
   // committed-data test.
-  await knexClient('app.work_items')
+  await knexClient('app.legacy_work_items')
     .where({
       client_company_id: clientCompanyId,
       work_type: WORK_TYPE_CATEGORIZE_TRANSACTIONS,
@@ -562,7 +562,9 @@ describe('Phase 3: candidate review work reconciles through categorization inten
     companyId = await getTestCompanyId(trx, 'indDemoUS');
     userId = await getTestUserId(trx, US_USER_EMAIL);
     firmCompanyId = await resolveFirmCompanyId(trx, companyId);
-    await trx('app.work_items').where({ client_company_id: companyId }).del();
+    await trx('app.legacy_work_items')
+      .where({ client_company_id: companyId })
+      .del();
     bankAccountId = await createFreshBankAccount(trx, companyId, userId);
     coaId = await pickPostableCoaId(trx, companyId);
     scope = {

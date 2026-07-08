@@ -270,7 +270,7 @@ async function insertQueueOnlyWorkItem(
     groupKey: string;
   },
 ): Promise<string> {
-  const [item] = await trx('app.work_items')
+  const [item] = await trx('app.legacy_work_items')
     .insert({
       firm_company_id: input.firmCompanyId,
       client_company_id: input.clientCompanyId,
@@ -319,7 +319,9 @@ describe('materializeWork (bank_account scope)', () => {
     userId = await getTestUserId(trx, US_USER_EMAIL);
     bankAccountId = await createFreshBankAccount(trx, companyId, userId);
     firmCompanyId = await resolveFirmCompanyId(trx, companyId);
-    await trx('app.work_items').where({ client_company_id: companyId }).del();
+    await trx('app.legacy_work_items')
+      .where({ client_company_id: companyId })
+      .del();
     await replaceClientAssignee(trx, {
       clientCompanyId: companyId,
       firmStaffUserId: userId,
@@ -605,14 +607,14 @@ describe('materializeWork (bank_account scope)', () => {
     }
     expect(second.workItemId).not.toBe(first.workItemId);
 
-    const oldWorkItem = await trx('app.work_items')
+    const oldWorkItem = await trx('app.legacy_work_items')
       .where({ id: first.workItemId })
       .first('status', 'assigned_user_id', 'active_subject_count');
     expect(oldWorkItem?.status).toBe('closed');
     expect(oldWorkItem?.assigned_user_id).toBe(userId);
     expect(Number(oldWorkItem?.active_subject_count)).toBe(0);
 
-    const newWorkItem = await trx('app.work_items')
+    const newWorkItem = await trx('app.legacy_work_items')
       .where({ id: second.workItemId })
       .first('status', 'assigned_user_id', 'active_subject_count');
     expect(newWorkItem?.status).toBe('open');
@@ -833,7 +835,7 @@ describe('materializeWork (bank_account scope)', () => {
     // Simulate a legacy open row keyed by the old owner-in-group_key scheme.
     const legacyOwner = randomUUID();
     const legacyGroupKey = `${WORK_TYPE_CATEGORIZE_TRANSACTIONS}:${companyId}:${legacyOwner}:categorization`;
-    const [legacyRow] = await trx('app.work_items')
+    const [legacyRow] = await trx('app.legacy_work_items')
       .insert({
         firm_company_id: firmCompanyId,
         client_company_id: companyId,
@@ -860,7 +862,7 @@ describe('materializeWork (bank_account scope)', () => {
       clientCompanyId: companyId,
       effectiveOwnerUserId: userId,
     });
-    const openRows = await trx('app.work_items')
+    const openRows = await trx('app.legacy_work_items')
       .where({
         client_company_id: companyId,
         work_type: WORK_TYPE_CATEGORIZE_TRANSACTIONS,
@@ -873,7 +875,7 @@ describe('materializeWork (bank_account scope)', () => {
     expect(openRows[0].id).not.toBe(legacyRow.id);
     expect(Number(openRows[0].active_subject_count)).toBe(3);
 
-    const legacy = await trx('app.work_items')
+    const legacy = await trx('app.legacy_work_items')
       .where({ id: legacyRow.id })
       .first('status', 'active_subject_count');
     expect(legacy?.status).toBe('closed');
@@ -899,7 +901,7 @@ describe('materializeWork (bank_account scope)', () => {
       clientCompanyId: companyId,
       effectiveOwnerUserId: userId,
     });
-    const [deletedRow] = await trx('app.work_items')
+    const [deletedRow] = await trx('app.legacy_work_items')
       .insert({
         firm_company_id: firmCompanyId,
         client_company_id: companyId,
@@ -934,7 +936,7 @@ describe('materializeWork (bank_account scope)', () => {
     }
     expect(result.workItemId).not.toBe(deletedRow.id);
 
-    const rows = await trx('app.work_items')
+    const rows = await trx('app.legacy_work_items')
       .where({ group_key: groupKey })
       .select('id', 'is_deleted', 'status');
     expect(rows).toHaveLength(2);
@@ -1056,7 +1058,7 @@ describe('materializeWork (bank_account scope)', () => {
   });
 
   it('closes orphaned categorize rows even when the current owner-keyed row does not exist and no subjects are desired', async () => {
-    const [orphanRow] = await trx('app.work_items')
+    const [orphanRow] = await trx('app.legacy_work_items')
       .insert({
         firm_company_id: firmCompanyId,
         client_company_id: companyId,
@@ -1088,7 +1090,7 @@ describe('materializeWork (bank_account scope)', () => {
       expect(result.workItemId).toBeNull();
     }
 
-    const orphan = await trx('app.work_items')
+    const orphan = await trx('app.legacy_work_items')
       .where({ id: orphanRow.id })
       .first('status', 'active_subject_count');
     expect(orphan?.status).toBe('closed');
@@ -1123,7 +1125,7 @@ describe('outbox dispatch seam (committed end-to-end)', () => {
     // Defensive: clear any committed categorize rows left by a prior failed run
     // of this test (the only test that commits such rows for this client).
     const clearCommittedWorkItems = async () => {
-      await knexClient('app.work_items')
+      await knexClient('app.legacy_work_items')
         .where({
           client_company_id: companyId,
           work_type: WORK_TYPE_CATEGORIZE_TRANSACTIONS,

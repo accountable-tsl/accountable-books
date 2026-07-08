@@ -71,7 +71,7 @@ export async function getWorkQueue(input: {
 }): Promise<WorkQueueResponse> {
   const client = input.trx ?? knexClient;
 
-  const itemRows = (await client<WorkItemRow>('app.work_items as wi')
+  const itemRows = (await client<WorkItemRow>('app.legacy_work_items as wi')
     .leftJoin('app.companies as cc', 'cc.id', 'wi.client_company_id')
     .where('wi.firm_company_id', input.firmCompanyId)
     .andWhere('wi.status', 'open')
@@ -230,7 +230,7 @@ export async function getActiveWorkItemBankTransactionIds(input: {
 }): Promise<string[]> {
   const client = input.trx ?? knexClient;
 
-  const workItem = await client('app.work_items')
+  const workItem = await client('app.legacy_work_items')
     .where({
       id: input.workItemId,
       client_company_id: input.clientCompanyId,

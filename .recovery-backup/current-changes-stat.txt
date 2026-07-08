@@ -1,8 +1,0 @@
- apps/api/.env.example                              | 20 ++++++-
- apps/api/src/app.ts                                | 11 +++-
- .../src/core/middlewares/rateLimiter.middleware.ts | 65 ++++++++++++++++++----
- apps/api/src/lib/redis.ts                          | 29 ++++++++++
- apps/api/src/server.ts                             |  1 +
- apps/web/src/index.css                             | 52 +++++++----------
- apps/web/src/modules/projects/model/types.ts       | 65 +++++++++++++---------
- 7 files changed, 171 insertions(+), 72 deletions(-)

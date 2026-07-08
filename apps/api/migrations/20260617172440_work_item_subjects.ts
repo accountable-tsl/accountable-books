@@ -7,7 +7,7 @@ import {
 
 /**
  * `work_item_subjects` are the exact fixable units underneath a grouped
- * `work_items` row. Their open/ended state is DERIVED from domain facts by the
+ * `legacy_work_items` row. Their open/ended state is DERIVED from domain facts by the
  * materializer — the UI never marks a subject resolved directly. A subject ends
  * (status='ended') when the owning domain fact no longer requires action
  * (e.g. the bank transaction was posted).
@@ -31,7 +31,7 @@ export async function up(knex: Knex): Promise<void> {
       .uuid('work_item_id')
       .notNullable()
       .references('id')
-      .inTable(`${schemaName}.work_items`)
+      .inTable(`${schemaName}.legacy_work_items`)
       .onDelete('CASCADE');
 
     table
