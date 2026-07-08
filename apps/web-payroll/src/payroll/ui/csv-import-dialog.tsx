@@ -13,6 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 import {
   Sheet,
   SheetContent,
@@ -21,21 +24,23 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Download, FileText, Upload, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { CsvImportFormat } from '../utils/csv-import';
 import {
-  downloadCsvTemplate,
-  parseCsvFile,
-  type CsvImportResult,
-} from '../utils/csv-import';
-import type { EmployeeRecord } from '../domain';
-import { formatMonthKey } from '../utils';
-import { NIGERIAN_STATES } from '../data/states';
+  ChevronDown,
+  ChevronUp,
+  Download,
+  FileText,
+  Upload,
+  X,
+} from 'lucide-react';
+
 import { PFA_KEYS } from '../data/pfa';
+import { NIGERIAN_STATES } from '../data/states';
+import { formatMonthKey } from '../utils';
+import { downloadCsvTemplate, parseCsvFile } from '../utils/csv-import';
+
+import type { EmployeeRecord } from '../domain';
+import type { CsvImportFormat, CsvImportResult } from '../utils/csv-import';
 
 export interface CsvImportDialogProps {
   open: boolean;
@@ -160,7 +165,7 @@ export function CsvImportDialog({
 
   const content = (
     <>
-      <div className="space-y-4 border-t pb-4 min-h-0">
+      <div className="min-h-0 space-y-4 border-t pb-4">
         {/* Format Selection */}
         <div className="space-y-2 p-4">
           <label className="text-xs leading-none font-medium">
@@ -178,11 +183,15 @@ export function CsvImportDialog({
             <div className="flex items-start gap-2">
               <RadioGroupItem value="simple" id="simple" className="mt-0.5" />
               <div className="flex-1 space-y-0.5">
-                <Label htmlFor="simple" className="text-sm font-medium cursor-pointer">
+                <Label
+                  htmlFor="simple"
+                  className="cursor-pointer text-sm font-medium"
+                >
                   Simple
                 </Label>
-                <p className="text-xs text-muted-foreground">
-                  Name, Role, State, Tax ID, Period Type, Gross Salary (optional), Basic, Housing, Transport
+                <p className="text-muted-foreground text-xs">
+                  Name, Role, State, Tax ID, Period Type, Gross Salary
+                  (optional), Basic, Housing, Transport
                 </p>
               </div>
             </div>
@@ -203,7 +212,7 @@ export function CsvImportDialog({
         <Separator />
 
         {/* Valid Values Reference */}
-        <div className="p-4 space-y-2">
+        <div className="space-y-2 p-4">
           <button
             type="button"
             onClick={() => setShowValidValues(!showValidValues)}
@@ -211,32 +220,32 @@ export function CsvImportDialog({
           >
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Valid values reference</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Click to see valid State and PFA values
               </p>
             </div>
             {showValidValues ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              <ChevronUp className="text-muted-foreground h-4 w-4" />
             ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <ChevronDown className="text-muted-foreground h-4 w-4" />
             )}
           </button>
           {showValidValues && (
-            <div className="mt-2 space-y-3 rounded border bg-muted/30 p-3 text-xs max-h-64 overflow-y-auto">
+            <div className="bg-muted/30 mt-2 max-h-64 space-y-3 overflow-y-auto rounded border p-3 text-xs">
               <div>
-                <p className="font-medium mb-1">Valid States (exact match):</p>
+                <p className="mb-1 font-medium">Valid States (exact match):</p>
                 <p className="text-muted-foreground font-mono break-words">
                   {NIGERIAN_STATES.join(', ')}
                 </p>
               </div>
               <div>
-                <p className="font-medium mb-1">Valid PFA keys (lowercase):</p>
+                <p className="mb-1 font-medium">Valid PFA keys (lowercase):</p>
                 <p className="text-muted-foreground font-mono break-words">
                   {PFA_KEYS.join(', ')}
                 </p>
               </div>
               <div>
-                <p className="font-medium mb-1">Period Type:</p>
+                <p className="mb-1 font-medium">Period Type:</p>
                 <p className="text-muted-foreground">monthly or annual</p>
               </div>
             </div>
@@ -246,12 +255,13 @@ export function CsvImportDialog({
         <Separator />
 
         {/* Template Download */}
-        <div className="p-4 space-y-2">
+        <div className="space-y-2 p-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Template</p>
-              <p className="text-xs text-muted-foreground">
-                Download a CSV template with sample data and valid values reference
+              <p className="text-muted-foreground text-xs">
+                Download a CSV template with sample data and valid values
+                reference
               </p>
             </div>
             <Button
@@ -261,7 +271,7 @@ export function CsvImportDialog({
               onClick={() => downloadCsvTemplate(format)}
               className="h-7.5"
             >
-              <Download className="h-3.5 w-3.5 mr-1.5" />
+              <Download className="mr-1.5 h-3.5 w-3.5" />
               Download
             </Button>
           </div>
@@ -270,7 +280,7 @@ export function CsvImportDialog({
         <Separator />
 
         {/* File Upload */}
-        <div className="p-4 space-y-2">
+        <div className="space-y-2 p-4">
           <label className="text-xs leading-none font-medium">
             Upload CSV file
           </label>
@@ -285,11 +295,11 @@ export function CsvImportDialog({
           <label
             htmlFor="csv-file-input"
             className={cn(
-              'flex items-center gap-2 rounded border p-3 text-sm transition-colors cursor-pointer',
+              'flex cursor-pointer items-center gap-2 rounded border p-3 text-sm transition-colors',
               file
                 ? 'border-primary/50 bg-primary/5'
                 : 'border-input hover:bg-muted/50',
-              (isProcessing || isImporting) && 'opacity-50 cursor-not-allowed',
+              (isProcessing || isImporting) && 'cursor-not-allowed opacity-50',
             )}
           >
             {file ? (
@@ -310,15 +320,15 @@ export function CsvImportDialog({
               </>
             ) : (
               <>
-                <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
+                <Upload className="text-muted-foreground h-4 w-4 shrink-0" />
+                <span className="text-muted-foreground text-xs">
                   Click to select CSV file
                 </span>
               </>
             )}
           </label>
           {isProcessing && (
-            <p className="text-xs text-muted-foreground">Processing...</p>
+            <p className="text-muted-foreground text-xs">Processing...</p>
           )}
         </div>
 
@@ -326,13 +336,14 @@ export function CsvImportDialog({
         {importResult && (
           <>
             <Separator />
-            <div className="p-4 space-y-3">
+            <div className="space-y-3 p-4">
               {/* Success */}
               {importResult.employees.length > 0 && (
-                <div className="bg-green-50/50 dark:bg-green-950/20 border-l-4 border-green-600 p-3 space-y-1">
+                <div className="space-y-1 border-l-4 border-green-600 bg-green-50/50 p-3 dark:bg-green-950/20">
                   <p className="text-xs font-medium text-green-700 dark:text-green-400">
                     {importResult.employees.length} employee
-                    {importResult.employees.length !== 1 ? 's' : ''} ready to import
+                    {importResult.employees.length !== 1 ? 's' : ''} ready to
+                    import
                   </p>
                   {importResult.errors.length > 0 && (
                     <p className="text-xs text-green-600 dark:text-green-500">
@@ -344,12 +355,12 @@ export function CsvImportDialog({
 
               {/* Errors */}
               {importResult.errors.length > 0 && (
-                <div className="bg-destructive/10 dark:bg-destructive/20 border-l-4 border-destructive p-3 space-y-1">
-                  <p className="text-xs font-medium text-destructive">
+                <div className="bg-destructive/10 dark:bg-destructive/20 border-destructive space-y-1 border-l-4 p-3">
+                  <p className="text-destructive text-xs font-medium">
                     {importResult.errors.length} error
                     {importResult.errors.length !== 1 ? 's' : ''} found
                   </p>
-                  <div className="max-h-40 overflow-y-auto space-y-0.5 text-xs text-destructive/90">
+                  <div className="text-destructive/90 max-h-40 space-y-0.5 overflow-y-auto text-xs">
                     {importResult.errors.slice(0, 10).map((error, idx) => (
                       <p key={idx} className="font-mono break-words">
                         Row {error.row}
@@ -367,9 +378,12 @@ export function CsvImportDialog({
 
               {/* Warnings */}
               {importResult.warnings.length > 0 && (
-                <div className="bg-yellow-50/50 dark:bg-yellow-950/20 border-l-4 border-yellow-600 p-3 space-y-1">
+                <div className="space-y-1 border-l-4 border-yellow-600 bg-yellow-50/50 p-3 dark:bg-yellow-950/20">
                   {importResult.warnings.map((warning, idx) => (
-                    <p key={idx} className="text-xs text-yellow-700 dark:text-yellow-400">
+                    <p
+                      key={idx}
+                      className="text-xs text-yellow-700 dark:text-yellow-400"
+                    >
                       {warning}
                     </p>
                   ))}
@@ -378,7 +392,7 @@ export function CsvImportDialog({
 
               {/* Replacement Warning */}
               {existingEmployeeCount > 0 && canImport && (
-                <div className="bg-yellow-50/50 dark:bg-yellow-950/20 border-l-4 border-yellow-600 p-3">
+                <div className="border-l-4 border-yellow-600 bg-yellow-50/50 p-3 dark:bg-yellow-950/20">
                   <p className="text-xs text-yellow-700 dark:text-yellow-400">
                     This will replace {existingEmployeeCount} existing employee
                     {existingEmployeeCount !== 1 ? 's' : ''}
@@ -417,16 +431,15 @@ export function CsvImportDialog({
   if (isMdScreen) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[520px] rounded flex max-h-[90vh] flex-col">
+        <DialogContent className="flex max-h-[90vh] flex-col rounded sm:max-w-[520px]">
           <DialogHeader className="shrink-0">
             <DialogTitle>Import employees</DialogTitle>
             <DialogDescription>
-              Upload a CSV file to bulk import employees. Simple format accepts Gross Salary or BHT components (Basic, Housing, Transport).
+              Upload a CSV file to bulk import employees. Simple format accepts
+              Gross Salary or BHT components (Basic, Housing, Transport).
             </DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {content}
-          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
         </DialogContent>
       </Dialog>
     );
@@ -434,16 +447,18 @@ export function CsvImportDialog({
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <SheetContent side="bottom" className="mx-auto max-w-2xl rounded flex max-h-[90vh] flex-col">
-        <SheetHeader className="gap-0 pr-8 pb-0 shrink-0">
+      <SheetContent
+        side="bottom"
+        className="mx-auto flex max-h-[90vh] max-w-2xl flex-col rounded"
+      >
+        <SheetHeader className="shrink-0 gap-0 pr-8 pb-0">
           <SheetTitle className="text-[16px]">Import employees</SheetTitle>
           <SheetDescription className="text-sm">
-            Upload a CSV file to bulk import employees. Simple format accepts Gross Salary or BHT components (Basic, Housing, Transport).
+            Upload a CSV file to bulk import employees. Simple format accepts
+            Gross Salary or BHT components (Basic, Housing, Transport).
           </SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {content}
-        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
       </SheetContent>
     </Sheet>
   );

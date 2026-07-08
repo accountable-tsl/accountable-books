@@ -1,9 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { SidebarInset } from '@/components/ui/sidebar';
 import { TanStackDevtools } from '@tanstack/react-devtools';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 
 import Header from '../components/Header';
-import { SidebarInset } from '@/components/ui/sidebar';
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -11,7 +11,7 @@ interface MyRouterContext {
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   component: () => (
-    <SidebarInset className='overflow-hidden h-svh'>
+    <SidebarInset className="h-svh overflow-hidden">
       <Header />
       <Outlet />
       <TanStackDevtools

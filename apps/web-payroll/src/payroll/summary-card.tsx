@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
+
 import { ngnMoneyFormatter } from './ui/payroll-table-utils';
 
 export type SummaryCardKey =
@@ -37,67 +38,76 @@ type SummaryCardPreset = {
   money?: boolean;
 };
 
-
 const summaryCardPresets: Record<SummaryCardKey, SummaryCardPreset> = {
   gross: {
     title: 'Gross Salaries',
     icon: Wallet,
-    borderClassName: 'border-l-4 border-l-primary dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-primary dark:border-l-muted-foreground/50',
     iconClassName: 'text-primary opacity-60',
   },
   paye: {
     title: 'Total PAYE',
     icon: ReceiptText,
-    borderClassName: 'border-l-4 border-l-red-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-red-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-red-600 opacity-60',
   },
   total_pension: {
     title: 'Total Pension',
     icon: PiggyBank,
-    borderClassName: 'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-orange-600 opacity-60',
   },
   ee_pension: {
     title: 'Employee Pension',
     icon: BadgePercent,
-    borderClassName: 'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-orange-600 opacity-60',
   },
   er_pension: {
     title: 'Employer Pension',
     icon: HandCoins,
-    borderClassName: 'border-l-4 border-l-amber-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-amber-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-amber-600 opacity-60',
   },
   nhis: {
     title: 'Total NHIS',
     icon: Landmark,
-    borderClassName: 'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-orange-600 opacity-60',
   },
   nhf: {
     title: 'Total NHF',
     icon: Landmark,
-    borderClassName: 'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-orange-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-orange-600 opacity-60',
   },
   net: {
     title: 'Total Net',
     icon: Wallet,
-    borderClassName: 'border-l-4 border-l-green-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-green-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-green-600 opacity-60',
   },
   employees: {
     title: 'Total Employees',
     icon: Users,
-    borderClassName: 'border-l-4 border-l-blue-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-blue-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-blue-600 opacity-60',
     money: false,
   },
   other: {
     title: 'Other',
     icon: Wallet,
-    borderClassName: 'border-l-4 border-l-gray-600 dark:border-l-muted-foreground/50',
+    borderClassName:
+      'border-l-4 border-l-gray-600 dark:border-l-muted-foreground/50',
     iconClassName: 'text-gray-600 opacity-60',
   },
 };

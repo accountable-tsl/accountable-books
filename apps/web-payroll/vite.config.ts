@@ -25,7 +25,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.svg', 'logo32-black.svg', 'logo32-white.svg'],
+      includeAssets: [
+        'icons/apple-icon-180.png',
+        'icons/manifest-icon-192.maskable.png',
+        'icons/manifest-icon-512.maskable.png',
+        'main-icon.png',
+        'main-logo.png',
+      ],
       manifest: {
         name: 'Accountable Payroll',
         short_name: 'Accountable Payroll',
@@ -33,27 +39,31 @@ export default defineConfig({
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
+        orientation: 'portrait-primary',
+        start_url: '/',
+        scope: '/',
+        categories: ['business', 'finance', 'productivity'],
         icons: [
           {
-            src: 'manifest-icon-192.maskable.png',
+            src: 'icons/manifest-icon-192.maskable.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'manifest-icon-192.maskable.png',
+            src: 'icons/manifest-icon-192.maskable.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'maskable',
           },
           {
-            src: 'manifest-icon-512.maskable.png',
+            src: 'icons/manifest-icon-512.maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'manifest-icon-512.maskable.png',
+            src: 'icons/manifest-icon-512.maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

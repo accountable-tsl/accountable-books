@@ -1,7 +1,4 @@
-import type {
-  PayrollComputedItem,
-  PayrollRunItem,
-} from '../domain';
+import type { PayrollComputedItem, PayrollRunItem } from '../domain';
 
 /**
  * Table row data format for display
@@ -46,14 +43,14 @@ export function getTableRowData(
   // Get compensation from history
   const compHistory = runItem.payProfileSnapshot.compensationHistory;
   const annualGross =
-    compHistory.length > 0
-      ? moneyToNumber(compHistory[0].annualGross)
-      : 0;
+    compHistory.length > 0 ? moneyToNumber(compHistory[0].annualGross) : 0;
 
   // Monthly gross derived from annual
   const monthlyGross = annualGross / 12;
 
-  const basicValue = computedItem?.breakdown?.basic ? moneyToNumber(computedItem.breakdown.basic) : 0;
+  const basicValue = computedItem?.breakdown?.basic
+    ? moneyToNumber(computedItem.breakdown.basic)
+    : 0;
   const monthlyBasic = basicValue > 0 ? basicValue : monthlyGross;
   const monthlyHousing = computedItem?.breakdown?.housing
     ? moneyToNumber(computedItem.breakdown.housing)
@@ -150,10 +147,7 @@ export function calculateAnnualGrossFromMonthlyBasic(
  * Default is 0 decimal places (whole naira).
  * Pass `decimals` (e.g. 2) when you explicitly need cents.
  */
-export function ngnMoneyFormatter(
-  value: number,
-  decimals: number = 0,
-): string {
+export function ngnMoneyFormatter(value: number, decimals: number = 0): string {
   const formatter = new Intl.NumberFormat('en-NG', {
     style: 'currency',
     currency: 'NGN',

@@ -1,9 +1,9 @@
 import type { EmployeeRecord, PayrollRunItem } from '@/payroll/domain';
-import { generateId } from '@/payroll/utils';
 import {
   loadEmployeeDirectory,
   saveEmployeeDirectory,
 } from '@/payroll/storage';
+import { generateId } from '@/payroll/utils';
 
 // Build a directory-friendly EmployeeRecord from a run item snapshot.
 export function buildEmployeeRecordFromRunItem(
@@ -38,7 +38,8 @@ export async function upsertEmployeeRecordFromRunItem(
   options?: { allowCreateRef?: boolean },
 ): Promise<{ employeeId?: string }> {
   const employeeId =
-    runItem.employeeRefId ?? (options?.allowCreateRef ? generateId() : undefined);
+    runItem.employeeRefId ??
+    (options?.allowCreateRef ? generateId() : undefined);
 
   if (!employeeId) {
     return { employeeId: undefined };

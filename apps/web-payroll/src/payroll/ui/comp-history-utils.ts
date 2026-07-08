@@ -70,7 +70,7 @@ export const getCompStartPolicy = <T extends CompHistoryEntry>({
       : undefined;
   const nextStartKey = activeRecord?.toMonth
     ? getNextMonthKey(activeRecord.toMonth)
-    : openEndedStartKey ?? periodKey;
+    : (openEndedStartKey ?? periodKey);
   const autoEndKey =
     activeRecord && !activeRecord.toMonth && nextStartKey
       ? getPreviousMonthKey(nextStartKey)
@@ -98,8 +98,5 @@ export const needsFutureStartConfirm = (
   confirmed?: boolean,
 ) =>
   Boolean(
-    runPeriodKey &&
-      draftStartKey &&
-      draftStartKey > runPeriodKey &&
-      !confirmed,
+    runPeriodKey && draftStartKey && draftStartKey > runPeriodKey && !confirmed,
   );
