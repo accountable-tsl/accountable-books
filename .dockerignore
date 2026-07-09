@@ -8,6 +8,18 @@ dist
 .next
 out
 
+# Python local artifacts
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.testmondata
+**/.coverage
+**/*.py[cod]
+**/*.egg-info
+
 # Development files
 .git
 .gitignore

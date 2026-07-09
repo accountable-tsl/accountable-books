@@ -22,6 +22,11 @@ else
   echo "ℹ Contract sources unchanged — skipping generation"
 fi
 
+if [ ! -f packages/contracts/accountable_contracts/schema/py/__init__.py ]; then
+  echo "📦 Contracts artifacts missing — building..."
+  pnpm -F @accountable-books/contracts build
+fi
+
 
 # Run lint-staged for changed files (includes linting, formatting, contract validation)
 pnpm lint-staged

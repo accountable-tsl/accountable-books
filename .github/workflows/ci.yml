@@ -32,12 +32,9 @@ jobs:
       - name: Build shared packages for typecheck
         run: pnpm --filter @accountable-books/utils build
 
-      # Contracts generation check
-      - name: 'Contracts: verify generated output'
-        run: pnpm --filter @accountable-books/contracts run verify:generated
-
-      - name: 'Contracts: compile TypeScript'
-        run: pnpm --filter @accountable-books/contracts run clean && pnpm --filter @accountable-books/contracts exec tsc
+      # Contracts generation
+      - name: 'Contracts: build generated artifacts'
+        run: pnpm --filter @accountable-books/contracts build
 
       - name: Lint workspace
         run: pnpm run lint

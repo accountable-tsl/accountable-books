@@ -34,9 +34,9 @@ find_prune -type f \( \
   -name 'pnpm-lock.yaml' -o -name 'package-lock.json' -o -name 'yarn.lock' -o \
   -name 'npm-shrinkwrap.json' \) -delete
 
-log '🗑️ Removing Python lockfiles (pipenv / uv / pdm)...'
+log '🗑️ Removing Python lockfiles (pipenv / pdm; preserving uv.lock)...'
 find_prune -type f \( \
-  -name 'Pipfile.lock' -o -name 'uv.lock' -o -name 'pdm.lock' \) -delete
+  -name 'Pipfile.lock' -o -name 'pdm.lock' \) -delete
 
 log '🗑️ Removing build outputs, bundler caches, deploy metadata, generated trees...'
 rm -rf \
@@ -56,6 +56,7 @@ rm -rf \
   .vercel .netlify apps/*/.vercel packages/*/.vercel \
   logs reports htmlcov \
   packages/contracts/accountable_contracts/data/generated \
+  packages/contracts/accountable_contracts/schema/py \
   packages/api-types/src/generated \
   .pnpm-store .vscode \
   apps/*/coverage packages/*/coverage coverage \
