@@ -29,7 +29,9 @@ async function loadRecipientEmail(
   client: Knex,
   userId: string,
 ): Promise<string | null> {
-  const row = await client<{ email: string }>('app.users')
+  const row = await client<{ id: string; email: string; is_deleted: boolean }>(
+    'app.users',
+  )
     .where({ id: userId, is_deleted: false })
     .first('email');
   return row?.email ?? null;
@@ -58,9 +60,7 @@ export async function resolveNotificationChannelRoutes(input: {
 }): Promise<NotificationChannelRoute[]> {
   const resolver = routeResolvers.get(input.channel);
   if (!resolver) {
-    throw new Error(
-      `notify() cannot resolve ${input.channel} recipients yet`,
-    );
+    throw new Error(`notify() cannot resolve ${input.channel} recipients yet`);
   }
 
   return resolver.resolve({

@@ -65,10 +65,7 @@ const manualBankAccountInput = z.object({
   currency_id: z.uuid().optional(),
   coa_code: coaCodeInput,
   coa_name: coaNameInput.nullish(),
-  coa_description: z
-    .string()
-    .max(512, 'Coa description is too long')
-    .nullish(),
+  coa_description: z.string().max(512, 'Coa description is too long').nullish(),
   source: coaSource.optional(),
   opening_balance: z
     .object({

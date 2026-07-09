@@ -258,7 +258,10 @@ async function processCommsJob(job: Job<unknown>): Promise<void> {
   if (data.type === 'scan_due_deliveries') {
     const result = await enqueueDueCommsDeliveries(data.limit);
     if (result.enqueued > 0) {
-      logger.info({ jobId: job.id, ...result }, 'Comms due delivery scan completed');
+      logger.info(
+        { jobId: job.id, ...result },
+        'Comms due delivery scan completed',
+      );
     }
     return;
   }
@@ -267,10 +270,7 @@ async function processCommsJob(job: Job<unknown>): Promise<void> {
     retentionDays: data.retentionDays,
   });
   if (result.deleted > 0) {
-    logger.info(
-      { jobId: job.id, ...result },
-      'Comms delivery purge completed',
-    );
+    logger.info({ jobId: job.id, ...result }, 'Comms delivery purge completed');
   }
 }
 

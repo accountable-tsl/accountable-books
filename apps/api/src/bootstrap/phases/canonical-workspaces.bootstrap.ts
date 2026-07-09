@@ -2,9 +2,9 @@ import type { Knex } from 'knex';
 
 import { ENV, isProd } from '../../config/env.js';
 import { provisionCompanyWorkspace } from '../../domains/companies/company-provisioning.service.js';
+import { upsertDirectCompanyRole } from '../../domains/user-roles/user-roles.model.js';
 import { createUserDirect } from '../../domains/users/users.model.js';
 import { createInitialUserOnboardingState } from '../../features/onboarding/onboarding.utils.js';
-import { upsertDirectCompanyRole } from '../../domains/user-roles/user-roles.model.js';
 import { CANONICAL_WORKSPACES } from '../catalogs/workspaces/canonical-workspaces.js';
 
 import type { WorkspaceProvisioningPolicy } from '../../domains/companies/company-provisioning.service.js';

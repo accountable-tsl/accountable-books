@@ -14,7 +14,7 @@ import { getColumnStyle } from './utils/column-sizing';
 
 interface DataTableBodyProps<TData> {
   table: CustomTable<TData>;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 export function DataTableBody<TData>({
   table,
@@ -339,6 +339,7 @@ export function DataTableBody<TData>({
     //   ref={scrollRef}
     //   className="scrollbar-thin-2px relative flex min-h-0 flex-[1_1_auto] !flex-row overflow-y-auto"
     // >
+    // </div>
     <>
       <TableBody className={cn(tableBody)}>
         {rowsToRender?.length ? (
@@ -351,12 +352,10 @@ export function DataTableBody<TData>({
           </TableRow>
         )}
       </TableBody>
-
       {shouldShowViewer && rowViewerInfo && (
         <RowViewer rowViewerInfo={rowViewerInfo} />
       )}
     </>
-    // </div>
   );
 }
 

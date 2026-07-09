@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -68,9 +67,9 @@ describe('COA creation', () => {
     const firstCode = uniqueValue('BATCH-EXP');
     const snapshotBefore = await trx('coa_snapshot_versions')
       .where({ company_id: companyId })
-      .first<{ snapshot_version: string | number | bigint }>(
-        'snapshot_version',
-      );
+      .first<{
+        snapshot_version: string | number | bigint;
+      }>('snapshot_version');
 
     const { coaIds } = await createCoaAccounts({
       trx,
@@ -243,9 +242,7 @@ describe('COA creation', () => {
       },
     });
 
-    const row = await trx('coa')
-      .where({ id: created.id })
-      .first<CoaRow>();
+    const row = await trx('coa').where({ id: created.id }).first<CoaRow>();
     const version = await trx('coa_versions')
       .where({ coa_id: created.id, effective_to: null })
       .first<{ version_seq: number }>('version_seq');
@@ -303,7 +300,9 @@ describe('COA creation', () => {
 
     expect(await countCompanyCoa(trx, companyId)).toBe(countBefore);
     expect(
-      await trx('coa').where({ company_id: companyId, name: validName }).first(),
+      await trx('coa')
+        .where({ company_id: companyId, name: validName })
+        .first(),
     ).toBeUndefined();
   });
 
@@ -384,7 +383,9 @@ describe('COA creation', () => {
       ),
     ).toBe(countBefore);
     expect(
-      await trx('coa').where({ id: existing.id }).first<{ name: string }>('name'),
+      await trx('coa')
+        .where({ id: existing.id })
+        .first<{ name: string }>('name'),
     ).toEqual({ name: customName });
   });
 

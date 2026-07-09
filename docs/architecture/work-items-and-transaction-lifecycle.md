@@ -101,7 +101,7 @@ The work materializer is the load-bearing component.
 It must be idempotent:
 
 ```ts
-materializeWork(scope)
+materializeWork(scope);
 ```
 
 Where `scope` is one of:
@@ -180,7 +180,7 @@ Canonical subject identity is not the raw table row. It is the pair of:
 Shape:
 
 ```ts
-canonical_subject_key = `${intent}:${target_type}:${target_id}`
+canonical_subject_key = `${intent}:${target_type}:${target_id}`;
 ```
 
 The target is usually a table row or rollup fingerprint. The intent is what prevents ambiguity when the same physical row supports genuinely different work.
@@ -318,33 +318,34 @@ Defer until the matching product feature exists:
 
 Default queue views:
 
-| Viewer | Default view | Can switch/filter to | Typical purpose |
-| --- | --- | --- | --- |
-| Staff/bookkeeper | My assigned work | Client pool they can access, if policy allows | Do the work. |
-| Manager | Team and assigned clients | Assignee, client, blocked/waiting, overdue | Balance workload and review. |
-| Admin/firm owner | Firm-wide queue | Any assignee, client, status, team, unassigned work | Operate the firm and spot risk. |
-| Solo firm user | All own firm work | Client/status filters | Same person is worker and owner. |
+| Viewer           | Default view              | Can switch/filter to                                | Typical purpose                  |
+| ---------------- | ------------------------- | --------------------------------------------------- | -------------------------------- |
+| Staff/bookkeeper | My assigned work          | Client pool they can access, if policy allows       | Do the work.                     |
+| Manager          | Team and assigned clients | Assignee, client, blocked/waiting, overdue          | Balance workload and review.     |
+| Admin/firm owner | Firm-wide queue           | Any assignee, client, status, team, unassigned work | Operate the firm and spot risk.  |
+| Solo firm user   | All own firm work         | Client/status filters                               | Same person is worker and owner. |
 
 The existing firm dashboard mock already points this way: staff default to "My tasks"; managers/admins see team features, assignee filters, and firm/team transaction stats.
 
 Effective owner rule:
 
 ```ts
-effective_owner_user_id = assigned_to_user_id ?? client_assignee_user_id ?? null
+effective_owner_user_id =
+  assigned_to_user_id ?? client_assignee_user_id ?? null;
 ```
 
 If a work item is not explicitly assigned but the client has a bookkeeper/client assignee, it should appear in that bookkeeper's default work view. If neither exists, it belongs to the unassigned pool for managers/admins.
 
 Example: `Categorize 5 uncategorized transactions`
 
-| Viewer | What they see by default | Best UX |
-| --- | --- | --- |
-| Assigned bookkeeper | One ready-to-work row in My tasks: `Categorize 5 transactions`, with client, period, due/priority, and primary action `Categorize`. | Take them straight to the categorization workspace filtered to those 5 subjects. The row disappears or count drops as subjects are posted. |
-| Client-assigned bookkeeper, no explicit task assignee | Same as assigned bookkeeper via effective owner fallback. | Do not require a manager to assign obvious client work manually. |
-| Unrelated bookkeeper | Nothing by default. | They should not inherit noise from other clients unless firm policy exposes a pool view. |
-| Manager | Same work item in team/client view, labelled with assignee or `Unassigned`. | Show workload/risk: assignee, client, age, due, blocked state, and actions such as assign, reassign, nudge, or open. Do not duplicate the worker row. |
-| Firm owner/admin | Same work item in firm-wide queue/portfolio rollups. | Default to oversight: unassigned/overdue/high-risk/client-health views first, with drill-down to the exact row. They can still open or reassign. |
-| Solo firm user | Same row in their all-work view. | Treat them as both worker and owner; no team chrome unless useful. |
+| Viewer                                                | What they see by default                                                                                                            | Best UX                                                                                                                                               |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Assigned bookkeeper                                   | One ready-to-work row in My tasks: `Categorize 5 transactions`, with client, period, due/priority, and primary action `Categorize`. | Take them straight to the categorization workspace filtered to those 5 subjects. The row disappears or count drops as subjects are posted.            |
+| Client-assigned bookkeeper, no explicit task assignee | Same as assigned bookkeeper via effective owner fallback.                                                                           | Do not require a manager to assign obvious client work manually.                                                                                      |
+| Unrelated bookkeeper                                  | Nothing by default.                                                                                                                 | They should not inherit noise from other clients unless firm policy exposes a pool view.                                                              |
+| Manager                                               | Same work item in team/client view, labelled with assignee or `Unassigned`.                                                         | Show workload/risk: assignee, client, age, due, blocked state, and actions such as assign, reassign, nudge, or open. Do not duplicate the worker row. |
+| Firm owner/admin                                      | Same work item in firm-wide queue/portfolio rollups.                                                                                | Default to oversight: unassigned/overdue/high-risk/client-health views first, with drill-down to the exact row. They can still open or reassign.      |
+| Solo firm user                                        | Same row in their all-work view.                                                                                                    | Treat them as both worker and owner; no team chrome unless useful.                                                                                    |
 
 Backend rules:
 
@@ -360,23 +361,23 @@ Use one vocabulary across backend registry, contracts, frontend, and docs.
 
 This document supersedes the current `task-registry` naming where the two differ.
 
-| Current name | Target name | Note |
-| --- | --- | --- |
-| `categorize_transactions` | `categorize_transactions` | Keep. |
-| `review_ai_categorizations` | `review_categorization_suggestions` | Suggestions may come from rules, ML, or future engines, not only AI. |
-| none | `resolve_categorization_blockers` | New. User-fixable condition prevents posting. |
-| none | `review_posted_categorizations` | New. Only explicit policy creates this work. |
-| `review_draft_journals` | `review_draft_journals` | Keep for draft/invalid journal work. |
-| none | `review_close_findings` | New. Rollup close/advisory findings from posted ledger facts. |
-| none | `review_period_findings` | New. Period-level close findings such as trial balance, FX, and depreciation review. |
-| `prepare_period_for_review` | `prepare_period_for_review` | Keep for preparer workflow. |
-| `request_review` | `request_period_review` | Rename for clarity. |
-| `approve_period` | `approve_period` | Keep. |
-| none | `ready_to_close_period` | New positive completion/receipt work item. |
-| `send_reports` | `send_reports` | Keep. |
-| `close_period` | `close_period` | Keep. |
-| `reconnect_bank` | `reconnect_bank` | Keep. |
-| `respond_to_queries` | `respond_to_queries` | Keep until client-query system is renamed. |
+| Current name                | Target name                         | Note                                                                                 |
+| --------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
+| `categorize_transactions`   | `categorize_transactions`           | Keep.                                                                                |
+| `review_ai_categorizations` | `review_categorization_suggestions` | Suggestions may come from rules, ML, or future engines, not only AI.                 |
+| none                        | `resolve_categorization_blockers`   | New. User-fixable condition prevents posting.                                        |
+| none                        | `review_posted_categorizations`     | New. Only explicit policy creates this work.                                         |
+| `review_draft_journals`     | `review_draft_journals`             | Keep for draft/invalid journal work.                                                 |
+| none                        | `review_close_findings`             | New. Rollup close/advisory findings from posted ledger facts.                        |
+| none                        | `review_period_findings`            | New. Period-level close findings such as trial balance, FX, and depreciation review. |
+| `prepare_period_for_review` | `prepare_period_for_review`         | Keep for preparer workflow.                                                          |
+| `request_review`            | `request_period_review`             | Rename for clarity.                                                                  |
+| `approve_period`            | `approve_period`                    | Keep.                                                                                |
+| none                        | `ready_to_close_period`             | New positive completion/receipt work item.                                           |
+| `send_reports`              | `send_reports`                      | Keep.                                                                                |
+| `close_period`              | `close_period`                      | Keep.                                                                                |
+| `reconnect_bank`            | `reconnect_bank`                    | Keep.                                                                                |
+| `respond_to_queries`        | `respond_to_queries`                | Keep until client-query system is renamed.                                           |
 
 ## 4. Bank-Sourced Transaction Processing States
 
@@ -384,17 +385,17 @@ The system must distinguish these states for bank-sourced transactions.
 
 The first two states are system processing phases, not queue work and not necessarily persisted as a dedicated transaction-state enum. They are useful for automation timing, audit/history, and suppressing premature queue noise while rules/ML are actively running.
 
-| State | Meaning | Queue? | User action |
-| --- | --- | --- | --- |
-| `bank_transaction_recorded` | Bank transaction exists. Processing may not have run yet. | No | None |
-| `categorization_in_progress` | Rules/ML/enrichment is running or within the automation-settling window. | No | None |
-| `needs_categorization` | No active candidate and no posted ledger transaction. | Yes | Choose account(s) and post |
-| `suggestion_ready_for_review` | A valid candidate exists, but system should not auto-post without user review. | Yes | Approve, edit and post, or reject |
-| `scheduled_for_autopost` | A valid candidate met auto-post policy and is waiting for the configured delay. | No by default | Optional manual intervention from transaction table |
-| `posting_requires_user_action` | Posting cannot proceed until a user fixes a business/accounting condition. | Yes | Fix condition, reject candidate, or choose another path |
-| `posted_from_bank_transaction` | Ledger is the accounting truth for the bank transaction. | No by default | None |
-| `review_required_after_posting` | Posted item requires review by firm/close policy. | Yes | Review, amend, or decide where policy allows |
-| `closed_period_action_required` | Posted/changed item affects a closed period. | Yes | Reopen, adjust, or document decision |
+| State                           | Meaning                                                                         | Queue?        | User action                                             |
+| ------------------------------- | ------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------- |
+| `bank_transaction_recorded`     | Bank transaction exists. Processing may not have run yet.                       | No            | None                                                    |
+| `categorization_in_progress`    | Rules/ML/enrichment is running or within the automation-settling window.        | No            | None                                                    |
+| `needs_categorization`          | No active candidate and no posted ledger transaction.                           | Yes           | Choose account(s) and post                              |
+| `suggestion_ready_for_review`   | A valid candidate exists, but system should not auto-post without user review.  | Yes           | Approve, edit and post, or reject                       |
+| `scheduled_for_autopost`        | A valid candidate met auto-post policy and is waiting for the configured delay. | No by default | Optional manual intervention from transaction table     |
+| `posting_requires_user_action`  | Posting cannot proceed until a user fixes a business/accounting condition.      | Yes           | Fix condition, reject candidate, or choose another path |
+| `posted_from_bank_transaction`  | Ledger is the accounting truth for the bank transaction.                        | No by default | None                                                    |
+| `review_required_after_posting` | Posted item requires review by firm/close policy.                               | Yes           | Review, amend, or decide where policy allows            |
+| `closed_period_action_required` | Posted/changed item affects a closed period.                                    | Yes           | Reopen, adjust, or document decision                    |
 
 Important: auto-post is a transition into `posted_from_bank_transaction`, not a queue state. It is informational by default. It becomes queue-worthy only if a separate policy says it must be reviewed, or if close/posting checks produce an actionable finding.
 
@@ -413,13 +414,13 @@ If the user must change something before posting can succeed, the state is `post
 
 Categorization work items are materialized from work states. They are not a separate taxonomy.
 
-| Work state | Work item type | Queue reason |
-| --- | --- | --- |
-| `needs_categorization` | `categorize_transactions` | User must choose account(s) before the bank transaction can become ledger truth. |
-| `suggestion_ready_for_review` | `review_categorization_suggestions` | System has a valid suggestion but policy requires a user decision before posting. |
-| `posting_requires_user_action` | `resolve_categorization_blockers` | A user-fixable business/accounting condition prevents posting. |
-| `review_required_after_posting` | `review_posted_categorizations`, `review_close_findings`, or `review_period_findings` | Posted ledger facts require review by explicit firm or close policy. |
-| `closed_period_action_required` | close/period exception item | Work affects a closed period and requires a period-level decision. |
+| Work state                      | Work item type                                                                        | Queue reason                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `needs_categorization`          | `categorize_transactions`                                                             | User must choose account(s) before the bank transaction can become ledger truth.  |
+| `suggestion_ready_for_review`   | `review_categorization_suggestions`                                                   | System has a valid suggestion but policy requires a user decision before posting. |
+| `posting_requires_user_action`  | `resolve_categorization_blockers`                                                     | A user-fixable business/accounting condition prevents posting.                    |
+| `review_required_after_posting` | `review_posted_categorizations`, `review_close_findings`, or `review_period_findings` | Posted ledger facts require review by explicit firm or close policy.              |
+| `closed_period_action_required` | close/period exception item                                                           | Work affects a closed period and requires a period-level decision.                |
 
 Non-queue states such as `bank_transaction_recorded`, `categorization_in_progress`, `scheduled_for_autopost`, and `posted_from_bank_transaction` should not create work items by themselves.
 
@@ -569,12 +570,12 @@ The subject stores the current `facts_hash`. If the facts change, an old decisio
 
 Decision table:
 
-| Severity | Queue? | Work type | Allowed completion | Notes |
-| --- | --- | --- | --- | --- |
-| `blocker` | Yes | Usually `review_period_findings` or source-specific blocker work | Fix source facts only | No acknowledgement, not-applicable, or dismissal should satisfy a blocker unless policy explicitly downgrades it. |
-| `required_review` | Yes | `review_close_findings` or `review_period_findings` | Fix, acknowledge, or mark not applicable | The user is making an accounting/review decision for current facts. |
-| `advisory` | Not by default | None by default; optional configured review work | Dismiss, acknowledge, or mark not applicable if surfaced | Advisory findings should usually appear inline, in readiness, or in activity, not the main queue. |
-| `final_confirmation` | Yes only inside the close step | `ready_to_close_period` | Confirm, request review, or close/send according to workflow | This is content of the receipt/action, not a precondition for creating the receipt. |
+| Severity             | Queue?                         | Work type                                                        | Allowed completion                                           | Notes                                                                                                             |
+| -------------------- | ------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `blocker`            | Yes                            | Usually `review_period_findings` or source-specific blocker work | Fix source facts only                                        | No acknowledgement, not-applicable, or dismissal should satisfy a blocker unless policy explicitly downgrades it. |
+| `required_review`    | Yes                            | `review_close_findings` or `review_period_findings`              | Fix, acknowledge, or mark not applicable                     | The user is making an accounting/review decision for current facts.                                               |
+| `advisory`           | Not by default                 | None by default; optional configured review work                 | Dismiss, acknowledge, or mark not applicable if surfaced     | Advisory findings should usually appear inline, in readiness, or in activity, not the main queue.                 |
+| `final_confirmation` | Yes only inside the close step | `ready_to_close_period`                                          | Confirm, request review, or close/send according to workflow | This is content of the receipt/action, not a precondition for creating the receipt.                               |
 
 Decision meanings:
 
@@ -630,12 +631,12 @@ Do not use suggestion outcome to judge accounting correctness. A company may con
 
 Each candidate can have exactly one terminal disposition.
 
-| Disposition | Meaning | Accuracy metric? |
-| --- | --- | --- |
-| `posted` | This candidate was the basis of a ledger posting. | Yes, compare posting shape |
-| `rejected` | A user explicitly rejected this candidate before it was posted. | Yes, negative feedback |
-| `superseded` | The system replaced this candidate with a newer/better candidate before action. | No by default |
-| `expired` | The candidate became non-actionable before evaluation. | No |
+| Disposition  | Meaning                                                                         | Accuracy metric?           |
+| ------------ | ------------------------------------------------------------------------------- | -------------------------- |
+| `posted`     | This candidate was the basis of a ledger posting.                               | Yes, compare posting shape |
+| `rejected`   | A user explicitly rejected this candidate before it was posted.                 | Yes, negative feedback     |
+| `superseded` | The system replaced this candidate with a newer/better candidate before action. | No by default              |
+| `expired`    | The candidate became non-actionable before evaluation.                          | No                         |
 
 `expired` does not mean the candidate was right or wrong. It means we cannot fairly evaluate it. Reasons include `source_already_posted`, `source_deleted`, `period_locked`, `candidate_invalidated`, or `account_inactive`.
 
@@ -656,12 +657,12 @@ Examples:
 - User manually posts before a delayed ML suggestion lands: disposition `expired`, reason `source_already_posted`; comparison may be stored only if the prediction existed before the manual posting.
 - Candidate was generated after the transaction had already been posted: disposition `expired`, reason `source_already_posted`, no fair comparison.
 
-| Posting comparison | Meaning |
-| --- | --- |
-| `exact` | The material posting and non-accounting fields match the candidate. |
-| `metadata_changed` | Accounting shape matches, but description/reference/contact/project/notes/attachments changed. |
-| `accounting_changed` | Account, amount, split, posting date, tax code, bank leg, or debit/credit structure changed. |
-| `not_comparable` | No fair comparison should be made. |
+| Posting comparison   | Meaning                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `exact`              | The material posting and non-accounting fields match the candidate.                            |
+| `metadata_changed`   | Accounting shape matches, but description/reference/contact/project/notes/attachments changed. |
+| `accounting_changed` | Account, amount, split, posting date, tax code, bank leg, or debit/credit structure changed.   |
+| `not_comparable`     | No fair comparison should be made.                                                             |
 
 `acceptance` should be derived, not stored as another lifecycle enum.
 
@@ -672,11 +673,11 @@ Examples:
 
 `comparison_mode` should be explicit:
 
-| Comparison mode | Meaning |
-| --- | --- |
-| `basis_of_posting` | The candidate was used to create the posted ledger transaction. |
-| `observational_after_other_path` | The source posted through another path, but the candidate existed early enough to compare fairly. |
-| `not_comparable` | The candidate did not exist early enough, source facts changed too much, or comparison would be misleading. |
+| Comparison mode                  | Meaning                                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `basis_of_posting`               | The candidate was used to create the posted ledger transaction.                                             |
+| `observational_after_other_path` | The source posted through another path, but the candidate existed early enough to compare fairly.           |
+| `not_comparable`                 | The candidate did not exist early enough, source facts changed too much, or comparison would be misleading. |
 
 ### 7.3 Comparison Details
 
@@ -885,18 +886,18 @@ A state is product-meaningful when it changes at least one of:
 
 This lifecycle is owned by bank transaction ingestion, categorization, and ledger posting.
 
-| State | Meaning | Truth owner | Queue? | Allowed next actions |
-| --- | --- | --- | --- | --- |
-| `bank_transaction_recorded` | A bank transaction exists. It has not yet produced a posting or actionable categorization state. | `bank_transactions` | No | enrich, run rules, run ML |
-| `categorization_in_progress` | Enrichment/rules/ML are currently running or retrying. | `categorization_tasks`, job queues | No | wait, retry system job |
-| `needs_categorization` | No posted ledger transaction and no active usable candidate. | `bank_transactions` | Yes, `categorize_transactions` | user categorizes and posts, system retries, delete/void source |
-| `suggestion_ready_for_review` | A valid active candidate exists, but system should not auto-post without user review. | `categorization_candidates` | Yes, `review_categorization_suggestions` | post as suggested, edit and post, reject |
-| `scheduled_for_autopost` | A valid candidate met auto-post policy and is waiting for the configured delay. | `categorization_candidates`, auto-post queue | No by default | user can post manually, system auto-posts later, cancel if source changes |
-| `posting_requires_user_action` | Candidate or user draft cannot post until a user fixes a business/accounting condition. | validation result, candidate/source facts | Yes, `resolve_categorization_blockers` | fix condition, reject candidate, retry posting |
-| `posted_from_bank_transaction` | Bank transaction has a posted ledger transaction. | `ledger_transactions`, `ledger_entries` | No by default | review if policy requires, edit allowed fields, amend if accounting fields change |
-| `review_required_after_posting` | The posted bank-sourced ledger entry requires human/close review by explicit policy. | ledger plus policy/close facts | Yes, `review_posted_categorizations`, `review_close_findings`, or `review_period_findings` | review, amend, decide where severity/policy allows |
-| `closed_period_action_required` | A posted transaction affects a closed period or would require changing one. | ledger, fiscal calendar | Yes | reopen, reverse/adjust in open period, document decision |
-| `source_transaction_inactive` | Source bank transaction is deleted, voided, or otherwise no longer active. | `bank_transactions` | No | audit only |
+| State                           | Meaning                                                                                          | Truth owner                                  | Queue?                                                                                     | Allowed next actions                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `bank_transaction_recorded`     | A bank transaction exists. It has not yet produced a posting or actionable categorization state. | `bank_transactions`                          | No                                                                                         | enrich, run rules, run ML                                                         |
+| `categorization_in_progress`    | Enrichment/rules/ML are currently running or retrying.                                           | `categorization_tasks`, job queues           | No                                                                                         | wait, retry system job                                                            |
+| `needs_categorization`          | No posted ledger transaction and no active usable candidate.                                     | `bank_transactions`                          | Yes, `categorize_transactions`                                                             | user categorizes and posts, system retries, delete/void source                    |
+| `suggestion_ready_for_review`   | A valid active candidate exists, but system should not auto-post without user review.            | `categorization_candidates`                  | Yes, `review_categorization_suggestions`                                                   | post as suggested, edit and post, reject                                          |
+| `scheduled_for_autopost`        | A valid candidate met auto-post policy and is waiting for the configured delay.                  | `categorization_candidates`, auto-post queue | No by default                                                                              | user can post manually, system auto-posts later, cancel if source changes         |
+| `posting_requires_user_action`  | Candidate or user draft cannot post until a user fixes a business/accounting condition.          | validation result, candidate/source facts    | Yes, `resolve_categorization_blockers`                                                     | fix condition, reject candidate, retry posting                                    |
+| `posted_from_bank_transaction`  | Bank transaction has a posted ledger transaction.                                                | `ledger_transactions`, `ledger_entries`      | No by default                                                                              | review if policy requires, edit allowed fields, amend if accounting fields change |
+| `review_required_after_posting` | The posted bank-sourced ledger entry requires human/close review by explicit policy.             | ledger plus policy/close facts               | Yes, `review_posted_categorizations`, `review_close_findings`, or `review_period_findings` | review, amend, decide where severity/policy allows                                |
+| `closed_period_action_required` | A posted transaction affects a closed period or would require changing one.                      | ledger, fiscal calendar                      | Yes                                                                                        | reopen, reverse/adjust in open period, document decision                          |
+| `source_transaction_inactive`   | Source bank transaction is deleted, voided, or otherwise no longer active.                       | `bank_transactions`                          | No                                                                                         | audit only                                                                        |
 
 Rules:
 
@@ -909,14 +910,14 @@ Rules:
 
 This lifecycle is owned by predictions/candidates and should not be confused with the bank transaction lifecycle.
 
-| State | Meaning | Truth owner | Queue? | Terminal? |
-| --- | --- | --- | --- | --- |
-| `prediction_recorded` | Rules/ML produced a raw prediction. It may not be usable. | `categorization_predictions` | No | No |
-| `candidate_active` | Prediction passed validation and became a user/system-actionable candidate. | `categorization_candidates` | Depends on bank transaction state | No |
-| `candidate_replaced` | A newer/better candidate superseded it before user action. | `categorization_suggestion_outcomes` | No | Yes |
-| `candidate_posted` | Candidate became the basis of a ledger posting. | ledger plus outcome table | No by itself | Yes |
-| `candidate_rejected` | User explicitly rejected the candidate before posting. | outcome table | No | Yes |
-| `candidate_expired` | Candidate became non-actionable before fair evaluation. | outcome table | No | Yes |
+| State                 | Meaning                                                                     | Truth owner                          | Queue?                            | Terminal? |
+| --------------------- | --------------------------------------------------------------------------- | ------------------------------------ | --------------------------------- | --------- |
+| `prediction_recorded` | Rules/ML produced a raw prediction. It may not be usable.                   | `categorization_predictions`         | No                                | No        |
+| `candidate_active`    | Prediction passed validation and became a user/system-actionable candidate. | `categorization_candidates`          | Depends on bank transaction state | No        |
+| `candidate_replaced`  | A newer/better candidate superseded it before user action.                  | `categorization_suggestion_outcomes` | No                                | Yes       |
+| `candidate_posted`    | Candidate became the basis of a ledger posting.                             | ledger plus outcome table            | No by itself                      | Yes       |
+| `candidate_rejected`  | User explicitly rejected the candidate before posting.                      | outcome table                        | No                                | Yes       |
+| `candidate_expired`   | Candidate became non-actionable before fair evaluation.                     | outcome table                        | No                                | Yes       |
 
 Terminal disposition mapping:
 
@@ -933,18 +934,18 @@ Manual journals do not pass through categorization candidates, but they should c
 
 Journals are first-class sources of ledger truth. Accruals, depreciation, revenue adjustments, corrections, and future plugin-generated entries may all arrive through journals. Their pre-posting advice can be source-specific, but once posted they should feed the same ledger, close signal, work item, and activity systems as bank-sourced postings.
 
-| State | Meaning | Truth owner | Queue? | Allowed next actions |
-| --- | --- | --- | --- | --- |
-| `draft_empty` | Journal shell exists but is not postable. | `journal_batches`, `journal_entries` | No by default | edit, delete |
-| `draft_invalid` | Draft has validation errors. | journal draft tables | Yes only if part of active close/review work | fix, delete |
-| `draft_valid` | Draft is balanced and can be posted. | journal draft tables | No by default | post, edit, delete |
-| `draft_advisory_pending` | Valid draft has warnings or decision-required advisories. | advisory evaluator/cache | No by default; shown inline | fix, acknowledge, mark not applicable, post if allowed |
-| `posting_requires_user_action` | Journal cannot post until a user fixes a business/accounting condition. | validation result | Yes if user-actionable | fix, request permission, defer |
-| `posted_journal` | Journal has posted ledger entries. | `ledger_transactions`, `ledger_entries` | No by default | reverse, amend where allowed, review if policy requires |
-| `review_required_after_posting` | Posted journal requires close/firm review. | ledger plus policy/close facts | Yes, through close/period review work or future posted-journal review policy | review, amend, decide where severity/policy allows |
-| `reversed` | Posted journal has been reversed by an explicit reversing entry. | ledger | No by default | audit, possible follow-up adjustment |
-| `voided` | Draft or posting was voided according to allowed rules. | journal/ledger audit | No | audit only |
-| `closed_period_action_required` | Journal affects a closed period. | ledger, fiscal calendar | Yes | reopen, reverse/adjust in open period, document decision |
+| State                           | Meaning                                                                 | Truth owner                             | Queue?                                                                       | Allowed next actions                                     |
+| ------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `draft_empty`                   | Journal shell exists but is not postable.                               | `journal_batches`, `journal_entries`    | No by default                                                                | edit, delete                                             |
+| `draft_invalid`                 | Draft has validation errors.                                            | journal draft tables                    | Yes only if part of active close/review work                                 | fix, delete                                              |
+| `draft_valid`                   | Draft is balanced and can be posted.                                    | journal draft tables                    | No by default                                                                | post, edit, delete                                       |
+| `draft_advisory_pending`        | Valid draft has warnings or decision-required advisories.               | advisory evaluator/cache                | No by default; shown inline                                                  | fix, acknowledge, mark not applicable, post if allowed   |
+| `posting_requires_user_action`  | Journal cannot post until a user fixes a business/accounting condition. | validation result                       | Yes if user-actionable                                                       | fix, request permission, defer                           |
+| `posted_journal`                | Journal has posted ledger entries.                                      | `ledger_transactions`, `ledger_entries` | No by default                                                                | reverse, amend where allowed, review if policy requires  |
+| `review_required_after_posting` | Posted journal requires close/firm review.                              | ledger plus policy/close facts          | Yes, through close/period review work or future posted-journal review policy | review, amend, decide where severity/policy allows       |
+| `reversed`                      | Posted journal has been reversed by an explicit reversing entry.        | ledger                                  | No by default                                                                | audit, possible follow-up adjustment                     |
+| `voided`                        | Draft or posting was voided according to allowed rules.                 | journal/ledger audit                    | No                                                                           | audit only                                               |
+| `closed_period_action_required` | Journal affects a closed period.                                        | ledger, fiscal calendar                 | Yes                                                                          | reopen, reverse/adjust in open period, document decision |
 
 Rules:
 
@@ -956,17 +957,17 @@ Rules:
 
 This is the convergence point for bank transactions, candidates, and manual journals. Future ledger-producing modules can enter here when those modules exist.
 
-| State | Meaning | Queue? | Owner |
-| --- | --- | --- | --- |
-| `drafting` | User or system is constructing a posting. | No | source workflow |
-| `validating` | Server validates accounts, balance, period, permissions, source state, and policy. | No | posting service |
-| `advice_available` | Proposed posting is valid enough to evaluate advisories. | No, inline only | advisory evaluator |
-| `decision_required` | Advisory or policy requires user decision before posting. | Not firm queue; inline in workspace | advisory evaluator |
-| `ready_to_post` | Posting can be committed. | No | posting service |
-| `posting_requires_user_action` | Posting cannot proceed until a user fixes a business/accounting condition. | Yes, if no longer in active inline context | work materializer |
-| `posting_failed_system_retryable` | Posting failed due transient/system issue. | No unless stuck/overdue | job system |
-| `posting_failed_system_attention` | Posting failed because of internal/system-owned data or code problems. | No primary queue; operations alert | operations/system monitoring |
-| `posted` | Ledger transaction committed. | No by itself | ledger |
+| State                             | Meaning                                                                            | Queue?                                     | Owner                        |
+| --------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------- |
+| `drafting`                        | User or system is constructing a posting.                                          | No                                         | source workflow              |
+| `validating`                      | Server validates accounts, balance, period, permissions, source state, and policy. | No                                         | posting service              |
+| `advice_available`                | Proposed posting is valid enough to evaluate advisories.                           | No, inline only                            | advisory evaluator           |
+| `decision_required`               | Advisory or policy requires user decision before posting.                          | Not firm queue; inline in workspace        | advisory evaluator           |
+| `ready_to_post`                   | Posting can be committed.                                                          | No                                         | posting service              |
+| `posting_requires_user_action`    | Posting cannot proceed until a user fixes a business/accounting condition.         | Yes, if no longer in active inline context | work materializer            |
+| `posting_failed_system_retryable` | Posting failed due transient/system issue.                                         | No unless stuck/overdue                    | job system                   |
+| `posting_failed_system_attention` | Posting failed because of internal/system-owned data or code problems.             | No primary queue; operations alert         | operations/system monitoring |
+| `posted`                          | Ledger transaction committed.                                                      | No by itself                               | ledger                       |
 
 Rules:
 
@@ -978,14 +979,14 @@ Rules:
 
 Ledger entries are the accounting truth once posted.
 
-| State | Meaning | Truth owner | Queue? | Allowed next actions |
-| --- | --- | --- | --- | --- |
-| `posted_unreviewed` | Posted ledger entry exists and has not been human-reviewed where review matters. | `ledger_entries` | Only if explicit policy requires review | review, amend, acknowledge |
-| `posted_reviewed` | Human review has been recorded. | `ledger_entries` | No | amend if allowed |
-| `posted_decisioned` | A close/advisory finding was acknowledged or marked not applicable for current facts. | `close_review_decisions` | No for matching facts | reopen if facts change |
-| `amended` | Accounting shape changed through a new version/supersession model. | ledger/audit | Maybe, depending on period and policy | review new facts |
-| `reversed` | Reversal entry exists. | ledger | Maybe, if close policy flags it | review if needed |
-| `closed_period_impacted` | Ledger activity affects a closed period. | ledger, fiscal calendar | Yes | reopen, adjust, document |
+| State                    | Meaning                                                                               | Truth owner              | Queue?                                  | Allowed next actions       |
+| ------------------------ | ------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------- | -------------------------- |
+| `posted_unreviewed`      | Posted ledger entry exists and has not been human-reviewed where review matters.      | `ledger_entries`         | Only if explicit policy requires review | review, amend, acknowledge |
+| `posted_reviewed`        | Human review has been recorded.                                                       | `ledger_entries`         | No                                      | amend if allowed           |
+| `posted_decisioned`      | A close/advisory finding was acknowledged or marked not applicable for current facts. | `close_review_decisions` | No for matching facts                   | reopen if facts change     |
+| `amended`                | Accounting shape changed through a new version/supersession model.                    | ledger/audit             | Maybe, depending on period and policy   | review new facts           |
+| `reversed`               | Reversal entry exists.                                                                | ledger                   | Maybe, if close policy flags it         | review if needed           |
+| `closed_period_impacted` | Ledger activity affects a closed period.                                              | ledger, fiscal calendar  | Yes                                     | reopen, adjust, document   |
 
 Rules:
 
@@ -999,12 +1000,12 @@ Rules:
 
 Close signals are current review facts derived from posted ledger state.
 
-| State | Meaning | Truth owner | Queue? | Allowed next actions |
-| --- | --- | --- | --- | --- |
-| `signal_detected` | Evaluator found a current issue. | `close_review_signals` | Through rollup finding if no matching decision | fix source, acknowledge, mark not applicable where severity allows |
-| `signal_decisioned` | User made a decision matching rollup fingerprint and facts hash. | `close_review_decisions` | No | audit, reopen only if facts change |
-| `signal_resolved_by_fact_change` | The underlying posted facts changed and signal no longer exists. | absence from `close_review_signals` after sync | No | audit |
-| `signal_reopened` | Same conceptual issue appears with changed facts hash. | `close_review_signals` | Through rollup finding | new decision or fix |
+| State                            | Meaning                                                          | Truth owner                                    | Queue?                                         | Allowed next actions                                               |
+| -------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| `signal_detected`                | Evaluator found a current issue.                                 | `close_review_signals`                         | Through rollup finding if no matching decision | fix source, acknowledge, mark not applicable where severity allows |
+| `signal_decisioned`              | User made a decision matching rollup fingerprint and facts hash. | `close_review_decisions`                       | No                                             | audit, reopen only if facts change                                 |
+| `signal_resolved_by_fact_change` | The underlying posted facts changed and signal no longer exists. | absence from `close_review_signals` after sync | No                                             | audit                                                              |
+| `signal_reopened`                | Same conceptual issue appears with changed facts hash.           | `close_review_signals`                         | Through rollup finding                         | new decision or fix                                                |
 
 Rules:
 
@@ -1026,12 +1027,12 @@ Examples:
 
 These should not be forced into a fake ledger-entry subject. They are computed by the close finding projection and consumed by both readiness and the materializer.
 
-| State | Meaning | Truth owner | Queue? | Allowed next actions |
-| --- | --- | --- | --- | --- |
-| `period_finding_detected` | A period-level close finding is currently open. | close finding projection | Yes if queue-worthy and no matching decision | fix source facts, create journal, acknowledge, mark not applicable where severity allows |
-| `period_finding_decisioned` | User made a decision matching the finding identity and facts hash. | `close_review_decisions` or period decision table | No | audit, reopen only if facts change |
-| `period_finding_resolved_by_fact_change` | Close finding projection no longer produces the finding. | absence from current projection after recompute | No | audit |
-| `period_finding_reopened` | Same conceptual finding appears with changed facts hash. | close finding projection | Yes | new decision or fix |
+| State                                    | Meaning                                                            | Truth owner                                       | Queue?                                       | Allowed next actions                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `period_finding_detected`                | A period-level close finding is currently open.                    | close finding projection                          | Yes if queue-worthy and no matching decision | fix source facts, create journal, acknowledge, mark not applicable where severity allows |
+| `period_finding_decisioned`              | User made a decision matching the finding identity and facts hash. | `close_review_decisions` or period decision table | No                                           | audit, reopen only if facts change                                                       |
+| `period_finding_resolved_by_fact_change` | Close finding projection no longer produces the finding.           | absence from current projection after recompute   | No                                           | audit                                                                                    |
+| `period_finding_reopened`                | Same conceptual finding appears with changed facts hash.           | close finding projection                          | Yes                                          | new decision or fix                                                                      |
 
 Rules:
 
@@ -1055,16 +1056,16 @@ This is an affirming work item:
 
 Suggested flow:
 
-| State | Meaning | Work item |
-| --- | --- | --- |
-| `in_progress` | Period still has open work or has not been prepared. | normal issue/action work |
-| `ready_to_close` | No open blockers or required reviews remain; final confirmations can now be completed. | `ready_to_close_period` |
-| `review_requested` | Preparer submitted the period for approval. | `approve_period` for reviewer |
-| `under_review` | Reviewer is actively reviewing. | `approve_period` |
-| `approved` | Reviewer approved the period package. | `send_reports` or `close_period` |
-| `sent` | Reports were sent to the client. | `close_period` if not already closed |
-| `closed` | Fiscal period is closed. | no open close workflow work |
-| `stale_after_change` | Ledger, close decision, or material facts changed after review was requested/approved. | reopen preparation/review work |
+| State                | Meaning                                                                                | Work item                            |
+| -------------------- | -------------------------------------------------------------------------------------- | ------------------------------------ |
+| `in_progress`        | Period still has open work or has not been prepared.                                   | normal issue/action work             |
+| `ready_to_close`     | No open blockers or required reviews remain; final confirmations can now be completed. | `ready_to_close_period`              |
+| `review_requested`   | Preparer submitted the period for approval.                                            | `approve_period` for reviewer        |
+| `under_review`       | Reviewer is actively reviewing.                                                        | `approve_period`                     |
+| `approved`           | Reviewer approved the period package.                                                  | `send_reports` or `close_period`     |
+| `sent`               | Reports were sent to the client.                                                       | `close_period` if not already closed |
+| `closed`             | Fiscal period is closed.                                                               | no open close workflow work          |
+| `stale_after_change` | Ledger, close decision, or material facts changed after review was requested/approved. | reopen preparation/review work       |
 
 Rules:
 
@@ -1089,12 +1090,12 @@ Material changes that should mark a review package stale:
 
 Some work is not naturally created by `company_period` materialization.
 
-| Work type | Scope | Opens when | Actionability | Resolves when |
-| --- | --- | --- | --- | --- |
-| `reconnect_bank` | `bank_account` | Bank connection is disconnected, credential-expired, or stale beyond configured threshold. | `blocked_by_client` if client action is needed; `waiting_on_system` if provider/system retry is underway. | Connection is healthy, account is intentionally archived, or firm marks it no longer required. |
-| `respond_to_queries` | `company` or future `client_query` | A client/bookkeeper query is open and needs a response. | `blocked_by_client` when waiting on client; `actionable_now` when assigned user can answer. | Query is answered, closed, or superseded. |
-| `send_reports` | `company_period` | Period package is approved and reports are generated/ready. | `actionable_now` for users with report-send capability; `waiting_on_system` while generation/send retry is running. | Reports are sent, skipped with policy reason, or package becomes stale. |
-| `close_period` | `company_period` | Required review/send steps are complete and policy allows final close. | `actionable_now` for users with close capability. | Fiscal period becomes closed or package becomes stale. |
+| Work type            | Scope                              | Opens when                                                                                 | Actionability                                                                                                       | Resolves when                                                                                  |
+| -------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `reconnect_bank`     | `bank_account`                     | Bank connection is disconnected, credential-expired, or stale beyond configured threshold. | `blocked_by_client` if client action is needed; `waiting_on_system` if provider/system retry is underway.           | Connection is healthy, account is intentionally archived, or firm marks it no longer required. |
+| `respond_to_queries` | `company` or future `client_query` | A client/bookkeeper query is open and needs a response.                                    | `blocked_by_client` when waiting on client; `actionable_now` when assigned user can answer.                         | Query is answered, closed, or superseded.                                                      |
+| `send_reports`       | `company_period`                   | Period package is approved and reports are generated/ready.                                | `actionable_now` for users with report-send capability; `waiting_on_system` while generation/send retry is running. | Reports are sent, skipped with policy reason, or package becomes stale.                        |
+| `close_period`       | `company_period`                   | Required review/send steps are complete and policy allows final close.                     | `actionable_now` for users with close capability.                                                                   | Fiscal period becomes closed or package becomes stale.                                         |
 
 These work types still use the same grouped `work_items`, exact `work_item_subjects`, action contract, and materializer reconciliation rules.
 
@@ -1150,20 +1151,24 @@ These work types still use the same grouped `work_items`, exact `work_item_subje
    - New unresolved rollups create work item subjects.
 
 10. Close readiness runs.
-   - It summarizes the same unresolved subjects and period conditions by section/severity.
-   - It should not replace the work item system or create a second resolution path.
+
+- It summarizes the same unresolved subjects and period conditions by section/severity.
+- It should not replace the work item system or create a second resolution path.
 
 11. If no blocking work remains, `ready_to_close_period` is materialized.
-   - User gets a positive completion receipt.
-   - Preparer can close/send for approval according to firm policy.
+
+- User gets a positive completion receipt.
+- Preparer can close/send for approval according to firm policy.
 
 12. Review and approval happen.
-   - Review package is locked/snapshotted.
-   - Material changes after send mark the workflow stale and reopen preparation/review work.
+
+- Review package is locked/snapshotted.
+- Material changes after send mark the workflow stale and reopen preparation/review work.
 
 13. Period closes.
-   - Normal open-period work should be resolved or decisioned.
-   - Later changes create closed-period exception work.
+
+- Normal open-period work should be resolved or decisioned.
+- Later changes create closed-period exception work.
 
 ## 12. Recommended Table Changes
 

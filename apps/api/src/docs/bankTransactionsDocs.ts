@@ -10,11 +10,7 @@ export const bankTransactionDocs = {
           'application/json': {
             schema: {
               type: 'object',
-              required: [
-                'source',
-                'bank_account_id',
-                'bank_transactions',
-              ],
+              required: ['source', 'bank_account_id', 'bank_transactions'],
               properties: {
                 source: {
                   type: 'string',

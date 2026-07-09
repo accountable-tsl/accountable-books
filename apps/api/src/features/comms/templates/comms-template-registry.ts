@@ -57,17 +57,15 @@ function renderAdminAlertEmail(input: {
   const title = stringValue(input.data.title) ?? 'Accountable admin alert';
   const body = stringValue(input.data.body);
   const alertEventType = stringValue(input.data.alertEventType);
-  const text = [
-    title,
-    alertEventType ? `Event: ${alertEventType}` : null,
-    body,
-  ]
+  const text = [title, alertEventType ? `Event: ${alertEventType}` : null, body]
     .filter(Boolean)
     .join('\n\n');
 
   const htmlParts = [
     `<h1>${htmlEscape(title)}</h1>`,
-    alertEventType ? `<p><strong>Event:</strong> ${htmlEscape(alertEventType)}</p>` : null,
+    alertEventType
+      ? `<p><strong>Event:</strong> ${htmlEscape(alertEventType)}</p>`
+      : null,
     body ? `<p>${htmlEscape(body)}</p>` : null,
   ].filter(Boolean);
 

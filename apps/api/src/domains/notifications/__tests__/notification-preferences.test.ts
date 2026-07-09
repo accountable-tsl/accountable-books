@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createTestTransaction } from '../../../../config/test-db.js';
 import {
-  getTestUserId,
   getTestCompanyId,
+  getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
 import { listNotificationEventDefinitions } from '../notification-event-registry.js';
@@ -54,8 +54,9 @@ describe('notification preferences', () => {
         ),
       ),
     ).toBe(true);
-    expect(preferences.every((preference) => preference.source === 'default'))
-      .toBe(true);
+    expect(
+      preferences.every((preference) => preference.source === 'default'),
+    ).toBe(true);
   });
 
   it('sets and resolves a user override for a supported preference', async () => {

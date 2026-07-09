@@ -92,8 +92,7 @@ export function generateMockJournals({
       status === 'draft' || status === 'voided'
         ? null
         : `JE-${yyyymm}-${pad4(seq++)}`;
-    const userReference =
-      Math.random() < 0.35 ? `CLIENT-${pad4(i + 1)}` : null;
+    const userReference = Math.random() < 0.35 ? `CLIENT-${pad4(i + 1)}` : null;
 
     const titlePool = [
       'Rent accrual',
@@ -196,9 +195,7 @@ export function generateMockJournals({
         ledgerEntryId:
           status === 'posted' || status === 'reversed' ? mockId() : null,
         ledgerEntryFsDate:
-          status === 'posted' || status === 'reversed'
-            ? journalRow.date
-            : null,
+          status === 'posted' || status === 'reversed' ? journalRow.date : null,
         createdAt: createdAt.toISOString(),
         updatedAt: createdAt.toISOString(),
       },
@@ -219,9 +216,7 @@ export function generateMockJournals({
         ledgerEntryId:
           status === 'posted' || status === 'reversed' ? mockId() : null,
         ledgerEntryFsDate:
-          status === 'posted' || status === 'reversed'
-            ? journalRow.date
-            : null,
+          status === 'posted' || status === 'reversed' ? journalRow.date : null,
         createdAt: createdAt.toISOString(),
         updatedAt: createdAt.toISOString(),
       });

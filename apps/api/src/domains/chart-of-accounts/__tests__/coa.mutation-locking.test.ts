@@ -2,22 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const advisoryLocks = vi.hoisted(() => ({
-  acquire: vi.fn(async () => undefined),
-  companyKey: vi.fn((companyId: string) => `company:${companyId}`),
-}));
-
-vi.mock(
-  '../../../shared/services/advisoryLocks.service.js',
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import('../../../shared/services/advisoryLocks.service.js')
-    >()),
-    acquireAdvisoryXactLocks: advisoryLocks.acquire,
-    lockKeyCompany: advisoryLocks.companyKey,
-  }),
-);
-
 import { getTestDb } from '../../../../config/test-db.js';
 import {
   getCurrencyId,
@@ -34,6 +18,22 @@ import {
   editCoa,
   unarchiveCoa,
 } from '../coa.model.js';
+
+const advisoryLocks = vi.hoisted(() => ({
+  acquire: vi.fn(async () => undefined),
+  companyKey: vi.fn((companyId: string) => `company:${companyId}`),
+}));
+
+vi.mock(
+  '../../../shared/services/advisoryLocks.service.js',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../shared/services/advisoryLocks.service.js')
+    >()),
+    acquireAdvisoryXactLocks: advisoryLocks.acquire,
+    lockKeyCompany: advisoryLocks.companyKey,
+  }),
+);
 
 describe('COA mutation locking', () => {
   let trx: Knex.Transaction;

@@ -2,16 +2,12 @@ import type { Knex } from 'knex';
 
 import { commsChannelSchema } from '../../features/comms/comms.types.js';
 import {
-  getNotificationEventDefinition,
-} from './notification-event-registry.js';
-import {
   hasNotificationChannelRouteResolver,
   listNotificationChannelRouteResolvers,
   resolveNotificationChannelRoutes,
 } from './notification-channel-routes.js';
-import {
-  resolveEffectiveNotificationPreference,
-} from './notification-preferences.js';
+import { getNotificationEventDefinition } from './notification-event-registry.js';
+import { resolveEffectiveNotificationPreference } from './notification-preferences.js';
 import {
   NOTIFICATION_CHANNEL,
   notificationDeliveryModeSchema,
@@ -28,10 +24,7 @@ import type {
   ParsedNotifyEvent,
 } from './notifications.types.js';
 
-type EnabledNotificationDeliveryMode = Exclude<
-  NotificationDeliveryMode,
-  'off'
->;
+type EnabledNotificationDeliveryMode = Exclude<NotificationDeliveryMode, 'off'>;
 
 export interface NotificationCommsRoute {
   channel: CommsChannel;
@@ -125,9 +118,7 @@ function explicitCandidateForChannel(input: {
   return null;
 }
 
-function resolveCandidateChannels(
-  event: ParsedNotifyEvent,
-): Array<{
+function resolveCandidateChannels(event: ParsedNotifyEvent): Array<{
   channel: NotificationDeliveryChannel;
   deliveryMode: NotificationDeliveryMode;
 }> {

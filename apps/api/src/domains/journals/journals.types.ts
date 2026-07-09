@@ -24,14 +24,11 @@ import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils
 
 const journalEntryStatus = z.enum(['active', 'superseded', 'voided']);
 
-const journalEntryDescription = z.preprocess(
-  (value) => {
-    if (typeof value !== 'string') return value;
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  },
-  z.string().max(512).nullable().optional(),
-);
+const journalEntryDescription = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.string().max(512).nullable().optional());
 
 export const journalEntryInput = z.object({
   description: journalEntryDescription,

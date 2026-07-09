@@ -26,6 +26,7 @@ type CandidateRow = {
   bank_transaction_id: string;
   company_id: string;
   review_state: 'pending_review' | 'closed';
+  is_deleted: boolean;
 };
 
 type LedgerRow = {
@@ -33,6 +34,7 @@ type LedgerRow = {
   company_id: string;
   source_transaction_id: string;
   categorization_candidate_id: string | null;
+  status: string;
 };
 
 type ComparableLine = {
@@ -213,7 +215,9 @@ export async function recordCandidateOutcomeForLedger(
     )) as LedgerRow | undefined;
 
   if (!candidate) {
-    throw new Error(`Candidate not found for outcome comparison: ${input.candidateId}`);
+    throw new Error(
+      `Candidate not found for outcome comparison: ${input.candidateId}`,
+    );
   }
   if (!ledger) {
     throw new Error(
@@ -278,7 +282,7 @@ export async function recordCandidateOutcomesForBankTransaction(
     comparisonBasis: string;
   },
 ): Promise<void> {
-  const candidates = await trx<{ id: string }>('categorization_candidates')
+  const candidates = await trx<CandidateRow>('categorization_candidates')
     .where({
       company_id: input.companyId,
       bank_transaction_id: input.bankTransactionId,
@@ -395,7 +399,9 @@ function buildDifferences(
 }
 
 function sortFacts(facts: ComparableLine[]): ComparableLine[] {
-  return facts.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  return facts.sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b)),
+  );
 }
 
 function normalizeDecimal(value: unknown, scale: number): string {

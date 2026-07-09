@@ -55,13 +55,17 @@ describe('materializer scope advisory lock', () => {
     expect(
       await tryAcquireAdvisoryXactLock(
         first,
-        lockKeyMaterializerScope(`bank_account:${randomUUID()}:${randomUUID()}`),
+        lockKeyMaterializerScope(
+          `bank_account:${randomUUID()}:${randomUUID()}`,
+        ),
       ),
     ).toBe(true);
     expect(
       await tryAcquireAdvisoryXactLock(
         second,
-        lockKeyMaterializerScope(`bank_account:${randomUUID()}:${randomUUID()}`),
+        lockKeyMaterializerScope(
+          `bank_account:${randomUUID()}:${randomUUID()}`,
+        ),
       ),
     ).toBe(true);
   });

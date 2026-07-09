@@ -44,9 +44,7 @@ export async function getWorkQueueController(
         accessOrigin: req.company?.accessOrigin ?? null,
       },
     });
-    return res
-      .status(200)
-      .json(successResponse('Work queue retrieved', queue));
+    return res.status(200).json(successResponse('Work queue retrieved', queue));
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     if (
@@ -56,8 +54,6 @@ export async function getWorkQueueController(
       return res.status(401).json(errorResponse(message));
     }
     logger.error({ error: message }, 'Failed to retrieve work queue');
-    return res
-      .status(500)
-      .json(errorResponse('Failed to retrieve work queue'));
+    return res.status(500).json(errorResponse('Failed to retrieve work queue'));
   }
 }

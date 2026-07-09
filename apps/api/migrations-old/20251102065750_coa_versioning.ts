@@ -237,11 +237,7 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await dropUpdateTimestampTrigger(
-    knex,
-    coaSnapshotVersionsTable,
-    schemaName,
-  );
+  await dropUpdateTimestampTrigger(knex, coaSnapshotVersionsTable, schemaName);
 
   await knex.schema
     .withSchema(schemaName)

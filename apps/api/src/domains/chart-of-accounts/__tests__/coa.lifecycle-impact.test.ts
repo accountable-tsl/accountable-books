@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { SYSTEM_USER_ID } from '../../../bootstrap/phases/users.bootstrap.js';
 import { getTestDb } from '../../../../config/test-db.js';
+import { SYSTEM_USER_ID } from '../../../bootstrap/phases/users.bootstrap.js';
 import { archiveCoa, createCoaAccount, deleteCoa } from '../coa.model.js';
 
 describe('COA lifecycle impacts', () => {
@@ -375,7 +374,9 @@ describe('COA lifecycle impacts', () => {
     };
   }
 
-  async function derivedState(ids: Awaited<ReturnType<typeof createDerivedReferences>>) {
+  async function derivedState(
+    ids: Awaited<ReturnType<typeof createDerivedReferences>>,
+  ) {
     const [prediction, predictionLine, candidate, candidateLine] =
       await Promise.all([
         isDeleted('categorization_predictions', ids.predictionId),
@@ -393,9 +394,9 @@ describe('COA lifecycle impacts', () => {
   }
 
   async function isDeleted(table: string, id: string): Promise<boolean> {
-    const row = await trx(table).where({ id }).first<{ is_deleted: boolean }>(
-      'is_deleted',
-    );
+    const row = await trx(table)
+      .where({ id })
+      .first<{ is_deleted: boolean }>('is_deleted');
     if (!row) throw new Error(`Expected ${table} row ${id}`);
     return row.is_deleted;
   }
@@ -421,7 +422,10 @@ describe('COA lifecycle impacts', () => {
     return company.id;
   }
 
-  async function createBankTransaction(): Promise<{ id: string; date: string }> {
+  async function createBankTransaction(): Promise<{
+    id: string;
+    date: string;
+  }> {
     const bankAccountCoa = await createAccount('Bank account fixture');
     const bank = await trx('banks')
       .where({ is_deleted: false })
@@ -467,9 +471,10 @@ describe('COA lifecycle impacts', () => {
         transaction_at: new Date(`${transactionDate}T12:00:00.000Z`),
         transaction_date: transactionDate,
       })
-      .returning<{ id: string; transaction_date: string }[]>(
-        ['id', 'transaction_date'],
-      );
+      .returning<{ id: string; transaction_date: string }[]>([
+        'id',
+        'transaction_date',
+      ]);
 
     return {
       id: transaction.id,

@@ -10,8 +10,9 @@ import {
   insertContact,
   insertLedgerTransaction,
   insertMonthlyPeriod,
-  type Fixture,
 } from './signal-fixtures.js';
+
+import type { Fixture } from './signal-fixtures.js';
 
 describe('loadLedgerTransactionForSignals', () => {
   let trx: Knex.Transaction;
@@ -99,7 +100,11 @@ describe('loadLedgerTransactionForSignals', () => {
       { contactId },
       [
         { accountTypeKey: 'ca_bank', amount: 100, isBankLeg: true },
-        { accountTypeKey: 'ca_trade_receivable', amount: -100, contactId: null },
+        {
+          accountTypeKey: 'ca_trade_receivable',
+          amount: -100,
+          contactId: null,
+        },
       ],
     );
 

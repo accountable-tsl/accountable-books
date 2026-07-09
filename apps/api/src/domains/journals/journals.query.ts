@@ -872,19 +872,22 @@ function applyKeysetCursor(
           if (filters.sortDir === 'asc') {
             w3.whereRaw('jl."systemReference" > ?', [cursor.value]).orWhere(
               (w4) => {
-                w4
-                  .whereRaw('jl."systemReference" = ?', [cursor.value])
-                  .andWhere('jl.id', '>', cursor.id);
+                w4.whereRaw('jl."systemReference" = ?', [
+                  cursor.value,
+                ]).andWhere('jl.id', '>', cursor.id);
               },
             );
             return;
           }
           w3.whereRaw('jl."systemReference" < ?', [cursor.value]).orWhere(
             (w4) => {
-              w4
-                .whereRaw('jl."systemReference" = ?', [cursor.value])
-                .andWhere('jl.id', '<', cursor.id);
-            });
+              w4.whereRaw('jl."systemReference" = ?', [cursor.value]).andWhere(
+                'jl.id',
+                '<',
+                cursor.id,
+              );
+            },
+          );
         });
       });
     });
@@ -1344,7 +1347,9 @@ export async function getJournal({
             .whereNot('jb.status', 'voided')
             .where('je.entry_status', 'active'),
         ).orWhere((voided) =>
-          voided.where('jb.status', 'voided').where('je.entry_status', 'voided'),
+          voided
+            .where('jb.status', 'voided')
+            .where('je.entry_status', 'voided'),
         );
       })
       .where('coa.is_deleted', false)

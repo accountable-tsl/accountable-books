@@ -4,10 +4,7 @@ import {
   notificationCommsRequestedPayloadSchema,
   notificationRequestedPayloadSchema,
 } from './notification-intent.js';
-import {
-  notify,
-  resolveNotificationAttention,
-} from './notifications.model.js';
+import { notify, resolveNotificationAttention } from './notifications.model.js';
 
 export async function dispatchNotificationRequested(
   payload: unknown,

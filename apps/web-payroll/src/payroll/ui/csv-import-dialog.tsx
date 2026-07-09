@@ -40,8 +40,7 @@ import { formatMonthKey } from '../utils';
 import { downloadCsvTemplate, parseCsvFile } from '../utils/csv-import';
 
 import type { EmployeeRecord } from '../domain';
-import type { CsvImportFormat } from '../utils/csv-import';
-import type { CsvImportResult } from '../utils/csv-import';
+import type { CsvImportFormat, CsvImportResult } from '../utils/csv-import';
 
 export interface CsvImportDialogProps {
   open: boolean;

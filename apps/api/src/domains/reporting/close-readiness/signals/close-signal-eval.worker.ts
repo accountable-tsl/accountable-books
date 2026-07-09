@@ -4,11 +4,10 @@ import { Worker } from 'bullmq';
 import { redis } from '../../../../lib/redis.js';
 import { runWithJobContext } from '../../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../../shared/utils/logger.js';
-import {
-  closeSignalEvalJobDataSchema,
-  type CloseSignalEvalJobData,
-} from './close-signal-eval.queue.js';
+import { closeSignalEvalJobDataSchema } from './close-signal-eval.queue.js';
 import { syncLedgerTransactionSignals } from './close-signals.sync.js';
+
+import type { CloseSignalEvalJobData } from './close-signal-eval.queue.js';
 
 const logger = getLogger({
   component: 'close-signal-eval-worker',

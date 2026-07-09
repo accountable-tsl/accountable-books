@@ -27,8 +27,9 @@ from accountable_contracts.schema import EnrichedTransaction
 
 ```bash
 pnpm build              # Generate Pydantic models
-pnpm gen:pydantic       # Same as build
-pnpm gen:pydantic:no-clean  # Regenerate without cleaning
+pnpm gen:pydantic       # Same as build (pydantic only)
+pnpm gen:pydantic:verify  # Verify pydantic output without writing
+pnpm gen:pydantic:clean   # Sync and delete stale pydantic files
 ```
 
 ## Adding Schemas
@@ -94,5 +95,8 @@ from accountable_contracts.data import account_types
 ```bash
 pnpm build              # Generate data + Pydantic models
 pnpm gen:data           # Generate data only
-pnpm gen:data:no-clean  # Regenerate without cleaning
+pnpm gen:data:verify    # Verify data output without writing
+pnpm gen:data:clean     # Sync and delete stale data files
+pnpm verify:generated   # Verify both data and pydantic output
+```
 ````

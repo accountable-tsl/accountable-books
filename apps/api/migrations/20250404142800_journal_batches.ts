@@ -169,10 +169,7 @@ export async function up(knex: Knex): Promise<void> {
   await createUpdateTimestampTrigger(knex, tableName, schemaName);
 
   await knex.schema.withSchema(schemaName).alterTable(tableName, (table) => {
-    table.index(
-      ['company_id', 'date'],
-      'journal_batch_company_date_desc_idx',
-    );
+    table.index(['company_id', 'date'], 'journal_batch_company_date_desc_idx');
     table.index(
       ['company_id', 'status', 'date'],
       'journal_batch_company_status_date_desc_idx',

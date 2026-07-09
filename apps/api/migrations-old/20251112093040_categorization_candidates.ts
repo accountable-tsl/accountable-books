@@ -91,7 +91,6 @@ export async function up(knex: Knex): Promise<void> {
     table.text('explanation').nullable();
     table.jsonb('metadata').nullable();
     addStandardColumns(knex, table);
-
   });
 
   await createUpdateTimestampTrigger(knex, PREDICTION_LINES_TABLE);

@@ -72,9 +72,7 @@ describe('transaction enrichment queue coverage', () => {
       {
         companyId: '9f6e1e7a-8a07-4f45-b1f0-5024f92c3377',
         bankAccountId: '11111111-2222-4333-8444-555555555555',
-        bankTransactionIds: [
-          'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-        ],
+        bankTransactionIds: ['aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'],
         source: 'ingestion',
       },
       trx,

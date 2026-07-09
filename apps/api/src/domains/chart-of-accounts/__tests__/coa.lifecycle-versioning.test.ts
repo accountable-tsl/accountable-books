@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -124,14 +123,12 @@ describe('COA lifecycle versioning', () => {
     });
     expect(await getSnapshotVersion(trx, companyId)).toBe(initialSnapshot + 4n);
 
-    const persisted = await trx('coa')
-      .where({ id })
-      .first<{
-        is_active: boolean;
-        is_deleted: boolean;
-        deleted_at: Date | null;
-        version_seq: number;
-      }>('is_active', 'is_deleted', 'deleted_at', 'version_seq');
+    const persisted = await trx('coa').where({ id }).first<{
+      is_active: boolean;
+      is_deleted: boolean;
+      deleted_at: Date | null;
+      version_seq: number;
+    }>('is_active', 'is_deleted', 'deleted_at', 'version_seq');
     expect(persisted).toMatchObject({
       is_active: false,
       is_deleted: true,
@@ -287,14 +284,9 @@ async function expectVersionState(
   const versions = await trx('coa_versions')
     .where({ coa_id: coaId })
     .orderBy('version_seq')
-    .select<VersionRow[]>(
-      'version_seq',
-      'effective_to',
-      'changeset',
-      'name',
-      'is_active',
-      'is_deleted',
-    );
+    .select<
+      VersionRow[]
+    >('version_seq', 'effective_to', 'changeset', 'name', 'is_active', 'is_deleted');
 
   expect(versions).toHaveLength(expected.sequence);
   expect(versions.slice(0, -1).every((version) => version.effective_to)).toBe(
@@ -320,10 +312,10 @@ async function getSnapshot(
 ): Promise<{ snapshot_version: string | number | bigint; checksum: string }> {
   const snapshot = await trx('coa_snapshot_versions')
     .where({ company_id: companyId })
-    .first<{ snapshot_version: string | number | bigint; checksum: string }>(
-      'snapshot_version',
-      'checksum',
-    );
+    .first<{
+      snapshot_version: string | number | bigint;
+      checksum: string;
+    }>('snapshot_version', 'checksum');
 
   if (!snapshot) {
     throw new Error('Expected company COA snapshot to exist');

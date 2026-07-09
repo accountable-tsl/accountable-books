@@ -5,12 +5,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getTestDb } from '../../../../config/test-db.js';
 import { getTestUserId, US_USER_EMAIL } from '../../../../test/helpers.js';
 import { resolveWorkspaceBillingContext } from '../../billing/resolver/ownership-resolver.service.js';
+import { loadCoaTemplateForCompany } from '../../chart-of-accounts/coa-template.model.js';
 import { MUST_HAVE_ACCOUNTS } from '../../chart-of-accounts/coa.constants.js';
 import {
   createCoaAccount,
   createDefaultAccounts,
 } from '../../chart-of-accounts/coa.model.js';
-import { loadCoaTemplateForCompany } from '../../chart-of-accounts/coa-template.model.js';
 import { createCompany } from '../companies.model.js';
 import {
   ensureAccountingFirmMeta,

@@ -93,19 +93,13 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table
-      .foreign(
-        ['contact_id', 'company_id'],
-        'fk_ledger_entry_contact_company',
-      )
+      .foreign(['contact_id', 'company_id'], 'fk_ledger_entry_contact_company')
       .references(['id', 'company_id'])
       .inTable(`${schemaName}.contacts`)
       .onDelete('RESTRICT');
 
     table
-      .foreign(
-        ['project_id', 'company_id'],
-        'fk_ledger_entry_project_company',
-      )
+      .foreign(['project_id', 'company_id'], 'fk_ledger_entry_project_company')
       .references(['id', 'company_id'])
       .inTable(`${schemaName}.projects`)
       .onDelete('RESTRICT');

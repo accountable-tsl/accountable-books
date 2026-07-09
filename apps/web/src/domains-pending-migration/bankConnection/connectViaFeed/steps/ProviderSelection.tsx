@@ -13,6 +13,27 @@ import { ArrowLeft, Building, Clock, NetworkIcon, Shield } from 'lucide-react';
 
 import { getProviderData, ProviderWidgets } from '../utils';
 
+function getProviderCardBorderClass({
+  isSelected,
+  recommended,
+  active,
+}: {
+  isSelected: boolean;
+  recommended: boolean;
+  active: boolean;
+}): string {
+  if (isSelected) {
+    return 'border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900';
+  }
+  if (recommended) {
+    return 'border-chart-2/50 hover:border-chart-2';
+  }
+  if (!active) {
+    return 'border-muted-foreground/50 cursor-not-allowed opacity-50';
+  }
+  return 'border-muted-foreground/50 hover:border-muted-foreground';
+}
+
 interface ProviderSelectionProps {
   selectedCountry: Country;
   onProviderSelect: (provider: BankFeedProvider) => void;
@@ -42,12 +63,8 @@ export const ProviderSelection = React.memo(
 
     // Computed
     const userData = useMemo(() => {
-      // Potentially problematic function, rerender risk
       if (!selectedProvider?.key || !user || !company) return undefined;
-
-      return selectedProvider?.key && user && company
-        ? getProviderData[selectedProvider.key]?.(user, company)
-        : undefined;
+      return getProviderData[selectedProvider.key]?.(user, company);
     }, [selectedProvider, user, company]);
 
     const sortedProviders = useMemo(() => {
@@ -112,17 +129,13 @@ export const ProviderSelection = React.memo(
         const active = provider.status === 'active';
 
         return (
-          <div
+          <button
             key={provider.id}
+            type="button"
+            disabled={!active}
             className={cn(
-              'h-fit w-full max-w-sm flex-1 cursor-pointer overflow-hidden rounded-sm border p-4 shadow-sm transition-all duration-200',
-              isSelected
-                ? 'border-blue-600 ring-2 ring-blue-100 dark:ring-blue-900'
-                : recommended
-                  ? 'border-chart-2/50 hover:border-chart-2'
-                  : !active
-                    ? 'border-muted-foreground/50 cursor-not-allowed opacity-50'
-                    : 'border-muted-foreground/50 hover:border-muted-foreground',
+              'h-fit w-full max-w-sm flex-1 overflow-hidden rounded-sm border p-4 text-left shadow-sm transition-all duration-200',
+              getProviderCardBorderClass({ isSelected, recommended, active }),
             )}
             onClick={() => handleInternalProviderSelection(provider)}
           >
@@ -188,7 +201,7 @@ export const ProviderSelection = React.memo(
                 </div>
               </div>
             </div>
-          </div>
+          </button>
         );
       });
     }, [sortedProviders, selectedProvider, handleInternalProviderSelection]);
@@ -281,5 +294,3 @@ export const ProviderSelection = React.memo(
     );
   },
 );
-
-ProviderSelection.whyDidYouRender = true;

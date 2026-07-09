@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { resolveCommsTemplate } from '../../../features/comms/templates/comms-template-registry.js';
-import {
-  listNotificationChannelRouteResolvers,
-} from '../notification-channel-routes.js';
+import { listNotificationChannelRouteResolvers } from '../notification-channel-routes.js';
 import { listNotificationEventDefinitions } from '../notification-event-registry.js';
 import {
   NOTIFICATION_CHANNEL,
@@ -57,7 +55,9 @@ describe('notification event registry', () => {
 
   it('registers email as the only concrete external notification route for now', () => {
     expect(
-      listNotificationChannelRouteResolvers().map((resolver) => resolver.channel),
+      listNotificationChannelRouteResolvers().map(
+        (resolver) => resolver.channel,
+      ),
     ).toEqual([NOTIFICATION_CHANNEL.EMAIL]);
   });
 

@@ -326,11 +326,13 @@ describe('comms service', () => {
     const result = await sendAndTrack(makePayload());
     const deliveryId = result.deliveries[0].id;
 
-    await knexClient('app.comms_deliveries').where({ id: deliveryId }).update({
-      status: 'failed',
-      next_attempt_at: knexClient.raw(`now() - interval '1 minute'`),
-      updated_at: knexClient.fn.now(),
-    });
+    await knexClient('app.comms_deliveries')
+      .where({ id: deliveryId })
+      .update({
+        status: 'failed',
+        next_attempt_at: knexClient.raw(`now() - interval '1 minute'`),
+        updated_at: knexClient.fn.now(),
+      });
 
     await expect(enqueueDueCommsDeliveries(10)).resolves.toEqual({
       scanned: 1,

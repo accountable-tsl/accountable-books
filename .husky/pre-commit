@@ -13,7 +13,14 @@ if [ ! -f "apps/api/.env.example" ] || [ ! -f "apps/web/.env.example" ]; then
 fi
 
 make db-up
-pnpm -F @accountable-books/contracts build
+
+STAGED_FILES=$(git diff --cached --name-only)
+if echo "$STAGED_FILES" | grep -qE '^packages/contracts/(accountable_contracts/(schema/source|data/source)/|scripts/generate-|package\.json)|^pnpm-lock\.yaml'; then
+  echo "📦 Contract sources changed — syncing generated output..."
+  pnpm -F @accountable-books/contracts build
+else
+  echo "ℹ Contract sources unchanged — skipping generation"
+fi
 
 
 # Run lint-staged for changed files (includes linting, formatting, contract validation)

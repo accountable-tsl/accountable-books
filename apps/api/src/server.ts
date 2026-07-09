@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/node';
 
 import '../config/env-loader.js';
+
 import { app, setupApp } from './app.js';
 import { ENV, NODE_ENV } from './config/env.js';
 import { markReady, markUnready } from './health.js';

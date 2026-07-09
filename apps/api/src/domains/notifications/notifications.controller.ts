@@ -135,7 +135,9 @@ export async function getNotificationPreferencesController(
 
     return res
       .status(500)
-      .json(errorResponse('Failed to retrieve notification preferences', error));
+      .json(
+        errorResponse('Failed to retrieve notification preferences', error),
+      );
   }
 }
 

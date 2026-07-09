@@ -5,7 +5,10 @@ import {
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from '../migrations/utils/db.js';
-import { createTrgmIndexes, dropTrgmIndexes } from '../migrations/utils/trgmIndexes.js';
+import {
+  createTrgmIndexes,
+  dropTrgmIndexes,
+} from '../migrations/utils/trgmIndexes.js';
 
 const tableName = 'journal_batches';
 

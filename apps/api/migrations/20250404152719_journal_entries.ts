@@ -28,9 +28,7 @@ export async function up(knex: Knex): Promise<void> {
     table.integer('line_number').notNullable();
 
     table.string('description', 512).nullable();
-    table
-      .specificType('side', `"${schemaName}"."debit_credit"`)
-      .notNullable();
+    table.specificType('side', `"${schemaName}"."debit_credit"`).notNullable();
     table.decimal('amount', 18, 3).notNullable();
 
     table.uuid('coa_id').notNullable();

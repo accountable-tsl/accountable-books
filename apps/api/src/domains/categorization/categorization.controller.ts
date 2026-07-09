@@ -31,7 +31,9 @@ export async function getCategorizationTransactionsController(
     const bankAccountIds = req.query.bankAccountIds;
     const bankTransactionIds = req.query.bankTransactionIds;
     const workItemId =
-      typeof req.query.workItemId === 'string' ? req.query.workItemId : undefined;
+      typeof req.query.workItemId === 'string'
+        ? req.query.workItemId
+        : undefined;
     const bankAccountIdsArray = Array.isArray(bankAccountIds)
       ? bankAccountIds.filter((id): id is string => typeof id === 'string')
       : typeof bankAccountIds === 'string'

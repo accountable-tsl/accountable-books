@@ -75,7 +75,5 @@ export async function resolveFirmCompanyId(
     return company.id;
   }
 
-  throw new Error(
-    `Company ${clientCompanyId} has no managing firm assignment`,
-  );
+  throw new Error(`Company ${clientCompanyId} has no managing firm assignment`);
 }

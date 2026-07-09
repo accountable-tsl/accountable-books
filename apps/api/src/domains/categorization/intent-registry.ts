@@ -56,12 +56,7 @@ function handleUpdateDescription(
   acc: LedgerAccumulator,
   intent: Intent<'UPDATE_DESCRIPTION'>,
 ) {
-  const { scope, entryId, value } = intent.payload;
-
-  if (scope === 'group') {
-    acc.transaction.description = value;
-    return;
-  }
+  const { entryId, value } = intent.payload;
 
   if (!entryId) return;
   const entry = acc.entries.get(entryId) ?? { id: entryId };

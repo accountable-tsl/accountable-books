@@ -38,10 +38,7 @@ export async function down(knex: Knex): Promise<void> {
   }
 
   // Clean up utility functions created by the SQL files
-  const functionsToDrop = [
-    'update_timestamp',
-    'prevent_update_or_delete',
-  ];
+  const functionsToDrop = ['update_timestamp', 'prevent_update_or_delete'];
 
   for (const funcName of functionsToDrop) {
     console.log(`Dropping function: ${funcName}`);

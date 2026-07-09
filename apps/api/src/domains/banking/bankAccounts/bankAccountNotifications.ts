@@ -5,11 +5,9 @@ import {
   writeNotificationAttentionResolvedIntent,
   writeNotificationRequestedIntent,
 } from '../../notifications/notification-intent.js';
-import {
-  NOTIFICATION_TYPE,
-  type NotificationAttentionTransition,
-} from '../../notifications/notifications.types.js';
+import { NOTIFICATION_TYPE } from '../../notifications/notifications.types.js';
 
+import type { NotificationAttentionTransition } from '../../notifications/notifications.types.js';
 import type { BankAccountConnectionStatus } from './bankAccounts.types.js';
 
 const RECONNECT_REQUIRED_STATUSES = new Set<BankAccountConnectionStatus>([
@@ -56,7 +54,9 @@ export function buildBankReconnectAttentionKey(bankAccountId: string): string {
   return `bank_account:${bankAccountId}:reconnect`;
 }
 
-export function buildBankSyncFailureAttentionKey(bankAccountId: string): string {
+export function buildBankSyncFailureAttentionKey(
+  bankAccountId: string,
+): string {
   return `bank_account:${bankAccountId}:sync_failure`;
 }
 
@@ -134,8 +134,7 @@ export async function writeBankSyncFailureRequiresActionNotifications(
         priority: 'high',
         readPolicy: 'explicit',
         title: `Review transaction import for ${summary.bankAccountName}`,
-        body:
-          'Some bank transactions could not be imported and need bookkeeping review.',
+        body: 'Some bank transactions could not be imported and need bookkeeping review.',
         destination: {
           workspace: 'banking',
           bankAccountId: summary.bankAccountId,
@@ -285,10 +284,13 @@ async function writeBankReconnectResolvedNotifications(
     clientCompanyId: input.clientCompanyId,
     firmCompanyId,
   });
-  const activeRecipients = await loadActiveReconnectNotificationRecipients(trx, {
-    clientCompanyId: input.clientCompanyId,
-    attentionKey: buildBankReconnectAttentionKey(input.bankAccountId),
-  });
+  const activeRecipients = await loadActiveReconnectNotificationRecipients(
+    trx,
+    {
+      clientCompanyId: input.clientCompanyId,
+      attentionKey: buildBankReconnectAttentionKey(input.bankAccountId),
+    },
+  );
   const recipientUserIds = [
     ...new Set([
       ...currentRecipients.map((recipient) => recipient.userId),
@@ -446,9 +448,7 @@ async function resolveManagingFirmCompanyId(
     return firmCompanyId;
   }
 
-  throw new Error(
-    `Company ${clientCompanyId} has no managing firm assignment`,
-  );
+  throw new Error(`Company ${clientCompanyId} has no managing firm assignment`);
 }
 
 async function resolveManagingFirmCompanyIdOrNull(
@@ -473,7 +473,10 @@ async function resolveManagingFirmCompanyIdOrNull(
   if (company.assigned_firm_id) {
     return company.assigned_firm_id;
   }
-  if (company.type === 'accounting_firm' || company.workspace_class === 'customer') {
+  if (
+    company.type === 'accounting_firm' ||
+    company.workspace_class === 'customer'
+  ) {
     return company.id;
   }
 
@@ -500,14 +503,12 @@ async function summarizeSyncFailures(
       continue;
     }
 
-    const current =
-      grouped.get(failure.bankAccountId) ??
-      {
-        failedBatchCount: 0,
-        failedTransactionCount: 0,
-        hasTransactionCount: false,
-        errors: new Set<string>(),
-      };
+    const current = grouped.get(failure.bankAccountId) ?? {
+      failedBatchCount: 0,
+      failedTransactionCount: 0,
+      hasTransactionCount: false,
+      errors: new Set<string>(),
+    };
     current.failedBatchCount++;
     if (failure.failedTransactionCount != null) {
       current.failedTransactionCount += failure.failedTransactionCount;

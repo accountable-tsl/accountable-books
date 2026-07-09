@@ -5,8 +5,8 @@ import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
-import { runAfterTransactionCommit } from '../../../shared/db/after-transaction-commit.js';
 import { createQueue } from '../../../jobs/queues/queue-factory.js';
+import { runAfterTransactionCommit } from '../../../shared/db/after-transaction-commit.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../shared/utils/logger.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';

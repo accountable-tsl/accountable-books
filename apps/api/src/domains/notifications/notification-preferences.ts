@@ -108,9 +108,7 @@ export async function resolveNotificationPreference(input: {
 }): Promise<NotificationPreference> {
   const client = input.trx ?? knexClient;
 
-  const row = await client<{
-    delivery_mode: NotificationDeliveryMode;
-  }>(PREFERENCES_TABLE)
+  const row = await client<NotificationPreferenceRow>(PREFERENCES_TABLE)
     .where({
       owner_type: 'user',
       user_id: input.userId,
@@ -144,13 +142,11 @@ export async function listNotificationPreferences(input: {
 }): Promise<NotificationPreference[]> {
   const client = input.trx ?? knexClient;
   const definitions = listNotificationEventDefinitions();
-  const notificationTypes = definitions.map((definition) => definition.eventType);
+  const notificationTypes = definitions.map(
+    (definition) => definition.eventType,
+  );
   const channels = [...SUPPORTED_NOTIFICATION_PREFERENCE_CHANNELS];
-  const rows = await client<{
-    notification_type: string;
-    channel: NotificationChannel;
-    delivery_mode: NotificationDeliveryMode;
-  }>(PREFERENCES_TABLE)
+  const rows = await client<NotificationPreferenceRow>(PREFERENCES_TABLE)
     .where({ owner_type: 'user', user_id: input.userId })
     .whereIn('notification_type', notificationTypes)
     .whereIn('channel', channels)

@@ -10,7 +10,6 @@
  * 5. Generates TypeScript re-exports in data/generated/ts/ when appropriate
  */
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -18,10 +17,11 @@ import {
   rmSync,
   statSync,
   writeFileSync,
-} from 'fs';
-import { basename, dirname, extname, join, relative, resolve } from 'path';
-import { fileURLToPath } from 'url';
-import type { ZodSchema } from 'zod';
+} from 'node:fs';
+import { basename, dirname, extname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { ParseError } from 'papaparse';
+import type { ZodType } from 'zod';
 import Papa from 'papaparse';
 import { format } from 'prettier';
 
@@ -45,6 +45,7 @@ const SCHEMA_TS_DIR = join(
 
 // Large file threshold (1MB)
 const LARGE_FILE_THRESHOLD = 1_000_000;
+const EXPORT_CONST_PATTERN = /export\s+const\s+(\w+)\s*=/;
 
 interface MinimalConfig {
   source: string; // Relative to data/source/
@@ -71,7 +72,7 @@ interface ResolvedConfig {
     exportName: string;
     typeName: string;
     validate: boolean;
-    schema?: ZodSchema;
+    schema?: ZodType;
   };
   exports?: string[];
 }
@@ -81,6 +82,121 @@ interface GeneratedFile {
   basename: string;
   hasTSExport: boolean;
   tsExportName?: string;
+}
+
+interface JsonOutputRef {
+  domain: string;
+  filename: string;
+}
+
+interface SyncStats {
+  written: number;
+  unchanged: number;
+  deleted: number;
+  outOfDate: number;
+}
+
+interface SyncContext {
+  verify: boolean;
+  clean: boolean;
+  plannedPaths: Set<string>;
+  stats: SyncStats;
+}
+
+function createSyncContext(verify: boolean, clean: boolean): SyncContext {
+  return {
+    verify,
+    clean,
+    plannedPaths: new Set<string>(),
+    stats: { written: 0, unchanged: 0, deleted: 0, outOfDate: 0 },
+  };
+}
+
+function normalizeContent(content: string): string {
+  let normalized = content.replaceAll('\r\n', '\n');
+  while (normalized.endsWith('\n')) {
+    normalized = normalized.slice(0, -1);
+  }
+  return `${normalized}\n`;
+}
+
+function syncFile(ctx: SyncContext, filePath: string, content: string): void {
+  const resolvedPath = resolve(filePath);
+  ctx.plannedPaths.add(resolvedPath);
+  const normalized = normalizeContent(content);
+
+  if (!existsSync(resolvedPath)) {
+    if (ctx.verify) {
+      ctx.stats.outOfDate++;
+      console.log(
+        `⚠ Out of date (missing): ${relative(PACKAGE_ROOT, resolvedPath)}`,
+      );
+      return;
+    }
+    mkdirSync(dirname(resolvedPath), { recursive: true });
+    writeFileSync(resolvedPath, normalized, 'utf-8');
+    ctx.stats.written++;
+    console.log(`✓ Wrote ${relative(PACKAGE_ROOT, resolvedPath)}`);
+    return;
+  }
+
+  const existing = normalizeContent(readFileSync(resolvedPath, 'utf-8'));
+  if (existing === normalized) {
+    ctx.stats.unchanged++;
+    return;
+  }
+
+  if (ctx.verify) {
+    ctx.stats.outOfDate++;
+    console.log(`⚠ Out of date: ${relative(PACKAGE_ROOT, resolvedPath)}`);
+    return;
+  }
+
+  writeFileSync(resolvedPath, normalized, 'utf-8');
+  ctx.stats.written++;
+  console.log(`✓ Wrote ${relative(PACKAGE_ROOT, resolvedPath)}`);
+}
+
+function cleanStaleGeneratedFiles(ctx: SyncContext): void {
+  if (!existsSync(GENERATED_DIR)) {
+    return;
+  }
+
+  function walk(dir: string): void {
+    const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+
+    for (const entry of entries) {
+      const fullPath = resolve(join(dir, entry.name));
+
+      if (entry.isDirectory()) {
+        walk(fullPath);
+        continue;
+      }
+
+      const ext = extname(entry.name);
+      const isOwned =
+        ext === '.json' || ext === '.ts' || entry.name === '__init__.py';
+      if (!isOwned || ctx.plannedPaths.has(fullPath)) {
+        continue;
+      }
+
+      if (ctx.verify) {
+        ctx.stats.outOfDate++;
+        console.log(
+          `⚠ Out of date (stale): ${relative(PACKAGE_ROOT, fullPath)}`,
+        );
+        continue;
+      }
+
+      rmSync(fullPath);
+      ctx.stats.deleted++;
+      console.log(`✗ Deleted stale ${relative(PACKAGE_ROOT, fullPath)}`);
+    }
+  }
+
+  walk(GENERATED_DIR);
 }
 
 /**
@@ -102,14 +218,18 @@ function discoverSourceFiles(): string[] {
 
       if (entry.isDirectory()) {
         scanDir(fullPath, relPath);
-      } else if (['.ts', '.json', '.csv'].includes(extname(entry.name))) {
+      } else if (
+        entry.name.endsWith('.json') ||
+        entry.name.endsWith('.csv') ||
+        (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts'))
+      ) {
         files.push(relPath);
       }
     }
   }
 
   scanDir(SOURCE_DIR);
-  return files;
+  return files.sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -157,15 +277,28 @@ function pascalCase(str: string): string {
   return camel.charAt(0).toUpperCase() + camel.slice(1);
 }
 
+function trimUnderscores(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === '_') {
+    start++;
+  }
+  while (end > start && value[end - 1] === '_') {
+    end--;
+  }
+  return value.slice(start, end);
+}
+
 /**
  * Convert kebab-case or mixed case to Python snake_case
  */
 function toSnakeCase(str: string): string {
-  return str
-    .replace(/([A-Z])/g, '_$1') // Insert underscore before capitals
-    .replace(/[-_]+/g, '_') // Replace hyphens and multiple underscores with single underscore
-    .toLowerCase()
-    .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+  return trimUnderscores(
+    str
+      .replace(/([A-Z])/g, '_$1')
+      .replace(/[-_]+/g, '_')
+      .toLowerCase(),
+  );
 }
 
 /**
@@ -177,15 +310,11 @@ async function inferTSExportName(tsPath: string): Promise<string> {
     return `default${pascalCase(basename(tsPath, '.ts'))}`;
   }
 
-  try {
-    const content = readFileSync(fullPath, 'utf-8');
-    // Look for: export const defaultAccountTypes = ...
-    const exportMatch = content.match(/export\s+const\s+(\w+)\s*=/);
-    if (exportMatch) {
-      return exportMatch[1];
-    }
-  } catch (error) {
-    // Fallback to filename-based name
+  const content = readFileSync(fullPath, 'utf-8');
+  // Look for: export const defaultAccountTypes = ...
+  const exportMatch = EXPORT_CONST_PATTERN.exec(content);
+  if (exportMatch?.[1]) {
+    return exportMatch[1];
   }
 
   return `default${pascalCase(basename(tsPath, '.ts'))}`;
@@ -214,7 +343,7 @@ async function discoverTSExports(tsPath: string): Promise<string[]> {
       exports.push(exportName);
     }
 
-    return exports;
+    return exports.sort((a, b) => a.localeCompare(b));
   } catch (error) {
     console.warn(`⚠ Could not discover exports from ${tsPath}: ${error}`);
     return [];
@@ -252,7 +381,7 @@ async function loadConfig(): Promise<Map<string, MinimalConfig>> {
 async function loadSchema(
   schemaPath: string,
   exportName: string,
-): Promise<ZodSchema | null> {
+): Promise<ZodType | null> {
   try {
     const fullPath = join(SCHEMA_TS_DIR, `${schemaPath}.ts`);
     if (!existsSync(fullPath)) {
@@ -271,7 +400,7 @@ async function loadSchema(
       return null;
     }
 
-    return schema as ZodSchema;
+    return schema as ZodType;
   } catch (error) {
     console.warn(`⚠ Could not load schema from ${schemaPath}: ${error}`);
     return null;
@@ -381,7 +510,7 @@ async function resolveConfigs(
   const typeName =
     minimalConfig?.typescript?.typeName || pascalCase(exportName);
   const hasSchema = minimalConfig?.schema !== undefined;
-  const defaultEnabled = format === 'ts' || hasSchema;
+  const defaultEnabled = hasSchema;
   const enabled = minimalConfig?.typescript?.enabled ?? defaultEnabled;
   const validate = minimalConfig?.typescript?.validate ?? hasSchema;
 
@@ -450,7 +579,7 @@ function processCSVFile(config: ResolvedConfig): any[] {
 
     if (result.errors.length > 0) {
       const errorMessages = result.errors
-        .map((err) => `Row ${err.row}: ${err.message}`)
+        .map((err: ParseError) => `Row ${err.row}: ${err.message}`)
         .join('; ');
       throw new Error(`CSV parse errors: ${errorMessages}`);
     }
@@ -466,10 +595,11 @@ function processCSVFile(config: ResolvedConfig): any[] {
  * JSON filenames are always in snake_case for consistency
  */
 async function generateJSON(
+  ctx: SyncContext,
   config: ResolvedConfig,
   data: any,
   exportName?: string,
-): Promise<void> {
+): Promise<JsonOutputRef> {
   const outputDir = join(JSON_OUTPUT_DIR, config.domain);
 
   // All JSON files use snake_case for consistency
@@ -484,17 +614,14 @@ async function generateJSON(
 
   const outputFile = join(outputDir, outputFilename);
 
-  // Ensure directory exists
-  mkdirSync(outputDir, { recursive: true });
-
   // Check file size for large files
   const sourcePath = join(SOURCE_DIR, config.source);
   const fileSize = existsSync(sourcePath) ? statSync(sourcePath).size : 0;
 
   if (config.format === 'json' && fileSize > LARGE_FILE_THRESHOLD) {
-    // For large JSON files, copy directly without pretty-printing
-    copyFileSync(sourcePath, outputFile);
-    console.log(`⏩ Large file copied directly (${fileSize} bytes)`);
+    const content = readFileSync(sourcePath, 'utf-8');
+    syncFile(ctx, outputFile, content);
+    console.log(`⏩ Large file synced (${fileSize} bytes)`);
   } else {
     // Keep generated JSON stable with Prettier/lint-staged output.
     const content = await format(JSON.stringify(data), {
@@ -502,10 +629,10 @@ async function generateJSON(
       trailingComma: 'none',
       printWidth: 80,
     });
-    writeFileSync(outputFile, content, 'utf-8');
+    syncFile(ctx, outputFile, content);
   }
 
-  console.log(`✓ Generated ${relative(PACKAGE_ROOT, outputFile)}`);
+  return { domain: config.domain, filename: outputFilename };
 }
 
 /**
@@ -515,6 +642,7 @@ async function generateJSON(
  * Uses modern ESM with { type: 'json' } syntax
  */
 async function generateTSReExport(
+  ctx: SyncContext,
   config: ResolvedConfig,
   data: any,
   exportName?: string,
@@ -531,9 +659,6 @@ async function generateTSReExport(
   }
 
   const outputFile = join(outputDir, outputFilename);
-
-  // Ensure directory exists
-  mkdirSync(outputDir, { recursive: true });
 
   let tsContent: string;
 
@@ -585,14 +710,16 @@ export const ${config.typescript.exportName} = data;
     }
   }
 
-  writeFileSync(outputFile, tsContent, 'utf-8');
-  console.log(`✓ Generated ${relative(PACKAGE_ROOT, outputFile)}`);
+  syncFile(ctx, outputFile, tsContent);
 }
 
 /**
  * Main processing function
  */
-async function processFile(config: ResolvedConfig): Promise<void> {
+async function processFile(
+  ctx: SyncContext,
+  config: ResolvedConfig,
+): Promise<JsonOutputRef> {
   try {
     // Step 1: Process source file to get data
     let data: any;
@@ -616,7 +743,7 @@ async function processFile(config: ResolvedConfig): Promise<void> {
     }
 
     // Step 2: Generate JSON (always)
-    await generateJSON(config, data, exportName);
+    const jsonOutput = await generateJSON(ctx, config, data, exportName);
 
     // Step 3: Generate TS if enabled
     if (config.typescript.enabled) {
@@ -636,29 +763,18 @@ async function processFile(config: ResolvedConfig): Promise<void> {
         }
       }
 
-      await generateTSReExport(config, data, exportName);
+      await generateTSReExport(ctx, config, data, exportName);
     }
+
+    return jsonOutput;
   } catch (error) {
     console.error(`✗ Error processing ${config.source}: ${error}`);
     throw error;
   }
 }
 
-/**
- * Clean generated directories
- */
-function cleanGenerated(): void {
-  if (existsSync(GENERATED_DIR)) {
-    rmSync(GENERATED_DIR, { recursive: true, force: true });
-  }
-}
-
-/**
- * Ensure Python __init__.py files exist for package structure
- * Note: These are minimal placeholders. generatePythonDataHelpers() will overwrite
- * data/generated/json/__init__.py and data/__init__.py with full implementations.
- */
-function ensurePythonInitFiles(domains: string[]): void {
+function ensurePythonInitFiles(ctx: SyncContext, domains: string[]): void {
+  const sortedDomains = [...domains].sort((a, b) => a.localeCompare(b));
   const initFiles = [
     {
       path: join(GENERATED_DIR, '__init__.py'),
@@ -666,82 +782,27 @@ function ensurePythonInitFiles(domains: string[]): void {
     },
   ];
 
-  // Add domain-specific __init__.py files (these won't be overwritten)
-  for (const domain of domains) {
+  for (const domain of sortedDomains) {
     initFiles.push({
       path: join(JSON_OUTPUT_DIR, domain, '__init__.py'),
       content: `"""${domain.charAt(0).toUpperCase() + domain.slice(1)}-related data files."""\n`,
     });
   }
 
-  // Create all __init__.py files (only if they don't exist)
   for (const { path, content } of initFiles) {
-    // Ensure parent directory exists
-    const parentDir = dirname(path);
-    if (!existsSync(parentDir)) {
-      mkdirSync(parentDir, { recursive: true });
-    }
-
-    // Create __init__.py if it doesn't exist or was deleted
-    if (!existsSync(path)) {
-      writeFileSync(path, content, 'utf-8');
-      console.log(`✓ Created ${relative(PACKAGE_ROOT, path)}`);
-    }
+    syncFile(ctx, path, content);
   }
 }
 
-/**
- * Discover all JSON files recursively in data/generated/json/
- */
-function discoverJSONFiles(): Array<{
-  domain: string;
-  filename: string;
-  path: string;
-}> {
-  const jsonFiles: Array<{ domain: string; filename: string; path: string }> =
-    [];
-
-  function scanDir(dir: string, domain: string = '') {
-    if (!existsSync(dir)) {
-      return;
-    }
-
-    const entries = readdirSync(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        // Domain directory
-        scanDir(fullPath, entry.name);
-      } else if (entry.name.endsWith('.json')) {
-        // JSON file
-        const currentDomain = domain || 'root';
-        jsonFiles.push({
-          domain: currentDomain,
-          filename: entry.name,
-          path: fullPath,
-        });
-      }
-    }
-  }
-
-  scanDir(JSON_OUTPUT_DIR);
-  return jsonFiles;
-}
-
-/**
- * Generate Python helper functions for loading JSON data files
- */
-function generatePythonDataHelpers(): void {
-  const jsonFiles = discoverJSONFiles();
-
-  if (jsonFiles.length === 0) {
+function generatePythonDataHelpers(
+  ctx: SyncContext,
+  jsonOutputs: JsonOutputRef[],
+): void {
+  if (jsonOutputs.length === 0) {
     console.log('⚠ No JSON files found to generate helpers for');
     return;
   }
 
-  // Build helper functions for each JSON file
   const helpers: Array<{
     name: string;
     getterName: string;
@@ -749,7 +810,14 @@ function generatePythonDataHelpers(): void {
     filename: string;
   }> = [];
 
-  for (const { domain, filename } of jsonFiles) {
+  const sortedOutputs = [...jsonOutputs].sort((a, b) => {
+    if (a.domain !== b.domain) {
+      return a.domain.localeCompare(b.domain);
+    }
+    return a.filename.localeCompare(b.filename);
+  });
+
+  for (const { domain, filename } of sortedOutputs) {
     const fileBasename = basename(filename, '.json');
     const pythonName = toSnakeCase(fileBasename);
     const getterName = `get_${pythonName}`;
@@ -819,10 +887,7 @@ ${helpers.map((h) => `    "${h.getterName}",\n    "${h.name}",`).join('\n')}
 ]
 `;
 
-  writeFileSync(jsonInitPath, jsonInitContent, 'utf-8');
-  console.log(
-    `✓ Generated ${relative(PACKAGE_ROOT, jsonInitPath)} with ${helpers.length} data helpers`,
-  );
+  syncFile(ctx, jsonInitPath, jsonInitContent);
 
   // Generate data/__init__.py
   const dataInitPath = join(DATA_ROOT, '__init__.py');
@@ -830,10 +895,8 @@ ${helpers.map((h) => `    "${h.getterName}",\n    "${h.name}",`).join('\n')}
   const exports: string[] = [];
 
   for (const helper of helpers) {
-    imports.push(`    ${helper.getterName},`);
-    imports.push(`    ${helper.name},`);
-    exports.push(`    "${helper.getterName}",`);
-    exports.push(`    "${helper.name}",`);
+    imports.push(`    ${helper.getterName},`, `    ${helper.name},`);
+    exports.push(`    "${helper.getterName}",`, `    "${helper.name}",`);
   }
 
   const dataInitContent = `"""Data files shared between TypeScript and Python."""
@@ -847,16 +910,14 @@ ${exports.join('\n')}
 ]
 `;
 
-  writeFileSync(dataInitPath, dataInitContent, 'utf-8');
-  console.log(
-    `✓ Generated ${relative(PACKAGE_ROOT, dataInitPath)} with ${helpers.length} data exports`,
-  );
+  syncFile(ctx, dataInitPath, dataInitContent);
 }
 
 /**
  * Generate main data index file
  */
 async function generateDataIndex(
+  ctx: SyncContext,
   generatedFiles: GeneratedFile[],
 ): Promise<void> {
   const indexPath = join(DATA_ROOT, 'index.ts');
@@ -930,21 +991,100 @@ ${jsonExports.length > 0 ? '\n// JSON exports\n' + jsonExports.join('\n') : ''}
     printWidth: 80,
   });
 
-  writeFileSync(indexPath, content, 'utf-8');
-  console.log(`✓ Generated ${relative(PACKAGE_ROOT, indexPath)}`);
+  syncFile(ctx, indexPath, content);
 }
 
-/**
- * Main function
- */
-async function main() {
-  const args = process.argv.slice(2);
-  const shouldClean = !args.includes('--no-clean');
-
-  if (shouldClean) {
-    console.log('Cleaning generated directories...');
-    cleanGenerated();
+function logAutoDiscovery(
+  sourcePath: string,
+  configs: ResolvedConfig[],
+  explicit: MinimalConfig | undefined,
+): void {
+  if (explicit) {
+    return;
   }
+
+  const exportCount = configs.length;
+  if (exportCount > 1) {
+    console.log(`ℹ Auto-discovered: ${sourcePath} (${exportCount} exports)`);
+    return;
+  }
+
+  console.log(`ℹ Auto-discovered: ${sourcePath} (using defaults)`);
+}
+
+async function resolveAllConfigs(
+  discoveredFiles: string[],
+  explicitConfig: Map<string, MinimalConfig>,
+): Promise<ResolvedConfig[]> {
+  const resolvedConfigs: ResolvedConfig[] = [];
+
+  for (const sourcePath of discoveredFiles) {
+    const explicit = explicitConfig.get(sourcePath);
+    const configs = await resolveConfigs(explicit, sourcePath);
+    resolvedConfigs.push(...configs);
+    logAutoDiscovery(sourcePath, configs, explicit);
+  }
+
+  return resolvedConfigs;
+}
+
+function toGeneratedFile(config: ResolvedConfig): GeneratedFile {
+  const fileBasename =
+    config.format === 'ts' && config.typescript.exportName
+      ? config.typescript.exportName
+      : basename(config.source, extname(config.source));
+
+  if (config.typescript.enabled) {
+    return {
+      domain: config.domain,
+      basename: fileBasename,
+      hasTSExport: true,
+      tsExportName: config.typescript.exportName,
+    };
+  }
+
+  return {
+    domain: config.domain,
+    basename: fileBasename,
+    hasTSExport: false,
+  };
+}
+
+async function processAllConfigs(
+  ctx: SyncContext,
+  resolvedConfigs: ResolvedConfig[],
+): Promise<{
+  generatedFiles: GeneratedFile[];
+  jsonOutputs: JsonOutputRef[];
+  domains: Set<string>;
+}> {
+  const generatedFiles: GeneratedFile[] = [];
+  const jsonOutputs: JsonOutputRef[] = [];
+  const domains = new Set<string>();
+
+  for (const config of resolvedConfigs) {
+    const jsonOutput = await processFile(ctx, config);
+    jsonOutputs.push(jsonOutput);
+    domains.add(config.domain);
+    generatedFiles.push(toGeneratedFile(config));
+  }
+
+  return { generatedFiles, jsonOutputs, domains };
+}
+
+function printSyncSummary(ctx: SyncContext, verify: boolean): void {
+  const mode = verify ? 'Verify' : 'Sync';
+  const outOfDateSuffix = verify ? `, ${ctx.stats.outOfDate} out of date` : '';
+  console.log(
+    `✅ ${mode}: ${ctx.stats.written} written, ${ctx.stats.unchanged} unchanged, ${ctx.stats.deleted} deleted${outOfDateSuffix}`,
+  );
+}
+
+async function main() {
+  const args = new Set(process.argv.slice(2));
+  const verify = args.has('--verify');
+  const clean = args.has('--clean');
+  const ctx = createSyncContext(verify, clean);
 
   console.log('Discovering source files...');
   const discoveredFiles = discoverSourceFiles();
@@ -960,72 +1100,41 @@ async function main() {
   const explicitConfig = await loadConfig();
 
   console.log('Resolving configs...');
-  const resolvedConfigs: ResolvedConfig[] = [];
-
-  for (const sourcePath of discoveredFiles) {
-    const explicit = explicitConfig.get(sourcePath);
-    const configs = await resolveConfigs(explicit, sourcePath);
-    resolvedConfigs.push(...configs);
-
-    if (!explicit) {
-      const exportCount = configs.length;
-      if (exportCount > 1) {
-        console.log(
-          `ℹ Auto-discovered: ${sourcePath} (${exportCount} exports)`,
-        );
-      } else {
-        console.log(`ℹ Auto-discovered: ${sourcePath} (using defaults)`);
-      }
-    }
-  }
+  const resolvedConfigs = await resolveAllConfigs(
+    discoveredFiles,
+    explicitConfig,
+  );
 
   console.log('Processing files...');
-  const generatedFiles: GeneratedFile[] = [];
-  const domains = new Set<string>();
-
-  for (const config of resolvedConfigs) {
-    await processFile(config);
-    domains.add(config.domain);
-
-    // Track generated files for index
-    // For TS files, use export name as basename; for others, use original filename
-    let fileBasename: string;
-    if (config.format === 'ts' && config.typescript.exportName) {
-      fileBasename = config.typescript.exportName;
-    } else {
-      fileBasename = basename(config.source, extname(config.source));
-    }
-
-    if (config.typescript.enabled) {
-      generatedFiles.push({
-        domain: config.domain,
-        basename: fileBasename,
-        hasTSExport: true,
-        tsExportName: config.typescript.exportName,
-      });
-    } else {
-      // File has JSON but no TS export
-      generatedFiles.push({
-        domain: config.domain,
-        basename: fileBasename,
-        hasTSExport: false,
-      });
-    }
-  }
+  const { generatedFiles, jsonOutputs, domains } = await processAllConfigs(
+    ctx,
+    resolvedConfigs,
+  );
 
   console.log('Ensuring Python __init__.py files...');
-  ensurePythonInitFiles(Array.from(domains));
+  ensurePythonInitFiles(ctx, Array.from(domains));
 
   console.log('Generating Python data helpers...');
-  generatePythonDataHelpers();
+  generatePythonDataHelpers(ctx, jsonOutputs);
 
   console.log('Generating index file...');
-  await generateDataIndex(generatedFiles);
+  await generateDataIndex(ctx, generatedFiles);
 
-  console.log('✓ Data generation complete');
+  if (clean) {
+    console.log('Cleaning stale generated files...');
+    cleanStaleGeneratedFiles(ctx);
+  }
+
+  printSyncSummary(ctx, verify);
+
+  if (verify && ctx.stats.outOfDate > 0) {
+    process.exit(1);
+  }
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error('Fatal error:', error);
   process.exit(1);
-});
+}

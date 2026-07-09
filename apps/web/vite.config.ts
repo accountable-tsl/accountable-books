@@ -28,11 +28,7 @@ const isStaging = env === 'staging';
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [['babel-plugin-react-compiler']],
-      },
-    }),
+    react(),
     tailwindcss(),
     // Only add dev server messages in development
     ...(isDev ? [devServerMessages()] : []),

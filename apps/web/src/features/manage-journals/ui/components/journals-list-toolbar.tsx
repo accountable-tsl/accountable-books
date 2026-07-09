@@ -69,7 +69,7 @@ export function JournalsListToolbar({
   onResetFilters: () => void;
   onCreateJournal?: () => void;
   onImportClick?: () => void;
-  searchInputRef?: RefObject<HTMLInputElement>;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
   showStatusOptions?: boolean;
 }) {
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');

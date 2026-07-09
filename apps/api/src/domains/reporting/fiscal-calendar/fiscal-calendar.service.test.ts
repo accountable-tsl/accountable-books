@@ -141,7 +141,9 @@ describe('fiscal period lifecycle', () => {
       trx,
     });
     expect(openLock.success).toBe(false);
-    expect(openLock.message).toContain('must be closed before it can be locked');
+    expect(openLock.message).toContain(
+      'must be closed before it can be locked',
+    );
 
     const close = await closeFiscalPeriod({
       companyId: fixture.companyId,
@@ -244,7 +246,8 @@ async function createFixture(
       created_by_id: user.id,
     })
     .returning<{ id: string }[]>('id');
-  if (!company) throw new Error('Failed to create fiscal calendar test company');
+  if (!company)
+    throw new Error('Failed to create fiscal calendar test company');
 
   await fiscalCalendarService.generateCompanyFiscalCalendar({
     companyId: company.id,

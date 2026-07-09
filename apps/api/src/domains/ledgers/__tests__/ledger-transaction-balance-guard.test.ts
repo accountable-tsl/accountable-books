@@ -70,7 +70,9 @@ describe('ledger transaction balance guard', () => {
       sourceAmount: -100,
     });
 
-    await expect(trx.raw('SET CONSTRAINTS ALL IMMEDIATE')).resolves.toBeTruthy();
+    await expect(
+      trx.raw('SET CONSTRAINTS ALL IMMEDIATE'),
+    ).resolves.toBeTruthy();
   });
 });
 
@@ -112,7 +114,8 @@ async function createFixture(
       created_by_id: user.id,
     })
     .returning<{ id: string }[]>('id');
-  if (!company) throw new Error('Failed to create ledger balance guard company');
+  if (!company)
+    throw new Error('Failed to create ledger balance guard company');
 
   const accountTypes = await getAccountTypeIds(trx, [
     'ca_bank',

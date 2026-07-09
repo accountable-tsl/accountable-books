@@ -1,7 +1,7 @@
 import type {
   CategorizationTransaction,
-  LedgerPostingIntent,
   LedgerIntentEntry,
+  LedgerPostingIntent,
 } from '@accountable-books/contracts/schema';
 
 import { toYMD } from '../../shared/utils/date.utils.js';

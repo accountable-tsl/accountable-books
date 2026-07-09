@@ -1,3 +1,5 @@
+import type { ReactElement } from 'react';
+
 import './FallbackView.scss';
 
 type FallbackViewType =
@@ -16,7 +18,7 @@ interface FallbackViewProps {
 
 interface FallbackViewErrorTypes {
   [key: string]: {
-    icon: string | JSX.Element;
+    icon: string | ReactElement;
     title: string;
     message: string;
   };
@@ -26,7 +28,7 @@ export default function FallbackView({
   customMessage = '',
   supportEmail = 'hello@accountable.global',
   customClass = '',
-}: FallbackViewProps) {
+}: Readonly<FallbackViewProps>) {
   const errorTypes: FallbackViewErrorTypes = {
     default: {
       icon: '🤷',
@@ -61,9 +63,7 @@ export default function FallbackView({
     <div className={`fbv fbv-${type} ${customClass}`}>
       <div className="fbv-icon">{config.icon}</div>
       <div className="fbv-title">{config.title}</div>
-      <p className="fbv-message">
-        {customMessage ? customMessage : config.message}
-      </p>
+      <p className="fbv-message">{customMessage || config.message}</p>
       {type !== 'screenSize' && (
         <div>
           <button onClick={() => (window.location.href = '/')}>

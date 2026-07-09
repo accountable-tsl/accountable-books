@@ -1,6 +1,5 @@
 import './Popup.scss';
 
-import type { RefObject } from 'react';
 import { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 
@@ -14,7 +13,7 @@ interface PopupProps {
 export default function Popup({ popupId, children }: PopupProps) {
   const { popups, componentPopups, closePopup } = usePopup();
 
-  const popupRef: RefObject<HTMLDivElement> = useRef(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   const isVisible =
     popups.includes(popupId) || componentPopups.some((p) => p.id === popupId);

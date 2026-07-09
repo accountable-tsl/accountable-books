@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { SYSTEM_USER_ID } from '../../../../bootstrap/phases/users.bootstrap.js';
 import { getTestDb } from '../../../../../config/test-db.js';
+import { SYSTEM_USER_ID } from '../../../../bootstrap/phases/users.bootstrap.js';
 import { getBankProviderMapping } from '../bankProviderMappings.model.js';
 
 type Fixture = {

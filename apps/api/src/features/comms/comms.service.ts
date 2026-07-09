@@ -235,10 +235,7 @@ export async function purgeTerminalCommsDeliveries(
     .delete();
 
   if (deleted > 0) {
-    logger.info(
-      { deleted, retentionDays },
-      'Purged terminal comms deliveries',
-    );
+    logger.info({ deleted, retentionDays }, 'Purged terminal comms deliveries');
   }
 
   return { deleted, retentionDays };

@@ -2714,7 +2714,8 @@ export function JournalDetailPane({
                         }
                         title={`${detail.relatedJournals.originalJournal!.title} (${detail.relatedJournals.originalJournal!.date})`}
                       >
-                        {detail.relatedJournals.originalJournal!.systemReference ??
+                        {detail.relatedJournals.originalJournal!
+                          .systemReference ??
                           detail.relatedJournals.originalJournal!.title}
                       </button>
                     </span>
@@ -2733,7 +2734,8 @@ export function JournalDetailPane({
                         }
                         title={`${detail.relatedJournals.reversalJournal!.title} (${detail.relatedJournals.reversalJournal!.date})`}
                       >
-                        {detail.relatedJournals.reversalJournal!.systemReference ??
+                        {detail.relatedJournals.reversalJournal!
+                          .systemReference ??
                           detail.relatedJournals.reversalJournal!.title}
                       </button>
                     </span>

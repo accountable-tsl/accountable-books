@@ -3,9 +3,12 @@ import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDb } from '../../../../config/test-db.js';
+import {
+  createLedgerRecord,
+  supersedeLedgerTransaction,
+} from '../../ledgers/index.js';
 import { setCompanySettings } from '../../settings/settings.service.js';
 import { reverseFxPositionMovementsForLedgerTransaction } from '../fx.service.js';
-import { createLedgerRecord, supersedeLedgerTransaction } from '../../ledgers/index.js';
 
 import type { NewLedgerTransactionData } from '../../ledgers/index.js';
 
@@ -80,15 +83,17 @@ describe('FX positions', () => {
       .where({ company_id: fixture.companyId })
       .orderBy('created_at');
     expect(movements).toHaveLength(2);
-    expect(movements.every((movement) => movement.movement_type === 'opened')).toBe(
-      true,
-    );
-    expect(movements.every((movement) => movement.source_type === 'ledger_entry')).toBe(
-      true,
-    );
-    expect(movements.every((movement) => movement.source_id === movement.ledger_entry_id)).toBe(
-      true,
-    );
+    expect(
+      movements.every((movement) => movement.movement_type === 'opened'),
+    ).toBe(true);
+    expect(
+      movements.every((movement) => movement.source_type === 'ledger_entry'),
+    ).toBe(true);
+    expect(
+      movements.every(
+        (movement) => movement.source_id === movement.ledger_entry_id,
+      ),
+    ).toBe(true);
     expect(movements.every((movement) => movement.ledger_entry_id)).toBe(true);
   });
 
@@ -137,7 +142,9 @@ describe('FX positions', () => {
       movements.filter((movement) => movement.movement_type === 'reversed'),
     ).toHaveLength(2);
     expect(
-      movements.filter((movement) => movement.source_type === 'ledger_reversal'),
+      movements.filter(
+        (movement) => movement.source_type === 'ledger_reversal',
+      ),
     ).toHaveLength(2);
   });
 

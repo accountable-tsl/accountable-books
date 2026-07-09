@@ -39,7 +39,7 @@ const intentScope = z.enum(['entry', 'group']);
 export type IntentScope = z.infer<typeof intentScope>;
 
 const updateDescriptionPayload = z.object({
-  scope: intentScope,
+  scope: z.literal('entry'),
   entryId: z.string().optional(),
   value: z.string(),
 });
@@ -145,7 +145,7 @@ export interface Intent<T extends IntentActionType = IntentActionType> {
  *
  * Examples:
  * - UPDATE_DESCRIPTION:entry_123
- * - UPDATE_DESCRIPTION:group
+ * - UPDATE_REFERENCE:group
  * - UPDATE_FX_RATE:bank_tx_456
  */
 export function buildIntentKey(

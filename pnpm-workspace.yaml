@@ -10,6 +10,7 @@ allowBuilds:
   '@scarf/scarf': true
   '@sentry-internal/node-cpu-profiler': true
   '@sentry/cli': true
+  '@sentry/node-cpu-profiler': true
   bcrypt: true
   core-js: true
   esbuild: true
@@ -17,3 +18,5 @@ allowBuilds:
   msw: true
   protobufjs: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - schemabridge@0.4.0

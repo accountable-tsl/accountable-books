@@ -70,10 +70,7 @@ export async function up(knex: Knex): Promise<void> {
     table.decimal('unrealized_gain_loss_amount', 18, 3).nullable();
     table.uuid('reversal_of_movement_id').nullable();
 
-    table
-      .jsonb('metadata')
-      .notNullable()
-      .defaultTo(knex.raw(`'{}'::jsonb`));
+    table.jsonb('metadata').notNullable().defaultTo(knex.raw(`'{}'::jsonb`));
 
     table
       .uuid('created_by_id')

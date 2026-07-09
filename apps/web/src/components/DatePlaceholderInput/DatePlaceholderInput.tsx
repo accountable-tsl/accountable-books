@@ -81,7 +81,7 @@ export default function DatePlaceholderInput({
 interface UsePlaceholderInput {
   value: string;
   setValue: (value: string) => void;
-  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>;
+  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
 }
 
 export const usePlaceholderInput = ({

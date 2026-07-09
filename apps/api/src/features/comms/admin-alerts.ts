@@ -33,7 +33,9 @@ function adminAlertRecipients(): Array<{ channel: 'email'; address: string }> {
     .filter(Boolean);
 
   if (recipients.length === 0) {
-    throw new Error('ADMIN_ALERT_EMAILS must include at least one email address');
+    throw new Error(
+      'ADMIN_ALERT_EMAILS must include at least one email address',
+    );
   }
 
   return recipients.map((address) => {
