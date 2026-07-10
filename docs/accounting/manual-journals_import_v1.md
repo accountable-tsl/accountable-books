@@ -1,9 +1,9 @@
 # Manual Journals CSV Import (v1) — Plan (Preflight + Import)
 
-This document defines the end-to-end CSV import flow for manual journals, with emphasis on safety (no accidental posting), performance (max 5000 lines), and security (server-side validation + company scoping).
+> **Status:** Implemented (backend preflight + import)
+> **Last updated:** 2026-02-04
 
-Status: Backend implemented (preflight + import)
-Last updated: 2026-02-04
+This document defines the end-to-end CSV import flow for manual journals, with emphasis on safety (no accidental posting), performance (max 5000 lines), and security (server-side validation + company scoping).
 
 ---
 

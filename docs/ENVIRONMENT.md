@@ -4,16 +4,20 @@ This guide explains all environment variables used in Accountable Books and how 
 
 ## Quick Start
 
-For local development, the default `.env.example` files work out-of-the-box:
+For local development, generate service `.env.local` files from the env schemas:
 
 ```bash
-make setup  # Automatically copies .env.example files and sets up environment
+make setup    # Runs pnpm generate-env (among other setup steps)
+# or
+make install  # Deps + generate-env only
+# or
+pnpm run generate-env
 ```
 
 ## Environment Files
 
-- **API**: `apps/api/.env.local` (copied from `apps/api/.env.example`)
-- **Web**: `apps/web/.env.local` (copied from `apps/web/.env.example`)
+- **API**: `apps/api/.env.local` (generated from `apps/api/config/env-schema.ts`)
+- **Web**: `apps/web/.env.local` (generated from `apps/web/config/env-schema.ts`)
 
 ## API Environment Variables
 
@@ -21,26 +25,27 @@ make setup  # Automatically copies .env.example files and sets up environment
 
 These variables have working defaults but you may want to customize them:
 
-| Variable       | Default                 | Description         |
-| -------------- | ----------------------- | ------------------- |
-| `NODE_ENV`     | `local`                 | Runtime environment |
-| `PORT`         | `5000`                  | API server port     |
-| `BACKEND_URL`  | `http://localhost:5000` | Full backend URL    |
-| `FRONTEND_URL` | `http://localhost:5173` | Full frontend URL   |
+| Variable        | Default                  | Description         |
+| --------------- | ------------------------ | ------------------- |
+| `NODE_ENV`      | `local`                  | Runtime environment |
+| `PORT`          | `5000`                   | API server port     |
+| `BACKEND_URL`   | `http://api.lvh.me:5000` | Full backend URL    |
+| `FRONTEND_URL`  | `http://app.lvh.me:5173` | Full frontend URL   |
+| `COOKIE_DOMAIN` | `.lvh.me`                | Cookie domain       |
 
 ### 🐳 Database Configuration
 
 These match the Docker Compose setup and work out-of-the-box:
 
-| Variable       | Default                                                     | Description                            |
-| -------------- | ----------------------------------------------------------- | -------------------------------------- |
-| `DB_HOST`      | `localhost`                                                 | Database host                          |
-| `DB_PORT`      | `5433`                                                      | Database port (Docker exposes on 5433) |
-| `DB_NAME`      | `accountable_books`                                         | Database name                          |
-| `DB_USER`      | `user`                                                      | Database user                          |
-| `DB_PASSWORD`  | `password`                                                  | Database password                      |
-| `DATABASE_URL` | `postgres://user:password@localhost:5433/accountable_books` | Full connection string                 |
-| `REDIS_URL`    | `redis://localhost:6380`                                    | Redis connection string                |
+| Variable            | Default                                                       | Description                            |
+| ------------------- | ------------------------------------------------------------- | -------------------------------------- |
+| `DB_HOST`           | `localhost`                                                   | Database host                          |
+| `DB_PORT`           | `5433`                                                        | Database port (Docker exposes on 5433) |
+| `POSTGRES_DB`       | `accountable_books`                                           | Database name                          |
+| `POSTGRES_USER`     | `user`                                                        | Database user                          |
+| `POSTGRES_PASSWORD` | `password`                                                    | Database password                      |
+| `DATABASE_URL`      | `postgresql://user:password@localhost:5433/accountable_books` | Full connection string                 |
+| `REDIS_URL`         | `redis://localhost:6380`                                      | Redis connection string                |
 
 ### 🔐 Security Configuration
 
@@ -56,13 +61,13 @@ These have development defaults but **must be changed for production**:
 
 Leave empty for development (emails will be logged to console):
 
-| Variable            | Default         | Description                     |
-| ------------------- | --------------- | ------------------------------- |
-| `EMAIL_PROVIDER`    | `postmark`      | Email service provider          |
-| `POSTMARK_API_KEY`  | _(empty)_       | Postmark API key for production |
-| `EMAIL_FROM`        | `mail@mail.com` | From email address              |
-| `ETHEREAL_EMAIL`    | _(empty)_       | Ethereal test email username    |
-| `ETHEREAL_PASSWORD` | _(empty)_       | Ethereal test email password    |
+| Variable            | Default                      | Description                     |
+| ------------------- | ---------------------------- | ------------------------------- |
+| `EMAIL_PROVIDER`    | `dev`                        | Email service provider          |
+| `POSTMARK_API_KEY`  | _(empty)_                    | Postmark API key for production |
+| `EMAIL_FROM`        | `support@getaccountable.com` | From email address              |
+| `ETHEREAL_EMAIL`    | _(empty)_                    | Ethereal test email username    |
+| `ETHEREAL_PASSWORD` | _(empty)_                    | Ethereal test email password    |
 
 ### 📱 Optional: Slack Integration
 
@@ -91,9 +96,10 @@ Leave empty for development (emails will be logged to console):
 
 ### ✅ Required
 
-| Variable           | Default                 | Description     |
-| ------------------ | ----------------------- | --------------- |
-| `VITE_BACKEND_URL` | `http://localhost:5000` | API backend URL |
+| Variable           | Default                  | Description       |
+| ------------------ | ------------------------ | ----------------- |
+| `VITE_BACKEND_URL` | `http://api.lvh.me:5000` | API backend URL   |
+| `VITE_BASE_DOMAIN` | `lvh.me`                 | Local base domain |
 
 ### 🔌 Optional: Third-party Integrations
 

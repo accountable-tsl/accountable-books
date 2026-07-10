@@ -1,5 +1,8 @@
 # Company access model (origins and support tooling)
 
+> **Status:** Implemented
+> **Purpose:** Access origins and permission levels (firm, demo, support, break-glass).
+
 ## Purpose
 
 Company access was moved from “this user can reach this company” to **every company access has a clear origin and a clear permission level**. The API can distinguish:

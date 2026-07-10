@@ -1,5 +1,8 @@
 # Manual Journals v1 - Implementation Spec
 
+> **Status:** Implemented (see status table below)
+> **Purpose:** Manual journals list/create/void/reverse/copy, recurring hooks, import, audit.
+
 ## Overview
 
 Manual journals allow accountants to record transactions that don't flow through the bank statement (depreciation, revenue accruals, adjustments, etc.). Double-entry: debits = credits, net = 0.

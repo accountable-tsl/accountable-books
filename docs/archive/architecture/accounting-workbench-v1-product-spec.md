@@ -1,8 +1,10 @@
-# Accounting Workbench v1 Product Spec
+# Accounting Workbench v1 Product Spec (Archived)
 
-Status: Draft for iteration
-Last updated: February 20, 2026
-Owner: Product + Design + Engineering
+> **Archive status:** Historical product/UX spec — keep for reference; not day-to-day Books guidance.
+> **Original status:** Draft for iteration
+> **Last updated:** February 20, 2026
+> **Owner:** Product + Design + Engineering
+> See [docs index](../../README.md#archive).
 
 ## 0. Reader Guide
 

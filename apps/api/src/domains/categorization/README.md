@@ -12,15 +12,15 @@ Bank Transaction Added
     ↓
 [4] Rules Engine:
     - Run deterministic rules
-    - If match → handlePostPrediction() → processPredictionsToCandidates()
+    - If match → handlePostPrediction() → processPredictionToCandidate()
     - Check if ML should run
     ↓
 [5] ML Prediction (if needed):
     - Call ML Engine API
     - Assemble journal lines
-    - processPredictionsToCandidates() (to be implemented)
+    - handlePostPrediction() → processPredictionToCandidate()
     ↓
-[6] Post-Prediction Processing (processPredictionsToCandidates):
+[6] Post-Prediction Processing (processPredictionToCandidate):
     - Validate data consistency (company IDs, bank transaction IDs)
     - Persist prediction (what rule/ML engine decided, WITHOUT bank leg)
     - Validate bank transaction exists and belongs to company
@@ -65,11 +65,11 @@ Bank Transaction Added
 **Implementation**:
 
 - `buildPredictionFromRuleResult()` creates predictions without bank legs
-- `processPredictionsToCandidates()` adds the bank leg when building the complete journal entry
+- `processPredictionToCandidate()` adds the bank leg when building the complete journal entry
 
 ### Simplified Flow with Built-in Conflict Resolution
 
-**Decision**: The new flow uses `persistCategorizationCandidate()` which handles candidate conflicts automatically.
+**Decision**: The flow uses `persistCategorizationCandidate()` which handles candidate conflicts automatically.
 
 **Rationale**:
 
@@ -80,7 +80,7 @@ Bank Transaction Added
 
 **Flow**:
 
-1. `handlePostPrediction()` routes to appropriate handler based on source
-2. `handleRulePrediction()` logs events and calls `processPredictionsToCandidates()` if rules applied
-3. `processPredictionsToCandidates()` validates, persists prediction, builds journal entry, validates constraints, and persists candidate
+1. `handlePostPrediction()` routes by source, persists prediction via `persistPredictionOnly()`, then calls `processPredictionToCandidate()`
+2. `handleRulePrediction()` builds prediction data from rule results
+3. `processPredictionToCandidate()` validates, builds journal entry, validates constraints, and persists candidate
 4. `persistCategorizationCandidate()` handles conflicts and persistence automatically

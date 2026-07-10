@@ -1,9 +1,9 @@
-# Accountable SUITE DESIGN, Focus Accountable Engage - Design Document
+# Accountable Engage — Design Document (Archived)
 
-> **Status**: Design Phase - Not Yet Implemented  
-> **Purpose**: CRM and Engagement Management System for Accounting Firms  
-> **Integration**: Will integrate with Accountable Books via APIs  
-> **Future Tech Stack**: Go (backend), PostgreSQL (shared database)
+> **Archive status:** Historical / future product — not Accountable Books implementation guidance.
+> **Original status:** Design phase — not yet implemented
+> **Purpose:** CRM and engagement management for accounting firms (separate product concept)
+> See [docs index](../../README.md#archive).
 
 ## Executive Summary
 

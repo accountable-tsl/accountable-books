@@ -1,7 +1,8 @@
 # Transaction Work Story
 
-Status: Draft for product/engineering alignment
-Owner: Product + Engineering
+> **Status:** Draft
+> **Owner:** Product + Engineering
+> **Purpose:** Plain-language product narrative for transaction → work.
 
 This document tells the product story in plain language. The companion lifecycle reference is [Work Items and Transaction Lifecycle](./work-items-and-transaction-lifecycle.md).
 

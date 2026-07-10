@@ -1,7 +1,8 @@
 # Transaction Flow To Work Queue Build Map
 
-Status: Draft implementation map; Phases 0/1/2/3/4 implemented; Phase 5 partially implemented
-Owner: Product + Engineering
+> **Status:** Draft implementation map (Phases 0–4 implemented; Phase 5 partial)
+> **Owner:** Product + Engineering
+> **Purpose:** Source transactions → ledger → close checks → queue → activity → notifications.
 
 This document is the implementable companion to [Transaction Work Story](./transaction-work-story.md) and [Work Items and Transaction Lifecycle](./work-items-and-transaction-lifecycle.md).
 

@@ -1,4 +1,8 @@
-Deleting a Batch of Bank Transactions
+> **Status:** Design note (rough)
+> **Purpose:** Soft-delete bank batches via reversing journals; GL remains immutable.
+> Verify against banking/ledger delete flows before treating as source of truth. See [docs index](../README.md).
+
+# Deleting a Batch of Bank Transactions
 
 Principle: GL is immutable. “Delete batch” means post reversing journals that nullify the batch. We soft-delete bank rows. We never recalc FX inside balances. Snapshots only re-sum posted facts.
 

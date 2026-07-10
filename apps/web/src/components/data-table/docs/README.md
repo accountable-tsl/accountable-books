@@ -1,6 +1,6 @@
 # DataTable Component
 
-A flexible, highly composable, and fuly-featured data table built on top of [`@tanstack/react-table`](https://tanstack.com/table/latest), using `shadcn/ui` components and custom primitives for maximum control.
+A flexible, highly composable, and fully-featured data table built on top of [`@tanstack/react-table`](https://tanstack.com/table/latest), using `shadcn/ui` components and custom primitives for maximum control.
 
 ### 🔍 Features at a Glance
 
@@ -110,6 +110,4 @@ You can customize things like:
 
 ## 🧰 Customization
 
-The customOptions object passed into useDataTable() enables full control of behaviors.
-
-More details on configuration coming soon.
+The `customOptions` object passed into `useDataTable()` enables full control of behaviors. See [EXAMPLES.md](./EXAMPLES.md) for row viewing, virtualization, and toolbar patterns.

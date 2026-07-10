@@ -1,7 +1,8 @@
 # Work Items and Transaction Lifecycle
 
-Status: Draft for product/engineering alignment
-Owner: Product + Engineering
+> **Status:** Draft
+> **Owner:** Product + Engineering
+> **Purpose:** Work queue rules and transaction lifecycle model.
 
 This document defines the lifecycle model, work item rules, and recommended system changes. For the plain-language product narrative, read [Transaction Work Story](./transaction-work-story.md). For the source-to-queue implementation map, read [Transaction Flow To Work Queue Build Map](./transaction-flow-to-work-queue-build-map.md).
 

@@ -1,5 +1,8 @@
 # Frontend Structure Guide
 
+> **Status:** Implemented guide
+> **Purpose:** Web app layering (`features` / `modules`) while migrating and building features.
+
 A pragmatic, repeatable structure for organizing the web app. Use this as the source of truth while migrating code and building new features.
 
 ## Purpose

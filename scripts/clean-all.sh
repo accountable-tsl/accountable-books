@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Nuclear monorepo cleanup: deps, lockfiles, build artifacts, caches, Python venvs.
-# Does not remove .env files. Invoked from repo root via `make clean-all`.
+# Nuclear monorepo cleanup: deps, build artifacts, caches, Python venvs.
+# Does not remove lockfiles or .env files. Invoked from repo root via `make clean-all`.
 
 set -uo pipefail
 
@@ -29,14 +29,7 @@ shopt -s nullglob
 log '🗑️ Removing node_modules...'
 rm -rf node_modules apps/*/node_modules packages/*/node_modules || true
 
-log '🗑️ Removing JS lockfiles (pnpm / npm / yarn)...'
-find_prune -type f \( \
-  -name 'pnpm-lock.yaml' -o -name 'package-lock.json' -o -name 'yarn.lock' -o \
-  -name 'npm-shrinkwrap.json' \) -delete
-
-log '🗑️ Removing Python lockfiles (pipenv / pdm; preserving uv.lock)...'
-find_prune -type f \( \
-  -name 'Pipfile.lock' -o -name 'pdm.lock' \) -delete
+log '🔒 Preserving lockfiles...'
 
 log '🗑️ Removing build outputs, bundler caches, deploy metadata, generated trees...'
 rm -rf \
@@ -85,14 +78,14 @@ on_exit() {
   [[ "$ec" -eq 0 ]] && return 0
   printf '\n%b\n' "${RED}clean-all stopped with exit code ${ec} (see output above).${NC}"
   printf '%b\n' "${YELLOW}Artifacts are already removed. After fixing the issue, run:${NC}"
-  printf '  %b\n' "${GREEN}pnpm install && make check${NC}"
+  printf '  %b\n' "${GREEN}pnpm install --frozen-lockfile && make check${NC}"
   exit "$ec"
 }
 trap on_exit EXIT
 
-log '📦 Reinstalling dependencies...'
+log '📦 Reinstalling dependencies from committed lockfile...'
 set -e
-pnpm install
+pnpm install --frozen-lockfile
 
 log '🔨 Running quality checks (make check)...'
 make check

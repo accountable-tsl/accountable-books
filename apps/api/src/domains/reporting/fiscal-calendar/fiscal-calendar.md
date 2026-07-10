@@ -208,6 +208,6 @@ When the balance recalculation worker processes transactions:
 
 ## Related Documentation
 
-- [Balances System README](./README.md) - Main balances system documentation
-- [Main Balances Documentation](../../../../docs/accounting/balances.md) - Technical specification
-- [Posting Logic](../../../../docs/accounting/posting-logic.md) - Transaction flow documentation
+- [Balances domain documentation](../../balances/balances.md) - Main balances system documentation
+- [Main Balances Documentation](../../../../../../docs/accounting/balances.md) - Technical specification
+- [Posting Logic](../../../../../../docs/accounting/posting-logic.md) - Transaction flow documentation

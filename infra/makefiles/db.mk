@@ -26,26 +26,31 @@ db-down: guard-nonprod ## Stop database and redis for local development
 db-logs: ## View local database logs
 	@docker compose -f docker-compose.dev.yml logs -f --tail=100 db redis
 
-db-migrate: guard-nonprod ## Run database migrations for local development
+db-migrate: guard-nonprod ## Run local migrations and bootstrap catalog
 	@echo "$(GREEN)🗄️ Running migrations...$(RESET)"
-	@pnpm -F @accountable-books/api migrate
+	@pnpm -F @accountable-books/api run migrate:local
+	@echo "$(GREEN)📚 Bootstrapping catalog...$(RESET)"
+	@pnpm -F @accountable-books/api run bootstrap:local
 
 db-seed: guard-nonprod ## Apply demo data for local development
 	@echo "$(GREEN)🌱 Applying demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo:apply
+	@pnpm -F @accountable-books/api run demo -- apply
 
 # =============================================================================
 # 🔧 ADVANCED DATABASE OPERATIONS (Local Development)
 # =============================================================================
 
-db-reset: guard-nonprod ## Reset database: rollback all migrations, then migrate fresh
+db-reset: guard-nonprod ## Reset local database, then migrate and seed
 	@echo "$(YELLOW)🔄 Resetting database...$(RESET)"
-	@pnpm -F @accountable-books/api run db:reset
+	@pnpm -F @accountable-books/api run db:reset:local
+	@pnpm -F @accountable-books/api run migrate:local
+	@pnpm -F @accountable-books/api run bootstrap:local
+	@pnpm -F @accountable-books/api run demo -- apply
 	@echo "$(GREEN)✅ Database reset complete$(RESET)"
 
-db-rollback: guard-nonprod ## Rollback last migration
+db-rollback: guard-nonprod ## Rollback last local migration
 	@echo "$(YELLOW)⏪ Rolling back last migration...$(RESET)"
-	@pnpm -F @accountable-books/api run rollback
+	@pnpm -F @accountable-books/api run rollback:local
 
 db-wait: ## Wait for database to be ready
 	@echo "$(YELLOW)⏳ Waiting for database...$(RESET)"
@@ -105,7 +110,7 @@ staging-full-up: guard-nonprod ## Start staging + run migrations + seed
 	@echo "$(YELLOW)🗄️ Running staging migrations...$(RESET)"
 	@pnpm -F @accountable-books/api run migrate:staging
 	@echo "$(YELLOW)🌱 Applying staging demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo:apply:staging:local
+	@NODE_ENV=staging LOCAL_STAGING=true pnpm -F @accountable-books/api run demo -- apply
 	@echo "$(GREEN)✅ Full staging environment ready$(RESET)"
 
 staging-full-down: guard-nonprod ## Stop staging + clean up

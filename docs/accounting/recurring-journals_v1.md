@@ -1,5 +1,8 @@
 # Recurring Journals v1 (Backend + UX Process)
 
+> **Status:** Implemented / design (aligned to existing tables + generation rules)
+> **Purpose:** Recurring journal templates, schedule generation, and UX process.
+
 This document defines end-to-end recurring journal behavior (templates + generation) and the corresponding backend shape. It is intentionally aligned to repo evidence:
 
 - Tables exist: `recurring_journal_templates`, `recurring_journal_template_entries`, plus `journal_batches.is_recurring` + `journal_batches.recurring_template_id`.

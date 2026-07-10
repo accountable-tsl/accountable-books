@@ -130,7 +130,7 @@ Available Countries: ${Object.values(COUNTRY_CODES).join(', ')}
 Available Types: ${Object.values(COMPANY_TYPES).join(', ')}
 
 Workspace Commands (from project root):
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --all
+  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply
   pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts status
 `);
 }

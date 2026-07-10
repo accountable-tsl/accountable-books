@@ -90,7 +90,7 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     if (!cashCoa || !expenseCoa) {
       throw new Error(
-        'Demo company missing required COAs. Ensure demo data is seeded with: pnpm demo:apply:test',
+        'Demo company missing required COAs. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo -- apply',
       );
     }
 

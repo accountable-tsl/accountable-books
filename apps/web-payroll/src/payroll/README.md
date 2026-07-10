@@ -1,47 +1,28 @@
 # Payroll module (`apps/web-payroll/src/payroll`)
 
-## Where to start
+Nigeria payroll computation (PAYE, statutory deductions, scheduled deductions).
 
-- The main implementation file is `tax-logic.ts`.
-- Supporting helpers live in `tax-logic.utils.ts`.
-- Types live in `tax-logic.types.ts`.
+## Key files
 
-## Core money buckets (this is the mental model)
+| File                        | Purpose                                             |
+| --------------------------- | --------------------------------------------------- |
+| `compute/compute-run.ts`    | Main computation entry — orchestrates a payroll run |
+| `compute/compute-paye.ts`   | PAYE logic (cumulative/annualised method)           |
+| `domain/payroll.schemas.ts` | Zod schemas and domain types                        |
 
-For any employee + month, we separate money into distinct buckets so we don’t accidentally treat employer costs as employee deductions.
+Supporting compute helpers: `compute/resolve-settings.ts`, `compute/payroll-utils.ts`, `compute/extract-ytd.ts`.
 
-### Statutory (computed)
+## Domain terms
 
-Computed statutory amounts for the month (based on salary split + enablement + policy rates):
+See [payroll glossary](../../docs/payroll-glossary.md) for bucket definitions (statutory, deductions, employer contributions).
 
-- **Employee-side**: `eePension`, `eeNhf`, `eeNhis` (withholdings)
-- **Employer-side**: `erPension`, `erNhis` (employer cost / benefit)
+## Run / test
 
-This lives in `inputs.statutory`.
+From `apps/web-payroll`:
 
-### Deductions (scheduled; employee-side only)
+```bash
+pnpm dev
+pnpm test
+```
 
-These are employee **scheduled deductions** (non-statutory schedules) and are represented as NGN amounts that apply to a month:
-
-- `voluntary_pension`
-- `owner_occupied_mortgage_interest`
-- `life_insurance_premium`
-
-This lives in `inputs.deductions` and is computed from `employee.deductions`.
-
-### Employer contributions (scheduled; employer-side only)
-
-Employer **scheduled contributions/benefits** (do not reduce net pay), also represented as schedules:
-
-- `voluntary_pension`
-- `owner_occupied_mortgage_interest`
-- `life_insurance_premium`
-
-This lives in `inputs.employerContributions` and is computed from `employee.employerContributions`.
-
-## Public entry points
-
-- `computeEmployeeMonthInputs(employee, month, companyDefaults?, options?)`
-  - Computes salary split + statutory + scheduled deductions + scheduled employer contributions for that month.
-- `computeNigeriaCumulativePayeForMonth(employee, month, companyDefaults?, options?)`
-  - Computes PAYE using the cumulative/annualised method.
+Monorepo setup: [docs/local-dev.md](../../../../docs/local-dev.md).
