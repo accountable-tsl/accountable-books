@@ -1,5 +1,11 @@
 #!/usr/bin/env sh
 set -eu
+
+if [ "$(git symbolic-ref --short HEAD 2>/dev/null || echo '')" = "feature/web-payroll" ]; then
+  sh scripts/hooks/payroll-branch-checks.sh pre-commit
+  exit $?
+fi
+
 export CI=1 TURBO_TELEMETRY_DISABLED=1 TURBO_TERM=plain
 
 # pre-commit
