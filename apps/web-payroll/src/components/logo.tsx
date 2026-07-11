@@ -5,7 +5,7 @@ export function Logo() {
       <img
         src="/main-icon.png"
         alt="Accountable Payroll"
-        className="h-5 w-auto xl:h-4"
+        className="h-5 w-auto xl:h-4 dark:grayscale dark:invert"
         decoding="async"
       />
     </picture>
