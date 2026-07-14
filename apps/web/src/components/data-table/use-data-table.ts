@@ -159,49 +159,110 @@ export function useDataTable<TData>({
   } = customOptions || {};
 
   // Virtualization options
-  const virtualization = {
-    enabled: virt?.enabled ?? false,
-    estimatedRowHeight: virt?.estimatedRowHeight ?? 35,
-    overscan: virt?.overscan ?? 5,
-    measure: virt?.measure ?? true,
-    fixedRowHeight: virt?.fixedRowHeight ?? false,
-  };
+  // These derived option objects must be memoized: they feed the `options`
+  // and `table` memos below, so fresh identities here would invalidate every
+  // downstream `useMemo` keyed on `table` on every render.
+  const virtualization = useMemo(
+    () => ({
+      enabled: virt?.enabled ?? false,
+      estimatedRowHeight: virt?.estimatedRowHeight ?? 35,
+      overscan: virt?.overscan ?? 5,
+      measure: virt?.measure ?? true,
+      fixedRowHeight: virt?.fixedRowHeight ?? false,
+    }),
+    [
+      virt?.enabled,
+      virt?.estimatedRowHeight,
+      virt?.overscan,
+      virt?.measure,
+      virt?.fixedRowHeight,
+    ],
+  );
 
   // If virtualization is enabled, force pagination and sorting off
-  const pagination: PaginationOptions = {
-    enabled: virtualization.enabled ? false : (pg?.enabled ?? false),
-    style: pg?.style ?? 'standard',
-    initialPageSize: pg?.initialPageSize ?? 10,
-    pageSizeOptions: pg?.pageSizeOptions,
-  };
+  const pagination: PaginationOptions = useMemo(
+    () => ({
+      enabled: virtualization.enabled ? false : (pg?.enabled ?? false),
+      style: pg?.style ?? 'standard',
+      initialPageSize: pg?.initialPageSize ?? 10,
+      pageSizeOptions: pg?.pageSizeOptions,
+    }),
+    [
+      virtualization.enabled,
+      pg?.enabled,
+      pg?.style,
+      pg?.initialPageSize,
+      pg?.pageSizeOptions,
+    ],
+  );
 
-  const sorting: SortingOptions = {
-    enabled: customOptions?.sorting?.enabled ?? true,
-  };
+  const sortingEnabled = customOptions?.sorting?.enabled ?? true;
+  const sorting: SortingOptions = useMemo(
+    () => ({ enabled: sortingEnabled }),
+    [sortingEnabled],
+  );
 
-  const globalSearch: GlobalSearch = {
-    enabled: gs?.enabled ?? false,
-    type: gs?.type ?? 'table-wide',
-    placeholder: gs?.placeholder ?? 'Search...',
-    allowIndividualFilters: gs?.allowIndividualFilters ?? true,
-  };
+  const globalSearch: GlobalSearch = useMemo(
+    () => ({
+      enabled: gs?.enabled ?? false,
+      type: gs?.type ?? 'table-wide',
+      placeholder: gs?.placeholder ?? 'Search...',
+      allowIndividualFilters: gs?.allowIndividualFilters ?? true,
+    }),
+    [gs?.enabled, gs?.type, gs?.placeholder, gs?.allowIndividualFilters],
+  );
 
-  const rowClickBehavior: RowClickBehavior<TData> | undefined = rc
-    ? {
-        ...rc,
-        ...(rc?.mode === 'view' && !rc?.wrapper ? { wrapper: 'sheet' } : {}),
-      }
-    : undefined;
+  const rowClickBehavior: RowClickBehavior<TData> | undefined = useMemo(
+    () =>
+      rc
+        ? {
+            ...rc,
+            ...(rc?.mode === 'view' && !rc?.wrapper
+              ? { wrapper: 'sheet' }
+              : {}),
+          }
+        : undefined,
+    [rc],
+  );
 
   const uniqueRowIdentifierKey = customOptions?.uniqueRowIdentifierKey ?? 'id';
-  const uniqueRowId = (row: Row<TData>) =>
-    (row.original as Record<string, unknown>)[uniqueRowIdentifierKey] as string;
+  const uniqueRowId = useCallback(
+    (row: Row<TData>) =>
+      (row.original as Record<string, unknown>)[
+        uniqueRowIdentifierKey
+      ] as string,
+    [uniqueRowIdentifierKey],
+  );
 
   /**
-   * Important: TanStack requires a stable data reference.
-   * Otherwise, internal row model caching breaks and can cause re-renders or bugs.
+   * Key rows by their data identity (via `uniqueRowIdentifierKey`) instead of
+   * TanStack's positional default, so row selection/expansion survive data
+   * refetches and reorders. Falls back to the positional id when a row has no
+   * identifier. Sub-row ids are prefixed with the parent id to stay unique.
    */
-  const stableData = useMemo(() => tableOptions.data, [tableOptions.data]);
+  const defaultGetRowId = useCallback(
+    (originalRow: TData, index: number, parent?: Row<TData>) => {
+      const raw = (originalRow as Record<string, unknown>)[
+        uniqueRowIdentifierKey
+      ];
+      let id: string | undefined;
+      if (typeof raw === 'string' && raw.length > 0) {
+        id = raw;
+      } else if (typeof raw === 'number') {
+        id = String(raw);
+      }
+      if (parent) return `${parent.id}.${id ?? index}`;
+      return id ?? String(index);
+    },
+    [uniqueRowIdentifierKey],
+  );
+
+  /**
+   * TanStack requires a referentially stable `data` array — callers must
+   * memoize it. (A useMemo here cannot add stability: it recomputes whenever
+   * the incoming reference changes.)
+   */
+  const stableData = tableOptions.data;
 
   const [internalRowSelection, setInternalRowSelection] =
     useState<RowSelectionState>({});
@@ -321,11 +382,11 @@ export function useDataTable<TData>({
           const url = rcb.onClick(row);
 
           if (url) {
-            const isInternal = isInternalUrl(url);
-            if (isInternal) {
+            if (isInternalUrl(url)) {
               navigate(url);
+            } else {
+              window.location.href = url;
             }
-            window.location.href = url;
           }
           break;
         }
@@ -334,7 +395,7 @@ export function useDataTable<TData>({
           break;
       }
     },
-    [rowClickBehavior],
+    [rowClickBehavior, navigate, uniqueRowId],
   );
 
   const closeRowView = useCallback(() => setViewedRowId(null), []);
@@ -403,6 +464,7 @@ export function useDataTable<TData>({
     ...tableOptions,
     data: stableData,
     columns: columns,
+    getRowId: tableOptions.getRowId ?? defaultGetRowId,
     getCoreRowModel: getCoreRowModel(),
     enableRowSelection: rowSelection.enabled,
     enableMultiRowSelection: rowSelection.enableMultiRowSelection,

@@ -1,4 +1,7 @@
-export function isClickInsideExcludedElement(e: React.MouseEvent) {
+// Accepts any event-like object (mouse or keyboard) carrying a DOM target.
+export function isClickInsideExcludedElement(e: {
+  target: EventTarget | null;
+}) {
   const target = e.target as HTMLElement;
   const interactiveElements = [
     'input',

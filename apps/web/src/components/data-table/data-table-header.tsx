@@ -27,6 +27,14 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
     // Only allow sorting if globally enabled and column allows it
     const canSort = sortingEnabled && header.column.getCanSort();
 
+    // flexRender output can be a React element; interpolating that into a
+    // string yields "[object Object]", so fall back to label/id for the name.
+    const headerDef = header.column.columnDef.header;
+    const sortLabel =
+      typeof headerDef === 'string'
+        ? headerDef
+        : (header.column.columnDef.meta?.label ?? header.column.id);
+
     return (
       <TableCell
         key={header.id}
@@ -48,10 +56,7 @@ export function DataTableHeader<TData>({ table }: DataTableProps<TData>) {
                 className="flex cursor-pointer items-center select-none"
                 role="button"
                 tabIndex={0}
-                aria-label={`Sort by ${flexRender(
-                  header.column.columnDef.header,
-                  header.getContext(),
-                )}`}
+                aria-label={`Sort by ${sortLabel}`}
                 onClick={() =>
                   header.column.toggleSorting(
                     header.column.getIsSorted() === 'asc',

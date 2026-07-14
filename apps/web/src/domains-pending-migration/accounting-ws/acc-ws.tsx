@@ -56,14 +56,15 @@ export function AccountingWorkspace() {
     return <ErrorPage showHeader type="default" />;
   }
 
-  const handleTxnRefresh = async (credentialId: string) => {
-    if (!credentialId) return;
-    try {
-      syncTransactions.mutate({ credentialId });
-      toast.success('Transactions synced successfully');
-    } catch (error) {
-      toast.error('Failed to sync transactions');
-    }
+  const handleTxnRefresh = (bankAccountId: string) => {
+    if (!bankAccountId) return;
+    syncTransactions.mutate(
+      { bankAccountId },
+      {
+        onSuccess: () => toast.success('Transaction sync queued'),
+        onError: () => toast.error('Failed to sync transactions'),
+      },
+    );
   };
 
   const grouped = bankAccounts.reduce((map, acc) => {
@@ -479,7 +480,7 @@ function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
 
 interface MiniBankAccountCardProps {
   account: BankAccountWithMeta;
-  onRefreshClick?: (credentialId: string) => void;
+  onRefreshClick?: (bankAccountId: string) => void;
 }
 
 function MiniBankAccountCard({
@@ -507,7 +508,7 @@ function MiniBankAccountCard({
       node: (
         <span
           className="cursor-pointer hover:underline active:cursor-progress"
-          onClick={() => onRefreshClick(account.connectionCredentialId!)}
+          onClick={() => onRefreshClick(account.id)}
         >
           Refresh feed
         </span>

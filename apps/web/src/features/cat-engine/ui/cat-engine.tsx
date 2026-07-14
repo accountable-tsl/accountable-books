@@ -4,7 +4,15 @@ import type {
   GroupedTransaction,
 } from '@/modules/accounting/categorization';
 import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
@@ -704,7 +712,11 @@ export function CatEngine() {
   const rowClickHandler = useCallback((row: any) => {
     const id = row.original.id;
 
-    setSelectedTransactionId((prevId) => (prevId === id ? null : id));
+    // Deferred so the heavy details-panel re-render never blocks the urgent
+    // paint of the row highlight + scroll during rapid keyboard navigation.
+    startTransition(() => {
+      setSelectedTransactionId((prevId) => (prevId === id ? null : id));
+    });
   }, []);
 
   // Handler to update exchange rate and recalculate spent/received
@@ -810,6 +822,11 @@ export function CatEngine() {
       rowClick: {
         mode: 'custom',
         onClick: rowClickHandler,
+      },
+      keyboardNavigation: {
+        enabled: true,
+        // Review mode: the details panel follows the highlight as it moves.
+        activateOnNavigate: mode === 'review',
       },
       infiniteScroll: {
         enabled: true,

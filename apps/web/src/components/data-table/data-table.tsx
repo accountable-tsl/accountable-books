@@ -24,13 +24,21 @@ export function DataTable<TData>({
 }: DataTableProps<TData>) {
   const { customClassNames, pagination } = table.customOptions || {};
   const { wrapper, table: tableClass } = customClassNames || {};
+  const keyboardNavEnabled =
+    table.customOptions?.keyboardNavigation?.enabled ?? false;
   const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  const { columnSizingInfo, columnSizing, columnVisibility } = table.getState();
 
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
    * we will calculate all column sizes at once at the root table level in a useMemo
    * and pass the column sizes down as CSS variables to the <table> element.
+   *
+   * Deps must include sizing and visibility state (not just `table`, whose
+   * identity is stable across state changes) or resizing and column toggles
+   * would render with stale sizes.
    */
   const columnSizeVars = React.useMemo(() => {
     const headers = table?.getFlatHeaders();
@@ -41,7 +49,8 @@ export function DataTable<TData>({
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
     }
     return colSizes;
-  }, [table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sizes are read via table.getFlatHeaders()/getSize(), which the rule can't see; the state values are the real invalidation signals
+  }, [table, columnSizingInfo, columnSizing, columnVisibility]);
 
   // const hasPinnedColumns =
   //   (table.getState().columnPinning?.left?.length ?? 0) > 0 ||
@@ -66,6 +75,8 @@ export function DataTable<TData>({
       <div className="relative flex w-full flex-1 flex-col overflow-hidden rounded-md border">
         <Table
           ref={scrollRef}
+          // Focusable so keyboard row navigation can receive key events.
+          tabIndex={keyboardNavEnabled ? 0 : undefined}
           className={cn(tableClass)}
           style={{
             ...columnSizeVars,

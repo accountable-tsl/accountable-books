@@ -27,6 +27,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
 } from 'react';
 import { useSession } from '@/app/session';
@@ -1198,43 +1199,52 @@ export function useLedgerIntentManagerV2Context() {
  */
 export function useLedgerIntentUpdaterV2(txn: GroupedTransaction) {
   const manager = useLedgerIntentManagerV2Context();
+  const bankTransactionId = txn.bankTransactionId;
 
   useEffect(() => {
     // Register (or refresh) the transaction snapshot used by the manager.
     manager.registerTransaction(txn);
   }, [manager, txn]);
 
-  return {
-    /** Merge a patch into pending desired state for a single entry. */
-    updateEntry: (entryId: string, changes: Partial<LedgerIntentEntry>) => {
-      manager.updateEntry(txn.bankTransactionId, entryId, changes);
-    },
+  // Memoized so consumers get referentially stable functions — these are used
+  // in effect dependency arrays (e.g. TransactionView), where fresh identities
+  // every render cause infinite setState loops. Note this does NOT memoize the
+  // array getEntriesUI() returns: each call still hits the manager and gets a
+  // fresh array, per this file's immutability requirement.
+  return useMemo(
+    () => ({
+      /** Merge a patch into pending desired state for a single entry. */
+      updateEntry: (entryId: string, changes: Partial<LedgerIntentEntry>) => {
+        manager.updateEntry(bankTransactionId, entryId, changes);
+      },
 
-    /** Stage a custom exchange rate override for this transaction. */
-    updateExchangeRate: (rate: number | null) => {
-      manager.updateExchangeRate(txn.bankTransactionId, rate);
-    },
+      /** Stage a custom exchange rate override for this transaction. */
+      updateExchangeRate: (rate: number | null) => {
+        manager.updateExchangeRate(bankTransactionId, rate);
+      },
 
-    /** Mark an entry for deletion (or remove a new entry immediately). */
-    deleteEntry: (entryId: string) => {
-      manager.deleteEntry(txn.bankTransactionId, entryId);
-    },
+      /** Mark an entry for deletion (or remove a new entry immediately). */
+      deleteEntry: (entryId: string) => {
+        manager.deleteEntry(bankTransactionId, entryId);
+      },
 
-    /** Add a new UI entry (ephemeral until edited). */
-    addEntry: (defaults?: Partial<EntryUI>) =>
-      manager.addEntry(txn.bankTransactionId, defaults),
+      /** Add a new UI entry (ephemeral until edited). */
+      addEntry: (defaults?: Partial<EntryUI>) =>
+        manager.addEntry(bankTransactionId, defaults),
 
-    /** Read current UI entries (server snapshot merged with pending edits). */
-    getEntriesUI: () => manager.getEntriesUI(txn.bankTransactionId),
+      /** Read current UI entries (server snapshot merged with pending edits). */
+      getEntriesUI: () => manager.getEntriesUI(bankTransactionId),
 
-    /** Read any pending exchange rate override for this transaction. */
-    getPendingExchangeRate: () =>
-      manager.getPendingExchangeRate(txn.bankTransactionId),
-    /** Check if a UI entry has pending changes. */
-    isEntryDirty: (uiEntryId: string) =>
-      manager.isEntryDirty(txn.bankTransactionId, uiEntryId),
-    /** Resolve mixed identifiers (ui/ledger/candidate) to UI entry IDs. */
-    resolveUiEntryId: (entryId: string) =>
-      manager.resolveUiEntryId(txn.bankTransactionId, entryId),
-  };
+      /** Read any pending exchange rate override for this transaction. */
+      getPendingExchangeRate: () =>
+        manager.getPendingExchangeRate(bankTransactionId),
+      /** Check if a UI entry has pending changes. */
+      isEntryDirty: (uiEntryId: string) =>
+        manager.isEntryDirty(bankTransactionId, uiEntryId),
+      /** Resolve mixed identifiers (ui/ledger/candidate) to UI entry IDs. */
+      resolveUiEntryId: (entryId: string) =>
+        manager.resolveUiEntryId(bankTransactionId, entryId),
+    }),
+    [manager, bankTransactionId],
+  );
 }

@@ -30,6 +30,7 @@
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
+- [ ] Design and validate a product-owned headless table module after launch. Learn from TanStack Table, Tabulator, AG Grid, and other strong grids, but define the interface from our actual requirements: semantic table and div/grid renderers, virtualization, stable row identity, variable density, selection/expansion, keyboard navigation, accessible focus, inline editing with durable drafts, server filtering/sorting/pagination, infinite loading, pinned columns, and explicit performance budgets. Prototype the hardest Cat Engine workflow and one conventional table before committing to a full migration; keep rendering, remote data access, and accounting-specific behaviour behind separate seams.
 - [ ] Recurring templates: in template view mode, add a “Generated journals” section (show latest N with date/status/reference, link to open journal, plus “View all” once we add an API filter by `recurring_template_id`).
 - [ ] AI inline autocomplete (code-completion-style): ghost suggestion while typing (e.g. journal title/description/line description), accept with `Tab`, and telemetry for impressions/accepts/dismissals, latency, and cost.
 - [ ] Company identity middleware migration: keep current `req.companyContext` rollout stable for now, then consolidate to `req.company.uuid/shortCode/identifier` across all company-scoped routes.
@@ -62,6 +63,7 @@
 
 ### LATER (Future Versions / Nice-to-Have)
 
+- [ ] If the internal table module proves reliable across the Cat Engine and multiple conventional tables, evaluate extracting and publishing its generic core as an open-source package. Treat documentation, accessibility guarantees, browser support, semantic versioning, framework adapters, examples, benchmarks, and long-term maintenance as explicit release requirements; do not expose Accountable-specific data or workflow concepts in the public interface.
 - [ ] Notification to deactivate account if not used after 45 days of sign up
 - [ ] Consider unifying timezone stuff (UTC everywhere)
 - [ ] REVIEW CONSTRAINTS AND THEIR TEST e.g Projects check is not fully setup etc
