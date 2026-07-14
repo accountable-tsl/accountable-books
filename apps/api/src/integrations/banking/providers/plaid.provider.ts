@@ -313,13 +313,19 @@ export class PlaidProvider extends BankingProvider {
 
   async syncTransactions(params: {
     accessToken: string;
+    providerBankAccountId: string;
     cursor?: string;
     fromDate?: Date;
   }): Promise<TransactionSyncResult> {
     try {
+      if (!params.providerBankAccountId) {
+        throw new Error('Plaid transaction sync requires an account ID');
+      }
       const request: TransactionsSyncRequest = {
         access_token: params.accessToken,
+        count: 500,
         options: {
+          account_id: params.providerBankAccountId,
           include_personal_finance_category: true,
           include_original_description: true,
         },
@@ -397,12 +403,23 @@ export class PlaidProvider extends BankingProvider {
   }
 
   handleError(error: any): ProviderError {
-    if (error && typeof error === 'object' && 'error_code' in error) {
+    const plaidError =
+      error && typeof error === 'object'
+        ? 'error_code' in error
+          ? error
+          : error.response?.data
+        : null;
+
+    if (
+      plaidError &&
+      typeof plaidError === 'object' &&
+      'error_code' in plaidError
+    ) {
       return {
-        code: error.error_code,
-        message: error.error_message,
-        displayMessage: this.getDisplayMessage(error.error_code),
-        retryable: this.isRetryableError(error.error_code),
+        code: plaidError.error_code,
+        message: plaidError.error_message,
+        displayMessage: this.getDisplayMessage(plaidError.error_code),
+        retryable: this.isRetryableError(plaidError.error_code),
       };
     }
 
@@ -420,6 +437,7 @@ export class PlaidProvider extends BankingProvider {
       'RATE_LIMIT_EXCEEDED',
       'INTERNAL_SERVER_ERROR',
       'PLANNED_MAINTENANCE',
+      'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION',
     ];
     return retryableCodes.includes(errorCode);
   }

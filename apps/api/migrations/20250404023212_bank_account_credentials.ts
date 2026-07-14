@@ -111,14 +111,12 @@ export async function up(knex: Knex): Promise<void> {
       ['company_id', 'provider_id', 'status'],
       'bank_account_credentials_company_provider_status_idx',
     );
-    table.unique(
-      ['id', 'company_id'],
-      'bank_account_credentials_id_company_uniq',
-    );
-    table.unique(
-      ['id', 'company_id', 'provider_id'],
-      'bank_account_credentials_id_company_provider_uniq',
-    );
+    table.unique(['id', 'company_id'], {
+      indexName: 'bank_account_credentials_id_company_uniq',
+    });
+    table.unique(['id', 'company_id', 'provider_id'], {
+      indexName: 'bank_account_credentials_id_company_provider_uniq',
+    });
   });
 
   await knex.raw(`

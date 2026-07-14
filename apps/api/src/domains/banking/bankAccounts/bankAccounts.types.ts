@@ -92,6 +92,8 @@ const connectionSpecificFields = z.object({
   connection_credential_id: z.uuid(),
   connection_status: bankAccountConnectionStatus.extract(['connected']),
   last_sync_at: z.date().nullish(),
+  transaction_sync_cursor: z.string().nullish(),
+  initial_transaction_sync_completed_at: z.date().nullish(),
   sync_error: z.string().nullish(),
 });
 

@@ -47,12 +47,6 @@ router.post(
   bankingController.setTransactionSyncDate.bind(bankingController),
 );
 
-// GET /api/banking/sync-status/:credentialId
-router.get(
-  '/sync-status/:credentialId',
-  bankingController.getTransactionSyncStatus.bind(bankingController),
-);
-
 router.post('/company-credentials', createCredential);
 
 export default router;

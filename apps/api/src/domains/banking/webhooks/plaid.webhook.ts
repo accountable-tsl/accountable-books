@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 import express, { Router } from 'express';
 
-import { scheduleTransactionSync } from '../../../integrations/banking/index.js';
+import { scheduleSyncForCredential } from '../../../integrations/banking/index.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
 import { logger } from '../../../shared/utils/logger.js';
@@ -168,25 +168,14 @@ async function handleTransactionWebhook(
         return;
       }
 
-      // Queue sync job
-      await scheduleTransactionSync(
-        {
-          credentialId: credential.id,
-          syncType: 'webhook',
-          companyId: credential.company_id,
-          userId: 'system', // System-initiated
-        },
-        {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-        },
-      );
+      const jobs = await scheduleSyncForCredential({
+        credentialId: credential.id,
+        trigger: 'webhook',
+      });
 
-      log('Sync job queued', {
+      log('Sync jobs queued', {
         credential_id: credential.id,
+        queued_job_count: jobs.filter(Boolean).length,
       });
       break;
     }

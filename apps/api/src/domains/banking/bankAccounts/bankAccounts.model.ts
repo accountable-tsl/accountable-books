@@ -77,6 +77,121 @@ const BANK_ACCOUNT_FIELDS = [
   'p.logo_url as providerLogo',
   'ba.connection_credential_id as connectionCredentialId',
 ];
+
+export interface SyncableBankAccount {
+  id: string;
+  company_id: string;
+  connection_credential_id: string;
+  last_sync_at: Date | null;
+}
+
+export type BankAccountSyncIneligibilityReason =
+  | 'reconnect_required'
+  | 'not_connected'
+  | 'incomplete_connection'
+  | 'inactive_credential';
+
+export interface BankAccountSyncEligibility {
+  id: string;
+  eligible: boolean;
+  reason: BankAccountSyncIneligibilityReason | null;
+}
+
+export async function getBankAccountSyncEligibility(
+  input: { bankAccountId: string; companyId: string },
+  trx?: Knex.Transaction,
+): Promise<BankAccountSyncEligibility | null> {
+  const db = trx ?? knexClient;
+  const account = await db('bank_accounts as ba')
+    .leftJoin(
+      'bank_account_credentials as bac',
+      'bac.id',
+      'ba.connection_credential_id',
+    )
+    .where({
+      'ba.id': input.bankAccountId,
+      'ba.company_id': input.companyId,
+      'ba.is_deleted': false,
+    })
+    .first<{
+      id: string;
+      connection_status: BankAccountConnectionStatus;
+      connection_credential_id: string | null;
+      provider_bank_account_id: string | null;
+      credential_status: string | null;
+    }>([
+      'ba.id',
+      'ba.connection_status',
+      'ba.connection_credential_id',
+      'ba.provider_bank_account_id',
+      'bac.status as credential_status',
+    ]);
+
+  if (!account) return null;
+  let reason: BankAccountSyncIneligibilityReason | null = null;
+  if (account.connection_status === 'error') {
+    reason = 'reconnect_required';
+  } else if (account.connection_status !== 'connected') {
+    reason = 'not_connected';
+  } else if (
+    !account.connection_credential_id ||
+    !account.provider_bank_account_id
+  ) {
+    reason = 'incomplete_connection';
+  } else if (account.credential_status !== 'active') {
+    reason = 'inactive_credential';
+  }
+
+  return { id: account.id, eligible: reason === null, reason };
+}
+
+/**
+ * Return accounts that own an active provider transaction stream.
+ * Credential-scoped callers use this only to fan an Item event out into
+ * independent account jobs.
+ */
+export async function getSyncableBankAccounts(
+  filters: {
+    credentialId?: string;
+    companyId?: string;
+    bankAccountId?: string;
+  } = {},
+  trx?: Knex.Transaction,
+): Promise<SyncableBankAccount[]> {
+  const db = trx ?? knexClient;
+  const query = db('bank_accounts as ba')
+    .innerJoin(
+      'bank_account_credentials as bac',
+      'bac.id',
+      'ba.connection_credential_id',
+    )
+    .select<SyncableBankAccount[]>([
+      'ba.id',
+      'ba.company_id',
+      'ba.connection_credential_id',
+      'ba.last_sync_at',
+    ])
+    .where({
+      'ba.is_deleted': false,
+      'ba.connection_status': 'connected',
+      'bac.status': 'active',
+    })
+    .whereNotNull('ba.connection_credential_id')
+    .whereNotNull('ba.provider_bank_account_id')
+    .orderByRaw('ba.last_sync_at ASC NULLS FIRST, ba.id ASC');
+
+  if (filters.credentialId) {
+    query.andWhere('ba.connection_credential_id', filters.credentialId);
+  }
+  if (filters.companyId) {
+    query.andWhere('ba.company_id', filters.companyId);
+  }
+  if (filters.bankAccountId) {
+    query.andWhere('ba.id', filters.bankAccountId);
+  }
+
+  return query;
+}
 export const getBankAccountsWithDetails = async (
   companyId: string,
   trx?: Knex.Transaction,
@@ -379,7 +494,13 @@ async function createBankAccount({
       : null;
 
     const existingBankAccount = await tx('bank_accounts')
-      .select(['id', 'coa_id', 'connection_credential_id', 'connection_status'])
+      .select([
+        'id',
+        'coa_id',
+        'connection_credential_id',
+        'connection_status',
+        'sync_error',
+      ])
       .where({
         company_id: companyUUID,
         bank_id: bankId,
@@ -449,6 +570,13 @@ async function createBankAccount({
         if (v.last_sync_at !== undefined) {
           bankAccountUpdate.last_sync_at = v.last_sync_at;
         }
+        if (v.transaction_sync_cursor !== undefined) {
+          bankAccountUpdate.transaction_sync_cursor = v.transaction_sync_cursor;
+        }
+        if (v.initial_transaction_sync_completed_at !== undefined) {
+          bankAccountUpdate.initial_transaction_sync_completed_at =
+            v.initial_transaction_sync_completed_at;
+        }
         if (v.sync_error !== undefined) {
           bankAccountUpdate.sync_error = v.sync_error;
         }
@@ -488,6 +616,9 @@ async function createBankAccount({
             account_metadata: v.account_metadata,
             connection_credential_id: connectionCredentialId,
             last_sync_at: v.last_sync_at,
+            transaction_sync_cursor: v.transaction_sync_cursor,
+            initial_transaction_sync_completed_at:
+              v.initial_transaction_sync_completed_at,
             sync_error: v.sync_error,
             notes: v.notes,
             created_by_id: userId,

@@ -99,7 +99,7 @@ This register is deliberately uncomfortable. It names the known issues exposed b
 | G25 | Done     | Transactional outbox/backstop | The durable transactional outbox handles `work_materialization_requested`, `activity_event_requested`, `notification_requested`, `notification_attention_resolved`, and `notification_comms_requested` intents. Bank import source rows and follow-up intents are written in the same transaction and kicked after commit. | Initial sync hand-off can reuse the same durable outbox pattern in a later phase.                                                                                                    |
 | G26 | Gap      | Frontend queue                | Firm dashboard queue is still mock-oriented.                                                                                                                                                                                                                                                                               | Queue UI reads materialized work and routes users to exact destinations.                                                                                                             |
 | G27 | Smell    | Sync schedule timezone        | `transactionSyncDailyScan` declares `tz: UTC` in the schedule registry, but `scheduleDailySyncScan()` currently receives only the cron pattern.                                                                                                                                                                            | The scheduler passes timezone explicitly, or the schedule docs stop claiming timezone behavior beyond the cron expression.                                                           |
-| G28 | Smell    | Initial sync hand-off         | `connectBankAccounts()` queues initial transaction sync inside the bank-connection database transaction body.                                                                                                                                                                                                              | Initial sync is queued after commit or through an outbox so it cannot run for rolled-back connection facts.                                                                          |
+| G28 | Done     | Initial sync hand-off         | `connectBankAccounts()` queues one delayed account sync per connected account only after the bank-connection transaction commits.                                                                                                                                                                                          | Rolled-back connections cannot enqueue initial transaction sync work.                                                                                                                |
 | G29 | Done     | Materializer concurrency      | Materialization is serialized per `scope_key` with a DB advisory lock, outbox intents are debounced by scope, and subject ending/count/close operations happen in the same locked transaction.                                                                                                                             | Later phase handlers must use the same lock and count/close contract.                                                                                                                |
 | G30 | Decision | Outbox vs BullMQ ownership    | Existing BullMQ queues already execute balance, enrichment, rules, ML, close signal, and sync jobs. A new outbox could accidentally create dual ownership if it directly overlaps those queues.                                                                                                                            | BullMQ remains the execution engine. The transactional outbox is the durable hand-off for effects that must survive process crashes. Each effect has one owner per path.             |
 | G31 | Done     | Bank save after-commit        | `addNewBankTransactions()` schedules balance recalculation, enrichment, and the outbox dispatch kick through the shared after-commit helper, so rolled-back imports do not enqueue follow-up jobs.                                                                                                                         | Later decide whether any recoverable derived jobs need to graduate to durable outbox.                                                                                                |
@@ -279,22 +279,18 @@ Built today:
 
 - Bank connection/reconnection is handled outside this document.
 - `connectBankAccounts()` in `connect-accounts.service.ts` schedules an initial transaction sync through `scheduleTransactionSync()` when the provider supports transaction sync.
-- Initial sync is queued as a `sync-transactions` job with a 5 second delay.
-- The initial sync queue call currently happens inside the bank-connection database transaction body.
-- Ongoing sync is handled by the daily scan, not by per-credential repeatable jobs.
+- Initial sync is queued as one `sync-bank-account` job per connected account with a 5 second delay.
+- Initial jobs are registered only after the bank-connection database transaction commits.
+- Ongoing sync is handled by the daily account scan, not by per-credential repeatable jobs.
 
 Boundary:
 
 - Provider connection setup and credential storage are not specified here.
-- This document starts when a connected credential is ready to sync transactions.
-
-TODO:
-
-- Move initial sync scheduling behind transaction commit by writing a `transaction_sync_requested` outbox intent in the bank-connection transaction.
+- This document starts when a connected account is ready to sync transactions.
 
 End state:
 
-- A connected credential that supports transaction sync must have an initial sync job queued.
+- Every connected account whose provider supports transaction sync must have an initial account job queued.
 
 ### A1. Provider Sync Finds Transactions
 
@@ -306,14 +302,15 @@ Built today:
 - Scheduler: `scheduleDailySyncScan()` in `transaction-sync.queue.ts`.
 - Worker: `transaction-sync.worker.ts`.
 - Daily scan job: `daily-sync-scan`.
-- The scan loads active credentials with `getAllActiveCredentials()` and enqueues one `sync-transactions` job per credential.
-- Single credential sync calls `transactionSyncService.syncTransactionsForCredential()`.
-- The sync service fetches provider transactions, processes `added`, `modified`, and `removed`, and updates credential sync cursor/timestamps only when the sync is safe to advance.
+- The scan loads connected, non-deleted accounts backed by active credentials and enqueues one `sync-bank-account` job per account.
+- A Plaid Item webhook fans out to the same account jobs.
+- Each job calls `transactionSyncService.syncBankAccount()`; job data carries only account ID, trigger, and optional actor ID.
+- The sync service fetches the complete provider update before opening a database transaction, then applies `added`, `modified`, and `removed` changes together with that account's cursor and timestamps in one commit.
+- Plaid streams use independent `(provider account ID, cursor)` pairs; date-range providers derive their overlap window from account state without persisting page numbers.
 
 Built today for added transactions:
 
-- `processAddedTransactions()` groups transactions by mapped bank account.
-- Each account batch calls `addNewBankTransactions()`.
+- Each account update calls `addNewBankTransactions()` inside the account synchronization transaction.
 
 Built today for modified/removed transactions:
 
@@ -323,7 +320,7 @@ Built today for modified/removed transactions:
 TODO:
 
 - Provider `modified` and `removed` transactions must write `work_materialization_requested` for affected bank transactions/accounts/periods.
-- Sync failures create operational telemetry and later admin-facing notification, not bookkeeper queue work unless the bookkeeper can fix the issue.
+- Retryable provider/system failures alert administrators; only account ingestion/application failures create bookkeeper action.
 - Pass the schedule timezone through to BullMQ if the intended runtime invariant is "daily at 02:00 UTC."
 
 End state:

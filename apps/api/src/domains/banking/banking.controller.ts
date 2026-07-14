@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 
 import {
   connectAccountsService,
@@ -7,12 +8,16 @@ import {
 } from '../../integrations/banking/index.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { getBankAccountSyncEligibility } from './bankAccounts/bankAccounts.model.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
+
+const bankAccountSyncBody = z.object({ bankAccountId: z.uuid() });
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {
@@ -191,9 +196,9 @@ export class BankingController {
    */
   async syncTransactions(req: AuthRequest, res: Response) {
     try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
-      const { credentialId } = req.body;
+      const userId = req.user?.id;
+      const companyId = req.user?.currentCompanyId;
+      const parsedBody = bankAccountSyncBody.safeParse(req.body);
 
       if (!userId || !companyId) {
         return res
@@ -201,27 +206,40 @@ export class BankingController {
           .json(errorResponse('Missing user or company ID'));
       }
 
-      if (!credentialId) {
-        return res.status(400).json(errorResponse('Missing credentialId'));
+      if (!parsedBody.success) {
+        return res.status(400).json(errorResponse('Invalid bankAccountId'));
+      }
+      const { bankAccountId } = parsedBody.data;
+
+      const account = await getBankAccountSyncEligibility({
+        bankAccountId,
+        companyId,
+      });
+      if (!account) {
+        return res.status(404).json(
+          errorResponse('Bank account not found', undefined, {
+            code: ErrorCode.NOT_FOUND,
+          }),
+        );
+      }
+      if (!account.eligible) {
+        const message =
+          account.reason === 'reconnect_required'
+            ? 'Bank account requires reconnection'
+            : 'Bank account is not eligible for transaction sync';
+        return res.status(409).json(
+          errorResponse(message, undefined, {
+            code: ErrorCode.OPERATION_NOT_ALLOWED,
+            metadata: { reason: account.reason },
+          }),
+        );
       }
 
-      // Queue sync job
-      const job = await scheduleTransactionSync(
-        {
-          credentialId,
-          syncType: 'manual',
-          companyId,
-          userId,
-        },
-        {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-          priority: 0,
-        },
-      );
+      const job = await scheduleTransactionSync({
+        bankAccountId: account.id,
+        trigger: 'manual',
+        actorUserId: userId,
+      });
 
       res.json(
         successResponse('Transaction sync queued successfully', {
@@ -275,7 +293,14 @@ export class BankingController {
       }
 
       // Set the sync date
-      await transactionSyncService.setTransactionSyncDate(credentialId, date);
+      const updated = await transactionSyncService.setTransactionSyncDate(
+        credentialId,
+        date,
+        companyId,
+      );
+      if (!updated) {
+        return res.status(404).json(errorResponse('Credential not found'));
+      }
 
       res.json(
         successResponse('Transaction sync date updated successfully', {
@@ -288,55 +313,6 @@ export class BankingController {
       res
         .status(500)
         .json(errorResponse('Failed to set transaction sync date'));
-    }
-  }
-
-  /**
-   * Get transaction sync status for a credential
-   * GET /api/banking/sync-status/:credentialId
-   */
-  async getTransactionSyncStatus(req: AuthRequest, res: Response) {
-    try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
-      const credentialId = String(req.params.credentialId);
-
-      if (!userId || !companyId) {
-        return res
-          .status(400)
-          .json(errorResponse('Missing user or company ID'));
-      }
-
-      if (!credentialId) {
-        return res.status(400).json(errorResponse('Missing credentialId'));
-      }
-
-      // Get credential details (this method would need to be added to TransactionSyncService)
-      const credential =
-        await transactionSyncService['getCredential'](credentialId);
-
-      if (!credential) {
-        return res.status(404).json(errorResponse('Credential not found'));
-      }
-
-      if (credential.company_id !== companyId) {
-        return res.status(403).json(errorResponse('Access denied'));
-      }
-
-      res.json(
-        successResponse('Transaction sync status retrieved', {
-          credentialId,
-          initialSyncCompleted: credential.initial_sync_completed,
-          lastSyncAt: credential.last_transactions_sync_at,
-          transactionsFromDate: credential.transactions_from_date,
-          status: credential.status,
-        }),
-      );
-    } catch (error: any) {
-      console.error('Error getting transaction sync status:', error);
-      res
-        .status(500)
-        .json(errorResponse('Failed to get transaction sync status'));
     }
   }
 }

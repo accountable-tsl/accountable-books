@@ -180,6 +180,7 @@ export abstract class BankingProvider {
   // Sync transactions (initial or incremental)
   abstract syncTransactions(params: {
     accessToken: string;
+    providerBankAccountId: string;
     cursor?: string;
     fromDate?: Date; // For initial sync only
   }): Promise<TransactionSyncResult>;

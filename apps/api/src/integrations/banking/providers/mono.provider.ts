@@ -236,11 +236,18 @@ export class MonoProvider extends BankingProvider {
 
   async syncTransactions(params: {
     accessToken: string;
+    providerBankAccountId: string;
     cursor?: string;
     fromDate?: Date;
   }): Promise<TransactionSyncResult> {
     try {
-      const { accessToken, cursor, fromDate } = params;
+      const { accessToken, providerBankAccountId, cursor, fromDate } = params;
+
+      if (providerBankAccountId !== accessToken) {
+        throw new Error(
+          'Mono provider account does not match the connected account token',
+        );
+      }
 
       // Mono uses page-based pagination, not stable cursors
       const page = cursor ? parseInt(cursor, 10) : 1;

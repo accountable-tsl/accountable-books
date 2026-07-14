@@ -9,6 +9,7 @@ export default defineConfig({
     globalSetup: './test/global-setup.js',
     setupFiles: ['./test/setup.ts'],
     passWithNoTests: true,
+    fileParallelism: false,
     // The test environment is automatically loaded by src/config/env.ts
     // when NODE_ENV=test, which loads .env.test file
     env: {

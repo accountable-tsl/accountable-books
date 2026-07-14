@@ -170,30 +170,18 @@ export async function writeBankSyncFailureResolvedNotifications(
   trx: Knex.Transaction,
   input: {
     clientCompanyId: string;
-    credentialId: string;
+    bankAccountId: string;
     stateVersion: Date | string;
   },
 ): Promise<number> {
-  const accountRows = await trx('app.bank_accounts')
-    .where({
-      company_id: input.clientCompanyId,
-      connection_credential_id: input.credentialId,
-    })
-    .select('id');
-  const attentionKeys = accountRows.map((row) =>
-    buildBankSyncFailureAttentionKey(row.id as string),
-  );
-
-  if (attentionKeys.length === 0) {
-    return 0;
-  }
+  const attentionKey = buildBankSyncFailureAttentionKey(input.bankAccountId);
 
   const activeNotifications = await trx('app.notifications')
     .where({
       client_company_id: input.clientCompanyId,
       event_type: NOTIFICATION_TYPE.SYNC_FAILURE_REQUIRES_ACTION,
     })
-    .whereIn('attention_key', attentionKeys)
+    .where('attention_key', attentionKey)
     .whereNull('resolved_at')
     .whereNull('archived_at')
     .select('recipient_user_id', 'attention_key');

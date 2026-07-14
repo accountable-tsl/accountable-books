@@ -48,7 +48,11 @@ export const zDateYMD = z.preprocess((val) => {
     val instanceof Date ||
     typeof val === 'number'
   ) {
-    return toYMD(val);
+    try {
+      return toYMD(val);
+    } catch {
+      return undefined;
+    }
   }
   return undefined;
 }, z.string());

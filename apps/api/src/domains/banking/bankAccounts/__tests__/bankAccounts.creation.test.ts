@@ -22,6 +22,8 @@ import {
 import {
   createBankAccountWithConnection,
   createManualBankAccount,
+  getBankAccountSyncEligibility,
+  getSyncableBankAccounts,
   updateBankAccounts,
 } from '../bankAccounts.model.js';
 
@@ -133,6 +135,171 @@ describe('bank account creation', () => {
         .where({ company_id: companyId, account_number: accountNumber })
         .first(),
     ).toBeUndefined();
+  });
+
+  it('does not allow transaction stream state on a manual account', async () => {
+    const account = await createManualBankAccount({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Manual stream state ${randomUUID()}`,
+        accountNumber: randomUUID(),
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyId: reportingCurrencyId,
+      },
+    });
+    expect(account.success).toBe(true);
+
+    await expect(
+      trx('bank_accounts')
+        .where({ id: account.data!.bankAccountId })
+        .update({ transaction_sync_cursor: 'manual-cursor' }),
+    ).rejects.toMatchObject({ code: '23514' });
+  });
+
+  it('lets the database trigger reset stream state on identity changes', async () => {
+    const account = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+    const seedStreamState = () =>
+      trx('bank_accounts')
+        .where({ id: account.id })
+        .update({
+          transaction_sync_cursor: 'old-cursor',
+          initial_transaction_sync_completed_at: new Date(
+            '2026-01-02T00:00:00Z',
+          ),
+          last_sync_at: new Date('2026-01-03T00:00:00Z'),
+          sync_error: 'old error',
+        });
+    const expectCleared = async () => {
+      expect(
+        await trx('bank_accounts')
+          .where({ id: account.id })
+          .first(
+            'transaction_sync_cursor',
+            'initial_transaction_sync_completed_at',
+            'last_sync_at',
+            'sync_error',
+          ),
+      ).toEqual({
+        transaction_sync_cursor: null,
+        initial_transaction_sync_completed_at: null,
+        last_sync_at: null,
+        sync_error: null,
+      });
+    };
+
+    await seedStreamState();
+    await trx('bank_accounts')
+      .where({ id: account.id })
+      .update({
+        provider_bank_account_id: `replacement-${randomUUID()}`,
+      });
+    await expectCleared();
+
+    await seedStreamState();
+    const credentialId = await createCredentialFixture(trx, {
+      companyId,
+      providerId: account.providerId,
+      userId,
+    });
+    await trx('bank_accounts').where({ id: account.id }).update({
+      connection_credential_id: credentialId,
+    });
+    await expectCleared();
+  });
+
+  it('excludes disconnected, deleted, and inactive-credential accounts from sync scans', async () => {
+    const account = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+    expect(
+      await getSyncableBankAccounts(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: account.id,
+        connection_credential_id: account.credentialId,
+      }),
+    ]);
+    expect(
+      await getBankAccountSyncEligibility(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual({ id: account.id, eligible: true, reason: null });
+
+    await trx('bank_accounts')
+      .where({ id: account.id })
+      .update({ connection_status: 'error' });
+    expect(
+      await getSyncableBankAccounts(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual([]);
+    expect(
+      await getBankAccountSyncEligibility(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual({
+      id: account.id,
+      eligible: false,
+      reason: 'reconnect_required',
+    });
+
+    await trx('bank_accounts').where({ id: account.id }).update({
+      connection_status: 'connected',
+      is_deleted: true,
+      deleted_at: trx.fn.now(),
+    });
+    expect(
+      await getSyncableBankAccounts(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual([]);
+    expect(
+      await getBankAccountSyncEligibility(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toBeNull();
+
+    await trx('bank_accounts').where({ id: account.id }).update({
+      is_deleted: false,
+      deleted_at: null,
+    });
+    await trx('bank_account_credentials')
+      .where({ id: account.credentialId })
+      .update({ status: 'expired' });
+    expect(
+      await getSyncableBankAccounts(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual([]);
+    expect(
+      await getBankAccountSyncEligibility(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual({
+      id: account.id,
+      eligible: false,
+      reason: 'inactive_credential',
+    });
   });
 
   it('opens bank reconnect notifications when connection status becomes error', async () => {
@@ -463,7 +630,7 @@ describe('bank account creation', () => {
 
     const intentCount = await writeBankSyncFailureResolvedNotifications(trx, {
       clientCompanyId: companyId,
-      credentialId: bankAccount.credentialId,
+      bankAccountId: bankAccount.id,
       stateVersion: '2026-06-21T00:00:00.000Z',
     });
 

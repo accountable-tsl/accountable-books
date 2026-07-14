@@ -245,57 +245,6 @@ export class ConnectAccountsService {
           totalUpdated: updatedCount,
         });
 
-        // Queue initial transaction sync (after DB transaction completes)
-        // Only for providers that support transaction sync
-        try {
-          const provider = await providerRegistry.get(params.providerKey);
-          if (provider && provider.supportsTransactionSync()) {
-            await scheduleTransactionSync(
-              {
-                credentialId: credentialId,
-                syncType: 'initial',
-                companyId: params.companyId,
-                userId: params.userId,
-              },
-              {
-                delay: 5000, // Wait 5 seconds for Plaid to be ready
-                attempts: 3,
-                backoff: {
-                  type: 'exponential',
-                  delay: 2000,
-                },
-              },
-            );
-            // Note: Daily sync is handled by a central daily scan job
-            // No need to schedule per-credential repeatables
-            log('sync_queued', {
-              credentialId,
-              syncType: 'initial',
-              queueDelay: 5000,
-              attempts: 3,
-              providerSupportsSync: true,
-            });
-          } else {
-            log('sync_skipped', {
-              credentialId,
-              reason: provider
-                ? 'Provider does not support transaction sync'
-                : 'Provider not found',
-              providerKey: params.providerKey,
-              providerSupportsSync:
-                provider?.supportsTransactionSync() || false,
-            });
-          }
-        } catch (error) {
-          // Don't fail the main flow if sync queueing fails
-          log('sync_queue_failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            errorName: error instanceof Error ? error.name : 'UnknownError',
-            credentialId,
-            providerKey: params.providerKey,
-          });
-        }
-
         return successResponse(message, {
           bank: {
             id: bankId,
@@ -305,6 +254,42 @@ export class ConnectAccountsService {
           accounts: createdAccounts,
         });
       });
+
+      // The transaction callback has resolved, so its database commit is now
+      // durable. Queue one independent initial stream for every account.
+      if (
+        response.success &&
+        response.data &&
+        provider.supportsTransactionSync()
+      ) {
+        try {
+          await Promise.all(
+            response.data.accounts.map((account) =>
+              scheduleTransactionSync(
+                {
+                  bankAccountId: account.id,
+                  trigger: 'initial',
+                  actorUserId: params.userId,
+                },
+                { delay: 5000 },
+              ),
+            ),
+          );
+          log('sync_queued', {
+            bankAccountIds: response.data.accounts.map((account) => account.id),
+            syncType: 'initial',
+            queueDelay: 5000,
+          });
+        } catch (error) {
+          // Account connection is already committed; a queue outage must not
+          // misreport it as a failed connection.
+          log('sync_queue_failed', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            errorName: error instanceof Error ? error.name : 'UnknownError',
+            providerKey: params.providerKey,
+          });
+        }
+      }
 
       return response;
     } catch (error: unknown) {

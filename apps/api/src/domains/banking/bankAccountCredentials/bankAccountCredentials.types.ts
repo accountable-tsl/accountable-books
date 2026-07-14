@@ -28,11 +28,7 @@ const newCredentialInput = z.object({
   expires_at: z.date().optional(),
   updated_by_id: z.uuid().optional(),
 
-  sync_cursor: z.string().nullish(),
-  sync_state: z.record(z.string(), z.any()).optional(),
-  initial_sync_completed: z.boolean().optional(),
   transactions_from_date: z.date().nullish(),
-  last_transactions_sync_at: z.date().nullish(),
 });
 
 export const newBankAccountCredentialInput =

@@ -155,22 +155,3 @@ export async function getBankAccountCredential<T extends boolean>({
     return errorResponse('Unable to retrieve credential', error);
   }
 }
-
-/**
- * Get all active credentials for periodic sync scheduling
- */
-export async function getAllActiveCredentials(trx?: Knex.Transaction): Promise<
-  {
-    id: string;
-    company_id: string;
-    provider_id: string;
-    status: string;
-  }[]
-> {
-  const knex = trx || knexClient;
-
-  return await knex('bank_account_credentials')
-    .select(['id', 'company_id', 'provider_id', 'status'])
-    .where('status', 'active')
-    .orderBy('connected_at', 'desc');
-}
