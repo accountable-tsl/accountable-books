@@ -54,11 +54,14 @@ function createFakeTransaction(initialRows: BankRow[] = []) {
               Object.fromEntries(columns.map((key) => [key, row[key]])),
             ),
       }),
-      insert: (insertRows: BankRow[]) => ({
+      insert: (insertRows: BankRow | BankRow[]) => ({
         onConflict: (column: keyof BankRow) => ({
           merge: (mutableColumns: (keyof BankRow)[]) => ({
             whereRaw: async () => {
-              for (const insertRow of insertRows) {
+              const rowsToInsert = Array.isArray(insertRows)
+                ? insertRows
+                : [insertRows];
+              for (const insertRow of rowsToInsert) {
                 const existing = rows.find(
                   (row) => row[column] === insertRow[column],
                 );

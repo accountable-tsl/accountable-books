@@ -243,7 +243,6 @@ export const requireAuth = async (
     }
   }
 };
-
 // export const requirePermission = (permission: string) => {
 //   return async (req: AuthRequest, res: Response, next: NextFunction) => {
 //     if (!req.user) return res.status(401).json(errorResponse("Unauthorized"));

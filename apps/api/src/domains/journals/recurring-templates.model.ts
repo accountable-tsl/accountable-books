@@ -235,7 +235,6 @@ async function validateCurrencyId({
   if (!currencyId) return;
   const currency = await trx('currencies')
     .where('id', currencyId)
-    .where('is_deleted', false)
     .first('id');
 
   if (!currency) {

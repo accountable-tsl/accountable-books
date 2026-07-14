@@ -75,7 +75,7 @@ describe('condition-checks', () => {
       .first();
     if (!cashCoa) {
       throw new Error(
-        'Demo company missing COA. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo -- apply',
+        'Demo company missing COA. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo apply',
       );
     }
     testCoaId = cashCoa.id;

@@ -15,6 +15,7 @@ describe('resolveBootstrapPlan', () => {
       'countries',
       'banks',
       'bank-feed-providers',
+      'billing-catalog',
       'currencies',
       'financial-statements',
       'account-elements',
@@ -42,6 +43,7 @@ describe('resolveBootstrapPlan', () => {
   it('expands bank feed provider catalog dependencies', () => {
     expect(resolveBootstrapPlan({ phases: ['bank-feed-providers'] })).toEqual([
       'users',
+      'countries',
       'bank-feed-providers',
     ]);
   });

@@ -192,7 +192,6 @@ async function getCompanyImportContext(
 
   const currency = await db('currencies')
     .where('id', company.reporting_currency_id)
-    .where('is_deleted', false)
     .first<{ id: string; code: string }>('id', 'code');
 
   if (!currency?.id || !currency.code) {
@@ -397,7 +396,6 @@ export async function preflightJournalImport(p: {
     if (currencyCodes.size) {
       const rows = await db('currencies')
         .whereIn('code', [...currencyCodes])
-        .where('is_deleted', false)
         .select<{ id: string; code: string }[]>('id', 'code');
       for (const r of rows) currencyByCode.set(r.code.toUpperCase(), r);
     }

@@ -90,7 +90,7 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     if (!cashCoa || !expenseCoa) {
       throw new Error(
-        'Demo company missing required COAs. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo -- apply',
+        'Demo company missing required COAs. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo apply',
       );
     }
 
@@ -285,6 +285,7 @@ describe('createLedgerRecord - Integration Tests', () => {
           display_name: 'Entry Contact',
           normalized_name: 'entrycontact',
           created_by_id: testUserId,
+          review_status: 'unreviewed',
         })
         .returning('*');
 

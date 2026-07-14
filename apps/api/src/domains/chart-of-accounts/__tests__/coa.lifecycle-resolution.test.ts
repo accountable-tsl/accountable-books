@@ -214,9 +214,9 @@ describe('COA explicit lifecycle reference resolution', () => {
           type: 'categorize',
           lines: [
             {
-              split_type: 'fixed',
+              split_type: 'amount',
               description: 'First target',
-              amount: 50,
+              value: 50,
               coa_id: fixture.sourceCoaId,
             },
             {
@@ -375,12 +375,15 @@ async function createFixture(db: Knex): Promise<Fixture> {
     const sourceCompany = await trx('companies')
       .where({ short_code: 'bizDemoUS' })
       .first<Record<string, unknown>>();
+    const firm = await trx('companies')
+      .where({ short_code: 'firmDemoUS' })
+      .first<{ id: string }>('id');
     const accountType = await trx('account_types')
       .where({ key: 'ca_other' })
       .first<{ id: string }>('id');
-    if (!sourceCompany || !accountType) {
+    if (!sourceCompany || !accountType || !firm) {
       throw new Error(
-        'Expected demo company and ca_other account type fixtures',
+        'Expected demo company, firmDemoUS, and ca_other account type fixtures',
       );
     }
 
@@ -395,7 +398,7 @@ async function createFixture(db: Knex): Promise<Fixture> {
       display_name: `COA resolution ${suffix}`,
       short_code: `coaResolve_${suffix}`,
       workspace_class: 'demo',
-      assigned_firm_id: null,
+      assigned_firm_id: firm.id,
       created_at: new Date(),
       updated_at: new Date(),
       is_deleted: false,

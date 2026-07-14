@@ -1176,11 +1176,19 @@ async function upsertCoaVersions({
   for (const r of coaRecords) {
     const existingVersion = existingVersionMap.get(r.id);
     let changeset: Record<string, any> | null = null;
+    const versionBoundary =
+      existingVersion &&
+      existingVersion.effective_from &&
+      new Date(r.updated_at).getTime() <
+        new Date(existingVersion.effective_from).getTime()
+        ? existingVersion.effective_from
+        : r.updated_at;
+
     if (existingVersion) {
       // Close existing version
       await trx('coa_versions')
         .where({ id: existingVersion.id })
-        .update({ effective_to: r.updated_at });
+        .update({ effective_to: versionBoundary });
 
       changeset = {};
       // Build changeset by comparing old vs new values
@@ -1199,7 +1207,7 @@ async function upsertCoaVersions({
       version_seq: existingVersion
         ? Number(existingVersion.version_seq) + 1
         : 1,
-      effective_from: existingVersion ? coaData.updated_at : now,
+      effective_from: existingVersion ? versionBoundary : now,
       effective_to: null,
       changeset,
     };

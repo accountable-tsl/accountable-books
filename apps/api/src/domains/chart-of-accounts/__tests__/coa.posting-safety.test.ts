@@ -105,7 +105,11 @@ describe('COA posting safety', () => {
       });
 
       expect(draft.success).toBe(true);
-      await applyLifecycleState(state, affectedCoa.id);
+      await applyLifecycleState(state, affectedCoa.id, {
+        // deleteCoa refuses operational draft refs; force soft-delete so we can
+        // still assert posting-time validation against a deleted account.
+        forceSoftDelete: state === 'deleted',
+      });
       const before = await getPostingCounts(trx, companyId);
 
       await expect(
@@ -191,7 +195,21 @@ describe('COA posting safety', () => {
   async function applyLifecycleState(
     state: CoaLifecycleState,
     coaId: string,
+    options?: { forceSoftDelete?: boolean },
   ): Promise<void> {
+    if (state === 'deleted' && options?.forceSoftDelete) {
+      const updatedCount = await trx('coa')
+        .where({ id: coaId, company_id: companyId })
+        .update({
+          is_deleted: true,
+          is_active: false,
+          deleted_at: trx.fn.now(),
+          updated_by_id: userId,
+        });
+      expect(updatedCount).toBe(1);
+      return;
+    }
+
     const result =
       state === 'archived'
         ? await archiveCoa({

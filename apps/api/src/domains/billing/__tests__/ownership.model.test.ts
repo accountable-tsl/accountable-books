@@ -179,6 +179,7 @@ describe('ownership.model', () => {
     });
 
     it('DB rejects self_serve row with client_billing_account_id set', async () => {
+      const createdById = await getTestUserId(trx, US_USER_EMAIL);
       const otherAccountId = (
         await createBillingAccount(
           {
@@ -197,6 +198,7 @@ describe('ownership.model', () => {
           commercial_mode: 'self_serve',
           software_payer: 'billing_account',
           effective_at: new Date(),
+          created_by_id: createdById,
         }),
       ).rejects.toThrow(/violates check constraint/);
     });
