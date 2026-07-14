@@ -68,27 +68,9 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table
-      .text('sync_cursor')
-      .nullable()
-      .comment('Provider-specific sync cursor/token');
-
-    table.jsonb('sync_state').notNullable().defaultTo(knex.raw(`'{}'::jsonb`));
-
-    table
-      .boolean('initial_sync_completed')
-      .notNullable()
-      .defaultTo(false)
-      .comment('Whether initial transaction sync is done');
-
-    table
       .date('transactions_from_date')
       .nullable()
       .comment('User preference for transaction sync start date');
-
-    table
-      .timestamp('last_transactions_sync_at', { useTz: true })
-      .nullable()
-      .comment('Last successful transaction sync timestamp');
 
     table
       .timestamp('expires_at', { useTz: true })
@@ -128,12 +110,6 @@ export async function up(knex: Knex): Promise<void> {
     CREATE UNIQUE INDEX bank_account_credentials_company_provider_identifier_uniq
     ON "${schemaName}"."${tableName}" (company_id, provider_id, item_identifier)
     WHERE item_identifier IS NOT NULL;
-  `);
-
-  await knex.raw(`
-    CREATE INDEX bank_account_credentials_active_sync_idx
-    ON "${schemaName}"."${tableName}" (company_id, last_transactions_sync_at)
-    WHERE status = 'active';
   `);
 
   await knex.raw(`

@@ -111,6 +111,14 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table.timestamp('last_sync_at', { useTz: true }).nullable();
+    table
+      .text('transaction_sync_cursor')
+      .nullable()
+      .comment('Provider cursor for this account transaction stream');
+    table
+      .timestamp('initial_transaction_sync_completed_at', { useTz: true })
+      .nullable()
+      .comment('When the initial account transaction stream completed');
     table.string('sync_error', 2048).nullable();
     table.string('notes', 2048).nullable();
 
@@ -173,6 +181,14 @@ export async function up(knex: Knex): Promise<void> {
   `);
 
   await knex.raw(`
+    CREATE INDEX bank_accounts_transaction_sync_due_idx
+    ON "${schemaName}"."${tableName}" (last_sync_at, id)
+    WHERE is_deleted = false
+      AND connection_status = 'connected'
+      AND connection_credential_id IS NOT NULL;
+  `);
+
+  await knex.raw(`
     ALTER TABLE "${schemaName}"."${tableName}"
       ADD CONSTRAINT bank_accounts_provider_state_chk
         CHECK (
@@ -181,6 +197,8 @@ export async function up(knex: Knex): Promise<void> {
             AND provider_bank_account_id IS NULL
             AND connection_credential_id IS NULL
             AND connection_status = 'not_connected'
+            AND transaction_sync_cursor IS NULL
+            AND initial_transaction_sync_completed_at IS NULL
           )
           OR
           (
@@ -221,10 +239,38 @@ export async function up(knex: Knex): Promise<void> {
         );
   `);
 
+  await knex.raw(`
+    CREATE OR REPLACE FUNCTION "${schemaName}".reset_bank_account_transaction_stream()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF NEW.connection_credential_id IS DISTINCT FROM OLD.connection_credential_id
+        OR NEW.provider_bank_account_id IS DISTINCT FROM OLD.provider_bank_account_id
+      THEN
+        NEW.transaction_sync_cursor := NULL;
+        NEW.initial_transaction_sync_completed_at := NULL;
+        NEW.last_sync_at := NULL;
+        NEW.sync_error := NULL;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER bank_accounts_reset_transaction_stream
+      BEFORE UPDATE OF connection_credential_id, provider_bank_account_id
+      ON "${schemaName}"."${tableName}"
+      FOR EACH ROW
+      EXECUTE FUNCTION "${schemaName}".reset_bank_account_transaction_stream();
+  `);
+
   await createUpdateTimestampTrigger(knex, tableName, schemaName);
 }
 
 export async function down(knex: Knex): Promise<void> {
+  await knex.raw(`
+    DROP TRIGGER IF EXISTS bank_accounts_reset_transaction_stream
+      ON "${schemaName}"."${tableName}";
+    DROP FUNCTION IF EXISTS "${schemaName}".reset_bank_account_transaction_stream();
+  `);
   await dropUpdateTimestampTrigger(knex, tableName, schemaName);
   await knex.schema.withSchema(schemaName).dropTableIfExists(tableName);
 }
