@@ -396,7 +396,7 @@ The simple operational flow is:
 
 1. `pnpm run migrate:local`
 2. `pnpm run bootstrap:local`
-3. optionally `pnpm run demo -- apply`
+3. optionally `pnpm run demo apply`
 
 Relevant commands live in:
 

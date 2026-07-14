@@ -343,11 +343,12 @@ jobs:
 
       - name: Apply demo data
         env:
+          NODE_ENV: staging
           DATABASE_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
           DATABASE_MIGRATION_URL: ${{ secrets.NEON_STAGING_DIRECT_URL }}
         run: |
           echo "🌱 Seeding demo data..."
-          pnpm -F @accountable-books/api run demo:apply:staging:remote
+          pnpm -F @accountable-books/api run demo apply
           echo "✅ Demo data applied successfully"
 
   # Step 5: Deployment summary and notifications

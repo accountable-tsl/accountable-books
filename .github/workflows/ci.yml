@@ -113,9 +113,13 @@ jobs:
         if: matrix.package == 'api'
         run: pnpm --filter @accountable-books/api run migrate:test
 
+      - name: Bootstrap catalog for API tests
+        if: matrix.package == 'api'
+        run: pnpm --filter @accountable-books/api run bootstrap:test
+
       - name: Seed demo data for API tests
         if: matrix.package == 'api'
-        run: pnpm --filter @accountable-books/api run demo:apply:test
+        run: NODE_ENV=test pnpm --filter @accountable-books/api run demo apply
 
       - name: Validate billing catalog v1 seed snapshot
         if: matrix.package == 'api'
@@ -126,7 +130,7 @@ jobs:
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
 
       - name: Test ${{ matrix.package }}
-        run: pnpm --filter @accountable-books/${{ matrix.package }} test -- --run
+        run: pnpm --filter @accountable-books/${{ matrix.package }} test --run
 
       # Optional: Sentry sourcemaps (enable once secrets exist)
       # - name: Upload Sentry sourcemaps

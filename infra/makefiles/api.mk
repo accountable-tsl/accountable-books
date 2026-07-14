@@ -47,55 +47,37 @@ api-typecheck: ## Run API type checking
 	@pnpm -F @accountable-books/api run typecheck
 
 # =============================================================================
-# 🗄️ DATABASE OPERATIONS
+# 🗄️ DATABASE OPERATIONS (delegate to db.mk happy paths)
 # =============================================================================
 
-api-migrate: guard-nonprod ## Run local API database migrations and bootstrap catalog
-	@echo "$(GREEN)🗄️ Running API migrations...$(RESET)"
-	@pnpm -F @accountable-books/api run migrate:local
-	@echo "$(GREEN)📚 Bootstrapping catalog...$(RESET)"
-	@pnpm -F @accountable-books/api run bootstrap:local
+api-migrate: db-ready ## Migrate + bootstrap local and test DBs
 
-api-migrate-test: guard-nonprod ## Run API test database migrations and bootstrap catalog
-	@echo "$(GREEN)🗄️ Running API test migrations...$(RESET)"
-	@pnpm -F @accountable-books/api run migrate:test
-	@echo "$(GREEN)📚 Bootstrapping test catalog...$(RESET)"
-	@pnpm -F @accountable-books/api run bootstrap:test
+api-migrate-test: db-migrate-test ## Migrate + bootstrap test DB only
 
 api-migrate-staging: guard-nonprod ## Run API database migrations for staging
 	@echo "$(GREEN)🗄️ Running API staging migrations...$(RESET)"
 	@pnpm -F @accountable-books/api run migrate:staging
 
-api-rollback: guard-nonprod ## Rollback last local API database migration
-	@echo "$(YELLOW)⏪ Rolling back last API migration...$(RESET)"
-	@pnpm -F @accountable-books/api run rollback:local
+api-rollback: db-rollback ## Rollback last local API database migration
 
 api-rollback-staging: guard-nonprod ## Rollback last API staging migration
 	@echo "$(YELLOW)⏪ Rolling back last API staging migration...$(RESET)"
 	@pnpm -F @accountable-books/api run rollback:staging
 
-api-db-reset: guard-nonprod ## Reset local API database, then migrate and seed
-	@echo "$(YELLOW)🔄 Resetting API database...$(RESET)"
-	@pnpm -F @accountable-books/api run db:reset:local
-	@pnpm -F @accountable-books/api run migrate:local
-	@pnpm -F @accountable-books/api run bootstrap:local
-	@pnpm -F @accountable-books/api run demo -- apply
-	@echo "$(GREEN)✅ API database reset complete$(RESET)"
+api-db-reset: db-reset ## Reset, migrate, bootstrap, and seed local and test DBs
 
 # =============================================================================
 # 🌱 DEMO DATA MANAGEMENT
 # =============================================================================
 
-api-demo-apply: guard-nonprod ## Apply demo data for API
-	@echo "$(GREEN)🌱 Applying API demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo -- apply
+api-demo-apply: db-seed ## Apply demo data to local and test DBs
 
-api-demo-reverse: guard-nonprod ## Remove demo data for API
-	@echo "$(YELLOW)🗑️ Removing API demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo -- reverse
+api-demo-reverse: guard-nonprod ## Remove demo data from local DB
+	@echo "$(YELLOW)🗑️ Removing API demo data (local)...$(RESET)"
+	@pnpm -F @accountable-books/api run demo reverse
 
-api-demo-status: ## Show API demo data status
-	@pnpm -F @accountable-books/api run demo -- status
+api-demo-status: ## Show API demo data status (local)
+	@pnpm -F @accountable-books/api run demo status
 
 # =============================================================================
 # ⚙️ WORKERS & SERVICES

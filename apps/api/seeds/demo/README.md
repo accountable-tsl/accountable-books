@@ -14,21 +14,21 @@ Idempotent demo seeding for 6 companies (3 US, 3 Nigeria).
 **Makefile (repo root):**
 
 ```bash
-make demo              # Apply all demo data
-make demo-basic        # Without bank transactions (faster)
-make demo-status       # Show status
-make demo-reverse      # Remove demo data
+make demo              # Apply all demo data (local + test)
+make demo-basic        # Without bank transactions (local + test)
+make demo-status       # Show status (local)
+make demo-reverse      # Remove demo data (local + test)
 make db-seed           # Same as make demo
 ```
 
 **pnpm (repo root or API package):**
 
 ```bash
-pnpm -F @accountable-books/api run demo -- apply
-pnpm -F @accountable-books/api run demo -- apply --exclude bank-transactions
-pnpm -F @accountable-books/api run demo -- status
-pnpm -F @accountable-books/api run demo -- reverse
-pnpm -F @accountable-books/api run demo -- reset --country US
+pnpm -F @accountable-books/api run demo apply
+pnpm -F @accountable-books/api run demo apply --exclude bank-transactions
+pnpm -F @accountable-books/api run demo status
+pnpm -F @accountable-books/api run demo reverse
+pnpm -F @accountable-books/api run demo reset --country US
 ```
 
 **CLI (from `apps/api`):**

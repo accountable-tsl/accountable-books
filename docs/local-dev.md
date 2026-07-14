@@ -14,9 +14,9 @@ Hybrid development: **infrastructure in Docker** (PostgreSQL + Redis), **applica
 ## First-Time Setup
 
 ```bash
-make setup    # Infra + deps + generate-env + migrate + demo data
+make setup    # Infra + deps + generate-env + local/test migrate+bootstrap + demo
 # or
-make install  # Deps + generate-env only — then run db-up / db-migrate yourself
+make install  # Deps + generate-env only — then run db-up / db-ready / db-seed yourself
 ```
 
 `make setup` and `make install` both run `pnpm run generate-env`, which creates `apps/api/.env.local` and `apps/web/.env.local` from the env schemas.
@@ -56,7 +56,7 @@ To also start web-payroll: `make dev-full` or `pnpm dev`.
 
 ## Individual Services
 
-After `make setup` (or `make install` + `make db-up` + `make db-migrate`):
+After `make setup` (or `make install` + `make db-up` + `make db-ready` + `make db-seed`):
 
 ```bash
 make api-dev      # API only
@@ -71,31 +71,36 @@ pnpm -F @accountable-books/ml-engine dev
 
 ## Database
 
+Happy-path Make targets prepare **both** the local app DB and the test DB (migrations use the same Postgres instance; catalogs + demo are applied to each).
+
 ```bash
-make db-up          # Start DB + Redis
+make db-up          # Start DB + Redis (creates local + test databases)
 make db-down        # Stop infrastructure
-make db-migrate     # Run migrations
-make db-rollback    # Roll back last migration
-make db-seed        # Apply demo data
-make db-shell       # psql shell
+make db-ready       # Migrate + bootstrap local and test
+make db-migrate     # Alias for db-ready
+make db-seed        # Apply demo data to local and test
+make db-reset       # Reset, migrate, bootstrap, seed local and test
+make db-shell       # psql shell (local)
 make db-logs        # View logs
-make db-reset       # Reset local DB, then migrate and seed
+make db-rollback    # Roll back last local migration
 ```
+
+Single-env escape hatches: `db-migrate-local` / `db-migrate-test`, `db-seed-local` / `db-seed-test`, `db-reset-local` / `db-reset-test`.
 
 ## Demo Data
 
 ```bash
-make demo              # Apply all demo data
-make demo-basic        # Without bank transactions (faster)
-make demo-status       # Current state
-make demo-reverse      # Remove demo data
+make demo              # Apply demo data (local + test)
+make demo-basic        # Without bank transactions (local + test)
+make demo-status       # Current state (local)
+make demo-reverse      # Remove demo data (local + test)
 
-# With filters (pnpm)
-pnpm -F @accountable-books/api run demo -- apply --country US
-pnpm -F @accountable-books/api run demo -- reset --type business
+# With filters (pnpm primitives — env-specific)
+pnpm -F @accountable-books/api run demo apply --country US
+NODE_ENV=test pnpm -F @accountable-books/api run demo apply --country US
 ```
 
-CLI reference: [apps/api/seeds/demo/README.md](../apps/api/seeds/demo/README.md) and `pnpm -F @accountable-books/api run demo -- --help`.
+CLI reference: [apps/api/seeds/demo/README.md](../apps/api/seeds/demo/README.md) and `pnpm -F @accountable-books/api run demo help`.
 
 ## Environment Files
 
@@ -111,7 +116,7 @@ Key local defaults: `DB_HOST=localhost`, `DB_PORT=5433`, `REDIS_HOST=localhost`,
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md). Quick checks:
 
 1. Infrastructure running: `docker compose -f docker-compose.dev.yml ps`
-2. Migrations applied: `make db-migrate`
+2. Databases ready: `make db-ready` (and `make db-seed` if you need demo companies)
 3. Port conflicts: `make db-down`, stop running apps (Ctrl+C), restart
 
 Nuclear reset: `make clean-all` (from repo root).

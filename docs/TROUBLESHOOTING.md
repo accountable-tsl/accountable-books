@@ -130,7 +130,8 @@ make setup      # Re-setup environment
    docker volume rm accountable-books_postgres_data
    make db-up
    sleep 10
-   make db-migrate
+   make db-ready
+   make db-seed
    ```
 
 ### ❌ Database connection works but queries fail
@@ -139,10 +140,10 @@ make setup      # Re-setup environment
 
 **Solutions**:
 
-1. Ensure migrations ran successfully:
+1. Ensure migrate + bootstrap ran successfully:
 
    ```bash
-   make db-migrate
+   make db-ready
    ```
 
 2. Check database has required extensions:

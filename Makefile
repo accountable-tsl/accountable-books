@@ -29,7 +29,7 @@ check-prereqs: ## Check for required tools
 	@./scripts/check-prerequisites.sh
 
 ##@ 🚀 Quick Start (Most Common)
-setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + env + db + demo
+setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + env + local/test DBs + demo
 	@echo "$(GREEN)🚀 Setting up Accountable Books development environment...$(RESET)"
 	@echo "$(YELLOW)🐳 Starting infrastructure (DB + Redis)...$(RESET)"
 	@$(MAKE) db-up
@@ -39,16 +39,16 @@ setup: guard-nonprod check-prereqs ## One-command setup: infra + deps + env + db
 	@pnpm -F @accountable-books/utils run build
 	@echo "$(YELLOW)🔧 Generating environment files...$(RESET)"
 	@pnpm run generate-env
-	@echo "$(YELLOW)🗄️ Running database migrations...$(RESET)"
-	@$(MAKE) db-migrate
+	@echo "$(YELLOW)🗄️ Preparing local + test databases (migrate + bootstrap)...$(RESET)"
+	@$(MAKE) db-ready
 	@echo "$(YELLOW)🔨 Building @accountable-books/contracts (data + pydantic)...$(RESET)"
 	@pnpm -F @accountable-books/contracts run build
 	@echo "$(YELLOW)🐍 Installing Python dependencies (ML Engine)...$(RESET)"
 	@cd apps/ml-engine && uv sync --frozen
-	@echo "$(YELLOW)🌱 Applying demo data...$(RESET)"
+	@echo "$(YELLOW)🌱 Applying demo data to local + test...$(RESET)"
 	@$(MAKE) db-seed
 	@echo "$(GREEN)✅ Setup complete!$(RESET)"
-	@echo "$(BLUE)💡 Run 'make dev' to start developing$(RESET)"
+	@echo "$(BLUE)💡 Run 'make dev' to start developing, or 'make test' for the suite$(RESET)"
 
 install: guard-nonprod ## Install dependencies and generate env files
 	@echo "$(GREEN)📦 Installing Node.js dependencies...$(RESET)"
@@ -81,20 +81,20 @@ staging-local: guard-nonprod ## Start local staging containers, then migrate and
 	@$(MAKE) staging-full-up
 
 ##@ 🌱 Demo Data
-demo: ## Apply demo data
-	@echo "$(GREEN)🌱 Applying demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo -- apply
+demo: db-seed ## Apply demo data to local and test DBs
 
-demo-status: ## Show demo data status
-	@pnpm -F @accountable-books/api run demo -- status
+demo-status: ## Show demo data status (local)
+	@pnpm -F @accountable-books/api run demo status
 
-demo-basic: ## Apply demo data without bank transactions
-	@echo "$(GREEN)🌱 Applying demo data (without transactions)...$(RESET)"
-	@pnpm -F @accountable-books/api run demo -- apply --exclude bank-transactions
+demo-basic: guard-nonprod ## Apply demo data without bank transactions (local + test)
+	@echo "$(GREEN)🌱 Applying demo data without bank transactions (local + test)...$(RESET)"
+	@pnpm -F @accountable-books/api run demo apply --exclude bank-transactions
+	@NODE_ENV=test pnpm -F @accountable-books/api run demo apply --exclude bank-transactions
 
-demo-reverse: guard-nonprod ## Remove demo data
-	@echo "$(YELLOW)🗑️ Removing demo data...$(RESET)"
-	@pnpm -F @accountable-books/api run demo -- reverse
+demo-reverse: guard-nonprod ## Remove demo data from local and test DBs
+	@echo "$(YELLOW)🗑️ Removing demo data (local + test)...$(RESET)"
+	@pnpm -F @accountable-books/api run demo reverse
+	@NODE_ENV=test pnpm -F @accountable-books/api run demo reverse
 
 ##@ 🔧 Quality & Build
 check: ## Run read-only quality checks (lint + typecheck + format check)
@@ -168,24 +168,25 @@ help: ## Show this help
 	@echo "$(BLUE)🚀 Accountable Books - Developer Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)🚀 Daily workflow:$(RESET)"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make setup" "First-time setup: infra + deps + env + db + demo data"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make setup" "First-time setup: infra + deps + env + local/test DBs + demo"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make install" "Install deps and generate env files only"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make dev" "Start core apps: api, web, ml-engine"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make dev-full" "Start infra and all Turbo apps, including web-payroll"
 	@echo ""
-	@echo "$(YELLOW)🗄️ Database:$(RESET)"
+	@echo "$(YELLOW)🗄️ Database (local + test together):$(RESET)"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-up" "Start local PostgreSQL and Redis"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-down" "Stop local PostgreSQL and Redis"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-migrate" "Run local migrations and bootstrap catalog"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-seed" "Apply local demo data"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-reset" "Reset local DB, then migrate and seed"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-ready" "Migrate + bootstrap local and test DBs"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-migrate" "Alias for db-ready"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-seed" "Apply demo data to local and test"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-reset" "Reset, migrate, bootstrap, seed local and test"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make db-shell" "Open local PostgreSQL shell"
 	@echo ""
 	@echo "$(YELLOW)🌱 Demo Data:$(RESET)"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo" "Apply local demo data"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo-basic" "Apply local demo data without bank transactions"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo" "Alias for db-seed (local + test)"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo-basic" "Demo without bank transactions (local + test)"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo-status" "Show local demo data status"
-	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo-reverse" "Remove local demo data"
+	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make demo-reverse" "Remove demo data (local + test)"
 	@echo ""
 	@echo "$(YELLOW)🔧 Quality & Build:$(RESET)"
 	@printf "  $(GREEN)%-22s$(RESET) %s\n" "make check" "Read-only checks: lint + typecheck + format check"
@@ -231,10 +232,12 @@ help-advanced: ## Show advanced commands for debugging and container operations
 	@echo "  make web-logs       # Web logs"
 	@echo "  make ml-logs        # ML logs"
 	@echo ""
-	@echo "$(YELLOW)🗄️ Advanced Database:$(RESET)"
-	@echo "  make db-reset       # Reset local DB, then migrate and seed"
-	@echo "  make db-rollback    # Rollback last local migration"
-	@echo "  make db-wait        # Wait for local DB ready"
+	@echo "$(YELLOW)🗄️ Advanced Database (single-env escape hatches):$(RESET)"
+	@echo "  make db-migrate-local / db-migrate-test"
+	@echo "  make db-seed-local   / db-seed-test"
+	@echo "  make db-reset-local  / db-reset-test"
+	@echo "  make db-rollback     # Rollback last local migration"
+	@echo "  make db-wait         # Wait for local DB ready"
 	@echo ""
 	@echo "$(YELLOW)🚀 Staging Environment:$(RESET)"
 	@echo "  make staging-up        # Start all staging services"

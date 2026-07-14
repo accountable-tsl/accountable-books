@@ -7,7 +7,7 @@ Accountable Books ingests bank data via Plaid (US) and Mono (Nigeria), auto-cate
 ## Quick Start
 
 ```bash
-make setup   # First time: infra + deps + env + migrate + demo data
+make setup   # First time: infra + deps + env + local/test DBs + demo
 make dev     # Start core apps (api, web, ml-engine)
 ```
 
@@ -40,9 +40,9 @@ make web-dev      # Web only
 make ml-only      # ML engine only
 
 make db-up        # Start DB + Redis
-make db-migrate   # Run migrations
-make db-seed      # Apply demo data
-make demo-status  # Check demo data
+make db-ready     # Migrate + bootstrap local and test
+make db-seed      # Apply demo data to local and test
+make demo-status  # Check demo data (local)
 
 make test         # All tests
 make check        # Read-only lint + typecheck + format check

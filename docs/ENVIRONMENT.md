@@ -139,7 +139,7 @@ For production environments:
 ```bash
 make db-up
 # Wait a few seconds for services to start
-make db-migrate
+make db-ready
 ```
 
 ### Port Conflicts
