@@ -60,7 +60,7 @@ const BANK_TX_SELECT_FIELDS = [
   'ba.id as bank_account_id',
   'ba.company_id as company_id',
   'ba.coa_id as bank_account_coa_id',
-  'ba.account_name as bank_account_name',
+  'ba.display_name as bank_account_name',
   'ba.display_name as bank_account_display_name',
   'ba.currency_id as transaction_currency_id',
 

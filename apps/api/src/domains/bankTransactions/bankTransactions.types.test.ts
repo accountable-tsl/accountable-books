@@ -32,15 +32,15 @@ describe('bankTransactionBatchInput', () => {
     expect(result.source_metadata).toEqual({});
   });
 
-  it('requires provider idempotency keys for bank feed transactions', () => {
+  it('accepts bank feed transactions without canonical idempotency keys', () => {
     const result = bankTransactionBatchInput.safeParse({
       source: 'bank_feed',
       bank_account_id: validTransaction.bank_account_id,
-      connection_credential_id: '019c0000-0000-7000-8000-000000000002',
+      bank_account_feed_id: '019c0000-0000-7000-8000-000000000002',
       bank_transactions: [validTransaction],
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });
 

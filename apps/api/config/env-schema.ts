@@ -170,6 +170,28 @@ export const API_ENV_SCHEMA: EnvSchema = {
     minLength: 32,
   },
 
+  /**
+   * HMAC key for bank account-number blind indexes (fingerprints).
+   * This is a durable identity secret — rotating it requires a deliberate
+   * identity migration because plaintext account numbers are not retained.
+   * Min 32 chars; use a dedicated secret distinct from APP_ENC_KEYS.
+   */
+  ACCOUNT_NUMBER_HMAC_KEY: {
+    description:
+      'HMAC key for bank account-number blind indexes (durable; non-routine rotation)',
+    type: 'secret',
+    minLength: 32,
+    local: 'dev-account-number-hmac-key-do-not-use-in-prod',
+  },
+
+  ACCOUNT_NUMBER_FINGERPRINT_VERSION: {
+    description: 'Account-number fingerprint algorithm version',
+    type: 'number',
+    local: '1',
+    staging: '1',
+    production: '1',
+  },
+
   // ============================================================================
   // EMAIL CONFIGURATION
   // ============================================================================

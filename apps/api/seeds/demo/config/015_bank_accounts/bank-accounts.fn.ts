@@ -36,20 +36,20 @@ const createBankAccountWithCoa = async (
     versionNote: 'demo_bank_account_coa_creation',
   });
 
-  // Create bank account with reference to COA
+  // Create bank account with reference to COA. Demo accounts are manual
+  // (never connected to a provider), so only the accounting-account fields
+  // apply; provider identity/connection/sync state live on bank_connections
+  // / bank_account_feeds and are never created here.
   const [bankAccount] = await trx('bank_accounts')
     .insert({
       display_name: account.displayName,
-      account_name: account.accountName,
       account_type: account.accountType,
-      account_number: account.accountNumber,
       account_number_mask: account.accountNumber.slice(-4),
       business_or_personal: account.businessOrPersonal,
       bank_id: bankId,
       currency_id: bankCurrencyId,
       company_id: account.companyId,
       coa_id: coa.id, // Reference to created COA
-      connection_status: 'not_connected', // Demo accounts are not connected to providers
       created_by_id: createdById,
       updated_by_id: createdById,
     })

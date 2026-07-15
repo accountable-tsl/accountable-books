@@ -46,12 +46,13 @@ export type BankTransactionInputCamel = SnakeToCamelCaseObject<
 >;
 
 export const newBankTransaction = bankTransactionInput.extend({
+  id: z.uuid().optional(),
   transaction_at: z.date(),
   bank_account_id: z.uuid(),
   company_id: z.uuid(),
   system_exchange_rate: z.number(),
   bank_transaction_batch_id: z.uuid(),
-  idempotency_key: z.string().trim().min(1).max(256),
+  idempotency_key: z.string().trim().min(1).max(256).nullish(),
   source_payload: z.record(z.string(), z.unknown()),
   ledger_transaction_id: z.uuid().nullish(),
   created_by_id: z.uuid(),
@@ -80,28 +81,24 @@ export const bankTransactionBatchInput = z
     // opening_balance: z.number().optional(), // Balance before the first transaction
     // closing_balance: z.number().optional(), // Balance after the last transaction
     source_metadata: z.record(z.string(), z.unknown()).optional().default({}),
-    connection_credential_id: z.uuid().nullish(),
+    bank_account_feed_id: z.uuid().nullish(),
+    bank_transaction_sync_run_id: z.uuid().nullish(),
   })
   .superRefine((batch, ctx) => {
-    const hasCredential = batch.connection_credential_id != null;
-    if ((batch.source === 'bank_feed') !== hasCredential) {
+    const hasFeed = batch.bank_account_feed_id != null;
+    if ((batch.source === 'bank_feed') !== hasFeed) {
       ctx.addIssue({
         code: 'custom',
-        path: ['connection_credential_id'],
-        message:
-          'connection_credential_id is required only for bank feed batches',
+        path: ['bank_account_feed_id'],
+        message: 'bank_account_feed_id is required only for bank feed batches',
       });
     }
-
-    if (batch.source === 'bank_feed') {
-      batch.bank_transactions.forEach((transaction, index) => {
-        if (!transaction.idempotency_key) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['bank_transactions', index, 'idempotency_key'],
-            message: 'idempotency_key is required for bank feed transactions',
-          });
-        }
+    if (batch.source !== 'bank_feed' && batch.bank_transaction_sync_run_id) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['bank_transaction_sync_run_id'],
+        message:
+          'bank_transaction_sync_run_id is only valid for bank feed batches',
       });
     }
   });
@@ -118,7 +115,8 @@ export type BankTransactionBatchInputCamel =
 export const newBankTransactionBatches = z.object({
   bank_account_id: z.uuid(),
   company_id: z.uuid(),
-  connection_credential_id: z.uuid().nullish(),
+  bank_account_feed_id: z.uuid().nullish(),
+  bank_transaction_sync_run_id: z.uuid().nullish(),
   start_date: zDate,
   end_date: zDate,
   source: bankTransactionSource,

@@ -1,6 +1,8 @@
 import { createHash } from 'crypto';
 
 import { knexClient } from '../../../db/knexClient.js';
+import { markConnectionRequiresAction } from '../../../domains/banking/bank-connections/bank-connections.model.js';
+import { completeSyncRun } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.model.js';
 import {
   writeBankReconnectNotificationLifecycle,
   writeBankSyncFailureRequiresActionNotifications,
@@ -13,7 +15,6 @@ import {
   syncErrorMessage,
 } from './transaction-sync.errors.js';
 
-import type { BankAccountConnectionStatus } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
 import type {
   BankAccountForSync,
   ClassifiedTransactionSyncFailure,
@@ -37,14 +38,7 @@ const AUTH_RECONNECT_TEXT_PATTERNS = [
   'login required',
   'authentication failed',
   'bank account not found',
-  'credential is not active: expired',
-  'credential is not active: revoked',
 ];
-
-interface SyncFailureCredential {
-  id: string;
-  provider_id: string;
-}
 
 export function classifyTransactionSyncFailure(
   error: unknown,
@@ -77,24 +71,52 @@ export function classifyTransactionSyncFailure(
 export async function handleTransactionSyncFailure(input: {
   bankAccountId: string;
   account: BankAccountForSync | null;
-  credential: SyncFailureCredential | null;
   providerKey: string | null;
+  syncRunId: string | null;
   error: unknown;
   traceId: string;
 }): Promise<void> {
   const failure = classifyTransactionSyncFailure(input.error);
-  if (
-    failure.classification === 'auth_reconnect' &&
-    input.account &&
-    input.credential
-  ) {
+
+  if (input.syncRunId && input.account) {
     try {
-      await markCredentialAccountsReconnectRequired({
-        credentialId: input.credential.id,
+      const completed = await completeSyncRun({
+        syncRunId: input.syncRunId,
         companyId: input.account.company_id,
+        outcome: 'failed',
+        retryable: failure.retryable,
+        failureClassification: failure.classification,
+        providerErrorCode: failure.code,
+        diagnosticSummary: (failure.displayMessage || failure.message).slice(
+          0,
+          2048,
+        ),
+      });
+      if (!completed.success) {
+        throw new Error(
+          completed.message || 'Failed to complete transaction sync run',
+        );
+      }
+    } catch (completionError) {
+      logger.error(
+        {
+          traceId: input.traceId,
+          bankAccountId: input.bankAccountId,
+          error: syncErrorMessage(completionError),
+        },
+        'Failed to record transaction sync run failure',
+      );
+    }
+  }
+
+  if (failure.classification === 'auth_reconnect' && input.account) {
+    try {
+      await markConnectionAndNotifyReconnectRequired({
+        connectionId: input.account.bank_connection_id,
+        companyId: input.account.company_id,
+        reasonCode: failure.code,
         syncError: failure.displayMessage || failure.message,
       });
-      return;
     } catch (handlerError) {
       logger.error(
         {
@@ -102,61 +124,45 @@ export async function handleTransactionSyncFailure(input: {
           bankAccountId: input.bankAccountId,
           error: syncErrorMessage(handlerError),
         },
-        'Failed to mark credential accounts for reconnect',
+        'Failed to mark bank connection for reconnect',
       );
     }
   }
 
-  if (input.account && input.credential) {
+  if (input.error instanceof AccountTransactionApplyError && input.account) {
+    const applyError = input.error;
+    const account = input.account;
     try {
-      const stateVersion = new Date();
-      await knexClient.transaction(async (trx) => {
-        const updated = await trx('bank_accounts')
-          .where({
-            id: input.account!.id,
-            connection_credential_id: input.credential!.id,
-            provider_bank_account_id: input.account!.provider_bank_account_id,
-          })
-          .update({
-            sync_error: (failure.displayMessage || failure.message).slice(
-              0,
-              2048,
-            ),
-            updated_at: stateVersion,
-          });
-        if (updated === 0) return;
-        if (input.error instanceof AccountTransactionApplyError) {
-          await writeBankSyncFailureRequiresActionNotifications(trx, {
-            clientCompanyId: input.account!.company_id,
-            credentialId: input.credential!.id,
-            failures: [
-              {
-                bankAccountId: input.account!.id,
-                error: input.error.message,
-                failedTransactionCount: input.error.failedTransactionCount,
-              },
-            ],
-            stateVersion,
-          });
-        }
-      });
-    } catch (stateError) {
+      await knexClient.transaction((trx) =>
+        writeBankSyncFailureRequiresActionNotifications(trx, {
+          clientCompanyId: account.company_id,
+          connectionId: account.bank_connection_id,
+          failures: [
+            {
+              bankAccountId: account.bank_account_id,
+              error: applyError.message,
+              failedTransactionCount: applyError.failedTransactionCount,
+            },
+          ],
+          stateVersion: new Date(),
+        }),
+      );
+    } catch (handlerError) {
       logger.error(
         {
           traceId: input.traceId,
           bankAccountId: input.bankAccountId,
-          error: syncErrorMessage(stateError),
+          error: syncErrorMessage(handlerError),
         },
-        'Failed to record bank account sync error',
+        'Failed to write bank sync failure requires-action notifications',
       );
     }
   }
 
   await alertAdminsForSyncFailure({
     bankAccountId: input.bankAccountId,
-    credentialId: input.credential?.id || '',
+    connectionId: input.account?.bank_connection_id || '',
     companyId: input.account?.company_id || '',
-    providerId: input.credential?.provider_id || '',
     providerKey: input.providerKey,
     error: input.error,
     failure,
@@ -164,50 +170,67 @@ export async function handleTransactionSyncFailure(input: {
   });
 }
 
-async function markCredentialAccountsReconnectRequired(input: {
-  credentialId: string;
+/** Called only for failures already classified as requiring reauthorization. */
+async function markConnectionAndNotifyReconnectRequired(input: {
+  connectionId: string;
   companyId: string;
+  reasonCode: string;
   syncError: string;
 }): Promise<number> {
   return knexClient.transaction(async (trx) => {
-    const accounts = await trx('app.bank_accounts')
+    const connection = await trx('bank_connections')
+      .where({ id: input.connectionId, company_id: input.companyId })
+      .first<{
+        id: string;
+        authorization_status: string;
+      }>('id', 'authorization_status');
+
+    if (!connection) {
+      throw new Error('Bank connection not found');
+    }
+
+    const accounts = await trx('bank_account_feeds as f')
+      .join('bank_accounts as ba', 'ba.id', 'f.bank_account_id')
       .where({
-        company_id: input.companyId,
-        connection_credential_id: input.credentialId,
+        'f.bank_connection_id': input.connectionId,
+        'f.company_id': input.companyId,
+        'ba.is_deleted': false,
       })
-      .whereIn('connection_status', ['connected', 'error'])
-      .forUpdate()
-      .select('id', 'connection_status', 'display_name', 'sync_error');
+      .whereNull('f.revoked_at')
+      .select<{ id: string; display_name: string }[]>(
+        'ba.id',
+        'ba.display_name',
+      );
+    const previousConnectionStatus =
+      connection.authorization_status === 'active'
+        ? ('connected' as const)
+        : ('error' as const);
+
+    const marked = await markConnectionRequiresAction({
+      connectionId: input.connectionId,
+      companyId: input.companyId,
+      reasonCode: input.reasonCode,
+      trx,
+    });
+    if (!marked.success) {
+      throw new Error(
+        marked.message || 'Failed to mark bank connection requires action',
+      );
+    }
 
     let intentCount = 0;
+    const stateVersion = new Date();
     for (const account of accounts) {
-      const previousConnectionStatus =
-        account.connection_status as BankAccountConnectionStatus;
-      const [updated] = await trx('app.bank_accounts')
-        .where({ id: account.id })
-        .update({
-          connection_status: 'error',
-          sync_error: input.syncError.slice(0, 2048),
-          updated_at: trx.fn.now(),
-        })
-        .returning([
-          'id',
-          'connection_status',
-          'display_name',
-          'sync_error',
-          'updated_at',
-        ]);
-      if (!updated) continue;
       intentCount += await writeBankReconnectNotificationLifecycle(trx, {
-        bankAccountId: updated.id as string,
+        bankAccountId: account.id,
         clientCompanyId: input.companyId,
         previousConnectionStatus,
-        nextConnectionStatus:
-          updated.connection_status as BankAccountConnectionStatus,
-        bankAccountName: updated.display_name as string,
-        previousSyncError: account.sync_error as string | null,
-        syncError: updated.sync_error as string | null,
-        stateVersion: updated.updated_at as Date | string,
+        nextConnectionStatus: 'error',
+        bankAccountName: account.display_name,
+        previousSyncError:
+          previousConnectionStatus === 'error' ? input.syncError : null,
+        syncError: input.syncError,
+        stateVersion,
       });
     }
     return intentCount;
@@ -216,16 +239,14 @@ async function markCredentialAccountsReconnectRequired(input: {
 
 function failureFingerprint(input: {
   bankAccountId: string;
-  credentialId: string;
-  providerId: string;
+  connectionId: string;
   failure: ClassifiedTransactionSyncFailure;
 }): string {
   return createHash('sha256')
     .update(
       [
         input.bankAccountId,
-        input.credentialId,
-        input.providerId,
+        input.connectionId,
         input.failure.classification,
         input.failure.code,
         input.failure.message,
@@ -241,9 +262,8 @@ function dateBucket(value = new Date()): string {
 
 async function alertAdminsForSyncFailure(input: {
   bankAccountId: string;
-  credentialId: string;
+  connectionId: string;
   companyId: string;
-  providerId: string;
   providerKey: string | null;
   error: unknown;
   failure: ClassifiedTransactionSyncFailure;
@@ -257,8 +277,7 @@ async function alertAdminsForSyncFailure(input: {
         input.bankAccountId,
         failureFingerprint({
           bankAccountId: input.bankAccountId,
-          credentialId: input.credentialId,
-          providerId: input.providerId || 'unknown-provider',
+          connectionId: input.connectionId || 'unknown-connection',
           failure: input.failure,
         }),
         dateBucket(),
@@ -277,9 +296,8 @@ async function alertAdminsForSyncFailure(input: {
         message: input.failure.message,
         displayMessage: input.failure.displayMessage,
         retryable: input.failure.retryable,
-        credentialId: input.credentialId || null,
+        connectionId: input.connectionId || null,
         companyId: input.companyId || null,
-        providerId: input.providerId || null,
         providerKey: input.providerKey,
         traceId: input.traceId,
       },

@@ -585,14 +585,11 @@ async function createBankAccount(
     .insert({
       company_id: fixture.companyId,
       display_name: 'Test Bank Account',
-      account_name: 'Test Bank Account',
       account_type: 'checkings_current',
-      account_number: `cr-${randomUUID().slice(0, 8)}`,
       business_or_personal: 'business',
       bank_id: bank.id,
       currency_id: fixture.currencyId,
       coa_id: coa.id,
-      connection_status: 'not_connected',
       created_by_id: fixture.userId,
       updated_by_id: fixture.userId,
     })

@@ -1,4 +1,4 @@
-import { startOfMonth } from 'date-fns';
+import { startOfDay, startOfMonth, subDays } from 'date-fns';
 
 import { logger } from '../../../shared/utils/logger.js';
 import {
@@ -7,7 +7,6 @@ import {
 } from '../transaction-sync.constants.js';
 import { isProviderError } from './transaction-sync.errors.js';
 
-import type { BankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
 import type { BankingProvider, ProviderTransaction } from '../types/base.js';
 import type {
   BankAccountForSync,
@@ -30,19 +29,28 @@ interface FetchCompleteTransactionUpdateInput {
 export function getTransactionSyncFromDate(input: {
   initialSync: boolean;
   usesDateRangeStrategy: boolean;
-  credential: BankAccountCredential;
   account: BankAccountForSync;
+  initialTransactionHistoryDays: number;
 }): Date | undefined {
   if (!input.usesDateRangeStrategy) return undefined;
   if (input.initialSync) {
-    return input.credential.transactions_from_date
-      ? new Date(input.credential.transactions_from_date)
-      : startOfMonth(new Date());
+    return input.account.sync_from_date
+      ? new Date(input.account.sync_from_date)
+      : startOfDay(subDays(new Date(), input.initialTransactionHistoryDays));
   }
-  if (!input.account.last_sync_at) return startOfMonth(new Date());
-  const fromDate = new Date(input.account.last_sync_at);
+  if (!input.account.last_successful_sync_at) return startOfMonth(new Date());
+  const fromDate = new Date(input.account.last_successful_sync_at);
   fromDate.setDate(fromDate.getDate() - 1);
   return fromDate;
+}
+
+export function getInitialSyncCoverageFromDate(input: {
+  account: BankAccountForSync;
+  initialTransactionHistoryDays: number;
+}): Date {
+  return input.account.sync_from_date
+    ? new Date(input.account.sync_from_date)
+    : startOfDay(subDays(new Date(), input.initialTransactionHistoryDays));
 }
 
 export async function fetchCompleteTransactionUpdate(

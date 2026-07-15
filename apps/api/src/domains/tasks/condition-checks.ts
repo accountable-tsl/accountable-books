@@ -1,6 +1,9 @@
 import type { Knex } from 'knex';
 
 import { toYMD } from '../../shared/utils/date.utils.js';
+import { projectConnectionStatus } from '../banking/bank-account-projections.js';
+
+import type { BankConnectionAuthorizationStatus } from '../banking/bank-connections/bank-connections.types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -153,12 +156,34 @@ export async function checkBankConnectionHealth(
   companyId: string,
   trx: Knex.Transaction,
 ): Promise<ConditionCheckResult> {
-  const rows = await trx('bank_accounts')
-    .where({ company_id: companyId, is_deleted: false })
-    .whereIn('connection_status', ['revoked', 'error'])
-    .select('id');
+  const rows = await trx('bank_accounts_metrics_view')
+    .where({ company_id: companyId })
+    .select<
+      {
+        id: string;
+        authorization_status: BankConnectionAuthorizationStatus | null;
+        bank_account_feed_id: string | null;
+        feed_revoked_at: Date | null;
+      }[]
+    >('id', 'authorization_status', 'bank_account_feed_id', 'feed_revoked_at');
 
-  const bankAccountIds = rows.map((r: { id: string }) => r.id);
+  const bankAccountIds = rows
+    .filter((row) => {
+      const status = projectConnectionStatus({
+        hasEverHadFeed: row.bank_account_feed_id !== null,
+        activeFeed:
+          row.bank_account_feed_id !== null && row.feed_revoked_at === null
+            ? {
+                initial_sync_completed_at: null,
+                last_successful_sync_at: null,
+              }
+            : null,
+        latestFeedRevoked: row.feed_revoked_at !== null,
+        connectionAuthorizationStatus: row.authorization_status,
+      });
+      return status === 'error' || status === 'revoked';
+    })
+    .map((row) => row.id);
   const count = bankAccountIds.length;
   const isActive = count > 0;
 

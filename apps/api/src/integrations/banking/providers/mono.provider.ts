@@ -19,6 +19,7 @@ export class MonoProvider extends BankingProvider {
   readonly key = 'mono';
   readonly name = 'Mono';
   readonly transactionSyncStrategy = TransactionSyncStrategy.DATE_RANGE_OVERLAP;
+  readonly initialTransactionHistoryDays = 730;
 
   private readonly secretKey = ENV.MONO_SECRET_KEY || '';
   private readonly baseUrl = 'https://api.withmono.com/v2';

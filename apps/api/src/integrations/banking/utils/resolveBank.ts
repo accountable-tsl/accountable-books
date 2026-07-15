@@ -5,6 +5,7 @@ import { getBankProviderMapping } from '../../../domains/banking/bankProviderMap
 import { getCountryFromCode } from '../../../domains/countries/countries.utils.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { logger } from '../../../shared/utils/logger.js';
+import { sanitizeProviderSnapshot } from './provider-snapshot.js';
 
 import type { NewBankProviderMapping } from '../../../domains/banking/bankProviderMappings/bankProviderMappings.types.js';
 import type { NewBank } from '../../../domains/banking/banks/banks.types.js';
@@ -286,13 +287,17 @@ export async function findOrCreateBankMapping(params: {
     }
 
     // Create the bank provider mapping using an atomic upsert.
+    const sanitizedInstitutionSnapshot = sanitizeProviderSnapshot(
+      institution.rawData,
+      'institution',
+    );
     const mappingInput: NewBankProviderMapping = {
       bank_feed_provider_id: resolvedProviderId,
       bank_id: bankId,
       provider_institution_id: institution.providerInstitutionId,
       ...getProviderInstitutionReferences(institution),
       provider_institution_name: institution.name,
-      raw_provider_data: institution.rawData,
+      raw_provider_data: sanitizedInstitutionSnapshot ?? undefined,
       created_by_id: resolvedUserId,
       updated_by_id: resolvedUserId,
     };
@@ -310,7 +315,7 @@ export async function findOrCreateBankMapping(params: {
         provider_institution_secondary_reference:
           mappingInput.provider_institution_secondary_reference ?? null,
         provider_institution_name: institution.name,
-        raw_provider_data: institution.rawData,
+        raw_provider_data: sanitizedInstitutionSnapshot,
         updated_by_id: resolvedUserId,
       });
 

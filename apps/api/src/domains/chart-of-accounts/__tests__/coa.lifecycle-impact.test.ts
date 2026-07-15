@@ -435,7 +435,6 @@ describe('COA lifecycle impacts', () => {
 
     const [bankAccount] = await trx('bank_accounts')
       .insert({
-        account_number: `acct_${randomUUID()}`,
         bank_id: bank.id,
         coa_id: bankAccountCoa.id,
         company_id: companyId,

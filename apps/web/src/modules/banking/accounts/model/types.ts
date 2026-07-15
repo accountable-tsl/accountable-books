@@ -8,6 +8,12 @@ import type {
 } from '@/shared/types/core';
 import { coaSource } from '@/modules/accounting/chart-of-accounts';
 import { zDate } from '@/shared/types/core';
+import {
+  bankAccountConnectionStatusSchema,
+  bankAccountTypeSchema,
+  bankAccountWithMetaSchema,
+  businessOrPersonalAccountSchema,
+} from '@accountable-books/contracts/schema';
 import { z } from 'zod';
 
 export interface BankAccount {
@@ -35,14 +41,7 @@ export interface BankAccount {
 
 export type BankAccounts = BankAccount[];
 
-export const bankAccountType = z.enum([
-  'checkings_current',
-  'savings',
-  'utility',
-  'credit_card',
-  'debit_card',
-  'other',
-]);
+export const bankAccountType = bankAccountTypeSchema;
 export type BankAccountType = z.infer<typeof bankAccountType>;
 
 export const bankOpeningBalanceOrigin = z.enum(['user_entered']);
@@ -65,7 +64,6 @@ export const newBankAccountInput = z.object({
   source: coaSource.prefault('user').optional(),
   openingBalance: z.number().optional(),
   openingBalanceDate: z.string().optional(),
-  accountMetadata: z.record(z.string(), z.any()).optional(),
 });
 
 const openingBalance = z.object({
@@ -99,54 +97,15 @@ export type AddBankAccountDialogProps = AddBankAccountProps & {
   showHeader?: boolean;
 };
 
-export const bankAccountWithMeta = z.object({
-  id: z.uuid(),
-  displayName: z.string(),
-  accountType: bankAccountType,
-  mask: z.string(),
-  balance: z.number().optional(),
-
-  bankId: z.uuid(),
-  bankName: z.string(),
-  bankLogo: z.string().optional(),
-
-  currencyId: z.uuid(),
-  currencyName: z.string(),
-  currencySymbol: z.string(),
-  currencyCode: z.string(),
-
-  companyId: z.uuid(),
-  reportingCurrencyId: z.uuid(),
-  reportingCurrencyName: z.string(),
-  reportingCurrencySymbol: z.string(),
-  reportingCurrencyCode: z.string(),
-
-  coaId: z.uuid(),
-  coaName: z.string(),
-  coaCode: z.string().optional(),
-  coaTypeKey: z.string().optional(),
-  coaTypeLabel: z.string().optional(),
-  connectionCredentialId: z.string().optional(),
-  lastSyncAt: z.date().optional(),
-  statementBalance: z.string(),
-  ledgerBalance: z.string(),
-  uncategorizedTxCount: z.number(),
-  needsReviewTxCount: z.number(),
-  latestExchangeRate: z.string().nullish(),
-});
-export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
-
-export const bankAccountConnectionStatus = z.enum([
-  'connected',
-  'revoked',
-  'error',
-  'not_connected',
-]);
+export const bankAccountConnectionStatus = bankAccountConnectionStatusSchema;
 export type BankAccountConnectionStatus = z.infer<
   typeof bankAccountConnectionStatus
 >;
 
-export const businessOrPersonalAccount = z.enum(['business', 'personal']);
+export const bankAccountWithMeta = bankAccountWithMetaSchema;
+export type BankAccountWithMeta = z.infer<typeof bankAccountWithMeta>;
+
+export const businessOrPersonalAccount = businessOrPersonalAccountSchema;
 export type BusinessOrPersonalAccount = z.infer<
   typeof businessOrPersonalAccount
 >;
@@ -157,8 +116,6 @@ export const updateBankAccount = z
     displayName: z.string(),
     accountType: bankAccountType,
     businessOrPersonal: businessOrPersonalAccount,
-    connectionStatus: bankAccountConnectionStatus,
-    notes: z.string(),
   })
   .partial();
 export type UpdateBankAccount = z.infer<typeof updateBankAccount>;

@@ -139,6 +139,8 @@ export abstract class BankingProvider {
   abstract readonly key: BankProviderKey;
   abstract readonly name: string;
   abstract readonly transactionSyncStrategy: TransactionSyncStrategy;
+  /** Provider-configured history expected from a new connection. */
+  abstract readonly initialTransactionHistoryDays: number;
 
   // Initialize a link session and get a temporary token
   abstract createLinkToken({

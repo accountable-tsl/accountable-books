@@ -89,11 +89,21 @@ export async function addNewBankTransactions({
   userId,
   companyId,
   data,
+  batchFingerprintSalt,
+  canonicalTransactionIds,
   trx,
 }: {
   userId: string;
   companyId: string;
   data: BankTransactionBatchInput;
+  /** Namespaces otherwise identical economic batches owned by another source. */
+  batchFingerprintSalt?: string;
+  /**
+   * Internal ingestion ids supplied by a caller that owns an external identity
+   * map, such as bank_transaction_feed_entries. Public import inputs never set
+   * canonical ids themselves.
+   */
+  canonicalTransactionIds?: string[];
   trx?: Knex.Transaction;
 }) {
   const traceId = randomUUID();
@@ -134,8 +144,18 @@ export async function addNewBankTransactions({
     bank_account_id,
     bank_transactions,
     source_metadata,
-    connection_credential_id,
+    bank_account_feed_id,
+    bank_transaction_sync_run_id,
   } = validate.data;
+  if (
+    canonicalTransactionIds &&
+    canonicalTransactionIds.length !== bank_transactions.length
+  ) {
+    return errorResponse(
+      'canonicalTransactionIds must match the transaction count',
+      { traceId },
+    );
+  }
   log('validation_complete');
 
   // const sameBankAccountIds = bank_transactions.every(
@@ -173,7 +193,6 @@ export async function addNewBankTransactions({
       const bankAccount = await txn('bank_accounts as ba')
         .select(
           'ba.currency_id as bankCurrencyId',
-          'ba.connection_credential_id as connectionCredentialId',
           'c.reporting_currency_id as reportingCurrencyId',
           'c.conversion_date as conversionDate',
         )
@@ -191,17 +210,22 @@ export async function addNewBankTransactions({
           traceId,
         });
       }
-      const { bankCurrencyId, reportingCurrencyId, connectionCredentialId } =
-        bankAccount;
+      const { bankCurrencyId, reportingCurrencyId } = bankAccount;
 
-      if (
-        source === 'bank_feed' &&
-        connection_credential_id !== connectionCredentialId
-      ) {
-        return errorResponse(
-          'Bank feed batch credential does not match the bank account',
-          { bank_account_id, traceId },
-        );
+      if (source === 'bank_feed') {
+        const feed = await txn('bank_account_feeds')
+          .where({
+            id: bank_account_feed_id,
+            bank_account_id,
+            company_id: companyUUID,
+          })
+          .first('id');
+        if (!feed) {
+          return errorResponse(
+            'Bank feed batch feed does not match the bank account',
+            { bank_account_id, traceId },
+          );
+        }
       }
 
       // Build batch insert object
@@ -209,12 +233,16 @@ export async function addNewBankTransactions({
       // const { startDate, endDate } = getMinMaxDates(bank_transactions);
       const startDate = earliestTxn.transaction_date;
       const endDate = latestTxn.transaction_date;
-      const fingerprint = generateBatchFingerprint(bank_transactions);
+      const baseFingerprint = generateBatchFingerprint(bank_transactions);
+      const fingerprint = batchFingerprintSalt
+        ? generateFingerprintSync(`${baseFingerprint}:${batchFingerprintSalt}`)
+        : baseFingerprint;
       const [batch] = await txn('bank_transaction_batches')
         .insert({
           bank_account_id,
           company_id: companyUUID,
-          connection_credential_id,
+          bank_account_feed_id,
+          bank_transaction_sync_run_id,
           start_date: startDate,
           end_date: endDate,
           source,
@@ -276,7 +304,7 @@ export async function addNewBankTransactions({
       // Prepare transactions (now synchronous since rates are pre-fetched)
       const generatedKeyOccurrences = new Map<string, number>();
       const preparedTransactions: NewBankTransaction[] = bank_transactions.map(
-        (tx) => {
+        (tx, index) => {
           const rawTransaction = tx;
           const rate = sameCurrency
             ? 1
@@ -297,10 +325,15 @@ export async function addNewBankTransactions({
             (generatedKeyOccurrences.get(generatedIdempotencyKey) ?? 0) + 1;
           generatedKeyOccurrences.set(generatedIdempotencyKey, occurrence);
           const idempotencyKey =
-            tx.idempotency_key || `${generatedIdempotencyKey}:${occurrence}`;
+            source === 'bank_feed'
+              ? null
+              : tx.idempotency_key ||
+                `${generatedIdempotencyKey}:${occurrence}`;
+          const canonicalTransactionId = canonicalTransactionIds?.[index];
 
           return {
             ...rawTransaction,
+            ...(canonicalTransactionId ? { id: canonicalTransactionId } : {}),
             transaction_at: tx.transaction_at || tx.transaction_date,
             bank_account_id,
             company_id: companyUUID,
@@ -323,18 +356,21 @@ export async function addNewBankTransactions({
         count: preparedTransactions.length,
       });
 
-      const insertedTxns = await txn('bank_transactions')
-        .insert(preparedTransactions)
-        .onConflict(['bank_account_id', 'idempotency_key'])
-        .ignore()
-        .returning([
-          'id',
-          'idempotency_key',
-          'payee',
-          'description',
-          'source_payload',
-          'amount',
-        ]);
+      const insertQuery = txn('bank_transactions').insert(preparedTransactions);
+      const insertedTxns = await (
+        source === 'bank_feed'
+          ? insertQuery
+          : insertQuery
+              .onConflict(['bank_account_id', 'idempotency_key'])
+              .ignore()
+      ).returning([
+        'id',
+        'idempotency_key',
+        'payee',
+        'description',
+        'source_payload',
+        'amount',
+      ]);
 
       const inserted = insertedTxns.length;
       const skipped = preparedTransactions.length - inserted;
@@ -450,7 +486,7 @@ export async function addNewBankTransactions({
           metadata: {
             source,
             bankAccountId: bank_account_id,
-            connectionCredentialId: connection_credential_id ?? null,
+            bankAccountFeedId: bank_account_feed_id ?? null,
             startDate: toYMD(startDate),
             endDate: toYMD(endDate),
             skippedDuplicates: skipped,

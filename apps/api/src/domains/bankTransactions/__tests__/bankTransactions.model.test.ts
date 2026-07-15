@@ -136,15 +136,12 @@ async function createPostedBankTransactionFixture(
     .insert({
       company_id: company.id,
       display_name: 'Operating Account',
-      account_name: 'Operating Account',
       account_type: 'checkings_current',
-      account_number: randomUUID(),
       account_number_mask: '4242',
       business_or_personal: 'business',
       bank_id: bank.id,
       currency_id: usd.id,
       coa_id: coa.id,
-      connection_status: 'not_connected',
       created_by_id: user.id,
     })
     .returning<{ id: string }[]>('id');

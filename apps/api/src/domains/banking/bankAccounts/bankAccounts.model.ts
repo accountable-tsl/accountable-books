@@ -6,7 +6,6 @@ import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
-import { toYMD } from '../../../shared/utils/date.utils.js';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
 import logger from '../../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
@@ -16,8 +15,11 @@ import {
 } from '../../../shared/utils/response.utils.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { createCoaAccount } from '../../chart-of-accounts/coa.model.js';
-import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
-import { writeBankReconnectNotificationLifecycle } from './bankAccountNotifications.js';
+import {
+  deriveAccountNumberIdentity,
+  findAccountByFingerprint,
+} from '../account-identity.js';
+import { projectConnectionStatus } from '../bank-account-projections.js';
 import {
   bankAccountWithConnectionInput,
   manualBankAccountInputCamel,
@@ -26,8 +28,8 @@ import {
 } from './bankAccounts.types.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
+import type { BankConnectionAuthorizationStatus } from '../bank-connections/bank-connections.types.js';
 import type {
-  BankAccountConnectionStatus,
   BankAccountWithConnectionInput,
   BankAccountWithMeta,
   CompanyBankingSnapshot,
@@ -36,60 +38,17 @@ import type {
   UpdateBankAccount,
 } from './bankAccounts.types.js';
 
-const BANK_ACCOUNT_FIELDS = [
-  // Bank Account Core Fields
-  'ba.id as id',
-  'ba.display_name as displayName',
-  'ba.account_type as accountType',
-  'ba.coa_id as coaId',
-  'ba.currency_id as currencyId',
-  'ba.bank_id as bankId',
-  'ba.company_id as companyId',
-  'ba.business_or_personal as businessOrPersonal',
-
-  // Bank Details
-  'b.display_name as bankName',
-  'b.logo_url as bankLogo',
-
-  // Bank Account Currency
-  'cur.name as currencyName',
-  'cur.symbol as currencySymbol',
-  'cur.code as currencyCode',
-
-  // Reporting Currency
-  'rc.id as reportingCurrencyId',
-  'rc.name as reportingCurrencyName',
-  'rc.symbol as reportingCurrencySymbol',
-  'rc.code as reportingCurrencyCode',
-
-  // Chart of accounts
-  'coa.name as coaName',
-  'coa.code as coaCode',
-
-  // Account Type
-  'at.label as coaTypeLabel',
-  'at.key as coaTypeKey',
-
-  'ba.connection_status as bankConnectionStatus',
-  'ba.provider_bank_account_id as providerBankAccountId',
-  'p.key as providerKey',
-  'p.display_name as providerName',
-  'p.logo_url as providerLogo',
-  'ba.connection_credential_id as connectionCredentialId',
-];
-
 export interface SyncableBankAccount {
   id: string;
   company_id: string;
-  connection_credential_id: string;
+  bank_account_feed_id: string;
+  bank_connection_id: string;
   last_sync_at: Date | null;
 }
 
 export type BankAccountSyncIneligibilityReason =
   | 'reconnect_required'
-  | 'not_connected'
-  | 'incomplete_connection'
-  | 'inactive_credential';
+  | 'not_connected';
 
 export interface BankAccountSyncEligibility {
   id: string;
@@ -103,88 +62,94 @@ export async function getBankAccountSyncEligibility(
 ): Promise<BankAccountSyncEligibility | null> {
   const db = trx ?? knexClient;
   const account = await db('bank_accounts as ba')
-    .leftJoin(
-      'bank_account_credentials as bac',
-      'bac.id',
-      'ba.connection_credential_id',
-    )
     .where({
       'ba.id': input.bankAccountId,
       'ba.company_id': input.companyId,
       'ba.is_deleted': false,
     })
-    .first<{
-      id: string;
-      connection_status: BankAccountConnectionStatus;
-      connection_credential_id: string | null;
-      provider_bank_account_id: string | null;
-      credential_status: string | null;
-    }>([
-      'ba.id',
-      'ba.connection_status',
-      'ba.connection_credential_id',
-      'ba.provider_bank_account_id',
-      'bac.status as credential_status',
-    ]);
+    .first<{ id: string }>('ba.id as id');
 
   if (!account) return null;
+
+  // Active feed preferred; else latest revoked (same order as metrics view).
+  const feedRow = await db('bank_account_feeds as baf')
+    .leftJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
+    .where({
+      'baf.bank_account_id': input.bankAccountId,
+      'baf.company_id': input.companyId,
+    })
+    .orderByRaw('(baf.revoked_at IS NULL) DESC, baf.connected_at DESC')
+    .first<{
+      revoked_at: Date | null;
+      initial_sync_completed_at: Date | null;
+      last_successful_sync_at: Date | null;
+      authorization_status: BankConnectionAuthorizationStatus | null;
+    }>([
+      'baf.revoked_at',
+      'baf.initial_sync_completed_at',
+      'baf.last_successful_sync_at',
+      'bc.authorization_status',
+    ]);
+
+  let activeFeed: {
+    initial_sync_completed_at: Date | null;
+    last_successful_sync_at: Date | null;
+  } | null = null;
+  if (feedRow?.revoked_at === null) {
+    activeFeed = {
+      initial_sync_completed_at: feedRow.initial_sync_completed_at,
+      last_successful_sync_at: feedRow.last_successful_sync_at,
+    };
+  }
+
+  const projected = projectConnectionStatus({
+    hasEverHadFeed: !!feedRow,
+    activeFeed,
+    latestFeedRevoked: !!feedRow && activeFeed === null,
+    connectionAuthorizationStatus: feedRow?.authorization_status ?? null,
+  });
+
   let reason: BankAccountSyncIneligibilityReason | null = null;
-  if (account.connection_status === 'error') {
-    reason = 'reconnect_required';
-  } else if (account.connection_status !== 'connected') {
+  if (projected === 'not_connected') {
     reason = 'not_connected';
-  } else if (
-    !account.connection_credential_id ||
-    !account.provider_bank_account_id
-  ) {
-    reason = 'incomplete_connection';
-  } else if (account.credential_status !== 'active') {
-    reason = 'inactive_credential';
+  } else if (projected !== 'connected') {
+    reason = 'reconnect_required';
   }
 
   return { id: account.id, eligible: reason === null, reason };
 }
 
-/**
- * Return accounts that own an active provider transaction stream.
- * Credential-scoped callers use this only to fan an Item event out into
- * independent account jobs.
- */
 export async function getSyncableBankAccounts(
   filters: {
-    credentialId?: string;
+    connectionId?: string;
     companyId?: string;
     bankAccountId?: string;
   } = {},
   trx?: Knex.Transaction,
 ): Promise<SyncableBankAccount[]> {
   const db = trx ?? knexClient;
-  const query = db('bank_accounts as ba')
-    .innerJoin(
-      'bank_account_credentials as bac',
-      'bac.id',
-      'ba.connection_credential_id',
-    )
+  const query = db('bank_account_feeds as baf')
+    .innerJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
+    .innerJoin('bank_accounts as ba', 'ba.id', 'baf.bank_account_id')
     .select<SyncableBankAccount[]>([
-      'ba.id',
-      'ba.company_id',
-      'ba.connection_credential_id',
-      'ba.last_sync_at',
+      'ba.id as id',
+      'baf.company_id as company_id',
+      'baf.id as bank_account_feed_id',
+      'baf.bank_connection_id as bank_connection_id',
+      'baf.last_successful_sync_at as last_sync_at',
     ])
     .where({
       'ba.is_deleted': false,
-      'ba.connection_status': 'connected',
-      'bac.status': 'active',
+      'bc.authorization_status': 'active',
     })
-    .whereNotNull('ba.connection_credential_id')
-    .whereNotNull('ba.provider_bank_account_id')
-    .orderByRaw('ba.last_sync_at ASC NULLS FIRST, ba.id ASC');
+    .whereNull('baf.revoked_at')
+    .orderByRaw('baf.last_successful_sync_at ASC NULLS FIRST, ba.id ASC');
 
-  if (filters.credentialId) {
-    query.andWhere('ba.connection_credential_id', filters.credentialId);
+  if (filters.connectionId) {
+    query.andWhere('baf.bank_connection_id', filters.connectionId);
   }
   if (filters.companyId) {
-    query.andWhere('ba.company_id', filters.companyId);
+    query.andWhere('baf.company_id', filters.companyId);
   }
   if (filters.bankAccountId) {
     query.andWhere('ba.id', filters.bankAccountId);
@@ -192,6 +157,7 @@ export async function getSyncableBankAccounts(
 
   return query;
 }
+
 export const getBankAccountsWithDetails = async (
   companyId: string,
   trx?: Knex.Transaction,
@@ -229,12 +195,16 @@ export const getBankAccountsWithDetails = async (
         'bam.coa_code as coaCode',
         'bam.coa_type_label as coaTypeLabel',
         'bam.coa_type_key as coaTypeKey',
-        'bam.bank_connection_status as bankConnectionStatus',
-        'bam.provider_bank_account_id as providerBankAccountId',
+        'bam.bank_connection_id as bankConnectionId',
+        'bam.bank_connection_id as connectionCredentialId',
+        'bam.provider_account_id as providerBankAccountId',
         'bam.provider_key as providerKey',
         'bam.provider_name as providerName',
         'bam.provider_logo as providerLogo',
-        'bam.connection_credential_id as connectionCredentialId',
+        'bam.bank_account_feed_id as bankAccountFeedId',
+        'bam.feed_revoked_at as feedRevokedAt',
+        'bam.authorization_status as authorizationStatus',
+        'bam.initial_sync_completed_at as initialSyncCompletedAt',
         'bam.last_sync_at as lastSyncAt',
         'bam.mask as mask',
         db.raw('bam.statement_balance_native::text as "statementBalance"'),
@@ -245,7 +215,37 @@ export const getBankAccountsWithDetails = async (
       ])
       .where('bam.company_id', companyUUID);
 
-    const result = await query;
+    const rows = await query;
+    const result = rows.map((row) => {
+      const activeFeed =
+        row.bankAccountFeedId && row.feedRevokedAt == null
+          ? {
+              initial_sync_completed_at: row.initialSyncCompletedAt,
+              last_successful_sync_at: row.lastSyncAt,
+            }
+          : null;
+      const bankConnectionStatus = projectConnectionStatus({
+        hasEverHadFeed: Boolean(row.bankAccountFeedId),
+        activeFeed,
+        latestFeedRevoked: Boolean(
+          row.bankAccountFeedId && row.feedRevokedAt != null,
+        ),
+        connectionAuthorizationStatus: row.authorizationStatus,
+      });
+      const {
+        authorizationStatus: _authorizationStatus,
+        feedRevokedAt: _feedRevokedAt,
+        initialSyncCompletedAt: _initialSyncCompletedAt,
+        ...account
+      } = row;
+      return {
+        ...account,
+        bankConnectionStatus,
+        lastSyncAt: row.lastSyncAt
+          ? new Date(row.lastSyncAt).toISOString()
+          : null,
+      };
+    });
 
     return result?.length
       ? successResponse('Bank accounts fetched successfully', result)
@@ -396,6 +396,16 @@ interface CreateBankAccountRes {
   currencyCode: string;
   bankName: string;
 }
+
+/**
+ * Creates or reuses the durable, provider-agnostic bank_accounts row for
+ * both the manual and connect-path creation flows. Identity matching is
+ * fingerprint-only (never mask-only): when no account number is supplied
+ * (e.g. a provider connect that didn't return the full number), no existing
+ * account can be matched and a new one is always created. This function
+ * never touches provider identity, credentials, or sync state — those are
+ * owned by bank_connections / bank_account_feeds and created by the caller.
+ */
 async function createBankAccount({
   bankAccountData,
   userId,
@@ -427,9 +437,7 @@ async function createBankAccount({
 
   const exec = async (
     tx: Knex.Transaction,
-  ): Promise<
-    ApiResponse<{ coaId: string; bankAccountId: string; wasUpdated: boolean }>
-  > => {
+  ): Promise<ApiResponse<CreateBankAccountRes>> => {
     // Get currencyId, validate bankId
     const [company, currency, bank] = await Promise.all([
       tx('companies')
@@ -467,50 +475,29 @@ async function createBankAccount({
 
     const currencyId = currency.id;
     const bankId = bank.id || v.bank_id;
+
+    // Write-only: mask/fingerprint only; mask-only rows cannot rematch later.
+    const identity = v.account_number
+      ? deriveAccountNumberIdentity(v.account_number)
+      : null;
+    const accountNumberMask =
+      identity?.account_number_mask ?? v.account_number_mask ?? null;
+
     const coaName = v.coa_name ?? v.display_name;
     const coaCode =
-      v.coa_code ||
-      `**${v.account_number_mask || v.account_number?.slice(-4)}` ||
-      null;
-    const isConnectedAccount = v.connection_status !== 'not_connected';
+      v.coa_code || (accountNumberMask ? `**${accountNumberMask}` : null);
 
-    if (
-      isConnectedAccount &&
-      (!v.provider_id ||
-        !v.provider_bank_account_id ||
-        !v.connection_credential_id)
-    ) {
-      throw new Error(
-        'Connected bank accounts require provider_id, provider_bank_account_id, and connection_credential_id',
-      );
-    }
-
-    const providerId = isConnectedAccount ? v.provider_id : null;
-    const providerBankAccountId = isConnectedAccount
-      ? v.provider_bank_account_id
-      : null;
-    const connectionCredentialId = isConnectedAccount
-      ? v.connection_credential_id
+    const existingBankAccount = identity
+      ? await findAccountByFingerprint({
+          companyId: companyUUID,
+          bankId,
+          fingerprint: identity.account_number_fingerprint,
+          forUpdate: true,
+          trx: tx,
+        })
       : null;
 
-    const existingBankAccount = await tx('bank_accounts')
-      .select([
-        'id',
-        'coa_id',
-        'connection_credential_id',
-        'connection_status',
-        'sync_error',
-      ])
-      .where({
-        company_id: companyUUID,
-        bank_id: bankId,
-        account_number: v.account_number,
-      })
-      .forUpdate()
-      .first();
-
-    // Existing bank accounts retain their COA. New bank accounts always get a
-    // newly created COA so uniqueness conflicts cannot silently link accounts.
+    // Existing accounts keep their COA; new ones always create one.
     let coaId: string;
     if (existingBankAccount?.coa_id) {
       coaId = existingBankAccount.coa_id;
@@ -539,180 +526,49 @@ async function createBankAccount({
     }
 
     let bankAccountId: string;
-    const oldConnectionCredentialId =
-      existingBankAccount?.connection_credential_id ?? null;
-
     try {
-      let bankAccountRow: {
-        id: string;
-        connection_credential_id: string | null;
-        connection_status: BankAccountConnectionStatus;
-        display_name: string;
-        sync_error: string | null;
-        updated_at: Date | string;
-      } | null;
-
       if (existingBankAccount) {
-        const bankAccountUpdate: Record<string, unknown> = {
-          bank_id: bankId,
-          business_or_personal: v.business_or_personal || 'business',
-          provider_id: providerId,
-          provider_bank_account_id: providerBankAccountId,
-          connection_credential_id: connectionCredentialId,
-          connection_status: v.connection_status,
-          updated_by_id: userId,
-          updated_at: tx.fn.now(),
-        };
-
-        if (v.account_metadata !== undefined) {
-          bankAccountUpdate.account_metadata = v.account_metadata;
-        }
-        if (v.last_sync_at !== undefined) {
-          bankAccountUpdate.last_sync_at = v.last_sync_at;
-        }
-        if (v.transaction_sync_cursor !== undefined) {
-          bankAccountUpdate.transaction_sync_cursor = v.transaction_sync_cursor;
-        }
-        if (v.initial_transaction_sync_completed_at !== undefined) {
-          bankAccountUpdate.initial_transaction_sync_completed_at =
-            v.initial_transaction_sync_completed_at;
-        }
-        if (v.sync_error !== undefined) {
-          bankAccountUpdate.sync_error = v.sync_error;
-        }
-        if (v.notes !== undefined) {
-          bankAccountUpdate.notes = v.notes;
-        }
-
-        [bankAccountRow] = await tx('bank_accounts')
+        const [updated] = await tx('bank_accounts')
           .where({ id: existingBankAccount.id })
-          .update(bankAccountUpdate)
-          .returning<
-            {
-              id: string;
-              connection_credential_id: string | null;
-              connection_status: BankAccountConnectionStatus;
-              display_name: string;
-              sync_error: string | null;
-              updated_at: Date | string;
-            }[]
-          >(['id', 'connection_credential_id', 'connection_status', 'display_name', 'sync_error', 'updated_at']);
+          .update({
+            display_name: v.display_name,
+            official_name: v.official_name ?? null,
+            account_number_mask: accountNumberMask,
+            account_type: v.account_type,
+            business_or_personal: v.business_or_personal || 'business',
+            bank_id: bankId,
+            updated_by_id: userId,
+            updated_at: tx.fn.now(),
+          })
+          .returning<{ id: string }[]>(['id']);
+        if (!updated) {
+          throw new Error('Failed to update bank account');
+        }
+        bankAccountId = updated.id;
       } else {
-        [bankAccountRow] = await tx('bank_accounts')
+        const [inserted] = await tx('bank_accounts')
           .insert({
             display_name: v.display_name,
-            account_name: v.account_name || v.display_name,
-            account_number: v.account_number,
-            account_number_mask: v.account_number_mask,
+            official_name: v.official_name ?? null,
+            account_number_mask: accountNumberMask,
+            account_number_fingerprint:
+              identity?.account_number_fingerprint ?? null,
+            account_number_fingerprint_version:
+              identity?.account_number_fingerprint_version ?? null,
             account_type: v.account_type,
             business_or_personal: v.business_or_personal || 'business',
             bank_id: bankId,
             currency_id: currencyId,
             company_id: companyUUID,
             coa_id: coaId,
-            provider_id: providerId,
-            provider_bank_account_id: providerBankAccountId,
-            connection_status: v.connection_status,
-            account_metadata: v.account_metadata,
-            connection_credential_id: connectionCredentialId,
-            last_sync_at: v.last_sync_at,
-            transaction_sync_cursor: v.transaction_sync_cursor,
-            initial_transaction_sync_completed_at:
-              v.initial_transaction_sync_completed_at,
-            sync_error: v.sync_error,
-            notes: v.notes,
             created_by_id: userId,
             updated_by_id: userId,
           })
-          .returning<
-            {
-              id: string;
-              connection_credential_id: string | null;
-              connection_status: BankAccountConnectionStatus;
-              display_name: string;
-              sync_error: string | null;
-              updated_at: Date | string;
-            }[]
-          >([
-            'id',
-            'connection_credential_id',
-            'connection_status',
-            'display_name',
-            'sync_error',
-            'updated_at',
-          ]);
-      }
-
-      if (!bankAccountRow) {
-        throw new Error('Failed to create or update bank account');
-      }
-
-      bankAccountId = bankAccountRow.id;
-      const newConnectionCredentialId = bankAccountRow.connection_credential_id;
-      await writeBankReconnectNotificationLifecycle(tx, {
-        bankAccountId,
-        clientCompanyId: companyUUID,
-        previousConnectionStatus:
-          existingBankAccount?.connection_status ?? null,
-        nextConnectionStatus: bankAccountRow.connection_status,
-        bankAccountName: bankAccountRow.display_name,
-        previousSyncError: existingBankAccount?.sync_error ?? null,
-        syncError: bankAccountRow.sync_error,
-        stateVersion: bankAccountRow.updated_at,
-      });
-
-      if (
-        oldConnectionCredentialId &&
-        oldConnectionCredentialId !== newConnectionCredentialId
-      ) {
-        log.info(
-          {
-            oldCredentialId: oldConnectionCredentialId,
-            newCredentialId: newConnectionCredentialId,
-            bankAccountId,
-          },
-          'Checking if old credential can be revoked',
-        );
-
-        const result = await tx('bank_accounts')
-          .where('connection_credential_id', oldConnectionCredentialId)
-          .whereNot('id', bankAccountId)
-          .count()
-          .first();
-        const count = Number(result?.count ?? 0);
-
-        log.info(
-          {
-            oldCredentialId: oldConnectionCredentialId,
-            accountsUsingOldCredential: count,
-          },
-          'Credential usage check result',
-        );
-
-        if (count === 0) {
-          await tx('bank_account_credentials')
-            .where('id', oldConnectionCredentialId)
-            .update({
-              status: 'revoked',
-              updated_by_id: userId,
-              updated_at: tx.fn.now(),
-            });
-
-          log.info(
-            {
-              oldCredentialId: oldConnectionCredentialId,
-            },
-            'Old credential revoked successfully',
-          );
-        } else {
-          log.info(
-            {
-              oldCredentialId: oldConnectionCredentialId,
-              accountsStillUsing: count,
-            },
-            'Old credential still in use, not revoked',
-          );
+          .returning<{ id: string }[]>(['id']);
+        if (!inserted) {
+          throw new Error('Failed to create bank account');
         }
+        bankAccountId = inserted.id;
       }
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
@@ -777,7 +633,7 @@ async function createBankAccount({
         coaId,
         bankAccountId,
         wasUpdated: !!existingBankAccount,
-        bankAccountName: v.display_name || v.account_name || '',
+        bankAccountName: v.display_name,
         currencyCode: currency.code,
         bankName: bank.display_name,
       },
@@ -811,16 +667,19 @@ export async function createManualBankAccount({
   }
   const { data } = validatedInput;
   return createBankAccount({
-    bankAccountData: {
-      ...data,
-      connection_status: data.connection_status ?? 'not_connected',
-    },
+    bankAccountData: data,
     userId,
     companyId,
     trx,
   });
 }
 
+/**
+ * Creates or reuses the accounting bank_account for a connect-path account.
+ * This does not create the bank_connection or bank_account_feed — the
+ * connect-accounts flow creates those separately, in the same transaction,
+ * once it has a bankAccountId to bind them to.
+ */
 export async function createBankAccountWithConnection({
   params,
   userId,
@@ -863,24 +722,11 @@ export async function updateBankAccounts({
     if (!companyUUID) {
       throw new Error('Company not found');
     }
-    const results = [];
+
+    let updatedCount = 0;
     for (const i of data) {
       if (!i.id) {
         throw new Error('Bank account id is required');
-      }
-
-      const existing = await txn('bank_accounts')
-        .where({ id: i.id, company_id: companyUUID })
-        .forUpdate()
-        .first<{
-          id: string;
-          connection_status: BankAccountConnectionStatus;
-          display_name: string;
-          sync_error: string | null;
-        }>('id', 'connection_status', 'display_name', 'sync_error');
-
-      if (!existing) {
-        throw new Error(`Unable to update bank account ${i.id}`);
       }
 
       const updates: Record<string, unknown> = {
@@ -892,45 +738,17 @@ export async function updateBankAccounts({
       if (i.businessOrPersonal !== undefined) {
         updates.business_or_personal = i.businessOrPersonal;
       }
-      if (i.connectionStatus !== undefined) {
-        updates.connection_status = i.connectionStatus;
-      }
-      if (i.notes !== undefined) updates.notes = i.notes;
 
-      const [updated] = await txn('bank_accounts')
+      const updated = await txn('bank_accounts')
         .where({ id: i.id, company_id: companyUUID })
-        .update(updates)
-        .returning<
-          {
-            id: string;
-            connection_status: BankAccountConnectionStatus;
-            display_name: string;
-            sync_error: string | null;
-            updated_at: Date | string;
-          }[]
-        >(['id', 'connection_status', 'display_name', 'sync_error', 'updated_at']);
+        .update(updates);
 
       if (!updated) {
         throw new Error(`Unable to update bank account ${i.id}`);
       }
-
-      await writeBankReconnectNotificationLifecycle(txn, {
-        bankAccountId: updated.id,
-        clientCompanyId: companyUUID,
-        previousConnectionStatus: existing.connection_status,
-        nextConnectionStatus: updated.connection_status,
-        bankAccountName: updated.display_name,
-        previousSyncError: existing.sync_error,
-        syncError: updated.sync_error,
-        stateVersion: updated.updated_at,
-      });
-
-      results.push(1);
+      updatedCount++;
     }
-    return successResponse(
-      'Bank accounts updated successfully',
-      results.length,
-    );
+    return successResponse('Bank accounts updated successfully', updatedCount);
   };
 
   try {

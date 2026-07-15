@@ -5,8 +5,10 @@ import { connectAccountsService } from '../connect-accounts.service.js';
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   transactionCommitted: false,
-  createCredential: vi.fn(),
+  createConnection: vi.fn(),
+  createConnectionSecret: vi.fn(),
   createAccount: vi.fn(),
+  createFeed: vi.fn(),
   getProvider: vi.fn(),
   getEnabledProvider: vi.fn(),
   scheduleSync: vi.fn(),
@@ -17,13 +19,23 @@ vi.mock('../../../../db/knexClient.js', () => ({
 }));
 
 vi.mock(
-  '../../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js',
-  () => ({ createBankAccountCredential: mocks.createCredential }),
+  '../../../../domains/banking/bank-connections/bank-connections.model.js',
+  () => ({ createBankConnection: mocks.createConnection }),
+);
+
+vi.mock(
+  '../../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js',
+  () => ({ createBankConnectionSecret: mocks.createConnectionSecret }),
 );
 
 vi.mock(
   '../../../../domains/banking/bankAccounts/bankAccounts.model.js',
   () => ({ createBankAccountWithConnection: mocks.createAccount }),
+);
+
+vi.mock(
+  '../../../../domains/banking/bank-account-feeds/bank-account-feeds.model.js',
+  () => ({ createBankAccountFeed: mocks.createFeed }),
 );
 
 vi.mock('../../jobs/transaction-sync.queue.js', () => ({
@@ -46,9 +58,17 @@ describe('connected account initial synchronization', () => {
       mocks.transactionCommitted = true;
       return result;
     });
-    mocks.createCredential.mockResolvedValue({
+    mocks.createConnection.mockResolvedValue({
       success: true,
-      data: { id: 'credential-1' },
+      data: { id: 'connection-1' },
+    });
+    mocks.createConnectionSecret.mockResolvedValue({
+      success: true,
+      data: { id: 'secret-1' },
+    });
+    mocks.createFeed.mockResolvedValue({
+      success: true,
+      data: { id: 'feed-1' },
     });
     mocks.getEnabledProvider.mockResolvedValue({
       id: 'provider-1',
@@ -145,6 +165,27 @@ describe('connected account initial synchronization', () => {
 
     expect(result.success).toBe(false);
     expect(mocks.transactionCommitted).toBe(false);
+    expect(mocks.scheduleSync).not.toHaveBeenCalled();
+  });
+
+  it('does not create accounts or queue work when secret creation rolls back the connection', async () => {
+    mocks.createConnectionSecret.mockResolvedValueOnce({
+      success: false,
+      message: 'secret write failed',
+    });
+
+    const result = await connectAccountsService.connectBankAccounts({
+      providerKey: 'plaid',
+      countryCode: 'US',
+      publicToken: 'public-token',
+      companyId: 'company-1',
+      userId: 'user-1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(mocks.transactionCommitted).toBe(false);
+    expect(mocks.createAccount).not.toHaveBeenCalled();
+    expect(mocks.createFeed).not.toHaveBeenCalled();
     expect(mocks.scheduleSync).not.toHaveBeenCalled();
   });
 });

@@ -521,12 +521,10 @@ describe('COA lifecycle atomicity', () => {
 
     await trx('bank_accounts').insert({
       display_name: `Lifecycle bank ${randomUUID()}`,
-      account_number: randomUUID(),
       bank_id: bank.id,
       currency_id: currencyId,
       company_id: companyId,
       coa_id: coaId,
-      connection_status: 'not_connected',
       created_by_id: userId,
       updated_by_id: userId,
     });

@@ -13,6 +13,7 @@ import {
   transactionSyncService,
 } from '../transaction-sync.service.js';
 import {
+  cleanupBankAccountAndFeed,
   cleanupSyncFailureFixture,
   createSiblingBankAccount,
   createSyncFailureFixture,
@@ -40,16 +41,94 @@ afterEach(() => {
   mocks.alertAdmins.mockClear();
 });
 
+async function getFeedState(
+  db: ReturnType<typeof getTestDb>,
+  bankAccountId: string,
+) {
+  return db('bank_account_feeds')
+    .where({ bank_account_id: bankAccountId })
+    .first(
+      'sync_cursor',
+      'last_successful_sync_at',
+      'initial_sync_completed_at',
+    );
+}
+
 describe('account-scoped transaction streams', () => {
+  it('scopes provider item lookup and rejects ambiguous tenant matches', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    const connection = await db('bank_connections')
+      .where({ id: fixture.connectionId })
+      .first<{
+        provider_id: string;
+        provider_item_id: string;
+      }>('provider_id', 'provider_item_id');
+    const monoProvider = await db('bank_feed_providers')
+      .where({ key: 'mono' })
+      .first<{ id: string }>('id');
+    if (!connection?.provider_item_id || !monoProvider) {
+      throw new Error('Expected connection and Mono provider fixtures');
+    }
+
+    const [monoConnection] = await db('bank_connections')
+      .insert({
+        company_id: fixture.companyId,
+        provider_id: monoProvider.id,
+        provider_item_id: connection.provider_item_id,
+        authorization_status: 'active',
+        connected_by_id: fixture.userId,
+      })
+      .returning<{ id: string }[]>('id');
+
+    try {
+      await expect(
+        transactionSyncService.findConnectionByItemId({
+          providerKey: 'plaid',
+          itemId: connection.provider_item_id,
+        }),
+      ).resolves.toMatchObject({ id: fixture.connectionId });
+
+      const otherCompany = await db('companies')
+        .where({ short_code: 'bizDemoUS' })
+        .first<{ id: string }>('id');
+      if (!otherCompany) throw new Error('Expected bizDemoUS company fixture');
+      const [ambiguousConnection] = await db('bank_connections')
+        .insert({
+          company_id: otherCompany.id,
+          provider_id: connection.provider_id,
+          provider_item_id: connection.provider_item_id,
+          authorization_status: 'active',
+          connected_by_id: fixture.userId,
+        })
+        .returning<{ id: string }[]>('id');
+      try {
+        await expect(
+          transactionSyncService.findConnectionByItemId({
+            providerKey: 'plaid',
+            itemId: connection.provider_item_id,
+          }),
+        ).resolves.toBeNull();
+      } finally {
+        await db('bank_connections')
+          .where({ id: ambiguousConnection.id })
+          .delete();
+      }
+    } finally {
+      await db('bank_connections').where({ id: monoConnection.id }).delete();
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
   it('advances sibling accounts with independent cursors', async () => {
     const db = getTestDb();
     const fixture = await createSyncFailureFixture(db);
     const siblingId = await createSiblingBankAccount(db, fixture);
     const accountIds = new Map<string, string>();
-    for (const row of await db('bank_accounts')
-      .whereIn('id', [fixture.bankAccountId, siblingId])
-      .select('id', 'provider_bank_account_id')) {
-      accountIds.set(row.id, row.provider_bank_account_id);
+    for (const row of await db('bank_account_feeds')
+      .whereIn('bank_account_id', [fixture.bankAccountId, siblingId])
+      .select('bank_account_id', 'provider_account_id')) {
+      accountIds.set(row.bank_account_id, row.provider_account_id);
     }
     const provider = fakeProvider(async ({ providerBankAccountId }) => ({
       transactions: { added: [], modified: [], removed: [] },
@@ -59,48 +138,120 @@ describe('account-scoped transaction streams', () => {
     vi.spyOn(providerRegistry, 'getById').mockResolvedValue(provider);
 
     try {
-      await db('bank_accounts')
-        .whereIn('id', [fixture.bankAccountId, siblingId])
-        .update({ sync_error: 'previous account error' });
       await transactionSyncService.syncBankAccount({
         bankAccountId: fixture.bankAccountId,
         trigger: 'periodic',
         actorUserId: fixture.userId,
       });
-      expect(
-        await db('bank_accounts')
-          .whereIn('id', [fixture.bankAccountId, siblingId])
-          .orderBy('id')
-          .select('id', 'sync_error'),
-      ).toEqual(
-        [fixture.bankAccountId, siblingId].sort().map((id) => ({
-          id,
-          sync_error:
-            id === fixture.bankAccountId ? null : 'previous account error',
-        })),
-      );
       await transactionSyncService.syncBankAccount({
         bankAccountId: siblingId,
         trigger: 'periodic',
         actorUserId: fixture.userId,
       });
 
-      const states = await db('bank_accounts')
-        .whereIn('id', [fixture.bankAccountId, siblingId])
-        .select('id', 'transaction_sync_cursor', 'last_sync_at');
+      const states = await db('bank_account_feeds')
+        .whereIn('bank_account_id', [fixture.bankAccountId, siblingId])
+        .select('bank_account_id', 'sync_cursor', 'last_successful_sync_at');
       expect(states).toEqual(
         expect.arrayContaining(
           [fixture.bankAccountId, siblingId].map((id) =>
             expect.objectContaining({
-              id,
-              transaction_sync_cursor: `cursor:${accountIds.get(id)}`,
-              last_sync_at: expect.any(Date),
+              bank_account_id: id,
+              sync_cursor: `cursor:${accountIds.get(id)}`,
+              last_successful_sync_at: expect.any(Date),
             }),
           ),
         ),
       );
     } finally {
-      await db('bank_accounts').where({ id: siblingId }).delete();
+      await cleanupBankAccountAndFeed(db, siblingId);
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('retains pending provider observations as feed entries without canonical transactions', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    const pendingTx = {
+      ...providerTransaction(fixture.providerBankAccountId, 'pending-tx-1'),
+      pending: true,
+    };
+    const postedTx = providerTransaction(
+      fixture.providerBankAccountId,
+      'posted-tx-1',
+    );
+    const provider = fakeProvider(async () => ({
+      transactions: {
+        added: [pendingTx, postedTx],
+        modified: [],
+        removed: [],
+      },
+      nextCursor: 'after-pending',
+      hasMore: false,
+    }));
+    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(provider);
+
+    try {
+      const result = await transactionSyncService.syncBankAccount({
+        bankAccountId: fixture.bankAccountId,
+        trigger: 'webhook',
+        actorUserId: fixture.userId,
+      });
+      expect(result.outcome).toBe('completed');
+      expect(
+        await db('bank_transaction_sync_runs')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .orderBy('started_at', 'desc')
+          .first('outcome', 'completed_at'),
+      ).toMatchObject({
+        outcome: 'succeeded',
+        completed_at: expect.any(Date),
+      });
+
+      const pendingEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: fixture.feedId,
+          provider_transaction_id: pendingTx.transactionId,
+        })
+        .first(
+          'observation_type',
+          'resolution_state',
+          'resolution_reason',
+          'bank_transaction_id',
+        );
+      expect(pendingEntry).toMatchObject({
+        observation_type: 'pending',
+        resolution_state: 'awaiting_posted',
+        resolution_reason: 'provider_pending',
+        bank_transaction_id: null,
+      });
+
+      expect(
+        await db('bank_transaction_feed_entries')
+          .where({
+            bank_account_feed_id: fixture.feedId,
+            provider_transaction_id: pendingTx.transactionId,
+          })
+          .first('bank_transaction_id'),
+      ).toMatchObject({ bank_transaction_id: null });
+      const postedEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: fixture.feedId,
+          provider_transaction_id: postedTx.transactionId,
+        })
+        .first('observation_type', 'resolution_state', 'bank_transaction_id');
+      expect(postedEntry).toMatchObject({
+        observation_type: 'added',
+        resolution_state: 'resolved',
+        bank_transaction_id: expect.any(String),
+      });
+
+      expect(
+        await db('bank_transactions')
+          .where({ id: postedEntry.bank_transaction_id })
+          .first('idempotency_key'),
+      ).toEqual({ idempotency_key: null });
+    } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
   });
@@ -143,12 +294,10 @@ describe('account-scoped transaction streams', () => {
         }),
       ).rejects.toEqual(failure);
 
-      const account = await db('bank_accounts')
-        .where({ id: fixture.bankAccountId })
-        .first('transaction_sync_cursor', 'last_sync_at');
-      expect(account).toEqual({
-        transaction_sync_cursor: null,
-        last_sync_at: null,
+      const feed = await getFeedState(db, fixture.bankAccountId);
+      expect(feed).toMatchObject({
+        sync_cursor: null,
+        last_successful_sync_at: null,
       });
       expect(
         await db('app.notifications')
@@ -171,10 +320,22 @@ describe('account-scoped transaction streams', () => {
         }),
       );
       expect(
-        await db('bank_transactions')
-          .where({ idempotency_key: firstTransaction.transactionId })
+        await db('bank_transaction_feed_entries')
+          .where({
+            bank_account_feed_id: fixture.feedId,
+            provider_transaction_id: firstTransaction.transactionId,
+          })
           .first('id'),
       ).toBeUndefined();
+      expect(
+        await db('bank_transaction_sync_runs')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .orderBy('started_at', 'desc')
+          .first('outcome', 'provider_error_code'),
+      ).toMatchObject({
+        outcome: 'failed',
+        provider_error_code: failure.code,
+      });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -197,17 +358,49 @@ describe('account-scoped transaction streams', () => {
         }),
       ).rejects.toBeInstanceOf(TransactionSyncLockBusyError);
       expect(sync).not.toHaveBeenCalled();
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('transaction_sync_cursor', 'last_sync_at', 'sync_error'),
-      ).toEqual({
-        transaction_sync_cursor: null,
-        last_sync_at: null,
-        sync_error: null,
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        sync_cursor: null,
+        last_successful_sync_at: null,
       });
     } finally {
       await redis.del(lockKey);
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('records a durable failed run when the provider secret is unavailable', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
+      fakeProvider(async () => emptyPage('unused-cursor', false)),
+    );
+    await db('bank_connection_secrets')
+      .where({ bank_connection_id: fixture.connectionId })
+      .delete();
+
+    try {
+      await expect(
+        transactionSyncService.syncBankAccount({
+          bankAccountId: fixture.bankAccountId,
+          trigger: 'webhook',
+          actorUserId: fixture.userId,
+        }),
+      ).rejects.toThrow(/secret unavailable/i);
+      expect(
+        await db('bank_transaction_sync_runs')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .orderBy('started_at', 'desc')
+          .first('outcome', 'failure_classification'),
+      ).toMatchObject({
+        outcome: 'failed',
+        failure_classification: 'internal_provider_system',
+      });
+      expect(
+        await db('bank_connections')
+          .where({ id: fixture.connectionId })
+          .first('authorization_status'),
+      ).toEqual({ authorization_status: 'active' });
+    } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
   });
@@ -242,11 +435,9 @@ describe('account-scoped transaction streams', () => {
         undefined,
         'retained-page',
       ]);
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('transaction_sync_cursor'),
-      ).toEqual({ transaction_sync_cursor: 'final-cursor' });
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        sync_cursor: 'final-cursor',
+      });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -273,11 +464,10 @@ describe('account-scoped transaction streams', () => {
         }),
       ).rejects.toEqual(mutation);
       expect(sync).toHaveBeenCalledTimes(3);
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('transaction_sync_cursor', 'last_sync_at'),
-      ).toEqual({ transaction_sync_cursor: null, last_sync_at: null });
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        sync_cursor: null,
+        last_successful_sync_at: null,
+      });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -305,11 +495,9 @@ describe('account-scoped transaction streams', () => {
           actorUserId: fixture.userId,
         }),
       ).rejects.toThrow(/different-account/);
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('transaction_sync_cursor'),
-      ).toEqual({ transaction_sync_cursor: null });
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        sync_cursor: null,
+      });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -334,14 +522,16 @@ describe('account-scoped transaction streams', () => {
       expect(result).toEqual(
         expect.objectContaining({ outcome: 'not_ready', initialSync: true }),
       );
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('initial_transaction_sync_completed_at', 'last_sync_at'),
-      ).toEqual({
-        initial_transaction_sync_completed_at: null,
-        last_sync_at: null,
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        initial_sync_completed_at: null,
+        last_successful_sync_at: null,
       });
+      expect(
+        await db('bank_transaction_sync_runs')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .orderBy('started_at', 'desc')
+          .first('outcome'),
+      ).toMatchObject({ outcome: 'skipped' });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -352,9 +542,96 @@ describe('account-scoped transaction streams', () => {
     const fixture = await createSyncFailureFixture(db);
     vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
       fakeProvider(async () => {
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .update({ transaction_sync_cursor: 'newer-cursor' });
+        await db('bank_account_feeds')
+          .where({ id: fixture.feedId })
+          .update({ sync_cursor: 'newer-cursor' });
+        return emptyPage('stale-cursor', false);
+      }),
+    );
+
+    try {
+      await expect(
+        transactionSyncService.syncBankAccount({
+          bankAccountId: fixture.bankAccountId,
+          trigger: 'webhook',
+          actorUserId: fixture.userId,
+        }),
+      ).rejects.toThrow(/sync state changed/);
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        sync_cursor: 'newer-cursor',
+        last_successful_sync_at: null,
+      });
+      expect(
+        await db('bank_transaction_sync_runs')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .orderBy('started_at', 'desc')
+          .first('outcome'),
+      ).toMatchObject({ outcome: 'stale' });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('aborts a stale date-range pull when its date checkpoint advances', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    const startingSyncAt = new Date('2026-06-01T12:00:00Z');
+    const concurrentSyncAt = new Date('2026-06-02T12:00:00Z');
+    await db('bank_account_feeds').where({ id: fixture.feedId }).update({
+      last_successful_sync_at: startingSyncAt,
+      initial_sync_completed_at: startingSyncAt,
+    });
+    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
+      fakeProvider(async () => {
+        // Simulate another successful date-range run advancing the checkpoint
+        // without changing the feed identity generation.
+        await db('bank_account_feeds')
+          .where({ id: fixture.feedId })
+          .update({ last_successful_sync_at: concurrentSyncAt });
+        return emptyPage('unused-page', false);
+      }, TransactionSyncStrategy.DATE_RANGE_OVERLAP),
+    );
+
+    try {
+      await expect(
+        transactionSyncService.syncBankAccount({
+          bankAccountId: fixture.bankAccountId,
+          trigger: 'periodic',
+          actorUserId: fixture.userId,
+        }),
+      ).rejects.toThrow(/sync state changed/);
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        last_successful_sync_at: concurrentSyncAt,
+      });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('aborts fetched work when its feed is rebound to another connection', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    const originalConnection = await db('bank_connections')
+      .where({ id: fixture.connectionId })
+      .first<{ provider_id: string }>('provider_id');
+    if (!originalConnection) throw new Error('Expected connection fixture');
+
+    let replacementConnectionId: string | null = null;
+    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
+      fakeProvider(async () => {
+        const [replacement] = await db('bank_connections')
+          .insert({
+            company_id: fixture.companyId,
+            provider_id: originalConnection.provider_id,
+            provider_item_id: `replacement-${randomUUID()}`,
+            authorization_status: 'active',
+            connected_by_id: fixture.userId,
+          })
+          .returning<{ id: string }[]>('id');
+        replacementConnectionId = replacement.id;
+        await db('bank_account_feeds')
+          .where({ id: fixture.feedId })
+          .update({ bank_connection_id: replacement.id });
         return emptyPage('stale-cursor', false);
       }),
     );
@@ -368,61 +645,26 @@ describe('account-scoped transaction streams', () => {
         }),
       ).rejects.toThrow(/sync state changed/);
       expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('transaction_sync_cursor', 'last_sync_at', 'sync_error'),
-      ).toEqual({
-        transaction_sync_cursor: 'newer-cursor',
-        last_sync_at: null,
-        sync_error: null,
-      });
+        await db('bank_account_feeds')
+          .where({ id: fixture.feedId })
+          .first('bank_connection_id'),
+      ).toMatchObject({ bank_connection_id: replacementConnectionId });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
+      if (replacementConnectionId) {
+        await db('bank_connections')
+          .where({ id: replacementConnectionId })
+          .delete();
+      }
     }
   });
 
-  it('aborts a stale date-range pull when its account window advances', async () => {
+  it('uses connection history initially and account overlap incrementally for date providers', async () => {
     const db = getTestDb();
     const fixture = await createSyncFailureFixture(db);
-    const startingSyncAt = new Date('2026-06-01T12:00:00Z');
-    const newerSyncAt = new Date('2026-06-02T12:00:00Z');
-    await db('bank_accounts').where({ id: fixture.bankAccountId }).update({
-      last_sync_at: startingSyncAt,
-      initial_transaction_sync_completed_at: startingSyncAt,
-    });
-    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
-      fakeProvider(async () => {
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .update({ last_sync_at: newerSyncAt });
-        return emptyPage('unused-page', false);
-      }, TransactionSyncStrategy.DATE_RANGE_OVERLAP),
-    );
-
-    try {
-      await expect(
-        transactionSyncService.syncBankAccount({
-          bankAccountId: fixture.bankAccountId,
-          trigger: 'periodic',
-          actorUserId: fixture.userId,
-        }),
-      ).rejects.toThrow(/sync state changed/);
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('last_sync_at', 'sync_error'),
-      ).toEqual({ last_sync_at: newerSyncAt, sync_error: null });
-    } finally {
-      await cleanupSyncFailureFixture(db, fixture);
-    }
-  });
-
-  it('uses credential history initially and account overlap incrementally for date providers', async () => {
-    const db = getTestDb();
-    const fixture = await createSyncFailureFixture(db);
-    await db('bank_account_credentials')
-      .where({ id: fixture.credentialId })
-      .update({ transactions_from_date: new Date('2025-04-10T00:00:00Z') });
+    await db('bank_account_feeds')
+      .where({ id: fixture.feedId })
+      .update({ sync_from_date: new Date('2025-04-10T00:00:00Z') });
     const sync = vi.fn(
       async (_input: Parameters<BankingProvider['syncTransactions']>[0]) => ({
         transactions: { added: [], modified: [], removed: [] },
@@ -446,13 +688,11 @@ describe('account-scoped transaction streams', () => {
         initialFromDate.getDate(),
       ]).toEqual([2025, 4, 10]);
 
-      await db('bank_accounts')
-        .where({ id: fixture.bankAccountId })
+      await db('bank_account_feeds')
+        .where({ id: fixture.feedId })
         .update({
-          last_sync_at: new Date('2026-02-20T12:00:00Z'),
-          initial_transaction_sync_completed_at: new Date(
-            '2026-02-20T12:00:00Z',
-          ),
+          last_successful_sync_at: new Date('2026-02-20T12:00:00Z'),
+          initial_sync_completed_at: new Date('2026-02-20T12:00:00Z'),
         });
       await transactionSyncService.syncBankAccount({
         bankAccountId: fixture.bankAccountId,
@@ -462,11 +702,9 @@ describe('account-scoped transaction streams', () => {
       expect(sync.mock.calls[1][0].fromDate).toEqual(
         new Date('2026-02-19T12:00:00Z'),
       );
-      expect(
-        await db('bank_accounts')
-          .where({ id: fixture.bankAccountId })
-          .first('transaction_sync_cursor'),
-      ).toEqual({ transaction_sync_cursor: null });
+      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
+        sync_cursor: null,
+      });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -522,36 +760,91 @@ describe('account-scoped transaction streams', () => {
         actorUserId: fixture.userId,
       });
 
-      const account = await db('bank_accounts')
-        .where({ id: fixture.bankAccountId })
-        .first(
-          'transaction_sync_cursor',
-          'initial_transaction_sync_completed_at',
-          'last_sync_at',
-        );
-      expect(account).toEqual({
-        transaction_sync_cursor: 'cursor-two',
-        initial_transaction_sync_completed_at: expect.any(Date),
-        last_sync_at: expect.any(Date),
+      const feed = await getFeedState(db, fixture.bankAccountId);
+      expect(feed).toEqual({
+        sync_cursor: 'cursor-two',
+        initial_sync_completed_at: expect.any(Date),
+        last_successful_sync_at: expect.any(Date),
       });
+      const retainedEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: fixture.feedId,
+          provider_transaction_id: retained.transactionId,
+        })
+        .first<{ bank_transaction_id: string }>('bank_transaction_id');
       const retainedRow = await db('bank_transactions')
-        .where({ idempotency_key: retained.transactionId })
-        .first('is_deleted', 'source_payload');
+        .where({ id: retainedEntry.bank_transaction_id })
+        .first('is_deleted', 'source_payload', 'idempotency_key');
       expect(retainedRow).toEqual({
         is_deleted: false,
+        idempotency_key: null,
         source_payload: expect.objectContaining({
-          revision: 2,
           merchant_name: 'Updated merchant',
         }),
       });
+      const removedEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: fixture.feedId,
+          provider_transaction_id: removed.transactionId,
+        })
+        .first<{ bank_transaction_id: string }>('bank_transaction_id');
       expect(
         await db('bank_transactions')
-          .where({ idempotency_key: removed.transactionId })
+          .where({ id: removedEntry.bank_transaction_id })
           .first('is_deleted', 'deletion_origin'),
       ).toEqual({
         is_deleted: true,
         deletion_origin: 'provider_sync',
       });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('records modified and removed observations with no canonical transaction as unresolved', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    const modified = providerTransaction(
+      fixture.providerBankAccountId,
+      `unknown-modified-${randomUUID()}`,
+    );
+    const removedId = `unknown-removed-${randomUUID()}`;
+    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
+      fakeProvider(async () => ({
+        transactions: { added: [], modified: [modified], removed: [removedId] },
+        nextCursor: 'quarantine-cursor',
+        hasMore: false,
+      })),
+    );
+
+    try {
+      await transactionSyncService.syncBankAccount({
+        bankAccountId: fixture.bankAccountId,
+        trigger: 'initial',
+        actorUserId: fixture.userId,
+      });
+
+      const entries = await db('bank_transaction_feed_entries')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .whereIn('provider_transaction_id', [modified.transactionId, removedId])
+        .select(
+          'provider_transaction_id',
+          'resolution_state',
+          'resolution_reason',
+        )
+        .orderBy('provider_transaction_id');
+      expect(entries).toEqual([
+        {
+          provider_transaction_id: modified.transactionId,
+          resolution_state: 'unresolved',
+          resolution_reason: 'modified_without_canonical_transaction',
+        },
+        {
+          provider_transaction_id: removedId,
+          resolution_state: 'unresolved',
+          resolution_reason: 'removed_without_canonical_transaction',
+        },
+      ]);
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }
@@ -592,23 +885,21 @@ describe('account-scoped transaction streams', () => {
         'Invalid date input: Invalid Date',
       );
       expect(isRetryableTransactionSyncFailure(applicationError)).toBe(false);
-      const states = await db('bank_accounts')
-        .whereIn('id', [fixture.bankAccountId, siblingId])
-        .select('id', 'transaction_sync_cursor', 'last_sync_at', 'sync_error');
+      const states = await db('bank_account_feeds')
+        .whereIn('bank_account_id', [fixture.bankAccountId, siblingId])
+        .select('bank_account_id', 'sync_cursor', 'last_successful_sync_at');
       expect(states).toEqual(
         expect.arrayContaining([
-          {
-            id: fixture.bankAccountId,
-            transaction_sync_cursor: null,
-            last_sync_at: null,
-            sync_error: 'Invalid date input: Invalid Date',
-          },
-          {
-            id: siblingId,
-            transaction_sync_cursor: null,
-            last_sync_at: null,
-            sync_error: null,
-          },
+          expect.objectContaining({
+            bank_account_id: fixture.bankAccountId,
+            sync_cursor: null,
+            last_successful_sync_at: null,
+          }),
+          expect.objectContaining({
+            bank_account_id: siblingId,
+            sync_cursor: null,
+            last_successful_sync_at: null,
+          }),
         ]),
       );
       expect(
@@ -622,7 +913,7 @@ describe('account-scoped transaction streams', () => {
           ]),
       ).not.toHaveLength(0);
     } finally {
-      await db('bank_accounts').where({ id: siblingId }).delete();
+      await cleanupBankAccountAndFeed(db, siblingId);
       await cleanupSyncFailureFixture(db, fixture);
     }
   });

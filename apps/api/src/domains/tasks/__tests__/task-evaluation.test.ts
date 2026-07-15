@@ -99,14 +99,11 @@ describe('task-evaluation', () => {
       .insert({
         company_id: clientCompanyId,
         display_name: 'Client checking',
-        account_name: 'Client checking',
         account_type: 'checkings_current',
-        account_number: `ba-${randomUUID().slice(0, 8)}`,
         business_or_personal: 'business',
         bank_id: bank.id,
         currency_id: testCurrencyId,
         coa_id: coa.id,
-        connection_status: 'not_connected',
         created_by_id: testUserId,
         updated_by_id: testUserId,
       })

@@ -9,12 +9,16 @@ import {
   getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
+import { upsertFeedEntry } from '../bank-transaction-feed-entries/bank-transaction-feed-entries.model.js';
 
 interface CompanyFixture {
   id: string;
   coaId: string;
-  credentialId: string;
+  connectionId: string;
+  feedId: string;
   bankAccountId: string;
+  /** A second bank account with no feed yet, for feed-FK-violation tests. */
+  spareBankAccountId: string;
   batchId: string;
 }
 
@@ -41,19 +45,53 @@ describe('banking database integrity', () => {
     if (trx) await trx.rollback();
   });
 
-  it('rejects a provider-connected bank account when the credential belongs to a different company', async () => {
+  it('rejects a bank account feed when the connection belongs to a different company', async () => {
     await expectForeignKeyViolation(
-      insertBankAccount(trx, {
-        bankId: fixture.bankId,
-        companyId: fixture.companyB.id,
-        connectionCredentialId: fixture.companyA.credentialId,
-        coaId: fixture.companyB.coaId,
-        currencyId: fixture.currencyId,
-        providerId: fixture.providerId,
+      insertFeed(trx, {
+        bankAccountId: fixture.companyA.spareBankAccountId,
+        bankConnectionId: fixture.companyB.connectionId,
+        companyId: fixture.companyA.id,
         userId: fixture.userId,
       }),
-      'bank_accounts_credential_company_provider_fk',
+      'bank_account_feeds_connection_company_fk',
     );
+  });
+
+  it('rejects a bank account feed when the bank account belongs to a different company', async () => {
+    await expectForeignKeyViolation(
+      insertFeed(trx, {
+        bankAccountId: fixture.companyB.spareBankAccountId,
+        bankConnectionId: fixture.companyA.connectionId,
+        companyId: fixture.companyA.id,
+        userId: fixture.userId,
+      }),
+      'bank_account_feeds_account_company_fk',
+    );
+  });
+
+  it('does not reuse a provider account identity within one connection after revocation', async () => {
+    const existing = await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .first<{ provider_account_id: string }>('provider_account_id');
+    if (!existing) throw new Error('Expected the fixture feed');
+
+    await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .update({
+        revoked_at: trx.fn.now(),
+        revocation_origin: 'provider',
+        revocation_reason: 'test replacement',
+      });
+
+    await expect(
+      insertFeed(trx, {
+        bankAccountId: fixture.companyA.spareBankAccountId,
+        bankConnectionId: fixture.companyA.connectionId,
+        companyId: fixture.companyA.id,
+        providerAccountId: existing.provider_account_id,
+        userId: fixture.userId,
+      }),
+    ).rejects.toMatchObject({ code: '23505' });
   });
 
   it('rejects an import batch when the bank account belongs to a different company', async () => {
@@ -61,7 +99,7 @@ describe('banking database integrity', () => {
       insertBatch(trx, {
         bankAccountId: fixture.companyA.bankAccountId,
         companyId: fixture.companyB.id,
-        connectionCredentialId: null,
+        bankAccountFeedId: null,
         source: 'manual_entry',
         userId: fixture.userId,
       }),
@@ -69,16 +107,16 @@ describe('banking database integrity', () => {
     );
   });
 
-  it('rejects a bank-feed batch when the credential belongs to a different company', async () => {
+  it('rejects a bank-feed batch when the feed belongs to a different company', async () => {
     await expectForeignKeyViolation(
       insertBatch(trx, {
         bankAccountId: fixture.companyA.bankAccountId,
         companyId: fixture.companyA.id,
-        connectionCredentialId: fixture.companyB.credentialId,
+        bankAccountFeedId: fixture.companyB.feedId,
         source: 'bank_feed',
         userId: fixture.userId,
       }),
-      'bank_transaction_batches_credential_company_fk',
+      'bank_transaction_batches_feed_company_fk',
     );
   });
 
@@ -114,6 +152,187 @@ describe('banking database integrity', () => {
     });
 
     expect(transactionId).toEqual(expect.any(String));
+  });
+
+  it('throws transactional feed-entry failures so a sync update unit must roll back', async () => {
+    await expect(
+      upsertFeedEntry({
+        data: {
+          bank_account_feed_id: fixture.companyA.feedId,
+          company_id: fixture.companyB.id,
+          provider_transaction_id: randomUUID(),
+          observation_type: 'added',
+          resolution_state: 'resolved',
+          provider_evidence: {},
+          provider_evidence_schema_version: 1,
+          observed_at: new Date(),
+        },
+        trx,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('scopes provider transaction identity to the feed', async () => {
+    const spareFeedId = await insertFeed(trx, {
+      bankAccountId: fixture.companyA.spareBankAccountId,
+      bankConnectionId: fixture.companyA.connectionId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+    const providerTransactionId = `shared-${randomToken()}`;
+
+    for (const feedId of [fixture.companyA.feedId, spareFeedId]) {
+      const result = await upsertFeedEntry({
+        data: {
+          bank_account_feed_id: feedId,
+          company_id: fixture.companyA.id,
+          provider_transaction_id: providerTransactionId,
+          observation_type: 'added',
+          resolution_state: 'unresolved',
+          provider_evidence: {},
+          provider_evidence_schema_version: 1,
+          observed_at: new Date(),
+        },
+        trx,
+      });
+      expect(result.success).toBe(true);
+    }
+
+    await expect(
+      trx('bank_transaction_feed_entries')
+        .where({ provider_transaction_id: providerTransactionId })
+        .count<{ count: string }[]>('* as count'),
+    ).resolves.toEqual([{ count: '2' }]);
+  });
+
+  it('preserves a canonical link when a later observation is weaker', async () => {
+    const transactionId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+
+    const providerTransactionId = `reviewed-${randomToken()}`;
+
+    await upsertFeedEntry({
+      data: {
+        bank_account_feed_id: fixture.companyA.feedId,
+        company_id: fixture.companyA.id,
+        provider_transaction_id: providerTransactionId,
+        bank_transaction_id: transactionId,
+        observation_type: 'added',
+        resolution_state: 'resolved',
+        provider_evidence: { version: 1 },
+        provider_evidence_schema_version: 1,
+        observed_at: new Date(),
+      },
+      trx,
+    });
+
+    await upsertFeedEntry({
+      data: {
+        bank_account_feed_id: fixture.companyA.feedId,
+        company_id: fixture.companyA.id,
+        provider_transaction_id: providerTransactionId,
+        bank_transaction_id: null,
+        observation_type: 'modified',
+        resolution_state: 'unresolved',
+        provider_evidence: { version: 2 },
+        provider_evidence_schema_version: 1,
+        observed_at: new Date(),
+      },
+      trx,
+    });
+
+    await expect(
+      trx('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: fixture.companyA.feedId,
+          provider_transaction_id: providerTransactionId,
+        })
+        .first('bank_transaction_id', 'resolution_state'),
+    ).resolves.toEqual({
+      bank_transaction_id: transactionId,
+      resolution_state: 'resolved',
+    });
+  });
+
+  it('rejects a non-resolved feed entry carrying a canonical transaction', async () => {
+    const transactionId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+
+    await expect(
+      upsertFeedEntry({
+        data: {
+          bank_account_feed_id: fixture.companyA.feedId,
+          company_id: fixture.companyA.id,
+          provider_transaction_id: `invalid-resolution-${randomToken()}`,
+          bank_transaction_id: transactionId,
+          observation_type: 'added',
+          resolution_state: 'unresolved',
+          provider_evidence: {},
+          provider_evidence_schema_version: 1,
+          observed_at: new Date(),
+        },
+        trx,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('rejects a batch whose sync run belongs to another feed or company', async () => {
+    const [run] = await trx('bank_transaction_sync_runs')
+      .insert({
+        bank_account_feed_id: fixture.companyB.feedId,
+        company_id: fixture.companyB.id,
+        trigger: 'scheduler',
+        sync_mode: 'incremental',
+        outcome: 'running',
+        observed_state_version: 1,
+      })
+      .returning<{ id: string }[]>('id');
+
+    await expectForeignKeyViolation(
+      insertBatch(trx, {
+        bankAccountId: fixture.companyA.bankAccountId,
+        bankAccountFeedId: fixture.companyA.feedId,
+        companyId: fixture.companyA.id,
+        source: 'bank_feed',
+        syncRunId: run.id,
+        userId: fixture.userId,
+      }),
+      'bank_transaction_batches_sync_run_feed_company_fk',
+    );
+  });
+
+  it('rejects active connection rows carrying requires-action state', async () => {
+    await expect(
+      trx('bank_connections').insert({
+        company_id: fixture.companyA.id,
+        provider_id: fixture.providerId,
+        authorization_status: 'active',
+        requires_action_at: trx.fn.now(),
+        connected_by_id: fixture.userId,
+      }),
+    ).rejects.toMatchObject({ constraint: 'bank_connections_lifecycle_chk' });
+  });
+
+  it('rejects revoked connection rows carrying requires-action state', async () => {
+    await expect(
+      trx('bank_connections').insert({
+        company_id: fixture.companyA.id,
+        provider_id: fixture.providerId,
+        authorization_status: 'revoked',
+        requires_action_at: trx.fn.now(),
+        revoked_at: trx.fn.now(),
+        revocation_origin: 'provider',
+        connected_by_id: fixture.userId,
+      }),
+    ).rejects.toMatchObject({ constraint: 'bank_connections_lifecycle_chk' });
   });
 });
 
@@ -170,7 +389,7 @@ async function createCompanyFixture(
     label: params.label,
     userId: params.userId,
   });
-  const credentialId = await insertCredential(trx, {
+  const connectionId = await insertConnection(trx, {
     companyId,
     providerId: params.providerId,
     userId: params.userId,
@@ -178,25 +397,38 @@ async function createCompanyFixture(
   const bankAccountId = await insertBankAccount(trx, {
     bankId: params.bankId,
     companyId,
-    connectionCredentialId: credentialId,
     coaId,
     currencyId: params.currencyId,
-    providerId: params.providerId,
+    userId: params.userId,
+  });
+  const feedId = await insertFeed(trx, {
+    bankAccountId,
+    bankConnectionId: connectionId,
+    companyId,
     userId: params.userId,
   });
   const batchId = await insertBatch(trx, {
     bankAccountId,
     companyId,
-    connectionCredentialId: credentialId,
+    bankAccountFeedId: feedId,
     source: 'bank_feed',
+    userId: params.userId,
+  });
+  const spareBankAccountId = await insertBankAccount(trx, {
+    bankId: params.bankId,
+    companyId,
+    coaId,
+    currencyId: params.currencyId,
     userId: params.userId,
   });
 
   return {
     bankAccountId,
+    spareBankAccountId,
     batchId,
     coaId,
-    credentialId,
+    connectionId,
+    feedId,
     id: companyId,
   };
 }
@@ -291,21 +523,19 @@ async function insertCoa(
   return coa.id;
 }
 
-async function insertCredential(
+async function insertConnection(
   trx: Knex.Transaction,
   params: { companyId: string; providerId: string; userId: string },
 ): Promise<string> {
-  const [credential] = await trx('bank_account_credentials')
+  const [connection] = await trx('bank_connections')
     .insert({
       company_id: params.companyId,
-      connected_by_id: params.userId,
-      encrypted_access_token: `encrypted-${randomToken()}`,
-      item_identifier: `item-${randomToken()}`,
       provider_id: params.providerId,
+      connected_by_id: params.userId,
     })
     .returning<{ id: string }[]>('id');
 
-  return credential.id;
+  return connection.id;
 }
 
 async function insertBankAccount(
@@ -313,34 +543,50 @@ async function insertBankAccount(
   params: {
     bankId: string;
     companyId: string;
-    connectionCredentialId: string;
     coaId: string;
     currencyId: string;
-    providerId: string;
     userId: string;
   },
 ): Promise<string> {
   const token = randomToken();
   const [bankAccount] = await trx('bank_accounts')
     .insert({
-      account_name: `Integrity Account ${token}`,
-      account_number: `acct-${token}`,
       account_type: 'checkings_current',
       bank_id: params.bankId,
       business_or_personal: 'business',
       coa_id: params.coaId,
       company_id: params.companyId,
-      connection_credential_id: params.connectionCredentialId,
-      connection_status: 'connected',
       created_by_id: params.userId,
       currency_id: params.currencyId,
       display_name: `Integrity Account ${token}`,
-      provider_bank_account_id: `provider-account-${token}`,
-      provider_id: params.providerId,
     })
     .returning<{ id: string }[]>('id');
 
   return bankAccount.id;
+}
+
+async function insertFeed(
+  trx: Knex.Transaction,
+  params: {
+    bankAccountId: string;
+    bankConnectionId: string;
+    companyId: string;
+    providerAccountId?: string;
+    userId: string;
+  },
+): Promise<string> {
+  const [feed] = await trx('bank_account_feeds')
+    .insert({
+      bank_account_id: params.bankAccountId,
+      bank_connection_id: params.bankConnectionId,
+      company_id: params.companyId,
+      connected_by_id: params.userId,
+      provider_account_id:
+        params.providerAccountId ?? `provider-account-${randomToken()}`,
+    })
+    .returning<{ id: string }[]>('id');
+
+  return feed.id;
 }
 
 async function insertBatch(
@@ -348,22 +594,24 @@ async function insertBatch(
   params: {
     bankAccountId: string;
     companyId: string;
-    connectionCredentialId: string | null;
+    bankAccountFeedId: string | null;
     source: 'bank_feed' | 'manual_entry';
+    syncRunId?: string | null;
     userId: string;
   },
 ): Promise<string> {
   const [batch] = await trx('bank_transaction_batches')
     .insert({
       bank_account_id: params.bankAccountId,
+      bank_account_feed_id: params.bankAccountFeedId,
       company_id: params.companyId,
-      connection_credential_id: params.connectionCredentialId,
       created_by_id: params.userId,
       end_date: '2025-03-31',
       fingerprint: `batch-${randomToken()}`,
       import_row_count: 1,
       source: params.source,
       start_date: '2025-03-01',
+      bank_transaction_sync_run_id: params.syncRunId ?? null,
     })
     .returning<{ id: string }[]>('id');
 

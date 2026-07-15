@@ -11,6 +11,7 @@ import {
   transactionSyncService,
 } from '../transaction-sync.service.js';
 import {
+  cleanupBankAccountAndFeed,
   cleanupSyncFailureFixture,
   createSiblingBankAccount,
   createSyncFailureFixture,
@@ -82,7 +83,7 @@ describe('transaction sync failure classification', () => {
     expect(isRetryableTransactionSyncFailure(error)).toBe(expected);
   });
 
-  it('marks connected accounts error and emits reconnect intents on auth sync failure', async () => {
+  it('marks the connection requires action and emits existing per-account reconnect intents', async () => {
     const db = getTestDb();
     const authError = {
       code: 'ITEM_LOGIN_REQUIRED',
@@ -117,31 +118,20 @@ describe('transaction sync failure classification', () => {
         }),
       ).rejects.toEqual(authError);
 
-      const accounts = await db('bank_accounts')
-        .whereIn('id', [fixture.bankAccountId, siblingId])
-        .select('id', 'connection_status', 'sync_error');
-      expect(accounts).toEqual(
-        expect.arrayContaining([
-          {
-            id: fixture.bankAccountId,
-            connection_status: 'error',
-            sync_error: authError.displayMessage,
-          },
-          {
-            id: siblingId,
-            connection_status: 'error',
-            sync_error: authError.displayMessage,
-          },
-        ]),
+      const connection = await db('bank_connections')
+        .where({ id: fixture.connectionId })
+        .first('authorization_status', 'authorization_reason_code');
+      expect(connection).toEqual(
+        expect.objectContaining({
+          authorization_status: 'requires_action',
+          authorization_reason_code: authError.code,
+        }),
       );
 
       const intents = await db('app.outbox')
         .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
         .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
           NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
-        ])
-        .andWhereRaw(`payload->'event'->>'attentionKey' = ?`, [
-          `bank_account:${fixture.bankAccountId}:reconnect`,
         ]);
       expect(intents.length).toBeGreaterThan(0);
       expect(intents.map((intent) => intent.payload.event)).toEqual(
@@ -152,19 +142,40 @@ describe('transaction sync failure classification', () => {
             policyOwnerCompanyId: fixture.companyId,
             eventType: NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
             attentionTransition: 'opened',
+            attentionKey: `bank_account:${fixture.bankAccountId}:reconnect`,
+            sourceEntity: {
+              type: 'bank_account',
+              id: fixture.bankAccountId,
+            },
             data: expect.objectContaining({
               bankAccountId: fixture.bankAccountId,
               connectionStatus: 'error',
               syncError: authError.displayMessage,
             }),
           }),
+          expect.objectContaining({
+            recipientUserId: fixture.userId,
+            attentionKey: `bank_account:${siblingId}:reconnect`,
+            sourceEntity: {
+              type: 'bank_account',
+              id: siblingId,
+            },
+            data: expect.objectContaining({
+              bankAccountId: siblingId,
+              connectionStatus: 'error',
+              syncError: authError.displayMessage,
+            }),
+          }),
         ]),
       );
+      expect(
+        intents.some(
+          (intent) =>
+            intent.payload.event.sourceEntity?.type === 'bank_connection',
+        ),
+      ).toBe(false);
     } finally {
-      await db('app.outbox')
-        .whereRaw(`payload::text LIKE ?`, [`%${siblingId}%`])
-        .delete();
-      await db('bank_accounts').where({ id: siblingId }).delete();
+      await cleanupBankAccountAndFeed(db, siblingId);
       await cleanupSyncFailureFixture(db, fixture);
     }
   });

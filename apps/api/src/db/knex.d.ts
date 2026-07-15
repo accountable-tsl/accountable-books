@@ -27,6 +27,26 @@ import {
   NewBankFeedProviderCountry,
 } from '../domains/bankFeedProviders/bankFeedProviders.types.js';
 import {
+  BankAccountFeed,
+  NewBankAccountFeed,
+} from '../domains/banking/bank-account-feeds/bank-account-feeds.types.js';
+import {
+  BankConnectionSecret,
+  NewBankConnectionSecret,
+} from '../domains/banking/bank-connection-secrets/bank-connection-secrets.types.js';
+import {
+  BankConnection,
+  NewBankConnection,
+} from '../domains/banking/bank-connections/bank-connections.types.js';
+import {
+  BankTransactionFeedEntry,
+  NewBankTransactionFeedEntry,
+} from '../domains/banking/bank-transaction-feed-entries/bank-transaction-feed-entries.types.js';
+import {
+  BankTransactionSyncRun,
+  NewBankTransactionSyncRun,
+} from '../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.types.js';
+import {
   BankAccount,
   NewBankAccount,
 } from '../domains/banking/bankAccounts/bankAccounts.types.js';
@@ -99,10 +119,6 @@ import type {
   NewGLDailyBalanceSnapshot,
   NewGLPeriodBalance,
 } from '../domains/balances/balances.types.js';
-import type {
-  BankAccountCredential,
-  NewBankAccountCredential,
-} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
 import type {
   JournalBatch,
   JournalEntry,
@@ -228,10 +244,34 @@ declare module 'knex/types/tables' {
       Partial<Omit<BankAccount, 'id'>>
     >;
 
-    bank_account_credentials: Knex.CompositeTableType<
-      BankAccountCredential,
-      NewBankAccountCredential,
-      Partial<Omit<BankAccountCredential, 'id'>>
+    bank_connections: Knex.CompositeTableType<
+      BankConnection,
+      NewBankConnection,
+      Partial<Omit<BankConnection, 'id'>>
+    >;
+
+    bank_connection_secrets: Knex.CompositeTableType<
+      BankConnectionSecret,
+      NewBankConnectionSecret,
+      Partial<Omit<BankConnectionSecret, 'id'>>
+    >;
+
+    bank_account_feeds: Knex.CompositeTableType<
+      BankAccountFeed,
+      NewBankAccountFeed,
+      Partial<Omit<BankAccountFeed, 'id'>>
+    >;
+
+    bank_transaction_sync_runs: Knex.CompositeTableType<
+      BankTransactionSyncRun,
+      NewBankTransactionSyncRun,
+      Partial<Omit<BankTransactionSyncRun, 'id'>>
+    >;
+
+    bank_transaction_feed_entries: Knex.CompositeTableType<
+      BankTransactionFeedEntry,
+      NewBankTransactionFeedEntry,
+      Partial<Omit<BankTransactionFeedEntry, 'id'>>
     >;
 
     bank_transactions: Knex.CompositeTableType<

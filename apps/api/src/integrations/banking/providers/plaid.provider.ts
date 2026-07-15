@@ -30,6 +30,7 @@ export class PlaidProvider extends BankingProvider {
   readonly key = 'plaid';
   readonly name = 'Plaid';
   readonly transactionSyncStrategy = TransactionSyncStrategy.CURSOR_BASED;
+  readonly initialTransactionHistoryDays = 730;
 
   private client: PlaidApi;
 
@@ -100,8 +101,6 @@ export class PlaidProvider extends BankingProvider {
       const response = await this.client.itemPublicTokenExchange({
         public_token: publicToken,
       });
-
-      console.log('Exchange token response:', response.data);
 
       return {
         accessToken: response.data.access_token,

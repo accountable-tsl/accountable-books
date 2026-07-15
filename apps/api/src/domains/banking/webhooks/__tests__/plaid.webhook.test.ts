@@ -5,19 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import plaidWebhookRouter from '../plaid.webhook.js';
 
 const mocks = vi.hoisted(() => ({
-  findCredentialByItemId: vi.fn(),
-  scheduleSyncForCredential: vi.fn(),
+  findConnectionByItemId: vi.fn(),
+  scheduleSyncForConnection: vi.fn(),
 }));
 
 vi.mock('../../../../integrations/banking/index.js', () => ({
-  scheduleSyncForCredential: mocks.scheduleSyncForCredential,
+  scheduleSyncForConnection: mocks.scheduleSyncForConnection,
 }));
 
 vi.mock(
   '../../../../integrations/banking/services/transaction-sync.service.js',
   () => ({
     transactionSyncService: {
-      findCredentialByItemId: mocks.findCredentialByItemId,
+      findConnectionByItemId: mocks.findConnectionByItemId,
     },
   }),
 );
@@ -37,8 +37,8 @@ describe('Plaid transaction webhooks', () => {
   });
 
   it('routes Item updates through the account fan-out helper', async () => {
-    mocks.findCredentialByItemId.mockResolvedValue({ id: 'credential-1' });
-    mocks.scheduleSyncForCredential.mockResolvedValue([]);
+    mocks.findConnectionByItemId.mockResolvedValue({ id: 'connection-1' });
+    mocks.scheduleSyncForConnection.mockResolvedValue([]);
     const app = express();
     app.use(plaidWebhookRouter);
 
@@ -55,10 +55,13 @@ describe('Plaid transaction webhooks', () => {
       );
 
     expect(response.status).toBe(200);
-    expect(mocks.findCredentialByItemId).toHaveBeenCalledWith('item-1');
-    expect(mocks.scheduleSyncForCredential).toHaveBeenCalledOnce();
-    expect(mocks.scheduleSyncForCredential).toHaveBeenCalledWith({
-      credentialId: 'credential-1',
+    expect(mocks.findConnectionByItemId).toHaveBeenCalledWith({
+      providerKey: 'plaid',
+      itemId: 'item-1',
+    });
+    expect(mocks.scheduleSyncForConnection).toHaveBeenCalledOnce();
+    expect(mocks.scheduleSyncForConnection).toHaveBeenCalledWith({
+      connectionId: 'connection-1',
       trigger: 'webhook',
     });
   });

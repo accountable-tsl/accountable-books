@@ -59,12 +59,10 @@ async function createFreshBankAccount(
   const [account] = await trx('bank_accounts')
     .insert({
       display_name: 'Phase2 Materialization Account',
-      account_number: `P2M-${randomUUID()}`,
       bank_id: existing.bank_id,
       currency_id: company.reporting_currency_id,
       company_id: companyId,
       coa_id: existing.coa_id,
-      connection_status: 'not_connected',
       created_by_id: userId,
     })
     .returning('id');

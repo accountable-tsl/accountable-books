@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { BankingController, createCredential } from './banking.controller.js';
+import { BankingController } from './banking.controller.js';
 
 const router = Router({ mergeParams: true });
 const bankingController = new BankingController();
@@ -46,7 +46,5 @@ router.post(
   '/set-sync-date',
   bankingController.setTransactionSyncDate.bind(bankingController),
 );
-
-router.post('/company-credentials', createCredential);
 
 export default router;

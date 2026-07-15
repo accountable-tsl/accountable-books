@@ -30,7 +30,7 @@ interface Group {
   bankName: string;
   bankId: string;
   logo: string;
-  lastSync?: Date;
+  lastSync?: string | null;
   accounts: BankAccountWithMeta[];
   // balance: number;
 }
@@ -502,7 +502,7 @@ function MiniBankAccountCard({
     items.push({ key: 'unrec', node: `${Uncategorized} Uncategorized` });
   if (syncAt)
     items.push({ key: 'updated', node: `Last updated ${syncAt} ago` });
-  if (account?.connectionCredentialId && onRefreshClick) {
+  if (account?.bankConnectionId && onRefreshClick) {
     items.push({
       key: 'refresh',
       node: (

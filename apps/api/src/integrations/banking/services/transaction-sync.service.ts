@@ -1,7 +1,11 @@
 import { randomUUID } from 'crypto';
 
 import { knexClient } from '../../../db/knexClient.js';
-import { getBankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.model.js';
+import { loadSecretForProviderExecution } from '../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js';
+import {
+  completeSyncRun,
+  createSyncRun,
+} from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.model.js';
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { logger } from '../../../shared/utils/logger.js';
 import { providerRegistry } from '../providers/registry.js';
@@ -15,19 +19,20 @@ import {
 import { handleTransactionSyncFailure } from './transaction-sync.failures.js';
 import {
   fetchCompleteTransactionUpdate,
+  getInitialSyncCoverageFromDate,
   getTransactionSyncFromDate,
 } from './transaction-sync.fetcher.js';
 import {
   acquireAccountTransactionSyncLock,
   releaseAccountTransactionSyncLock,
 } from './transaction-sync.lock.js';
+import { TRANSACTION_SYNC_RUN_TRIGGER } from './transaction-sync.types.js';
 
-import type { BankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
+import type { BankConnectionAuthorizationStatus } from '../../../domains/banking/bank-connections/bank-connections.types.js';
 import type { BankingProvider } from '../types/base.js';
 import type {
   BankAccountForSync,
   BankAccountSyncResult,
-  DecryptedBankAccountCredential,
   TransactionSyncCommand,
 } from './transaction-sync.types.js';
 
@@ -55,24 +60,54 @@ function emptySyncResult(
   };
 }
 
+interface LoadedBankAccountForSync {
+  account: BankAccountForSync;
+  providerId: string;
+  authorizationStatus: BankConnectionAuthorizationStatus;
+}
+
+// Inactive/requires_action still returned so callers can classify unsupported vs missing.
 async function loadBankAccount(
   bankAccountId: string,
-): Promise<BankAccountForSync> {
-  const account = await knexClient('bank_accounts')
-    .where({ id: bankAccountId })
-    .first<BankAccountForSync>([
-      'id',
-      'provider_bank_account_id',
-      'connection_credential_id',
-      'connection_status',
-      'company_id',
-      'transaction_sync_cursor',
-      'initial_transaction_sync_completed_at',
-      'last_sync_at',
-      'is_deleted',
-    ]);
-  if (!account) throw new Error(`Bank account not found: ${bankAccountId}`);
-  return account;
+): Promise<LoadedBankAccountForSync | null> {
+  const row = await knexClient('bank_account_feeds as baf')
+    .innerJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
+    .innerJoin('bank_accounts as ba', 'ba.id', 'baf.bank_account_id')
+    .where({ 'baf.bank_account_id': bankAccountId, 'ba.is_deleted': false })
+    .whereNull('baf.revoked_at')
+    .first<{
+      bank_account_id: string;
+      feed_id: string;
+      company_id: string;
+      bank_connection_id: string;
+      provider_account_id: string;
+      sync_cursor: string | null;
+      sync_from_date: Date | null;
+      initial_sync_completed_at: Date | null;
+      last_successful_sync_at: Date | null;
+      state_version: number;
+      provider_id: string;
+      authorization_status: BankConnectionAuthorizationStatus;
+    }>(['ba.id as bank_account_id', 'baf.id as feed_id', 'baf.company_id as company_id', 'baf.bank_connection_id as bank_connection_id', 'baf.provider_account_id as provider_account_id', 'baf.sync_cursor as sync_cursor', 'baf.sync_from_date as sync_from_date', 'baf.initial_sync_completed_at as initial_sync_completed_at', 'baf.last_successful_sync_at as last_successful_sync_at', 'baf.state_version as state_version', 'bc.provider_id as provider_id', 'bc.authorization_status as authorization_status']);
+  if (!row) return null;
+
+  return {
+    account: {
+      bank_account_id: row.bank_account_id,
+      feed_id: row.feed_id,
+      company_id: row.company_id,
+      bank_connection_id: row.bank_connection_id,
+      provider_account_id: row.provider_account_id,
+      sync_cursor: row.sync_cursor,
+      sync_from_date: row.sync_from_date,
+      initial_sync_completed_at: row.initial_sync_completed_at,
+      last_successful_sync_at: row.last_successful_sync_at,
+      state_version: row.state_version,
+      is_deleted: false,
+    },
+    providerId: row.provider_id,
+    authorizationStatus: row.authorization_status,
+  };
 }
 
 async function getSystemUserId(): Promise<string> {
@@ -89,9 +124,9 @@ export class TransactionSyncService {
     const traceId = randomUUID();
     const startedAt = Date.now();
     let account: BankAccountForSync | null = null;
-    let credential: DecryptedBankAccountCredential | null = null;
     let provider: BankingProvider | null = null;
     let lockAcquired = false;
+    let syncRunId: string | null = null;
 
     const log = (phase: string, data: Record<string, unknown> = {}) => {
       logger.info(
@@ -108,41 +143,19 @@ export class TransactionSyncService {
     };
 
     try {
-      account = await loadBankAccount(bankAccountId);
-      const initialSync = !account.initial_transaction_sync_completed_at;
+      const loaded = await loadBankAccount(bankAccountId);
+      if (!loaded) {
+        log('unsupported', { reason: 'No active feed for account' });
+        return emptySyncResult(bankAccountId, true, 'unsupported');
+      }
+      account = loaded.account;
+      const initialSync = !account.initial_sync_completed_at;
 
-      if (
-        account.is_deleted ||
-        account.connection_status !== 'connected' ||
-        !account.connection_credential_id ||
-        !account.provider_bank_account_id
-      ) {
-        log('unsupported', { reason: 'Account is not an active connection' });
-        return emptySyncResult(bankAccountId, initialSync, 'unsupported');
-      }
-
-      const credentialResult = await getBankAccountCredential({
-        credentialId: account.connection_credential_id,
-        decryptToken: true,
-        activeStatusOnly: false,
-      });
-      if (!credentialResult.success || !credentialResult.data) {
-        throw new Error(
-          `Credential lookup failed: ${credentialResult.message || 'Unknown error'}`,
-        );
-      }
-      credential = credentialResult.data;
-      if (credential.status !== 'active') {
-        throw new Error(`Credential is not active: ${credential.status}`);
-      }
-      if (!credential.access_token) {
-        throw new Error(`Credential has no access token: ${credential.id}`);
-      }
-
-      provider =
-        (await providerRegistry.getById(credential.provider_id)) ?? null;
-      if (!provider || !provider.supportsTransactionSync()) {
-        log('unsupported', { providerId: credential.provider_id });
+      if (loaded.authorizationStatus !== 'active') {
+        log('unsupported', {
+          reason: 'Connection not active',
+          authorizationStatus: loaded.authorizationStatus,
+        });
         return emptySyncResult(bankAccountId, initialSync, 'unsupported');
       }
 
@@ -154,18 +167,68 @@ export class TransactionSyncService {
         throw new TransactionSyncLockBusyError(bankAccountId);
       }
 
+      const syncRunResult = await createSyncRun({
+        data: {
+          bank_account_feed_id: account.feed_id,
+          company_id: account.company_id,
+          trigger: TRANSACTION_SYNC_RUN_TRIGGER[trigger],
+          sync_mode: initialSync ? 'initial' : 'incremental',
+          trace_id: traceId,
+          observed_state_version: account.state_version,
+        },
+      });
+      if (!syncRunResult.success || !syncRunResult.data) {
+        throw new Error(
+          `Failed to create sync run: ${syncRunResult.message || 'Unknown error'}`,
+        );
+      }
+      syncRunId = syncRunResult.data.id;
+
+      provider = (await providerRegistry.getById(loaded.providerId)) ?? null;
+      if (!provider || !provider.supportsTransactionSync()) {
+        const skipped = await completeSyncRun({
+          syncRunId,
+          companyId: account.company_id,
+          outcome: 'skipped',
+          diagnosticSummary: 'Provider does not support transaction sync',
+        });
+        if (!skipped.success) {
+          throw new Error(skipped.message || 'Failed to skip sync run');
+        }
+        log('unsupported', { providerId: loaded.providerId });
+        return emptySyncResult(bankAccountId, initialSync, 'unsupported');
+      }
+
+      const secretResult = await loadSecretForProviderExecution({
+        connectionId: account.bank_connection_id,
+        companyId: account.company_id,
+      });
+      if (!secretResult.success || !secretResult.data) {
+        throw new Error(
+          `Connection secret unavailable: ${secretResult.message || 'Unknown error'}`,
+        );
+      }
+      const { access_token: accessToken } = secretResult.data;
+
       const usesDateRangeStrategy =
         provider.transactionSyncStrategy ===
         TransactionSyncStrategy.DATE_RANGE_OVERLAP;
       const startingCursor = usesDateRangeStrategy
         ? undefined
-        : account.transaction_sync_cursor || undefined;
+        : account.sync_cursor || undefined;
       const fromDate = getTransactionSyncFromDate({
         initialSync,
         usesDateRangeStrategy,
-        credential,
         account,
+        initialTransactionHistoryDays: provider.initialTransactionHistoryDays,
       });
+      const initialSyncFromDate = initialSync
+        ? getInitialSyncCoverageFromDate({
+            account,
+            initialTransactionHistoryDays:
+              provider.initialTransactionHistoryDays,
+          })
+        : undefined;
 
       log('fetch_started', {
         providerKey: provider.key,
@@ -177,8 +240,8 @@ export class TransactionSyncService {
       const fetchStartedAt = Date.now();
       const update = await fetchCompleteTransactionUpdate({
         provider,
-        accessToken: credential.access_token,
-        providerBankAccountId: account.provider_bank_account_id,
+        accessToken,
+        providerBankAccountId: account.provider_account_id,
         startingCursor,
         fromDate,
         usesDateRangeStrategy,
@@ -201,18 +264,30 @@ export class TransactionSyncService {
             'Cursor-based provider returned updates without a cursor',
           );
         }
+        const skipped = await completeSyncRun({
+          syncRunId,
+          companyId: account.company_id,
+          outcome: 'skipped',
+          pageCount: update.pageCount,
+          diagnosticSummary: 'Provider transaction stream is not ready',
+        });
+        if (!skipped.success) {
+          throw new Error(skipped.message || 'Failed to skip sync run');
+        }
         log('not_ready');
         return emptySyncResult(bankAccountId, initialSync, 'not_ready');
       }
 
       const userId = actorUserId || (await getSystemUserId());
+
       const applyStartedAt = Date.now();
       await applyCompleteTransactionUpdate({
         account,
-        credential,
+        syncRunId,
         update,
         startingCursor,
         usesDateRangeStrategy,
+        initialSyncFromDate,
         userId,
       });
       log('apply_completed', {
@@ -233,15 +308,27 @@ export class TransactionSyncService {
         removed: update.removed.length,
       };
     } catch (error) {
-      if (
-        error instanceof TransactionSyncLockBusyError ||
-        error instanceof StaleBankAccountSyncError
-      ) {
-        log(
-          error instanceof TransactionSyncLockBusyError
-            ? 'lock_busy'
-            : 'stale_work_aborted',
-        );
+      if (error instanceof TransactionSyncLockBusyError) {
+        log('lock_busy');
+        throw error;
+      }
+
+      if (error instanceof StaleBankAccountSyncError) {
+        log('stale_work_aborted');
+        if (syncRunId && account) {
+          const stale = await completeSyncRun({
+            syncRunId,
+            companyId: account.company_id,
+            outcome: 'stale',
+            diagnosticSummary: 'Feed state changed before apply',
+          });
+          if (!stale.success) {
+            logger.error(
+              { traceId, bankAccountId, syncRunId },
+              'Failed to mark transaction sync run stale',
+            );
+          }
+        }
         throw error;
       }
 
@@ -249,8 +336,8 @@ export class TransactionSyncService {
       await handleTransactionSyncFailure({
         bankAccountId,
         account,
-        credential,
         providerKey: provider?.key ?? null,
+        syncRunId,
         error,
         traceId,
       });
@@ -262,27 +349,60 @@ export class TransactionSyncService {
     }
   }
 
-  async findCredentialByItemId(
-    itemId: string,
-  ): Promise<BankAccountCredential | null> {
-    return (
-      (await knexClient('bank_account_credentials')
-        .where({ item_identifier: itemId, status: 'active' })
-        .first()) || null
-    );
+  // Provider scope prevents cross-provider collisions; ambiguous tenant matches
+  // fail closed rather than routing a webhook to an arbitrary connection.
+  async findConnectionByItemId(input: {
+    providerKey: string;
+    itemId: string;
+  }): Promise<{
+    id: string;
+    company_id: string;
+    authorization_status: BankConnectionAuthorizationStatus;
+    provider_snapshot: Record<string, unknown> | null;
+  } | null> {
+    const rows = await knexClient('bank_connections as bc')
+      .innerJoin('bank_feed_providers as bfp', 'bfp.id', 'bc.provider_id')
+      .where({
+        'bc.provider_item_id': input.itemId,
+        'bfp.key': input.providerKey,
+      })
+      .whereNot({ 'bc.authorization_status': 'revoked' })
+      .limit(2)
+      .select<
+        {
+          id: string;
+          company_id: string;
+          authorization_status: BankConnectionAuthorizationStatus;
+          provider_snapshot: Record<string, unknown> | null;
+        }[]
+      >(
+        'bc.id',
+        'bc.company_id',
+        'bc.authorization_status',
+        'bc.provider_snapshot',
+      );
+
+    if (rows.length > 1) {
+      logger.error(
+        { providerKey: input.providerKey, matchCount: rows.length },
+        'Ambiguous bank connection provider item lookup',
+      );
+      return null;
+    }
+    return rows[0] ?? null;
   }
 
   async setTransactionSyncDate(
-    credentialId: string,
+    connectionId: string,
     fromDate: Date,
-    companyId?: string,
+    companyId: string,
   ): Promise<boolean> {
-    const query = knexClient('bank_account_credentials').where({
-      id: credentialId,
+    const query = knexClient('bank_account_feeds').where({
+      bank_connection_id: connectionId,
+      company_id: companyId,
     });
-    if (companyId) query.andWhere({ company_id: companyId });
-    const updated = await query.update({
-      transactions_from_date: fromDate,
+    const updated = await query.whereNull('revoked_at').update({
+      sync_from_date: fromDate,
       updated_at: new Date(),
     });
     return updated > 0;

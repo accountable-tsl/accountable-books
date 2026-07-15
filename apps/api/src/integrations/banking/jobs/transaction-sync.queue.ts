@@ -61,18 +61,18 @@ export async function scheduleTransactionSync(
 }
 
 /** Fan an Item-level event out into one independent job per eligible account. */
-export async function scheduleSyncForCredential({
-  credentialId,
+export async function scheduleSyncForConnection({
+  connectionId,
   trigger,
   actorUserId,
   delay,
 }: {
-  credentialId: string;
+  connectionId: string;
   trigger: TransactionSyncTrigger;
   actorUserId?: string;
   delay?: number;
 }): Promise<Array<Job<TransactionSyncJobData> | null>> {
-  const accounts = await getSyncableBankAccounts({ credentialId });
+  const accounts = await getSyncableBankAccounts({ connectionId });
   const jobs = await Promise.all(
     accounts.map((account) =>
       scheduleTransactionSync(
@@ -87,13 +87,13 @@ export async function scheduleSyncForCredential({
   );
   logger.info(
     {
-      credentialId,
+      connectionId,
       trigger,
       accountCount: accounts.length,
       queuedJobCount: jobs.filter(Boolean).length,
       delay: delay ?? 0,
     },
-    'Credential transaction sync fanned out to account jobs',
+    'Connection transaction sync fanned out to account jobs',
   );
   return jobs;
 }

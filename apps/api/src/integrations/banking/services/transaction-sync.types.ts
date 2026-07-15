@@ -1,5 +1,4 @@
-import type { BankAccountCredential } from '../../../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
-import type { BankAccountConnectionStatus } from '../../../domains/banking/bankAccounts/bankAccounts.types.js';
+import type { BankTransactionSyncRunTrigger } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.types.js';
 import type { ProviderTransaction } from '../types/base.js';
 
 export type TransactionSyncTrigger =
@@ -7,6 +6,17 @@ export type TransactionSyncTrigger =
   | 'periodic'
   | 'manual'
   | 'webhook';
+
+/** Maps API triggers onto bank_transaction_sync_runs.trigger. */
+export const TRANSACTION_SYNC_RUN_TRIGGER: Record<
+  TransactionSyncTrigger,
+  BankTransactionSyncRunTrigger
+> = {
+  initial: 'initial_connection',
+  periodic: 'scheduler',
+  manual: 'manual',
+  webhook: 'webhook',
+};
 
 export interface TransactionSyncCommand {
   bankAccountId: string;
@@ -24,20 +34,18 @@ export interface BankAccountSyncResult {
 }
 
 export interface BankAccountForSync {
-  id: string;
-  provider_bank_account_id: string | null;
-  connection_credential_id: string | null;
-  connection_status: BankAccountConnectionStatus;
+  bank_account_id: string;
+  feed_id: string;
   company_id: string;
-  transaction_sync_cursor: string | null;
-  initial_transaction_sync_completed_at: Date | null;
-  last_sync_at: Date | null;
+  bank_connection_id: string;
+  provider_account_id: string;
+  sync_cursor: string | null;
+  sync_from_date: Date | null;
+  initial_sync_completed_at: Date | null;
+  last_successful_sync_at: Date | null;
+  state_version: number;
   is_deleted: boolean;
 }
-
-export type DecryptedBankAccountCredential = BankAccountCredential & {
-  access_token: string;
-};
 
 export interface CompleteTransactionUpdate {
   added: ProviderTransaction[];

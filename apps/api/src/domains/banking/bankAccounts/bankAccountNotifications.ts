@@ -33,7 +33,7 @@ export interface BankReconnectLifecycleInput {
 
 export interface BankSyncFailureInput {
   clientCompanyId: string;
-  credentialId: string;
+  connectionId: string;
   failures: Array<{
     bankAccountId: string;
     error: string;
@@ -138,7 +138,7 @@ export async function writeBankSyncFailureRequiresActionNotifications(
         destination: {
           workspace: 'banking',
           bankAccountId: summary.bankAccountId,
-          credentialId: input.credentialId,
+          connectionId: input.connectionId,
           action: 'review_transaction_sync_failure',
         },
         sourceEntity: { type: 'bank_account', id: summary.bankAccountId },
@@ -153,7 +153,7 @@ export async function writeBankSyncFailureRequiresActionNotifications(
         data: {
           bankAccountId: summary.bankAccountId,
           bankAccountName: summary.bankAccountName,
-          credentialId: input.credentialId,
+          connectionId: input.connectionId,
           failedBatchCount: summary.failedBatchCount,
           failedTransactionCount: summary.failedTransactionCount,
           errors: summary.errors,
@@ -268,6 +268,7 @@ async function writeBankReconnectResolvedNotifications(
     trx,
     input.clientCompanyId,
   );
+  const attentionKey = buildBankReconnectAttentionKey(input.bankAccountId);
   const currentRecipients = await loadBankReconnectRecipients(trx, {
     clientCompanyId: input.clientCompanyId,
     firmCompanyId,
@@ -276,7 +277,7 @@ async function writeBankReconnectResolvedNotifications(
     trx,
     {
       clientCompanyId: input.clientCompanyId,
-      attentionKey: buildBankReconnectAttentionKey(input.bankAccountId),
+      attentionKey,
     },
   );
   const recipientUserIds = [
@@ -289,7 +290,7 @@ async function writeBankReconnectResolvedNotifications(
   for (const recipientUserId of recipientUserIds) {
     await writeNotificationAttentionResolvedIntent(trx, {
       recipientUserId,
-      attentionKey: buildBankReconnectAttentionKey(input.bankAccountId),
+      attentionKey,
       companyId: input.clientCompanyId,
       idempotencyKey: [
         'notification',
@@ -512,10 +513,7 @@ async function summarizeSyncFailures(
   }
 
   const accountRows = await trx('app.bank_accounts')
-    .where({
-      company_id: input.clientCompanyId,
-      connection_credential_id: input.credentialId,
-    })
+    .where({ company_id: input.clientCompanyId })
     .whereIn('id', accountIds)
     .select('id', 'display_name');
   const accountNames = new Map(

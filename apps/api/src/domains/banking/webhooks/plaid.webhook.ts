@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 import express, { Router } from 'express';
 
-import { scheduleSyncForCredential } from '../../../integrations/banking/index.js';
+import { scheduleSyncForConnection } from '../../../integrations/banking/index.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
 import { logger } from '../../../shared/utils/logger.js';
@@ -156,25 +156,26 @@ async function handleTransactionWebhook(
         new_transactions: data.new_transactions,
       });
 
-      // Find credential by item ID
-      const credential = await transactionSyncService.findCredentialByItemId(
-        data.item_id,
-      );
+      // Find the provider connection by item ID.
+      const connection = await transactionSyncService.findConnectionByItemId({
+        providerKey: 'plaid',
+        itemId: data.item_id,
+      });
 
-      if (!credential) {
-        log('Credential not found for item', {
+      if (!connection) {
+        log('Connection not found for item', {
           item_id: data.item_id,
         });
         return;
       }
 
-      const jobs = await scheduleSyncForCredential({
-        credentialId: credential.id,
+      const jobs = await scheduleSyncForConnection({
+        connectionId: connection.id,
         trigger: 'webhook',
       });
 
       log('Sync jobs queued', {
-        credential_id: credential.id,
+        connection_id: connection.id,
         queued_job_count: jobs.filter(Boolean).length,
       });
       break;

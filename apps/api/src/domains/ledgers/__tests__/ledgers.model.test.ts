@@ -153,14 +153,11 @@ describe('createLedgerRecord - Integration Tests', () => {
         .insert({
           company_id: testCompanyId,
           display_name: 'Test Bank Account',
-          account_name: 'Test Bank Account',
           account_type: 'checkings_current',
-          account_number: '1234567890',
           business_or_personal: 'business',
           bank_id: bank.id,
           currency_id: testCurrencyId,
           coa_id: cashCoa.id,
-          connection_status: 'not_connected',
           created_by_id: testUserId,
           updated_by_id: testUserId,
         })

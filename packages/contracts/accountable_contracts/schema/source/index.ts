@@ -1,6 +1,7 @@
 export * from './accounting/index.js';
 export * from './ai/index.js';
 export * as billing from './billing/index.js';
+export * from './banking/index.js';
 export * from './categorization/index.js';
 export * from './common/index.js';
 export * from './objects/index.js';

@@ -13,7 +13,11 @@ import {
 import { notify } from '../../../notifications/notifications.model.js';
 import { NOTIFICATION_TYPE } from '../../../notifications/notifications.types.js';
 import { OUTBOX_INTENT } from '../../../outbox/intents.js';
+import { deriveAccountNumberIdentity } from '../../account-identity.js';
+import { createBankAccountFeed } from '../../bank-account-feeds/bank-account-feeds.model.js';
+import { createBankConnection } from '../../bank-connections/bank-connections.model.js';
 import {
+  buildBankReconnectAttentionKey,
   buildBankSyncFailureAttentionKey,
   writeBankReconnectNotificationLifecycle,
   writeBankSyncFailureRequiresActionNotifications,
@@ -24,7 +28,6 @@ import {
   createManualBankAccount,
   getBankAccountSyncEligibility,
   getSyncableBankAccounts,
-  updateBankAccounts,
 } from '../bankAccounts.model.js';
 
 describe('bank account creation', () => {
@@ -103,124 +106,244 @@ describe('bank account creation', () => {
   });
 
   it('rolls back the associated COA when bank-account insertion fails', async () => {
-    const accountNumber = randomUUID();
-    const coaName = `Rolled back bank COA ${randomUUID()}`;
-    const before = await countCompanyRows(trx, companyId);
+    const coaName = `Duplicate bank COA ${randomUUID()}`;
+    // Seed the name conflict in its own committed transaction. Creating it
+    // on the still-open outer `trx` would leave an uncommitted conflicting
+    // row that the second (separately-transacted) insert below would block
+    // on indefinitely, since Postgres blocks a unique check against a
+    // concurrent, not-yet-resolved transaction rather than failing fast.
+    const accountTypeBank = await trx('account_types')
+      .where('key', 'ca_bank')
+      .first<{ id: string }>('id');
+    if (!accountTypeBank) throw new Error('account_types.ca_bank not found');
+    const seedTrx = await getTestDb().transaction();
+    let seedCoaId: string;
+    try {
+      const [seeded] = await seedTrx('coa')
+        .insert({
+          company_id: companyId,
+          account_type_id: accountTypeBank.id,
+          currency_id: reportingCurrencyId,
+          name: coaName,
+          code: `dup-${randomUUID()}`,
+          created_by_id: userId,
+        })
+        .returning<{ id: string }[]>('id');
+      seedCoaId = seeded.id;
+      await seedTrx.commit();
+    } catch (error) {
+      await seedTrx.rollback();
+      throw error;
+    }
 
-    const result = await createBankAccountWithConnection({
-      companyId,
-      userId,
-      params: {
-        displayName: `Invalid connected bank ${randomUUID()}`,
-        accountNumber,
-        accountType: 'checkings_current',
-        businessOrPersonal: 'business',
-        bankId,
-        currencyCode: 'USD',
-        coaName,
-        providerId: randomUUID(),
-        providerBankAccountId: randomUUID(),
-        connectionCredentialId: randomUUID(),
-        connectionStatus: 'connected',
-      },
-    });
+    try {
+      const before = await countCompanyRows(trx, companyId);
 
-    expect(result.success).toBe(false);
-    expect(await countCompanyRows(trx, companyId)).toEqual(before);
-    expect(
-      await trx('coa').where({ company_id: companyId, name: coaName }).first(),
-    ).toBeUndefined();
-    expect(
-      await trx('bank_accounts')
-        .where({ company_id: companyId, account_number: accountNumber })
-        .first(),
-    ).toBeUndefined();
+      // The connect-path schema has no coa_name field: its COA name always
+      // defaults to displayName, so reusing the first COA's name here
+      // reproduces the same uniqueness conflict. Deliberately omit `trx` so
+      // the failure runs in its own transaction and rolls back on its own
+      // (Postgres rolls back a commit attempted against an aborted
+      // transaction), leaving the outer test transaction usable afterward.
+      const result = await createBankAccountWithConnection({
+        companyId,
+        userId,
+        params: {
+          displayName: coaName,
+          accountNumber: randomUUID(),
+          accountType: 'checkings_current',
+          businessOrPersonal: 'business',
+          bankId,
+          currencyCode: 'USD',
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(await countCompanyRows(trx, companyId)).toEqual(before);
+    } finally {
+      await getTestDb()('coa').where({ id: seedCoaId }).delete();
+    }
   });
 
-  it('does not allow transaction stream state on a manual account', async () => {
-    const account = await createManualBankAccount({
+  it('reuses the same bank account on a repeat manual create with the same account number', async () => {
+    const accountNumber = randomUUID();
+    const first = await createManualBankAccount({
       trx,
       companyId,
       userId,
       params: {
-        displayName: `Manual stream state ${randomUUID()}`,
-        accountNumber: randomUUID(),
+        displayName: `Reused bank ${randomUUID()}`,
+        accountNumber,
         accountType: 'checkings_current',
         businessOrPersonal: 'business',
         bankId,
         currencyId: reportingCurrencyId,
       },
     });
-    expect(account.success).toBe(true);
+    expect(first.success).toBe(true);
+    expect(first.data?.wasUpdated).toBe(false);
 
-    await expect(
-      trx('bank_accounts')
-        .where({ id: account.data!.bankAccountId })
-        .update({ transaction_sync_cursor: 'manual-cursor' }),
-    ).rejects.toMatchObject({ code: '23514' });
+    const second = await createManualBankAccount({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Reused bank renamed ${randomUUID()}`,
+        accountNumber,
+        accountType: 'savings',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyId: reportingCurrencyId,
+      },
+    });
+
+    expect(second.success).toBe(true);
+    expect(second.data?.wasUpdated).toBe(true);
+    expect(second.data?.bankAccountId).toBe(first.data?.bankAccountId);
+    expect(second.data?.coaId).toBe(first.data?.coaId);
+
+    const identity = deriveAccountNumberIdentity(accountNumber);
+    const stored = await trx('bank_accounts')
+      .where({ id: first.data!.bankAccountId })
+      .first<{
+        account_number_fingerprint: string;
+        account_number_mask: string;
+        account_type: string;
+      }>('account_number_fingerprint', 'account_number_mask', 'account_type');
+    expect(stored).toEqual({
+      account_number_fingerprint: identity.account_number_fingerprint,
+      account_number_mask: identity.account_number_mask,
+      account_type: 'savings',
+    });
   });
 
-  it('lets the database trigger reset stream state on identity changes', async () => {
+  it('never matches an existing account by mask alone when no account number is supplied', async () => {
+    const accountNumber = randomUUID();
+    const manual = await createManualBankAccount({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Mask source bank ${randomUUID()}`,
+        // Distinct explicit code: both accounts below share a mask, and the
+        // connect path (with no coa_code field) would otherwise derive the
+        // same `**mask` COA code for both, colliding on an unrelated
+        // uniqueness constraint instead of exercising identity matching.
+        coaCode: `mask-src-${randomUUID()}`,
+        accountNumber,
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyId: reportingCurrencyId,
+      },
+    });
+    expect(manual.success).toBe(true);
+    const sharedMask =
+      deriveAccountNumberIdentity(accountNumber).account_number_mask;
+
+    const connectResult = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Connect without account number ${randomUUID()}`,
+        accountNumberMask: sharedMask,
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+      },
+    });
+
+    expect(connectResult.success).toBe(true);
+    expect(connectResult.data?.wasUpdated).toBe(false);
+    expect(connectResult.data?.bankAccountId).not.toBe(
+      manual.data?.bankAccountId,
+    );
+
+    const rows = await trx('bank_accounts')
+      .where({ company_id: companyId, bank_id: bankId })
+      .whereIn('id', [
+        manual.data!.bankAccountId,
+        connectResult.data!.bankAccountId,
+      ])
+      .select('id', 'account_number_mask', 'account_number_fingerprint');
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.account_number_mask === sharedMask)).toBe(
+      true,
+    );
+    const withoutFingerprint = rows.find(
+      (row) => row.id === connectResult.data!.bankAccountId,
+    );
+    expect(withoutFingerprint?.account_number_fingerprint).toBeNull();
+  });
+
+  it('creates a connect-path bank account and binds it to a connection and feed', async () => {
+    const provider = await trx('bank_feed_providers')
+      .select('id')
+      .first<{ id: string }>();
+    if (!provider) throw new Error('Expected a bank feed provider fixture');
+
+    const connectionResult = await createBankConnection({
+      data: {
+        company_id: companyId,
+        provider_id: provider.id,
+        connected_by_id: userId,
+      },
+      trx,
+    });
+    expect(connectionResult.success).toBe(true);
+    const connectionId = connectionResult.data!.id;
+
+    const accountResult = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Connected bank ${randomUUID()}`,
+        accountNumber: randomUUID(),
+        accountNumberMask: '1234',
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+      },
+    });
+    expect(accountResult.success).toBe(true);
+    const bankAccountId = accountResult.data!.bankAccountId;
+
+    const feedResult = await createBankAccountFeed({
+      data: {
+        company_id: companyId,
+        bank_account_id: bankAccountId,
+        bank_connection_id: connectionId,
+        provider_account_id: `provider-account-${randomUUID()}`,
+        connected_by_id: userId,
+      },
+      trx,
+    });
+    expect(feedResult.success).toBe(true);
+
+    expect(
+      await getSyncableBankAccounts({ bankAccountId, companyId }, trx),
+    ).toEqual([
+      expect.objectContaining({
+        id: bankAccountId,
+        bank_connection_id: connectionId,
+      }),
+    ]);
+    expect(
+      await getBankAccountSyncEligibility({ bankAccountId, companyId }, trx),
+    ).toEqual({ id: bankAccountId, eligible: true, reason: null });
+  });
+
+  it('excludes accounts without an active, authorized feed from sync scans', async () => {
     const account = await createConnectedBankAccountFixture(trx, {
       companyId,
       userId,
       bankId,
     });
-    const seedStreamState = () =>
-      trx('bank_accounts')
-        .where({ id: account.id })
-        .update({
-          transaction_sync_cursor: 'old-cursor',
-          initial_transaction_sync_completed_at: new Date(
-            '2026-01-02T00:00:00Z',
-          ),
-          last_sync_at: new Date('2026-01-03T00:00:00Z'),
-          sync_error: 'old error',
-        });
-    const expectCleared = async () => {
-      expect(
-        await trx('bank_accounts')
-          .where({ id: account.id })
-          .first(
-            'transaction_sync_cursor',
-            'initial_transaction_sync_completed_at',
-            'last_sync_at',
-            'sync_error',
-          ),
-      ).toEqual({
-        transaction_sync_cursor: null,
-        initial_transaction_sync_completed_at: null,
-        last_sync_at: null,
-        sync_error: null,
-      });
-    };
 
-    await seedStreamState();
-    await trx('bank_accounts')
-      .where({ id: account.id })
-      .update({
-        provider_bank_account_id: `replacement-${randomUUID()}`,
-      });
-    await expectCleared();
-
-    await seedStreamState();
-    const credentialId = await createCredentialFixture(trx, {
-      companyId,
-      providerId: account.providerId,
-      userId,
-    });
-    await trx('bank_accounts').where({ id: account.id }).update({
-      connection_credential_id: credentialId,
-    });
-    await expectCleared();
-  });
-
-  it('excludes disconnected, deleted, and inactive-credential accounts from sync scans', async () => {
-    const account = await createConnectedBankAccountFixture(trx, {
-      companyId,
-      userId,
-      bankId,
-    });
     expect(
       await getSyncableBankAccounts(
         { bankAccountId: account.id, companyId },
@@ -229,7 +352,8 @@ describe('bank account creation', () => {
     ).toEqual([
       expect.objectContaining({
         id: account.id,
-        connection_credential_id: account.credentialId,
+        bank_connection_id: account.connectionId,
+        bank_account_feed_id: account.feedId,
       }),
     ]);
     expect(
@@ -239,9 +363,35 @@ describe('bank account creation', () => {
       ),
     ).toEqual({ id: account.id, eligible: true, reason: null });
 
-    await trx('bank_accounts')
-      .where({ id: account.id })
-      .update({ connection_status: 'error' });
+    await trx('bank_connections').where({ id: account.connectionId }).update({
+      authorization_status: 'requires_action',
+      requires_action_at: trx.fn.now(),
+    });
+    expect(
+      await getSyncableBankAccounts(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual([]);
+    expect(
+      await getBankAccountSyncEligibility(
+        { bankAccountId: account.id, companyId },
+        trx,
+      ),
+    ).toEqual({
+      id: account.id,
+      eligible: false,
+      reason: 'reconnect_required',
+    });
+
+    await trx('bank_connections').where({ id: account.connectionId }).update({
+      authorization_status: 'active',
+      requires_action_at: null,
+    });
+    await trx('bank_account_feeds').where({ id: account.feedId }).update({
+      revoked_at: trx.fn.now(),
+      revocation_origin: 'client',
+    });
     expect(
       await getSyncableBankAccounts(
         { bankAccountId: account.id, companyId },
@@ -260,7 +410,6 @@ describe('bank account creation', () => {
     });
 
     await trx('bank_accounts').where({ id: account.id }).update({
-      connection_status: 'connected',
       is_deleted: true,
       deleted_at: trx.fn.now(),
     });
@@ -276,33 +425,9 @@ describe('bank account creation', () => {
         trx,
       ),
     ).toBeNull();
-
-    await trx('bank_accounts').where({ id: account.id }).update({
-      is_deleted: false,
-      deleted_at: null,
-    });
-    await trx('bank_account_credentials')
-      .where({ id: account.credentialId })
-      .update({ status: 'expired' });
-    expect(
-      await getSyncableBankAccounts(
-        { bankAccountId: account.id, companyId },
-        trx,
-      ),
-    ).toEqual([]);
-    expect(
-      await getBankAccountSyncEligibility(
-        { bankAccountId: account.id, companyId },
-        trx,
-      ),
-    ).toEqual({
-      id: account.id,
-      eligible: false,
-      reason: 'inactive_credential',
-    });
   });
 
-  it('opens bank reconnect notifications when connection status becomes error', async () => {
+  it('opens the existing per-account reconnect notifications when projected connection status becomes error', async () => {
     const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
     await ensureClientOwnerRole(trx, {
       companyId,
@@ -321,29 +446,25 @@ describe('bank account creation', () => {
       bankId,
     });
 
-    const result = await updateBankAccounts({
-      trx,
-      companyId,
-      userId,
-      params: [
-        {
-          id: bankAccount.id,
-          displayName: bankAccount.displayName,
-          accountType: 'checkings_current',
-          businessOrPersonal: 'business',
-          connectionStatus: 'error',
-          notes: 'provider auth failed',
-        },
-      ],
+    const intentCount = await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'connected',
+      nextConnectionStatus: 'error',
+      bankAccountName: bankAccount.displayName,
+      syncError: 'Please reconnect your bank account.',
+      stateVersion: '2026-06-21T00:00:00.000Z',
     });
-    expect(result.success).toBe(true);
+    expect(intentCount).toBe(2);
 
     const firmCompanyId = await resolveFirmCompanyId(trx, companyId);
+    const attentionKey = buildBankReconnectAttentionKey(bankAccount.id);
     const intents = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
       .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
         NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
       ])
+      .andWhereRaw(`payload->'event'->>'attentionKey' = ?`, [attentionKey])
       .orderBy('id', 'asc');
 
     expect(intents).toHaveLength(2);
@@ -355,14 +476,19 @@ describe('bank account creation', () => {
           clientCompanyId: companyId,
           policyOwnerCompanyId: companyId,
           eventType: NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
-          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionKey,
           attentionTransition: 'opened',
           priority: 'high',
           readPolicy: 'explicit',
           sourceEntity: { type: 'bank_account', id: bankAccount.id },
+          destination: expect.objectContaining({
+            action: 'reconnect_bank_account',
+            bankAccountId: bankAccount.id,
+          }),
           data: expect.objectContaining({
             bankAccountId: bankAccount.id,
             connectionStatus: 'error',
+            syncError: 'Please reconnect your bank account.',
           }),
         }),
         expect.objectContaining({
@@ -370,14 +496,14 @@ describe('bank account creation', () => {
           clientCompanyId: companyId,
           policyOwnerCompanyId: firmCompanyId,
           eventType: NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
-          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionKey,
           attentionTransition: 'opened',
         }),
       ]),
     );
   });
 
-  it('resolves bank reconnect notifications when reconnect returns status to connected', async () => {
+  it('resolves the existing per-account reconnect notifications when projected status returns to connected', async () => {
     const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
     await ensureClientOwnerRole(trx, {
       companyId,
@@ -395,52 +521,33 @@ describe('bank account creation', () => {
       userId,
       bankId,
     });
-    await updateBankAccounts({
-      trx,
-      companyId,
-      userId,
-      params: [
-        {
-          id: bankAccount.id,
-          displayName: bankAccount.displayName,
-          accountType: 'checkings_current',
-          businessOrPersonal: 'business',
-          connectionStatus: 'revoked',
-          notes: 'credential revoked',
-        },
-      ],
+    await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'connected',
+      nextConnectionStatus: 'error',
+      bankAccountName: bankAccount.displayName,
+      syncError: 'Please reconnect your bank account.',
+      stateVersion: '2026-06-21T00:00:00.000Z',
     });
 
-    const reconnectCredentialId = await createCredentialFixture(trx, {
-      companyId,
-      providerId: bankAccount.providerId,
-      userId,
+    const resolvedCount = await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'error',
+      nextConnectionStatus: 'connected',
+      bankAccountName: bankAccount.displayName,
+      previousSyncError: 'Please reconnect your bank account.',
+      stateVersion: '2026-06-21T01:00:00.000Z',
     });
-    const reconnect = await createBankAccountWithConnection({
-      trx,
-      companyId,
-      userId,
-      params: {
-        displayName: bankAccount.displayName,
-        accountNumber: bankAccount.accountNumber,
-        accountNumberMask: '1234',
-        accountType: 'checkings_current',
-        businessOrPersonal: 'business',
-        bankId,
-        currencyCode: 'USD',
-        providerId: bankAccount.providerId,
-        providerBankAccountId: randomUUID(),
-        connectionCredentialId: reconnectCredentialId,
-        connectionStatus: 'connected',
-      },
-    });
-    expect(reconnect.success).toBe(true);
-    expect(reconnect.data?.wasUpdated).toBe(true);
+    expect(resolvedCount).toBe(2);
 
+    const attentionKey = buildBankReconnectAttentionKey(bankAccount.id);
     const resolutionIntents = await trx('app.outbox')
       .where({
         intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
       })
+      .andWhereRaw(`payload->>'attentionKey' = ?`, [attentionKey])
       .orderBy('id', 'asc');
 
     expect(resolutionIntents).toHaveLength(2);
@@ -448,12 +555,12 @@ describe('bank account creation', () => {
       expect.arrayContaining([
         expect.objectContaining({
           recipientUserId: userId,
-          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionKey,
           companyId,
         }),
         expect.objectContaining({
           recipientUserId: firmAssigneeId,
-          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionKey,
           companyId,
         }),
       ]),
@@ -464,7 +571,7 @@ describe('bank account creation', () => {
     }
   });
 
-  it('emits a reconnect material update when sync error changes on an already-broken connection', async () => {
+  it('emits an existing per-account reconnect material update when the sync error changes', async () => {
     const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
     await ensureClientOwnerRole(trx, {
       companyId,
@@ -495,11 +602,13 @@ describe('bank account creation', () => {
     });
 
     expect(intentCount).toBe(2);
+    const attentionKey = buildBankReconnectAttentionKey(bankAccount.id);
     const events = await trx('app.outbox')
       .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
       .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
         NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
       ])
+      .andWhereRaw(`payload->'event'->>'attentionKey' = ?`, [attentionKey])
       .andWhereRaw(`payload->'event'->>'attentionTransition' = ?`, [
         'material_update',
       ])
@@ -509,7 +618,7 @@ describe('bank account creation', () => {
       expect.arrayContaining([
         expect.objectContaining({
           recipientUserId: userId,
-          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionKey,
           attentionTransition: 'material_update',
           data: expect.objectContaining({
             syncError: 'Latest auth error',
@@ -517,10 +626,65 @@ describe('bank account creation', () => {
         }),
         expect.objectContaining({
           recipientUserId: firmAssigneeId,
-          attentionKey: `bank_account:${bankAccount.id}:reconnect`,
+          attentionKey,
           attentionTransition: 'material_update',
         }),
       ]),
+    );
+  });
+
+  it('keeps revoked in the existing per-account reconnect-required lifecycle', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await ensureClientOwnerRole(trx, {
+      companyId,
+      userId,
+      actorUserId: userId,
+    });
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+
+    const intentCount = await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'connected',
+      nextConnectionStatus: 'revoked',
+      bankAccountName: bankAccount.displayName,
+      syncError: 'Credential revoked',
+      stateVersion: '2026-06-21T00:00:00.000Z',
+    });
+    expect(intentCount).toBe(2);
+
+    const attentionKey = buildBankReconnectAttentionKey(bankAccount.id);
+    const openedIntents = await trx('app.outbox')
+      .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+      .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+        NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
+      ])
+      .andWhereRaw(`payload->'event'->>'attentionKey' = ?`, [attentionKey])
+      .andWhereRaw(`payload->'event'->>'attentionTransition' = ?`, ['opened']);
+    expect(openedIntents).toHaveLength(2);
+    expect(openedIntents[0]?.payload.event).toEqual(
+      expect.objectContaining({
+        attentionKey,
+        sourceEntity: { type: 'bank_account', id: bankAccount.id },
+        destination: expect.objectContaining({
+          action: 'reconnect_bank_account',
+          bankAccountId: bankAccount.id,
+        }),
+        data: expect.objectContaining({
+          bankAccountId: bankAccount.id,
+          connectionStatus: 'revoked',
+        }),
+      }),
     );
   });
 
@@ -548,7 +712,7 @@ describe('bank account creation', () => {
       trx,
       {
         clientCompanyId: companyId,
-        credentialId: bankAccount.credentialId,
+        connectionId: bankAccount.connectionId,
         failures: [
           {
             bankAccountId: bankAccount.id,
@@ -581,7 +745,7 @@ describe('bank account creation', () => {
         data: expect.objectContaining({
           bankAccountId: bankAccount.id,
           bankAccountName: bankAccount.displayName,
-          credentialId: bankAccount.credentialId,
+          connectionId: bankAccount.connectionId,
           failedBatchCount: 1,
           failedTransactionCount: 4,
           errors: ['Missing required transaction field'],
@@ -661,7 +825,8 @@ async function createConnectedBankAccountFixture(
   accountNumber: string;
   displayName: string;
   providerId: string;
-  credentialId: string;
+  connectionId: string;
+  feedId: string;
 }> {
   const provider = await trx('bank_feed_providers')
     .select('id')
@@ -669,11 +834,23 @@ async function createConnectedBankAccountFixture(
   if (!provider) {
     throw new Error('Expected a bank feed provider fixture');
   }
-  const credentialId = await createCredentialFixture(trx, {
-    companyId: input.companyId,
-    providerId: provider.id,
-    userId: input.userId,
+
+  const connectionResult = await createBankConnection({
+    data: {
+      company_id: input.companyId,
+      provider_id: provider.id,
+      authorization_status: 'active',
+      connected_by_id: input.userId,
+    },
+    trx,
   });
+  if (!connectionResult.success || !connectionResult.data) {
+    throw new Error(
+      connectionResult.message || 'Failed to create bank connection fixture',
+    );
+  }
+  const connectionId = connectionResult.data.id;
+
   const accountNumber = randomUUID();
   const displayName = `Connected bank ${randomUUID()}`;
   const result = await createBankAccountWithConnection({
@@ -688,10 +865,6 @@ async function createConnectedBankAccountFixture(
       businessOrPersonal: 'business',
       bankId: input.bankId,
       currencyCode: 'USD',
-      providerId: provider.id,
-      providerBankAccountId: randomUUID(),
-      connectionCredentialId: credentialId,
-      connectionStatus: 'connected',
     },
   });
 
@@ -701,32 +874,30 @@ async function createConnectedBankAccountFixture(
     );
   }
 
+  const feedResult = await createBankAccountFeed({
+    data: {
+      company_id: input.companyId,
+      bank_account_id: result.data.bankAccountId,
+      bank_connection_id: connectionId,
+      provider_account_id: `provider-account-${randomUUID()}`,
+      connected_by_id: input.userId,
+    },
+    trx,
+  });
+  if (!feedResult.success || !feedResult.data?.id) {
+    throw new Error(
+      feedResult.message || 'Failed to create bank account feed fixture',
+    );
+  }
+
   return {
     id: result.data.bankAccountId,
     accountNumber,
     displayName,
     providerId: provider.id,
-    credentialId,
+    connectionId,
+    feedId: feedResult.data.id,
   };
-}
-
-async function createCredentialFixture(
-  trx: Knex.Transaction,
-  input: { companyId: string; providerId: string; userId: string },
-): Promise<string> {
-  const [credential] = await trx('bank_account_credentials')
-    .insert({
-      company_id: input.companyId,
-      provider_id: input.providerId,
-      item_identifier: randomUUID(),
-      encrypted_access_token: `access-${randomUUID()}`,
-      raw_metadata: JSON.stringify({ source: 'test' }),
-      status: 'active',
-      connected_by_id: input.userId,
-    })
-    .returning('id');
-
-  return credential.id;
 }
 
 async function ensureClientOwnerRole(

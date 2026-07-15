@@ -52,11 +52,19 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table
-      .uuid('connection_credential_id')
+      .uuid('bank_account_feed_id')
       .nullable()
       .references('id')
-      .inTable(`${schemaName}.bank_account_credentials`)
-      .onDelete('RESTRICT');
+      .inTable(`${schemaName}.bank_account_feeds`)
+      .onDelete('RESTRICT')
+      .comment('Feed that produced this batch; null for non-feed sources');
+    table
+      .uuid('bank_transaction_sync_run_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.bank_transaction_sync_runs`)
+      .onDelete('RESTRICT')
+      .comment('Sync run that produced this batch, where applicable');
     table
       .foreign(
         ['bank_account_id', 'company_id'],
@@ -67,11 +75,19 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
     table
       .foreign(
-        ['connection_credential_id', 'company_id'],
-        'bank_transaction_batches_credential_company_fk',
+        ['bank_account_feed_id', 'company_id'],
+        'bank_transaction_batches_feed_company_fk',
       )
       .references(['id', 'company_id'])
-      .inTable(`${schemaName}.bank_account_credentials`)
+      .inTable(`${schemaName}.bank_account_feeds`)
+      .onDelete('RESTRICT');
+    table
+      .foreign(
+        ['bank_transaction_sync_run_id', 'bank_account_feed_id', 'company_id'],
+        'bank_transaction_batches_sync_run_feed_company_fk',
+      )
+      .references(['id', 'bank_account_feed_id', 'company_id'])
+      .inTable(`${schemaName}.bank_transaction_sync_runs`)
       .onDelete('RESTRICT');
 
     table
@@ -99,6 +115,10 @@ export async function up(knex: Knex): Promise<void> {
     table.index(
       ['bank_account_id', 'start_date', 'end_date'],
       'bank_transaction_batches_account_date_range_idx',
+    );
+    table.index(
+      ['bank_account_feed_id'],
+      'bank_transaction_batches_feed_id_idx',
     );
     table.unique(['bank_account_id', 'fingerprint'], {
       indexName: 'bank_transaction_batches_account_fingerprint_uniq',
@@ -134,11 +154,15 @@ export async function up(knex: Knex): Promise<void> {
             AND char_length(reversal_reason) >= 1
           )
         ),
-      ADD CONSTRAINT bank_transaction_batches_source_credential_chk
+      ADD CONSTRAINT bank_transaction_batches_source_feed_chk
         CHECK (
-          (source = 'bank_feed' AND connection_credential_id IS NOT NULL)
+          (source = 'bank_feed' AND bank_account_feed_id IS NOT NULL)
           OR
-          (source != 'bank_feed' AND connection_credential_id IS NULL)
+          (
+            source != 'bank_feed'
+            AND bank_account_feed_id IS NULL
+            AND bank_transaction_sync_run_id IS NULL
+          )
         ),
       ADD CONSTRAINT bank_transaction_batches_fingerprint_trimmed_chk
         CHECK (

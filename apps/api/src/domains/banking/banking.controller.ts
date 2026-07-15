@@ -260,7 +260,7 @@ export class BankingController {
     try {
       const userId = String(req.user?.id);
       const companyId = String(req.user?.currentCompanyId);
-      const { credentialId, fromDate } = req.body;
+      const { connectionId, fromDate } = req.body;
 
       if (!userId || !companyId) {
         return res
@@ -268,8 +268,8 @@ export class BankingController {
           .json(errorResponse('Missing user or company ID'));
       }
 
-      if (!credentialId) {
-        return res.status(400).json(errorResponse('Missing credentialId'));
+      if (!connectionId) {
+        return res.status(400).json(errorResponse('Missing connectionId'));
       }
 
       if (!fromDate) {
@@ -292,19 +292,18 @@ export class BankingController {
           .json(errorResponse('Date cannot be more than 2 years in the past'));
       }
 
-      // Set the sync date
       const updated = await transactionSyncService.setTransactionSyncDate(
-        credentialId,
+        connectionId,
         date,
         companyId,
       );
       if (!updated) {
-        return res.status(404).json(errorResponse('Credential not found'));
+        return res.status(404).json(errorResponse('Bank connection not found'));
       }
 
       res.json(
         successResponse('Transaction sync date updated successfully', {
-          credentialId,
+          connectionId,
           fromDate: date.toISOString(),
         }),
       );
@@ -316,21 +315,3 @@ export class BankingController {
     }
   }
 }
-
-export const createCredential = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  try {
-    // TODO: Update this to use new bankAccountCredentials.model.ts structure
-    res
-      .status(501)
-      .json(
-        errorResponse(
-          'createCredential endpoint needs updating for new architecture',
-        ),
-      );
-  } catch (error) {
-    res.status(500).json(errorResponse('Internal server error', error));
-  }
-};

@@ -1,9 +1,11 @@
 import type { Knex } from 'knex';
 
 /**
- * Bank transactions are immutable ingestion records tied to a company bank
- * account. Each row represents one statement line with provider-stable
- * idempotency and optional ledger match state.
+ * Bank transactions are the canonical imported transaction facts tied to a
+ * company bank account. Each row represents one statement line with optional
+ * ledger match state. Non-feed imports may use (bank_account_id,
+ * idempotency_key) for import idempotency. Provider-observed identities live
+ * only in bank_transaction_feed_entries, so bank-feed rows leave this key null.
  */
 
 const schemaName = 'app';
@@ -66,7 +68,7 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(`${schemaName}.ledger_transactions`)
       .onDelete('RESTRICT');
 
-    table.string('idempotency_key', 256).notNullable();
+    table.string('idempotency_key', 256).nullable();
     table
       .jsonb('source_payload')
       .notNullable()
@@ -146,7 +148,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     COMMENT ON TABLE ${qualifiedTable} IS
-    'Immutable bank statement lines ingested per company bank account.';
+    'Canonical imported bank statement lines per company bank account. Feed-scoped provider identities live in bank_transaction_feed_entries.';
   `);
 
   await knex.raw(`
@@ -157,8 +159,11 @@ export async function up(knex: Knex): Promise<void> {
         CHECK (amount <> 0),
       ADD CONSTRAINT bank_transactions_idempotency_key_trimmed_chk
         CHECK (
-          idempotency_key = btrim(idempotency_key)
-          AND char_length(idempotency_key) >= 1
+          idempotency_key IS NULL
+          OR (
+            idempotency_key = btrim(idempotency_key)
+            AND char_length(idempotency_key) >= 1
+          )
         ),
       ADD CONSTRAINT bank_transactions_deleted_state_chk
         CHECK (

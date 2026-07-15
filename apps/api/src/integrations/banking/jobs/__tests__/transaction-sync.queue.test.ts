@@ -7,7 +7,7 @@ import {
   BANK_ACCOUNT_SYNC_LOCK_TTL_SECONDS,
 } from '../../transaction-sync.constants.js';
 import {
-  scheduleSyncForCredential,
+  scheduleSyncForConnection,
   scheduleTransactionSync,
   transactionSyncQueue,
 } from '../transaction-sync.queue.js';
@@ -65,18 +65,20 @@ describe('transaction sync account jobs', () => {
     expect(data).not.toHaveProperty('providerBankAccountId');
   });
 
-  it('fans a credential event out once per eligible account', async () => {
+  it('fans a connection event out once per eligible account', async () => {
     bankAccounts.getSyncable.mockResolvedValue([
       {
         id: 'account-1',
         company_id: 'company-1',
-        connection_credential_id: 'credential-1',
+        bank_account_feed_id: 'feed-1',
+        bank_connection_id: 'connection-1',
         last_sync_at: null,
       },
       {
         id: 'account-2',
         company_id: 'company-1',
-        connection_credential_id: 'credential-1',
+        bank_account_feed_id: 'feed-2',
+        bank_connection_id: 'connection-1',
         last_sync_at: null,
       },
     ]);
@@ -87,13 +89,13 @@ describe('transaction sync account jobs', () => {
         }) as never,
     );
 
-    await scheduleSyncForCredential({
-      credentialId: 'credential-1',
+    await scheduleSyncForConnection({
+      connectionId: 'connection-1',
       trigger: 'webhook',
     });
 
     expect(bankAccounts.getSyncable).toHaveBeenCalledWith({
-      credentialId: 'credential-1',
+      connectionId: 'connection-1',
     });
     expect(add).toHaveBeenCalledTimes(2);
     expect(add.mock.calls.map((call) => call[1])).toEqual([
