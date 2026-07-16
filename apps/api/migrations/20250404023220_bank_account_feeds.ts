@@ -60,9 +60,14 @@ export async function up(knex: Knex): Promise<void> {
       .nullable()
       .comment('Earliest transaction date this feed should import');
     table
+      .text('sync_from_timezone')
+      .notNullable()
+      .defaultTo('Etc/UTC')
+      .comment('IANA timezone used when sync_from_date was set');
+    table
       .text('sync_cursor')
       .nullable()
-      .comment('Provider checkpoint for this feed transaction stream');
+      .comment('Opaque provider checkpoint for this feed transaction stream');
     table.timestamp('initial_sync_completed_at', { useTz: true }).nullable();
     table.timestamp('last_successful_sync_at', { useTz: true }).nullable();
 
@@ -189,7 +194,13 @@ export async function up(knex: Knex): Promise<void> {
           )
         ),
       ADD CONSTRAINT bank_account_feeds_state_version_chk
-        CHECK (state_version >= 1);
+        CHECK (state_version >= 1),
+      ADD CONSTRAINT bank_account_feeds_sync_from_timezone_chk
+        CHECK (
+          sync_from_timezone = btrim(sync_from_timezone)
+          AND char_length(sync_from_timezone) >= 1
+          AND "${schemaName}".is_valid_iana_timezone(sync_from_timezone)
+        );
   `);
 
   await createUpdateTimestampTrigger(knex, tableName, schemaName);

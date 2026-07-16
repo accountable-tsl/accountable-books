@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { queueBroker } from '../../../../jobs/queues/queue-broker.js';
 import {
@@ -6,14 +6,11 @@ import {
   BANK_ACCOUNT_SYNC_JOB_BACKOFF,
   BANK_ACCOUNT_SYNC_LOCK_TTL_SECONDS,
 } from '../../transaction-sync.constants.js';
-import {
-  scheduleSyncForConnection,
-  scheduleTransactionSync,
-  transactionSyncQueue,
-} from '../transaction-sync.queue.js';
+import { enqueuePeriodicBankSyncIntents } from '../transaction-sync.queue.js';
 
-const bankAccounts = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => ({
   getSyncable: vi.fn(),
+  requestBankAccountSync: vi.fn(),
 }));
 
 vi.mock(
@@ -22,91 +19,35 @@ vi.mock(
     ...(await importOriginal<
       typeof import('../../../../domains/banking/bankAccounts/bankAccounts.model.js')
     >()),
-    getSyncableBankAccounts: bankAccounts.getSyncable,
+    getSyncableBankAccounts: mocks.getSyncable,
   }),
 );
 
-describe('transaction sync account jobs', () => {
+vi.mock('../../transaction-sync.outbox.js', () => ({
+  requestBankAccountSync: mocks.requestBankAccountSync,
+}));
+
+describe('periodic bank sync wake', () => {
   beforeEach(() => {
     queueBroker.configure({ disableAll: false, logSkipped: false });
-    bankAccounts.getSyncable.mockReset();
+    mocks.getSyncable.mockReset();
+    mocks.requestBankAccountSync.mockReset();
+    mocks.requestBankAccountSync.mockResolvedValue({ id: 'outbox-1' });
   });
 
-  afterEach(() => {
-    queueBroker.configure({ disableAll: true, logSkipped: true });
-    vi.restoreAllMocks();
-  });
-
-  it('queues only account-scoped identifiers and trigger context', async () => {
-    const add = vi
-      .spyOn(transactionSyncQueue, 'add')
-      .mockResolvedValue({ id: 'job-1' } as never);
-
-    await scheduleTransactionSync({
-      bankAccountId: 'account-1',
-      trigger: 'manual',
-      actorUserId: 'user-1',
-    });
-
-    expect(add).toHaveBeenCalledWith(
-      'sync-bank-account',
-      expect.objectContaining({
-        bankAccountId: 'account-1',
-        trigger: 'manual',
-        actorUserId: 'user-1',
-      }),
-      expect.any(Object),
-    );
-    const data = add.mock.calls[0]?.[1];
-    expect(data).not.toHaveProperty('companyId');
-    expect(data).not.toHaveProperty('credentialId');
-    expect(data).not.toHaveProperty('accessToken');
-    expect(data).not.toHaveProperty('cursor');
-    expect(data).not.toHaveProperty('providerBankAccountId');
-  });
-
-  it('fans a connection event out once per eligible account', async () => {
-    bankAccounts.getSyncable.mockResolvedValue([
-      {
-        id: 'account-1',
-        company_id: 'company-1',
-        bank_account_feed_id: 'feed-1',
-        bank_connection_id: 'connection-1',
-        last_sync_at: null,
-      },
-      {
-        id: 'account-2',
-        company_id: 'company-1',
-        bank_account_feed_id: 'feed-2',
-        bank_connection_id: 'connection-1',
-        last_sync_at: null,
-      },
+  it('writes one outbox sync intent per syncable account', async () => {
+    mocks.getSyncable.mockResolvedValue([
+      { id: 'account-1' },
+      { id: 'account-2' },
     ]);
-    const add = vi.spyOn(transactionSyncQueue, 'add').mockImplementation(
-      async (_name, data) =>
-        ({
-          id: `job:${(data as { bankAccountId: string }).bankAccountId}`,
-        }) as never,
-    );
 
-    await scheduleSyncForConnection({
-      connectionId: 'connection-1',
-      trigger: 'webhook',
-    });
+    const result = await enqueuePeriodicBankSyncIntents();
 
-    expect(bankAccounts.getSyncable).toHaveBeenCalledWith({
-      connectionId: 'connection-1',
-    });
-    expect(add).toHaveBeenCalledTimes(2);
-    expect(add.mock.calls.map((call) => call[1])).toEqual([
-      expect.objectContaining({
-        bankAccountId: 'account-1',
-        trigger: 'webhook',
-      }),
-      expect.objectContaining({
-        bankAccountId: 'account-2',
-        trigger: 'webhook',
-      }),
+    expect(result).toEqual({ accountCount: 2, failedCount: 0 });
+    expect(mocks.requestBankAccountSync).toHaveBeenCalledTimes(2);
+    expect(mocks.requestBankAccountSync.mock.calls).toEqual([
+      [{ bankAccountId: 'account-1', trigger: 'periodic' }],
+      [{ bankAccountId: 'account-2', trigger: 'periodic' }],
     ]);
   });
 

@@ -66,6 +66,7 @@ export const bankTransaction = z.object({
   deleted_by_id: z.uuid().nullish(),
   deletion_origin: bankTransactionDeletionSource.nullish(),
   deletion_reason: z.string().max(512).nullish(),
+  superseded_by_bank_transaction_id: z.uuid().nullish(),
   absolute_amount: z.number(),
   search_text: z.string(),
 });

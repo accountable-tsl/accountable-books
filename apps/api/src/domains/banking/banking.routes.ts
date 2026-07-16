@@ -41,10 +41,4 @@ router.post(
   bankingController.syncTransactions.bind(bankingController),
 );
 
-// POST /api/banking/set-sync-date
-router.post(
-  '/set-sync-date',
-  bankingController.setTransactionSyncDate.bind(bankingController),
-);
-
 export default router;

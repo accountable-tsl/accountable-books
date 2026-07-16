@@ -9,9 +9,11 @@ const mocks = vi.hoisted(() => ({
   createConnectionSecret: vi.fn(),
   createAccount: vi.fn(),
   createFeed: vi.fn(),
+  createHistoryImport: vi.fn(),
+  writeSyncOutbox: vi.fn(),
+  updateBankCurrentBalance: vi.fn(),
   getProvider: vi.fn(),
   getEnabledProvider: vi.fn(),
-  scheduleSync: vi.fn(),
 }));
 
 vi.mock('../../../../db/knexClient.js', () => ({
@@ -38,8 +40,17 @@ vi.mock(
   () => ({ createBankAccountFeed: mocks.createFeed }),
 );
 
-vi.mock('../../jobs/transaction-sync.queue.js', () => ({
-  scheduleTransactionSync: mocks.scheduleSync,
+vi.mock(
+  '../../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js',
+  () => ({ createHistoryImport: mocks.createHistoryImport }),
+);
+
+vi.mock('../../transaction-sync.outbox.js', () => ({
+  writeBankSyncOutbox: mocks.writeSyncOutbox,
+}));
+
+vi.mock('../../../../domains/balances/bank-current-balance.js', () => ({
+  updateBankCurrentBalance: mocks.updateBankCurrentBalance,
 }));
 
 vi.mock('../../providers/registry.js', () => ({
@@ -49,14 +60,31 @@ vi.mock('../../providers/registry.js', () => ({
   },
 }));
 
+function makeTrx() {
+  return vi.fn((table: string) => {
+    if (table === 'companies') {
+      return {
+        where: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ default_timezone: 'Etc/UTC' }),
+      };
+    }
+    throw new Error(`unexpected table ${table}`);
+  });
+}
+
 describe('connected account initial synchronization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.transactionCommitted = false;
     mocks.transaction.mockImplementation(async (callback) => {
-      const result = await callback({});
-      mocks.transactionCommitted = true;
-      return result;
+      try {
+        const result = await callback(makeTrx());
+        mocks.transactionCommitted = true;
+        return result;
+      } catch (error) {
+        mocks.transactionCommitted = false;
+        throw error;
+      }
     });
     mocks.createConnection.mockResolvedValue({
       success: true,
@@ -70,6 +98,9 @@ describe('connected account initial synchronization', () => {
       success: true,
       data: { id: 'feed-1' },
     });
+    mocks.createHistoryImport.mockResolvedValue(undefined);
+    mocks.writeSyncOutbox.mockResolvedValue(undefined);
+    mocks.updateBankCurrentBalance.mockResolvedValue(undefined);
     mocks.getEnabledProvider.mockResolvedValue({
       id: 'provider-1',
       name: 'Plaid',
@@ -107,12 +138,7 @@ describe('connected account initial synchronization', () => {
       });
   });
 
-  it('queues one delayed account job only after the connection commits', async () => {
-    mocks.scheduleSync.mockImplementation(async () => {
-      expect(mocks.transactionCommitted).toBe(true);
-      return { id: 'job-1' };
-    });
-
+  it('writes initial-sync outbox intents inside the connect transaction', async () => {
     const result = await connectAccountsService.connectBankAccounts({
       providerKey: 'plaid',
       countryCode: 'US',
@@ -122,28 +148,79 @@ describe('connected account initial synchronization', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(mocks.scheduleSync).toHaveBeenCalledTimes(2);
-    expect(mocks.scheduleSync.mock.calls).toEqual([
+    expect(mocks.createHistoryImport).toHaveBeenCalledTimes(2);
+    expect(mocks.writeSyncOutbox).toHaveBeenCalledTimes(2);
+    expect(mocks.writeSyncOutbox.mock.calls).toEqual([
       [
+        expect.anything(),
         {
           bankAccountId: 'account-1',
           trigger: 'initial',
           actorUserId: 'user-1',
         },
-        { delay: 5000 },
       ],
       [
+        expect.anything(),
         {
           bankAccountId: 'account-2',
           trigger: 'initial',
           actorUserId: 'user-1',
         },
-        { delay: 5000 },
       ],
     ]);
+    expect(mocks.updateBankCurrentBalance).not.toHaveBeenCalled();
   });
 
-  it('does not queue initial work when account creation rolls back', async () => {
+  it('stores native balance when the provider supplies reportedCurrentBalance', async () => {
+    mocks.getProvider.mockResolvedValue({
+      exchangeToken: vi.fn().mockResolvedValue({
+        accessToken: 'access-token',
+        itemId: 'item-1',
+      }),
+      getConnectionDetails: vi.fn().mockResolvedValue({
+        connection: { id: 'item-1', metadata: {} },
+        institution: {
+          systemInstitutionId: 'bank-1',
+          providerInstitutionId: 'institution-1',
+          name: 'Test Bank',
+          countryCode: 'US',
+          rawData: {},
+        },
+        bankAccounts: [
+          {
+            ...providerAccount('provider-account-1', 'Account One'),
+            reportedCurrentBalance: {
+              amount: 2500,
+              asOf: new Date('2026-01-01T00:00:00Z'),
+            },
+          },
+        ],
+      }),
+      supportsTransactionSync: vi.fn(() => true),
+    });
+    mocks.createAccount.mockReset().mockResolvedValue({
+      success: true,
+      data: { bankAccountId: 'account-1', wasUpdated: false },
+    });
+
+    await connectAccountsService.connectBankAccounts({
+      providerKey: 'plaid',
+      countryCode: 'US',
+      publicToken: 'public-token',
+      companyId: 'company-1',
+      userId: 'user-1',
+    });
+
+    expect(mocks.updateBankCurrentBalance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'company-1',
+        bankAccountId: 'account-1',
+        balance: 2500,
+      }),
+    );
+  });
+
+  it('does not write initial-sync intents when account creation rolls back', async () => {
     mocks.createAccount
       .mockReset()
       .mockResolvedValueOnce({
@@ -165,10 +242,10 @@ describe('connected account initial synchronization', () => {
 
     expect(result.success).toBe(false);
     expect(mocks.transactionCommitted).toBe(false);
-    expect(mocks.scheduleSync).not.toHaveBeenCalled();
+    expect(mocks.writeSyncOutbox).toHaveBeenCalledTimes(1);
   });
 
-  it('does not create accounts or queue work when secret creation rolls back the connection', async () => {
+  it('does not create accounts or outbox intents when secret creation rolls back the connection', async () => {
     mocks.createConnectionSecret.mockResolvedValueOnce({
       success: false,
       message: 'secret write failed',
@@ -186,7 +263,7 @@ describe('connected account initial synchronization', () => {
     expect(mocks.transactionCommitted).toBe(false);
     expect(mocks.createAccount).not.toHaveBeenCalled();
     expect(mocks.createFeed).not.toHaveBeenCalled();
-    expect(mocks.scheduleSync).not.toHaveBeenCalled();
+    expect(mocks.writeSyncOutbox).not.toHaveBeenCalled();
   });
 });
 

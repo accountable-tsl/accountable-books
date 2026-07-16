@@ -28,6 +28,11 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
+    table
+      .uuid('lease_token')
+      .nullable()
+      .comment('Ownership token for long-running leased intents');
+
     table.timestamp('completed_at', { useTz: true }).nullable();
     table.integer('dispatch_attempt_count').notNullable().defaultTo(0);
     table.text('last_error').nullable();

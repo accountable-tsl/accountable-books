@@ -4,7 +4,6 @@ import { getTestDb } from '../../../../../config/test-db.js';
 import { NOTIFICATION_TYPE } from '../../../../domains/notifications/notifications.types.js';
 import { OUTBOX_INTENT } from '../../../../domains/outbox/intents.js';
 import { providerRegistry } from '../../providers/registry.js';
-import { TransactionSyncStrategy } from '../../types/base.js';
 import {
   classifyTransactionSyncFailure,
   isRetryableTransactionSyncFailure,
@@ -94,12 +93,12 @@ describe('transaction sync failure classification', () => {
     const fakeProvider = {
       key: 'plaid',
       name: 'Fake Plaid',
-      transactionSyncStrategy: TransactionSyncStrategy.CURSOR_BASED,
+      initialTransactionHistoryDays: 730,
       createLinkToken: vi.fn(),
       exchangeToken: vi.fn(),
       getConnectionDetails: vi.fn(),
       supportsTransactionSync: vi.fn(() => true),
-      syncTransactions: vi.fn(async () => {
+      fetchTransactionUpdate: vi.fn(async () => {
         throw authError;
       }),
       handleError: vi.fn((error) => error as ProviderError),

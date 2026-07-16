@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
+import { format } from 'date-fns';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { scheduleBankBalanceAfterCommit } from '../../../domains/balances/index.js';
@@ -7,10 +7,29 @@ import {
   advanceFeedCheckpoint,
   assertFeedApplyGuard,
 } from '../../../domains/banking/bank-account-feeds/bank-account-feeds.model.js';
-import { upsertFeedEntry } from '../../../domains/banking/bank-transaction-feed-entries/bank-transaction-feed-entries.model.js';
+import {
+  FeedTransactionImportError,
+  importFinalizedFeedTransactions,
+} from '../../../domains/banking/bank-feed-import/import-feed-transactions.js';
+import {
+  deleteFeedEntry,
+  repointFeedEntryToReplacement,
+  upsertFeedEntry,
+} from '../../../domains/banking/bank-transaction-feed-entries/bank-transaction-feed-entries.model.js';
+import {
+  createHistoryImport,
+  deleteHistoryCandidates,
+  getCandidatesByProviderIds,
+  markHistoryImportStatus,
+  refreshHistoryImportAggregates,
+  upsertHistoryCandidates,
+} from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
 import { completeSyncRun } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.model.js';
-import { writeBankSyncFailureResolvedNotifications } from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
-import { addNewBankTransactions } from '../../../domains/bankTransactions/bankTransactions.model.js';
+import {
+  writeBankSyncFailureResolvedNotifications,
+  writeBankTransactionRemovedNotifications,
+  writeBankTransactionSupersededNotifications,
+} from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { sanitizeProviderSnapshot } from '../utils/provider-snapshot.js';
 import {
   AccountTransactionApplyError,
@@ -18,24 +37,27 @@ import {
   syncErrorMessage,
 } from './transaction-sync.errors.js';
 
+import type { FinalizedFeedTransaction } from '../../../domains/banking/bank-feed-import/import-feed-transactions.js';
 import type {
-  BankTransactionBatchInput,
-  BankTransactionInput,
-} from '../../../domains/bankTransactions/bankTransactions.types.js';
-import type { ProviderTransaction } from '../types/base.js';
+  ProviderTransaction,
+  ProviderTransactionUpdate,
+} from '../types/base.js';
 import type {
+  AppliedTransactionUpdateCounts,
   BankAccountForSync,
-  CompleteTransactionUpdate,
 } from './transaction-sync.types.js';
 
 interface ApplyCompleteTransactionUpdateInput {
   account: BankAccountForSync;
   syncRunId: string;
-  update: CompleteTransactionUpdate;
-  startingCursor?: string;
-  usesDateRangeStrategy: boolean;
-  initialSyncFromDate?: Date;
+  update: ProviderTransactionUpdate;
+  startingCheckpoint: string | null;
   userId: string;
+}
+
+interface ApplyContext extends ApplyCompleteTransactionUpdateInput {
+  /** yyyy-MM-dd accepted starting date, or null when the feed has none. */
+  boundaryYmd: string | null;
 }
 
 function providerEvidence(
@@ -44,17 +66,65 @@ function providerEvidence(
   return sanitizeProviderSnapshot(rawData, 'transaction') ?? {};
 }
 
+/**
+ * Null for unparseable provider dates: routing then falls through to the
+ * normal import path, whose date validation owns the failure.
+ */
+function toYmd(value: Date | string): string | null {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : format(date, 'yyyy-MM-dd');
+}
+
+function minYmd(left: string | null, right: string): string {
+  return left === null || right < left ? right : left;
+}
+
+/** Key-order-independent equality for sanitized provider evidence. */
+function sameEvidence(left: unknown, right: unknown): boolean {
+  return stableStringify(left) === stableStringify(right);
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(
+        ([key, entryValue]) =>
+          `${JSON.stringify(key)}:${stableStringify(entryValue)}`,
+      );
+    return `{${entries.join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+function toFinalizedFeedTransaction(
+  transaction: ProviderTransaction,
+): FinalizedFeedTransaction {
+  return {
+    providerTransactionId: transaction.transactionId,
+    transactionDate: new Date(transaction.date),
+    transactionAt: transaction.txnAt || new Date(transaction.date),
+    amount: transaction.amount,
+    description: transaction.description ?? null,
+    payee: transaction.merchantName ?? null,
+    additionalNotes: transaction.additionalNotes ?? undefined,
+    providerEvidence: providerEvidence(transaction.rawData),
+  };
+}
+
 export async function applyCompleteTransactionUpdate(
   input: ApplyCompleteTransactionUpdateInput,
-): Promise<void> {
-  await knexClient.transaction(async (trx) => {
+): Promise<AppliedTransactionUpdateCounts> {
+  return knexClient.transaction(async (trx) => {
     const guardResult = await assertFeedApplyGuard({
       snapshot: {
         feedId: input.account.feed_id,
         bankConnectionId: input.account.bank_connection_id,
-        syncCursor: input.usesDateRangeStrategy
-          ? null
-          : (input.startingCursor ?? null),
+        syncCursor: input.startingCheckpoint,
         syncFromDate: input.account.sync_from_date,
         lastSuccessfulSyncAt: input.account.last_successful_sync_at,
         providerAccountId: input.account.provider_account_id,
@@ -67,33 +137,65 @@ export async function applyCompleteTransactionUpdate(
       throw new StaleBankAccountSyncError(input.account.bank_account_id);
     }
 
-    await applyAddedTransactions(trx, input);
-    await applyModifiedTransactions(trx, input);
-    const earliestRemoved = await applyRemovedTransactions(trx, input);
+    const context: ApplyContext = {
+      ...input,
+      boundaryYmd: input.account.sync_from_date
+        ? toYmd(input.account.sync_from_date)
+        : null,
+    };
 
+    const observedResult = await applyObservedTransactions(trx, context);
+    const removedResult = await applyRemovedTransactionIds(trx, context);
+
+    if (observedResult.candidatesTouched || removedResult.candidatesTouched) {
+      await refreshHistoryImportAggregates({
+        bankAccountFeedId: input.account.feed_id,
+        trx,
+      });
+    }
+    if (input.update.historyStatus !== 'collecting') {
+      await markHistoryImportStatus({
+        bankAccountFeedId: input.account.feed_id,
+        companyId: input.account.company_id,
+        status:
+          input.update.historyStatus === 'complete'
+            ? 'available'
+            : 'unavailable',
+        onlyIfStatus: 'collecting',
+        trx,
+      });
+    }
+
+    // Initial sync completes only when history collection resolves; while
+    // still collecting the outbox intent defers and webhooks must keep
+    // waking feeds with initial_sync_completed_at IS NULL.
     const advanceResult = await advanceFeedCheckpoint({
       feedId: input.account.feed_id,
       companyId: input.account.company_id,
       expectedStateVersion: input.account.state_version,
-      syncCursor: input.usesDateRangeStrategy
-        ? null
-        : (input.update.finalCursor ?? null),
-      markInitialComplete: !input.account.initial_sync_completed_at,
-      initialSyncFromDate: input.initialSyncFromDate,
+      syncCursor: input.update.nextCheckpoint,
+      markInitialComplete:
+        !input.account.initial_sync_completed_at &&
+        input.update.historyStatus !== 'collecting',
       trx,
     });
     if (!advanceResult.success) {
       throw new StaleBankAccountSyncError(input.account.bank_account_id);
     }
 
+    const counts: AppliedTransactionUpdateCounts = {
+      added: observedResult.addedCount,
+      modified: observedResult.modifiedCount,
+      removed: removedResult.removedCount,
+    };
     const completedRun = await completeSyncRun({
       syncRunId: input.syncRunId,
       companyId: input.account.company_id,
       outcome: 'succeeded',
       pageCount: input.update.pageCount,
-      addedCount: input.update.added.length,
-      modifiedCount: input.update.modified.length,
-      removedCount: input.update.removed.length,
+      addedCount: counts.added,
+      modifiedCount: counts.modified,
+      removedCount: counts.removed,
       trx,
     });
     if (!completedRun.success) {
@@ -108,303 +210,555 @@ export async function applyCompleteTransactionUpdate(
       stateVersion: new Date(),
     });
 
-    if (earliestRemoved) {
+    const earliestBalanceImpact = [
+      observedResult.earliestBalanceImpactYmd,
+      removedResult.earliestBalanceImpactYmd,
+    ]
+      .filter((value): value is string => value !== null)
+      .sort()[0];
+    if (earliestBalanceImpact) {
       await scheduleBankBalanceAfterCommit(
         {
           companyId: input.account.company_id,
           bankAccountId: input.account.bank_account_id,
-          recalcFrom: earliestRemoved.toISOString().slice(0, 10),
+          recalcFrom: earliestBalanceImpact,
           triggeredBy: 'sync',
           userId: input.userId,
         },
         trx,
       );
     }
+
+    return counts;
   });
 }
 
-async function applyAddedTransactions(
+interface StoredCanonicalRow {
+  id: string;
+  amount: string;
+  transaction_date: Date;
+  ledger_transaction_id: string | null;
+  is_deleted: boolean;
+  deletion_origin: string | null;
+  superseded_by_bank_transaction_id: string | null;
+  source_payload: Record<string, unknown>;
+}
+
+/**
+ * Classifies every observed transaction against what is already stored:
+ * unknown → import or quarantine by date; known imported → evidence refresh
+ * or supersede routed by the corrected date; known candidate → update in
+ * place or move into the imported set. Providers never pre-classify.
+ */
+async function applyObservedTransactions(
   trx: Knex.Transaction,
-  input: ApplyCompleteTransactionUpdateInput,
-): Promise<void> {
-  const added = input.update.added;
-  if (added.length === 0) return;
-
-  // Pending provider observations are retained as feed evidence but must not
-  // create canonical bank transactions until the provider posts them.
-  const pending = added.filter((transaction) => transaction.pending);
-  const posted = added.filter((transaction) => !transaction.pending);
-
-  if (pending.length > 0) {
-    await recordPendingFeedEntries(trx, input, pending);
-  }
-
-  if (posted.length === 0) return;
-
-  const providerTransactionIds = posted.map(
-    (transaction) => transaction.transactionId,
+  context: ApplyContext,
+): Promise<{
+  addedCount: number;
+  modifiedCount: number;
+  candidatesTouched: boolean;
+  earliestBalanceImpactYmd: string | null;
+}> {
+  // Pending observations are discarded entirely; the transaction is imported
+  // once when the provider finalizes it (dedupe by provider id).
+  const observed = context.update.observedTransactions.filter(
+    (transaction) => !transaction.pending,
   );
-  const linkedRows = await trx('bank_transaction_feed_entries')
-    .where({ bank_account_feed_id: input.account.feed_id })
-    .whereIn('provider_transaction_id', providerTransactionIds)
-    .whereNotNull('bank_transaction_id')
-    .select('provider_transaction_id', 'bank_transaction_id');
-  const linkedTransactionIdByProviderId = new Map<string, string>(
-    linkedRows.map((row) => [
-      row.provider_transaction_id as string,
-      row.bank_transaction_id as string,
-    ]),
-  );
-  const transactionsToCreate = posted.filter(
-    (transaction) =>
-      !linkedTransactionIdByProviderId.has(transaction.transactionId),
-  );
-  const newCanonicalIdByProviderId = new Map(
-    transactionsToCreate.map((transaction) => [
-      transaction.transactionId,
-      randomUUID(),
-    ]),
-  );
-
-  const bankTransactions: BankTransactionInput[] = transactionsToCreate.map(
-    (transaction) => ({
-      transaction_date: new Date(transaction.date),
-      transaction_at: transaction.txnAt || new Date(transaction.date),
-      amount: transaction.amount,
-      bank_account_id: input.account.bank_account_id,
-      description: transaction.description ?? null,
-      payee: transaction.merchantName ?? null,
-      source_payload: providerEvidence(transaction.rawData),
-      additional_notes: transaction.additionalNotes ?? undefined,
-    }),
-  );
-  const batch: BankTransactionBatchInput = {
-    source: 'bank_feed',
-    bank_account_id: input.account.bank_account_id,
-    bank_transactions: bankTransactions,
-    source_metadata: {},
-    bank_account_feed_id: input.account.feed_id,
-    bank_transaction_sync_run_id: input.syncRunId,
+  const result = {
+    addedCount: 0,
+    modifiedCount: 0,
+    candidatesTouched: false,
+    earliestBalanceImpactYmd: null as string | null,
   };
+  if (observed.length === 0) return result;
 
-  if (bankTransactions.length > 0) {
-    let result;
-    try {
-      result = await addNewBankTransactions({
-        userId: input.userId,
-        companyId: input.account.company_id,
-        data: batch,
-        batchFingerprintSalt: [
-          input.account.feed_id,
-          ...transactionsToCreate
-            .map((transaction) => transaction.transactionId)
-            .sort(),
-        ].join(':'),
-        canonicalTransactionIds: transactionsToCreate.map(
-          (transaction) =>
-            newCanonicalIdByProviderId.get(transaction.transactionId)!,
-        ),
-        trx,
+  const providerIds = observed.map((transaction) => transaction.transactionId);
+  const entryRows = await trx('bank_transaction_feed_entries')
+    .where({ bank_account_feed_id: context.account.feed_id })
+    .whereIn('provider_transaction_id', providerIds)
+    .select(
+      'provider_transaction_id',
+      'bank_transaction_id',
+      'provider_evidence',
+    );
+  const entryByProviderId = new Map(
+    entryRows.map((row) => [
+      row.provider_transaction_id as string,
+      {
+        bankTransactionId: row.bank_transaction_id as string,
+        evidence: row.provider_evidence as Record<string, unknown>,
+      },
+    ]),
+  );
+  const candidateRows = await getCandidatesByProviderIds({
+    bankAccountFeedId: context.account.feed_id,
+    providerTransactionIds: providerIds,
+    trx,
+  });
+  const candidateByProviderId = new Map(
+    candidateRows.map((row) => [row.provider_transaction_id, row]),
+  );
+
+  const canonicalRows =
+    entryRows.length > 0
+      ? await trx('bank_transactions')
+          .where({ bank_account_id: context.account.bank_account_id })
+          .whereIn(
+            'id',
+            entryRows.map((row) => row.bank_transaction_id as string),
+          )
+          .select<StoredCanonicalRow[]>(
+            'id',
+            'amount',
+            'transaction_date',
+            'ledger_transaction_id',
+            'is_deleted',
+            'deletion_origin',
+            'superseded_by_bank_transaction_id',
+            'source_payload',
+          )
+      : [];
+  const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
+
+  const newImports: ProviderTransaction[] = [];
+  const candidateWrites: ProviderTransaction[] = [];
+  const candidatePromotions: ProviderTransaction[] = [];
+
+  for (const transaction of observed) {
+    const observedYmd = toYmd(transaction.date);
+    const beforeBoundary =
+      context.boundaryYmd !== null &&
+      observedYmd !== null &&
+      observedYmd < context.boundaryYmd;
+
+    const entry = entryByProviderId.get(transaction.transactionId);
+    if (entry) {
+      const stored = canonicalById.get(entry.bankTransactionId);
+      if (!stored) continue;
+
+      // Superseded rows are retired; the live identity is the replacement.
+      // Provider-removed rows may reappear and must be restored.
+      if (stored.is_deleted) {
+        if (stored.superseded_by_bank_transaction_id) continue;
+        if (stored.deletion_origin !== 'provider_sync') continue;
+        await trx('bank_transactions')
+          .where({
+            id: stored.id,
+            bank_account_id: context.account.bank_account_id,
+            is_deleted: true,
+          })
+          .update({
+            is_deleted: false,
+            deleted_at: null,
+            deletion_origin: null,
+            deletion_reason: null,
+            updated_at: new Date(),
+          });
+        stored.is_deleted = false;
+        stored.deletion_origin = null;
+      }
+
+      const storedYmd = toYmd(stored.transaction_date);
+      const financialChange =
+        Number(stored.amount).toFixed(4) !== transaction.amount.toFixed(4) ||
+        storedYmd !== observedYmd;
+
+      if (!financialChange) {
+        // No-op when the enrichment we would write is what is already
+        // stored (last_modified excluded — it's our own write timestamp).
+        const nextPayload = buildEnrichmentPayload(transaction);
+        const { last_modified: _current, ...currentPayload } =
+          stored.source_payload;
+        if (sameEvidence(currentPayload, nextPayload)) continue;
+        await refreshTransactionEvidence(trx, context, transaction, stored.id);
+        result.modifiedCount++;
+        continue;
+      }
+
+      await supersedeTransaction(trx, context, {
+        transaction,
+        stored,
+        beforeBoundary,
       });
-    } catch (error) {
-      throw new AccountTransactionApplyError(
-        syncErrorMessage(error),
-        bankTransactions.length,
-      );
+      if (beforeBoundary) result.candidatesTouched = true;
+      result.modifiedCount++;
+      for (const impactYmd of [storedYmd, observedYmd]) {
+        if (impactYmd) {
+          result.earliestBalanceImpactYmd = minYmd(
+            result.earliestBalanceImpactYmd,
+            impactYmd,
+          );
+        }
+      }
+      continue;
     }
-    if (!result.success) {
-      throw new AccountTransactionApplyError(
-        result.message || 'Failed to import bank transactions',
-        bankTransactions.length,
-      );
+
+    const candidate = candidateByProviderId.get(transaction.transactionId);
+    if (candidate) {
+      if (beforeBoundary) {
+        candidateWrites.push(transaction); // corrected in place
+      } else {
+        candidatePromotions.push(transaction); // corrected into the accepted window
+      }
+      result.candidatesTouched = true;
+      result.modifiedCount++;
+      continue;
     }
+
+    // Unknown provider id → new transaction, routed by its date.
+    if (beforeBoundary) {
+      candidateWrites.push(transaction);
+      result.candidatesTouched = true;
+    } else {
+      newImports.push(transaction);
+    }
+    result.addedCount++;
   }
 
-  const observedAt = new Date();
-  for (const transaction of posted) {
-    const bankTransactionId =
-      linkedTransactionIdByProviderId.get(transaction.transactionId) ??
-      newCanonicalIdByProviderId.get(transaction.transactionId);
-    if (!bankTransactionId) {
-      throw new Error('Canonical transaction id missing for feed observation');
-    }
-    await persistFeedEntry({
-      data: {
-        bank_account_feed_id: input.account.feed_id,
-        company_id: input.account.company_id,
-        provider_transaction_id: transaction.transactionId,
-        bank_transaction_id: bankTransactionId,
-        observation_type: 'added',
-        resolution_state: 'resolved',
-        provider_evidence: providerEvidence(transaction.rawData),
-        provider_evidence_schema_version: 1,
-        observed_at: observedAt,
-      },
+  if (candidatePromotions.length > 0) {
+    await deleteHistoryCandidates({
+      bankAccountFeedId: context.account.feed_id,
+      providerTransactionIds: candidatePromotions.map(
+        (transaction) => transaction.transactionId,
+      ),
       trx,
     });
   }
+
+  const toImport = [...newImports, ...candidatePromotions];
+  if (toImport.length > 0) {
+    try {
+      await importFinalizedFeedTransactions(trx, {
+        companyId: context.account.company_id,
+        userId: context.userId,
+        bankAccountId: context.account.bank_account_id,
+        feedId: context.account.feed_id,
+        syncRunId: context.syncRunId,
+        transactions: toImport.map(toFinalizedFeedTransaction),
+      });
+    } catch (error) {
+      if (error instanceof FeedTransactionImportError) {
+        throw new AccountTransactionApplyError(
+          syncErrorMessage(error),
+          error.attemptedCount,
+        );
+      }
+      throw error;
+    }
+  }
+
+  if (candidateWrites.length > 0) {
+    await createHistoryImport({
+      bankAccountFeedId: context.account.feed_id,
+      companyId: context.account.company_id,
+      trx,
+    });
+    const observedAt = new Date();
+    await upsertHistoryCandidates({
+      candidates: candidateWrites.map((transaction) => ({
+        bank_account_feed_id: context.account.feed_id,
+        company_id: context.account.company_id,
+        provider_transaction_id: transaction.transactionId,
+        transaction_date: new Date(transaction.date),
+        transaction_at: transaction.txnAt || new Date(transaction.date),
+        amount: transaction.amount,
+        description: transaction.description || null,
+        payee: transaction.merchantName || null,
+        additional_notes: transaction.additionalNotes || null,
+        provider_evidence: providerEvidence(transaction.rawData),
+        provider_evidence_schema_version: 1,
+        observed_at: observedAt,
+      })),
+      trx,
+    });
+  }
+
+  return result;
 }
 
-async function applyModifiedTransactions(
+function buildEnrichmentPayload(
+  transaction: ProviderTransaction,
+): Record<string, unknown> {
+  return {
+    ...providerEvidence(transaction.rawData),
+    category: transaction.category,
+    merchant_name: transaction.merchantName,
+  };
+}
+
+/** Enrichment-only change: refresh evidence, never touch user-editable fields. */
+async function refreshTransactionEvidence(
   trx: Knex.Transaction,
-  input: ApplyCompleteTransactionUpdateInput,
+  context: ApplyContext,
+  transaction: ProviderTransaction,
+  bankTransactionId: string,
 ): Promise<void> {
-  const transactions = input.update.modified;
-  if (transactions.length === 0) return;
+  await trx('bank_transactions')
+    .where({
+      id: bankTransactionId,
+      bank_account_id: context.account.bank_account_id,
+    })
+    .update({
+      source_payload: {
+        ...buildEnrichmentPayload(transaction),
+        last_modified: new Date().toISOString(),
+      },
+      updated_at: new Date(),
+    });
 
-  const transactionIds = transactions.map(
-    (transaction) => transaction.transactionId,
-  );
-  const rows = await trx('bank_transaction_feed_entries')
-    .where({ bank_account_feed_id: input.account.feed_id })
-    .whereIn('provider_transaction_id', transactionIds)
-    .whereNotNull('bank_transaction_id')
-    .select('provider_transaction_id', 'bank_transaction_id');
-  const bankTransactionIdByKey = new Map(
-    rows.map((row) => [
-      row.provider_transaction_id as string,
-      row.bank_transaction_id as string,
-    ]),
-  );
+  await persistFeedEntry({
+    data: {
+      bank_account_feed_id: context.account.feed_id,
+      company_id: context.account.company_id,
+      provider_transaction_id: transaction.transactionId,
+      bank_transaction_id: bankTransactionId,
+      observation_type: 'modified',
+      provider_evidence: providerEvidence(transaction.rawData),
+      provider_evidence_schema_version: 1,
+      observed_at: new Date(),
+    },
+    trx,
+  });
+}
 
-  for (const transaction of transactions) {
-    const bankTransactionId = bankTransactionIdByKey.get(
-      transaction.transactionId,
-    );
-    if (bankTransactionId) {
-      await trx('bank_transactions')
-        .where({
-          id: bankTransactionId,
-          bank_account_id: input.account.bank_account_id,
-        })
-        .update({
-          source_payload: {
-            ...providerEvidence(transaction.rawData),
-            category: transaction.category,
-            merchant_name: transaction.merchantName,
-            last_modified: new Date().toISOString(),
-          },
-          updated_at: new Date(),
-        });
+/**
+ * Material financial correction: retire the stored transaction and route the
+ * replacement by its corrected date. The ledger is never touched; a
+ * ledger-linked original raises a bookkeeper notification instead.
+ */
+async function supersedeTransaction(
+  trx: Knex.Transaction,
+  context: ApplyContext,
+  input: {
+    transaction: ProviderTransaction;
+    stored: StoredCanonicalRow;
+    beforeBoundary: boolean;
+  },
+): Promise<void> {
+  const { transaction, stored } = input;
+
+  let replacementId: string | null = null;
+  if (!input.beforeBoundary) {
+    const imported = await importFinalizedFeedTransactions(trx, {
+      companyId: context.account.company_id,
+      userId: context.userId,
+      bankAccountId: context.account.bank_account_id,
+      feedId: context.account.feed_id,
+      syncRunId: context.syncRunId,
+      fingerprintContext: `supersede:${stored.id}`,
+      forceNewCanonical: true,
+      writeFeedEntries: false,
+      transactions: [toFinalizedFeedTransaction(transaction)],
+    });
+    replacementId =
+      imported.bankTransactionIdByProviderId.get(transaction.transactionId) ??
+      null;
+    if (!replacementId) {
+      throw new Error('Supersede replacement transaction was not created');
     }
+  }
+
+  await trx('bank_transactions')
+    .where({
+      id: stored.id,
+      bank_account_id: context.account.bank_account_id,
+      is_deleted: false,
+    })
+    .update({
+      is_deleted: true,
+      deleted_at: new Date(),
+      deletion_origin: 'provider_sync',
+      deletion_reason: 'Superseded by provider correction',
+      superseded_by_bank_transaction_id: replacementId,
+      updated_at: new Date(),
+    });
+
+  if (replacementId) {
+    await repointFeedEntryToReplacement({
+      bankAccountFeedId: context.account.feed_id,
+      providerTransactionId: transaction.transactionId,
+      fromBankTransactionId: stored.id,
+      toBankTransactionId: replacementId,
+      trx,
+    });
     await persistFeedEntry({
       data: {
-        bank_account_feed_id: input.account.feed_id,
-        company_id: input.account.company_id,
+        bank_account_feed_id: context.account.feed_id,
+        company_id: context.account.company_id,
         provider_transaction_id: transaction.transactionId,
-        bank_transaction_id: bankTransactionId ?? null,
+        bank_transaction_id: replacementId,
         observation_type: 'modified',
-        resolution_state: bankTransactionId ? 'resolved' : 'unresolved',
-        resolution_reason: bankTransactionId
-          ? null
-          : 'modified_without_canonical_transaction',
         provider_evidence: providerEvidence(transaction.rawData),
         provider_evidence_schema_version: 1,
         observed_at: new Date(),
       },
       trx,
     });
+  } else {
+    // The correction moved the transaction before the accepted starting
+    // date: the replacement becomes a history candidate and the mapping
+    // (imported finals only) goes away until promotion recreates it.
+    await deleteFeedEntry({
+      bankAccountFeedId: context.account.feed_id,
+      providerTransactionId: transaction.transactionId,
+      trx,
+    });
+    await createHistoryImport({
+      bankAccountFeedId: context.account.feed_id,
+      companyId: context.account.company_id,
+      trx,
+    });
+    await upsertHistoryCandidates({
+      candidates: [
+        {
+          bank_account_feed_id: context.account.feed_id,
+          company_id: context.account.company_id,
+          provider_transaction_id: transaction.transactionId,
+          transaction_date: new Date(transaction.date),
+          transaction_at: transaction.txnAt || new Date(transaction.date),
+          amount: transaction.amount,
+          description: transaction.description || null,
+          payee: transaction.merchantName || null,
+          additional_notes: transaction.additionalNotes || null,
+          provider_evidence: providerEvidence(transaction.rawData),
+          provider_evidence_schema_version: 1,
+          observed_at: new Date(),
+          supersedes_bank_transaction_id: stored.id,
+        },
+      ],
+      trx,
+    });
+  }
+
+  if (stored.ledger_transaction_id) {
+    await writeBankTransactionSupersededNotifications(trx, {
+      clientCompanyId: context.account.company_id,
+      bankAccountId: context.account.bank_account_id,
+      bankAccountName: await loadBankAccountName(trx, context),
+      bankTransactionId: stored.id,
+      ledgerTransactionId: stored.ledger_transaction_id,
+      replacementBankTransactionId: replacementId,
+      stateVersion: new Date(),
+    });
   }
 }
 
-async function applyRemovedTransactions(
+/**
+ * Removal events: soft-delete unlinked imports (kept for audit),
+ * keep ledger-linked imports visible and raise a review notification,
+ * delete matching candidates. Unknown provider ids are silently ignored
+ * (e.g. removals of never-stored pending transactions).
+ */
+async function applyRemovedTransactionIds(
   trx: Knex.Transaction,
-  input: ApplyCompleteTransactionUpdateInput,
-): Promise<Date | null> {
-  const transactionIds = input.update.removed;
-  if (transactionIds.length === 0) return null;
+  context: ApplyContext,
+): Promise<{
+  removedCount: number;
+  candidatesTouched: boolean;
+  earliestBalanceImpactYmd: string | null;
+}> {
+  const removedIds = context.update.removedTransactionIds;
+  const result = {
+    removedCount: 0,
+    candidatesTouched: false,
+    earliestBalanceImpactYmd: null as string | null,
+  };
+  if (removedIds.length === 0) return result;
+
   const entries = await trx('bank_transaction_feed_entries as entry')
     .join('bank_transactions as transaction', {
       'transaction.id': 'entry.bank_transaction_id',
       'transaction.company_id': 'entry.company_id',
     })
     .where({
-      'entry.bank_account_feed_id': input.account.feed_id,
-      'transaction.bank_account_id': input.account.bank_account_id,
+      'entry.bank_account_feed_id': context.account.feed_id,
+      'transaction.bank_account_id': context.account.bank_account_id,
       'transaction.is_deleted': false,
     })
-    .whereIn('entry.provider_transaction_id', transactionIds)
+    .whereIn('entry.provider_transaction_id', removedIds)
     .select(
       'entry.provider_transaction_id',
       'transaction.id as bank_transaction_id',
       'transaction.transaction_date',
+      'transaction.ledger_transaction_id',
     );
-  const canonicalIds = entries.map((entry) => entry.bank_transaction_id);
-  if (canonicalIds.length > 0) {
-    await trx('bank_transactions')
-      .where({
-        bank_account_id: input.account.bank_account_id,
-        is_deleted: false,
-      })
-      .whereIn('id', canonicalIds)
-      .update({
-        is_deleted: true,
-        deleted_at: new Date(),
-        deletion_origin: 'provider_sync',
-        deletion_reason: 'Removed by bank feed provider',
-        updated_at: new Date(),
-      });
-  }
 
-  const bankTransactionIdByKey = new Map(
-    entries.map((row) => [
-      row.provider_transaction_id as string,
-      row.bank_transaction_id as string,
-    ]),
-  );
   const observedAt = new Date();
-  for (const transactionId of transactionIds) {
+  for (const entry of entries) {
+    const bankTransactionId = entry.bank_transaction_id as string;
+    const ledgerTransactionId = entry.ledger_transaction_id as string | null;
+
+    if (ledgerTransactionId) {
+      await writeBankTransactionRemovedNotifications(trx, {
+        clientCompanyId: context.account.company_id,
+        bankAccountId: context.account.bank_account_id,
+        bankAccountName: await loadBankAccountName(trx, context),
+        bankTransactionId,
+        ledgerTransactionId,
+        stateVersion: observedAt,
+      });
+    } else {
+      await trx('bank_transactions')
+        .where({
+          id: bankTransactionId,
+          bank_account_id: context.account.bank_account_id,
+          is_deleted: false,
+        })
+        .update({
+          is_deleted: true,
+          deleted_at: observedAt,
+          deletion_origin: 'provider_sync',
+          deletion_reason: 'Removed by bank feed provider',
+          updated_at: observedAt,
+        });
+      const removedYmd = toYmd(entry.transaction_date as Date);
+      if (removedYmd) {
+        result.earliestBalanceImpactYmd = minYmd(
+          result.earliestBalanceImpactYmd,
+          removedYmd,
+        );
+      }
+    }
+
     await persistFeedEntry({
       data: {
-        bank_account_feed_id: input.account.feed_id,
-        company_id: input.account.company_id,
-        provider_transaction_id: transactionId,
-        bank_transaction_id: bankTransactionIdByKey.get(transactionId) ?? null,
+        bank_account_feed_id: context.account.feed_id,
+        company_id: context.account.company_id,
+        provider_transaction_id: entry.provider_transaction_id as string,
+        bank_transaction_id: bankTransactionId,
         observation_type: 'removed',
-        resolution_state: bankTransactionIdByKey.has(transactionId)
-          ? 'resolved'
-          : 'unresolved',
-        resolution_reason: bankTransactionIdByKey.has(transactionId)
-          ? null
-          : 'removed_without_canonical_transaction',
-        provider_evidence: { transactionId },
+        provider_evidence: {
+          transactionId: entry.provider_transaction_id,
+        },
         provider_evidence_schema_version: 1,
         observed_at: observedAt,
       },
       trx,
     });
+    result.removedCount++;
   }
 
-  if (entries.length === 0) return null;
-  return entries.reduce<Date>((earliest, row) => {
-    const date = new Date(row.transaction_date);
-    return date < earliest ? date : earliest;
-  }, new Date(entries[0].transaction_date));
+  const deletedCandidates = await deleteHistoryCandidates({
+    bankAccountFeedId: context.account.feed_id,
+    providerTransactionIds: removedIds,
+    trx,
+  });
+  if (deletedCandidates > 0) {
+    result.candidatesTouched = true;
+    result.removedCount += deletedCandidates;
+  }
+
+  return result;
 }
 
-async function recordPendingFeedEntries(
+async function loadBankAccountName(
   trx: Knex.Transaction,
-  input: ApplyCompleteTransactionUpdateInput,
-  transactions: ProviderTransaction[],
-): Promise<void> {
-  const observedAt = new Date();
-  for (const transaction of transactions) {
-    await persistFeedEntry({
-      data: {
-        bank_account_feed_id: input.account.feed_id,
-        company_id: input.account.company_id,
-        provider_transaction_id: transaction.transactionId,
-        bank_transaction_id: null,
-        observation_type: 'pending',
-        resolution_state: 'awaiting_posted',
-        resolution_reason: 'provider_pending',
-        provider_evidence: providerEvidence(transaction.rawData),
-        provider_evidence_schema_version: 1,
-        observed_at: observedAt,
-      },
-      trx,
-    });
-  }
+  context: ApplyContext,
+): Promise<string> {
+  const row = await trx('bank_accounts')
+    .where({ id: context.account.bank_account_id })
+    .first<{ display_name: string }>('display_name');
+  return row?.display_name ?? 'bank account';
 }
 
 async function persistFeedEntry(

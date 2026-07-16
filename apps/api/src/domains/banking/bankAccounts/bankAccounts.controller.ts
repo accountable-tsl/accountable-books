@@ -1,7 +1,11 @@
 import type { Response } from 'express';
+import { selectBankHistoryImportInputSchema } from '@accountable-books/contracts/schema';
 import z from 'zod';
 
+import { knexClient } from '../../../db/knexClient.js';
+import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
 import { errorResponse } from '../../../shared/utils/response.utils.js';
+import { promoteBankTransactionHistory } from '../bank-transaction-history/history-promotion.service.js';
 import {
   createManualBankAccount,
   getBankAccountsWithDetails,
@@ -105,6 +109,57 @@ export async function getBankAccountsMinimal(req: AuthRequest, res: Response) {
       ? res.status(200).json(response)
       : res.status(400).json(response);
   } catch (error) {
+    return res.status(500).json(errorResponse('An unexpected error occurred'));
+  }
+}
+
+export async function selectBankHistoryImportController(
+  req: AuthRequest,
+  res: Response,
+) {
+  try {
+    const companyId = String(req.params.companyId);
+    const bankAccountId = String(req.params.bankAccountId);
+    const userId = String(req.user?.id);
+
+    if (!companyId || !bankAccountId || !userId) {
+      return res.status(400).json(errorResponse('Unauthorized'));
+    }
+
+    const parsed = selectBankHistoryImportInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json(errorResponse('Invalid input', z.treeifyError(parsed.error)));
+    }
+
+    const companyUUID = await getCompanyUUID(companyId);
+    if (!companyUUID) {
+      return res.status(400).json(errorResponse('Invalid company ID'));
+    }
+
+    const feed = await knexClient('bank_account_feeds')
+      .where({ bank_account_id: bankAccountId, company_id: companyUUID })
+      .whereNull('revoked_at')
+      .first<{ id: string }>('id');
+    if (!feed) {
+      return res
+        .status(404)
+        .json(errorResponse('Active bank account feed not found'));
+    }
+
+    const result = await promoteBankTransactionHistory({
+      companyId: companyUUID,
+      bankAccountId,
+      feedId: feed.id,
+      fromDate: parsed.data.fromDate,
+      userId,
+    });
+
+    return result.success
+      ? res.status(200).json(result)
+      : res.status(400).json(result);
+  } catch (error: unknown) {
     return res.status(500).json(errorResponse('An unexpected error occurred'));
   }
 }

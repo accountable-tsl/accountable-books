@@ -14,7 +14,12 @@ export const newBankAccountFeed = z.object({
   provider_snapshot: z.record(z.string(), z.unknown()).nullish(),
   provider_snapshot_version: z.number().int().min(1).nullish(),
   provider_snapshot_captured_at: z.date().nullish(),
-  sync_from_date: z.date().nullish(),
+  // Accept yyyy-MM-dd strings so connect can store the company-local calendar
+  // day without UTC Date shifting across midnight.
+  sync_from_date: z
+    .union([z.date(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)])
+    .nullish(),
+  sync_from_timezone: z.string().trim().min(1).default('Etc/UTC'),
   sync_cursor: z.string().nullish(),
   initial_sync_completed_at: z.date().nullish(),
   last_successful_sync_at: z.date().nullish(),

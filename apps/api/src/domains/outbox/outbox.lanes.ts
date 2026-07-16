@@ -16,6 +16,7 @@ export type OutboxLane = (typeof OUTBOX_LANE)[keyof typeof OUTBOX_LANE];
 export const HEAVY_LANE_INTENTS: OutboxIntentType[] = [
   OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED,
   OUTBOX_INTENT.CLOSE_SIGNAL_EVAL_REQUESTED,
+  OUTBOX_INTENT.BANK_SYNC_REQUESTED,
 ];
 
 export function laneFilter(lane: OutboxLane): OutboxClaimFilter {

@@ -21,6 +21,33 @@ export const bankAccountTypeSchema = z.enum([
 ]);
 export type BankAccountType = z.infer<typeof bankAccountTypeSchema>;
 
+export const bankHistoricalImportStatusSchema = z.enum([
+  'collecting',
+  'available',
+  'selected',
+  'unavailable',
+  'failed',
+]);
+export type BankHistoricalImportStatus = z.infer<
+  typeof bankHistoricalImportStatusSchema
+>;
+
+export const bankHistoricalImportSchema = z.object({
+  status: bankHistoricalImportStatusSchema,
+  earliestTransactionDate: z.string().nullable(),
+  latestTransactionDate: z.string().nullable(),
+  transactionCount: z.number().int().min(0),
+  selectedFromDate: z.string().nullable(),
+});
+export type BankHistoricalImport = z.infer<typeof bankHistoricalImportSchema>;
+
+export const selectBankHistoryImportInputSchema = z.object({
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+export type SelectBankHistoryImportInput = z.infer<
+  typeof selectBankHistoryImportInputSchema
+>;
+
 export const bankAccountWithMetaSchema = z.object({
   id: z.uuid(),
   displayName: z.string(),
@@ -60,11 +87,13 @@ export const bankAccountWithMetaSchema = z.object({
   providerName: z.string().nullish(),
   providerLogo: z.string().nullish(),
   lastSyncAt: z.iso.datetime().nullish(),
+  historicalImport: bankHistoricalImportSchema.nullable(),
 
   statementBalance: z.string(),
   ledgerBalance: z.string(),
   uncategorizedTxCount: z.number().min(0),
   needsReviewTxCount: z.number().min(0),
+  providerRemovedReviewCount: z.number().min(0),
   latestExchangeRate: z.string().nullish(),
 });
 export type BankAccountWithMeta = z.infer<typeof bankAccountWithMetaSchema>;

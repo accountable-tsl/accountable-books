@@ -60,6 +60,122 @@ export function buildBankSyncFailureAttentionKey(
   return `bank_account:${bankAccountId}:sync_failure`;
 }
 
+export interface LedgerLinkedBankTransactionReviewInput {
+  clientCompanyId: string;
+  bankAccountId: string;
+  bankAccountName: string;
+  bankTransactionId: string;
+  ledgerTransactionId: string;
+  stateVersion: Date | string;
+}
+
+/**
+ * The provider materially corrected a transaction that was already posted to
+ * the ledger. The old bank transaction is retired and a replacement sits in
+ * the inbox; the ledger posting still references the retired line and needs
+ * bookkeeping review. The ledger is never changed automatically.
+ */
+export async function writeBankTransactionSupersededNotifications(
+  trx: Knex.Transaction,
+  input: LedgerLinkedBankTransactionReviewInput & {
+    replacementBankTransactionId: string | null;
+  },
+): Promise<number> {
+  return writeLedgerLinkedReviewNotifications(trx, {
+    ...input,
+    eventType: NOTIFICATION_TYPE.BANK_TRANSACTION_SUPERSEDED_REVIEW,
+    attentionKey: `bank_transaction:${input.bankTransactionId}:provider_superseded`,
+    title: `Review corrected bank transaction in ${input.bankAccountName}`,
+    body: 'The bank corrected a transaction that was already posted to the ledger. The correction is in the inbox; the original posting needs review.',
+    action: 'review_superseded_bank_transaction',
+    extraData: {
+      replacementBankTransactionId: input.replacementBankTransactionId,
+    },
+  });
+}
+
+/**
+ * The provider removed a transaction that was already posted to the ledger.
+ * The bank transaction is kept visible for audit; the posting needs
+ * bookkeeping review. The ledger is never changed automatically.
+ */
+export async function writeBankTransactionRemovedNotifications(
+  trx: Knex.Transaction,
+  input: LedgerLinkedBankTransactionReviewInput,
+): Promise<number> {
+  return writeLedgerLinkedReviewNotifications(trx, {
+    ...input,
+    eventType: NOTIFICATION_TYPE.BANK_TRANSACTION_REMOVED_REVIEW,
+    attentionKey: `bank_transaction:${input.bankTransactionId}:provider_removed`,
+    title: `Review removed bank transaction in ${input.bankAccountName}`,
+    body: 'The bank removed a transaction that was already posted to the ledger. The bank line is kept for audit; the posting needs review.',
+    action: 'review_removed_bank_transaction',
+    extraData: {},
+  });
+}
+
+async function writeLedgerLinkedReviewNotifications(
+  trx: Knex.Transaction,
+  input: LedgerLinkedBankTransactionReviewInput & {
+    eventType:
+      | typeof NOTIFICATION_TYPE.BANK_TRANSACTION_SUPERSEDED_REVIEW
+      | typeof NOTIFICATION_TYPE.BANK_TRANSACTION_REMOVED_REVIEW;
+    attentionKey: string;
+    title: string;
+    body: string;
+    action: string;
+    extraData: Record<string, unknown>;
+  },
+): Promise<number> {
+  const firmCompanyId = await resolveManagingFirmCompanyIdOrNull(
+    trx,
+    input.clientCompanyId,
+  );
+  const recipients = await loadBookkeepingActionRecipients(trx, {
+    clientCompanyId: input.clientCompanyId,
+    firmCompanyId,
+  });
+
+  for (const recipient of recipients) {
+    await writeNotificationRequestedIntent(trx, {
+      recipientUserId: recipient.userId,
+      firmCompanyId,
+      clientCompanyId: input.clientCompanyId,
+      policyOwnerCompanyId: recipient.policyOwnerCompanyId,
+      eventType: input.eventType,
+      attentionKey: input.attentionKey,
+      attentionTransition: 'opened',
+      priority: 'high',
+      readPolicy: 'explicit',
+      title: input.title,
+      body: input.body,
+      destination: {
+        workspace: 'banking',
+        bankAccountId: input.bankAccountId,
+        bankTransactionId: input.bankTransactionId,
+        action: input.action,
+      },
+      sourceEntity: { type: 'bank_transaction', id: input.bankTransactionId },
+      idempotencyKey: [
+        'notification',
+        input.eventType,
+        recipient.userId,
+        input.bankTransactionId,
+        toNotificationStateVersion(input.stateVersion),
+      ].join(':'),
+      data: {
+        bankAccountId: input.bankAccountId,
+        bankAccountName: input.bankAccountName,
+        bankTransactionId: input.bankTransactionId,
+        ledgerTransactionId: input.ledgerTransactionId,
+        ...input.extraData,
+      },
+    });
+  }
+
+  return recipients.length;
+}
+
 export async function writeBankReconnectNotificationLifecycle(
   trx: Knex.Transaction,
   input: BankReconnectLifecycleInput,

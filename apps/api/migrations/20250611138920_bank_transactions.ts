@@ -68,6 +68,16 @@ export async function up(knex: Knex): Promise<void> {
       .inTable(`${schemaName}.ledger_transactions`)
       .onDelete('RESTRICT');
 
+    table
+      .uuid('superseded_by_bank_transaction_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.${tableName}`)
+      .onDelete('RESTRICT')
+      .comment(
+        'Replacement transaction created when the provider materially corrected this one',
+      );
+
     table.string('idempotency_key', 256).nullable();
     table
       .jsonb('source_payload')
@@ -142,7 +152,6 @@ export async function up(knex: Knex): Promise<void> {
       .references(['id', 'bank_account_id', 'company_id'])
       .inTable(`${schemaName}.bank_transaction_batches`)
       .onDelete('RESTRICT');
-
     table.unique(['id', 'company_id']);
   });
 
@@ -153,6 +162,10 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     ALTER TABLE ${qualifiedTable}
+      ADD CONSTRAINT bank_transactions_superseded_by_company_fk
+        FOREIGN KEY (superseded_by_bank_transaction_id, company_id)
+        REFERENCES ${qualifiedTable} (id, company_id)
+        ON DELETE RESTRICT,
       ADD CONSTRAINT bank_transactions_system_exchange_rate_chk
         CHECK (system_exchange_rate > 0),
       ADD CONSTRAINT bank_transactions_nonzero_amount_chk
@@ -187,6 +200,11 @@ export async function up(knex: Knex): Promise<void> {
               OR deleted_by_id IS NOT NULL
             )
           )
+        ),
+      ADD CONSTRAINT bank_transactions_superseded_by_chk
+        CHECK (
+          superseded_by_bank_transaction_id IS NULL
+          OR is_deleted = true
         ),
       ADD CONSTRAINT bank_transactions_optional_text_trimmed_chk
         CHECK (
@@ -227,6 +245,12 @@ export async function up(knex: Knex): Promise<void> {
     CREATE INDEX bank_transactions_ledger_transaction_id_idx
     ON ${qualifiedTable} (ledger_transaction_id)
     WHERE ledger_transaction_id IS NOT NULL;
+  `);
+
+  await knex.raw(`
+    CREATE INDEX bank_transactions_superseded_by_idx
+    ON ${qualifiedTable} (superseded_by_bank_transaction_id)
+    WHERE superseded_by_bank_transaction_id IS NOT NULL;
   `);
 
   await knex.raw(`

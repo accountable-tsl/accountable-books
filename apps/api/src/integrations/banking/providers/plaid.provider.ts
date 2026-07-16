@@ -10,26 +10,43 @@ import {
   PlaidApi,
   PlaidEnvironments,
   Products,
+  TransactionsUpdateStatus,
 } from 'plaid';
 
 import { ENV } from '../../../config/env.js';
-import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
+import { logger } from '../../../shared/utils/logger.js';
+import { BankingProvider } from '../types/base.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
+import { TransactionUpdateBuffer } from './provider-sync.utils.js';
 
 import type {
   ConnectionDetails,
+  FetchTransactionUpdateInput,
   ProviderAccount,
   ProviderError,
+  ProviderHistoryStatus,
   ProviderInstitution,
   ProviderTransaction,
-  TransactionSyncResult,
+  ProviderTransactionUpdate,
 } from '../types/base.js';
+
+const PLAID_PAGINATION_MUTATION =
+  'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION';
+const MAX_PAGINATION_ATTEMPTS = 3;
+
+function isPaginationMutationError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === PLAID_PAGINATION_MUTATION
+  );
+}
 
 export class PlaidProvider extends BankingProvider {
   readonly key = 'plaid';
   readonly name = 'Plaid';
-  readonly transactionSyncStrategy = TransactionSyncStrategy.CURSOR_BASED;
   readonly initialTransactionHistoryDays = 730;
 
   private client: PlaidApi;
@@ -285,6 +302,7 @@ export class PlaidProvider extends BankingProvider {
           type: account.type,
           subtype: account.subtype || undefined,
         });
+        const current = account.balances.current;
         return {
           accountId: account.account_id,
           displayName: account.name,
@@ -298,9 +316,12 @@ export class PlaidProvider extends BankingProvider {
             numberData,
             balances: account.balances,
           },
-          balance: (account.balances.current ||
-            account.balances.available) as number,
+          balance: typeof current === 'number' ? current : 0,
           balanceDate: new Date(timestamp),
+          reportedCurrentBalance:
+            typeof current === 'number'
+              ? { amount: current, asOf: new Date(timestamp) }
+              : undefined,
         };
       });
   }
@@ -310,54 +331,115 @@ export class PlaidProvider extends BankingProvider {
     return true;
   }
 
-  async syncTransactions(params: {
-    accessToken: string;
-    providerBankAccountId: string;
-    cursor?: string;
-    fromDate?: Date;
-  }): Promise<TransactionSyncResult> {
-    try {
-      if (!params.providerBankAccountId) {
-        throw new Error('Plaid transaction sync requires an account ID');
+  async fetchTransactionUpdate(
+    input: FetchTransactionUpdateInput,
+  ): Promise<ProviderTransactionUpdate> {
+    if (!input.providerBankAccountId) {
+      throw this.handleError(
+        new Error('Plaid transaction sync requires an account ID'),
+      );
+    }
+
+    // Plaid may mutate the transaction stream while we paginate; when it
+    // does, the whole update must restart from the original checkpoint.
+    for (let attempt = 1; attempt <= MAX_PAGINATION_ATTEMPTS; attempt++) {
+      try {
+        return await this.fetchAllTransactionPages(input);
+      } catch (error) {
+        if (
+          !isPaginationMutationError(error) ||
+          attempt === MAX_PAGINATION_ATTEMPTS
+        ) {
+          throw error;
+        }
+        logger.warn(
+          {
+            providerKey: this.key,
+            providerBankAccountId: input.providerBankAccountId,
+            attempt,
+          },
+          'Transaction stream changed during pagination; restarting from original checkpoint',
+        );
       }
+    }
+    throw new Error('Transaction pagination attempts exhausted');
+  }
+
+  private async fetchAllTransactionPages(
+    input: FetchTransactionUpdateInput,
+  ): Promise<ProviderTransactionUpdate> {
+    const buffer = new TransactionUpdateBuffer({
+      providerKey: this.key,
+      providerBankAccountId: input.providerBankAccountId,
+    });
+    let cursor = input.checkpoint ?? undefined;
+    let historyStatus: ProviderHistoryStatus = 'collecting';
+
+    while (true) {
       const request: TransactionsSyncRequest = {
-        access_token: params.accessToken,
+        access_token: input.accessToken,
         count: 500,
         options: {
-          account_id: params.providerBankAccountId,
+          account_id: input.providerBankAccountId,
           include_personal_finance_category: true,
           include_original_description: true,
         },
       };
+      if (cursor) {
+        request.cursor = cursor;
+      }
+      // The history window is fixed by days_requested at Link-token time.
 
-      // Add cursor if this is not the initial sync
-      if (params.cursor) {
-        request.cursor = params.cursor;
+      let data;
+      try {
+        const response = await this.client.transactionsSync(request);
+        data = response.data;
+      } catch (error) {
+        throw this.handleError(error);
       }
 
-      // For initial sync, Plaid will use the days_requested from Link token creation
-      // fromDate is handled at Link token creation time
+      buffer.addPage({
+        // Plaid classifies added vs modified, but shared code classifies
+        // observations itself — both flatten into one observed stream.
+        observedTransactions: this.mapPlaidTransactions([
+          ...data.added,
+          ...data.modified,
+        ]),
+        removedTransactionIds: data.removed.map((txn) => txn.transaction_id),
+      });
+      historyStatus =
+        data.transactions_update_status ===
+        TransactionsUpdateStatus.HistoricalUpdateComplete
+          ? 'complete'
+          : 'collecting';
 
-      const response = await this.client.transactionsSync(request);
-      const data = response.data;
-
-      const balances = data.accounts.map((account) => ({
-        providerBankAccountId: account.account_id,
-        closingBalance:
-          account.balances.current || account.balances.available || undefined,
-      }));
-
-      return {
-        transactions: {
-          added: this.mapPlaidTransactions(data.added),
-          modified: this.mapPlaidTransactions(data.modified),
-          removed: data.removed.map((txn) => txn.transaction_id),
-        },
-        nextCursor: data.next_cursor,
-        hasMore: data.has_more,
-      };
-    } catch (error) {
-      throw this.handleError(error);
+      if (!data.has_more) {
+        const nextCheckpoint = data.next_cursor ? data.next_cursor : null;
+        const observedTransactions = buffer.observedTransactions;
+        const removedTransactionIds = buffer.removedTransactionIds;
+        if (
+          !nextCheckpoint &&
+          (observedTransactions.length > 0 || removedTransactionIds.length > 0)
+        ) {
+          throw new Error(
+            'Plaid returned transaction updates without a checkpoint',
+          );
+        }
+        return {
+          observedTransactions,
+          removedTransactionIds,
+          nextCheckpoint,
+          historyStatus,
+          pageCount: buffer.pageCount,
+          approximatePayloadBytes: buffer.approximatePayloadBytes,
+        };
+      }
+      if (!data.next_cursor) {
+        throw new Error(
+          'Plaid reported more transaction pages without a cursor',
+        );
+      }
+      cursor = data.next_cursor;
     }
   }
 

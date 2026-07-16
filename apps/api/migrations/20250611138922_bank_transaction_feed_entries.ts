@@ -7,20 +7,16 @@ import {
 
 /**
  * One provider-observed transaction identity within one bank account feed.
- * Unique by (feed, provider transaction id). An entry either resolves to a
- * canonical bank transaction or remains unresolved. awaiting_posted is for
- * provider-pending observations that are not yet eligible for canonical
- * import.
+ * Unique by (feed, provider transaction id). A pure mapping: every entry
+ * links a provider transaction id to the canonical bank transaction it was
+ * imported as, plus the latest provider observation and evidence. Pending
+ * observations and history candidates never get entries; only imported
+ * final transactions do.
  */
 
 const schemaName = 'app';
 const tableName = 'bank_transaction_feed_entries';
-const OBSERVATION_TYPES = ['added', 'modified', 'removed', 'pending'] as const;
-const RESOLUTION_STATES = [
-  'resolved',
-  'unresolved',
-  'awaiting_posted',
-] as const;
+const OBSERVATION_TYPES = ['added', 'modified', 'removed'] as const;
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
@@ -49,11 +45,11 @@ export async function up(knex: Knex): Promise<void> {
 
     table
       .uuid('bank_transaction_id')
-      .nullable()
+      .notNullable()
       .references('id')
       .inTable(`${schemaName}.bank_transactions`)
       .onDelete('RESTRICT')
-      .comment('Canonical bank transaction this observation resolved to');
+      .comment('Canonical bank transaction this provider identity maps to');
 
     table
       .string('observation_type', 16)
@@ -62,15 +58,6 @@ export async function up(knex: Knex): Promise<void> {
         [...OBSERVATION_TYPES],
         'bank_transaction_feed_entries_observation_type_chk',
       );
-
-    table
-      .string('resolution_state', 32)
-      .notNullable()
-      .checkIn(
-        [...RESOLUTION_STATES],
-        'bank_transaction_feed_entries_resolution_state_chk',
-      );
-    table.string('resolution_reason', 512).nullable();
 
     table
       .jsonb('provider_evidence')
@@ -115,13 +102,12 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     COMMENT ON TABLE "${schemaName}"."${tableName}" IS
-    'Feed-scoped provider transaction identities and their resolution to canonical bank_transactions.';
+    'Feed-scoped mapping of provider transaction identities to canonical bank_transactions.';
   `);
 
   await knex.raw(`
     CREATE INDEX bank_transaction_feed_entries_bank_transaction_id_idx
-    ON "${schemaName}"."${tableName}" (bank_transaction_id)
-    WHERE bank_transaction_id IS NOT NULL;
+    ON "${schemaName}"."${tableName}" (bank_transaction_id);
   `);
 
   await knex.raw(`
@@ -130,19 +116,6 @@ export async function up(knex: Knex): Promise<void> {
         CHECK (
           provider_transaction_id = btrim(provider_transaction_id)
           AND char_length(provider_transaction_id) >= 1
-        ),
-      ADD CONSTRAINT bank_transaction_feed_entries_resolved_link_chk
-        CHECK (
-          (resolution_state = 'resolved' AND bank_transaction_id IS NOT NULL)
-          OR (resolution_state != 'resolved' AND bank_transaction_id IS NULL)
-        ),
-      ADD CONSTRAINT bank_transaction_feed_entries_optional_text_trimmed_chk
-        CHECK (
-          resolution_reason IS NULL
-          OR (
-            resolution_reason = btrim(resolution_reason)
-            AND char_length(resolution_reason) >= 1
-          )
         ),
       ADD CONSTRAINT bank_transaction_feed_entries_evidence_version_chk
         CHECK (provider_evidence_schema_version >= 1);

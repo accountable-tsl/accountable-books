@@ -1,5 +1,5 @@
 import type { BankTransactionSyncRunTrigger } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.types.js';
-import type { ProviderTransaction } from '../types/base.js';
+import type { ProviderHistoryStatus } from '../types/base.js';
 
 export type TransactionSyncTrigger =
   | 'initial'
@@ -28,6 +28,8 @@ export interface BankAccountSyncResult {
   bankAccountId: string;
   outcome: 'completed' | 'not_ready' | 'unsupported';
   initialSync: boolean;
+  /** Present on completed syncs; how far the provider's history preparation got. */
+  historyStatus?: ProviderHistoryStatus;
   added: number;
   modified: number;
   removed: number;
@@ -47,13 +49,14 @@ export interface BankAccountForSync {
   is_deleted: boolean;
 }
 
-export interface CompleteTransactionUpdate {
-  added: ProviderTransaction[];
-  modified: ProviderTransaction[];
-  removed: string[];
-  finalCursor?: string;
-  pageCount: number;
-  approximatePayloadBytes: number;
+/** Classification counts produced when one provider update is applied. */
+export interface AppliedTransactionUpdateCounts {
+  /** Observations classified as new and imported or quarantined. */
+  added: number;
+  /** Observations of known transactions: evidence refreshes, supersedes, candidate updates. */
+  modified: number;
+  /** Removal events that matched a stored transaction or candidate. */
+  removed: number;
 }
 
 export type TransactionSyncFailureClassification =

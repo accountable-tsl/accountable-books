@@ -6,7 +6,7 @@ import {
   resolveAuditEventActorContext,
   writeAuditEventsBatch,
 } from '../audit/index.js';
-import { txnCategorizationSource } from '../categorization/index.js';
+import { txnCategorizationSource } from '../categorization/categorization.types.js';
 import { ledgerTransactionSource } from './ledgers.types.js';
 
 import type {
@@ -14,7 +14,7 @@ import type {
   AuditContextInput,
   WriteAuditEventInputCamel,
 } from '../audit/index.js';
-import type { TxnCategorizationSource } from '../categorization/index.js';
+import type { TxnCategorizationSource } from '../categorization/categorization.types.js';
 import type { LedgerTransactionSource } from './ledgers.types.js';
 
 export const LEDGER_AUDIT_SCHEMA_VERSION = '1.1.0';

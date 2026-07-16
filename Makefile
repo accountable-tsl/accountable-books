@@ -144,7 +144,7 @@ clean: guard-nonprod ## Clean workspace: stop infra, clean caches
 	@docker system prune -f || true
 	@echo "$(GREEN)✅ Workspace cleaned$(RESET)"
 
-clean-all: guard-nonprod ## Nuclear cleanup: deps, build/caches, Python venvs; frozen reinstall (not lockfiles/.env)
+clean-all: guard-nonprod ## Nuclear cleanup: deps, build/caches, Python venvs (not lockfiles/.env); then run make setup
 	@bash ./scripts/clean-all.sh
 
 ##@ 🚢 Deployment & Quality

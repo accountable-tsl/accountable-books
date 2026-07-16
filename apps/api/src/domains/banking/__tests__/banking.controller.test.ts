@@ -9,8 +9,7 @@ import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
 const mocks = vi.hoisted(() => ({
   getBankAccountSyncEligibility: vi.fn(),
-  scheduleTransactionSync: vi.fn(),
-  setTransactionSyncDate: vi.fn(),
+  requestBankAccountSync: vi.fn(),
 }));
 
 vi.mock('../bankAccounts/bankAccounts.model.js', async (importOriginal) => ({
@@ -20,14 +19,8 @@ vi.mock('../bankAccounts/bankAccounts.model.js', async (importOriginal) => ({
   getBankAccountSyncEligibility: mocks.getBankAccountSyncEligibility,
 }));
 
-vi.mock('../../../integrations/banking/index.js', async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import('../../../integrations/banking/index.js')
-  >()),
-  scheduleTransactionSync: mocks.scheduleTransactionSync,
-  transactionSyncService: {
-    setTransactionSyncDate: mocks.setTransactionSyncDate,
-  },
+vi.mock('../../../integrations/banking/transaction-sync.outbox.js', () => ({
+  requestBankAccountSync: mocks.requestBankAccountSync,
 }));
 
 describe('banking transaction sync controller', () => {
@@ -44,7 +37,7 @@ describe('banking transaction sync controller', () => {
       eligible: true,
       reason: null,
     });
-    mocks.scheduleTransactionSync.mockResolvedValue({ id: 'job-1' });
+    mocks.requestBankAccountSync.mockResolvedValue({ id: 'outbox-1' });
     const { response, status, json } = responseDouble();
 
     await new BankingController().syncTransactions(
@@ -59,14 +52,14 @@ describe('banking transaction sync controller', () => {
       bankAccountId,
       companyId,
     });
-    expect(mocks.scheduleTransactionSync).toHaveBeenCalledWith({
+    expect(mocks.requestBankAccountSync).toHaveBeenCalledWith({
       bankAccountId,
       trigger: 'manual',
       actorUserId: userId,
     });
     expect(status).not.toHaveBeenCalled();
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { jobId: 'job-1' } }),
+      expect.objectContaining({ data: { outboxId: 'outbox-1' } }),
     );
   });
 
@@ -83,7 +76,7 @@ describe('banking transaction sync controller', () => {
     );
 
     expect(status).toHaveBeenCalledWith(404);
-    expect(mocks.scheduleTransactionSync).not.toHaveBeenCalled();
+    expect(mocks.requestBankAccountSync).not.toHaveBeenCalled();
   });
 
   it('returns reconnect-required for an errored company-owned account', async () => {
@@ -110,7 +103,7 @@ describe('banking transaction sync controller', () => {
         reason: 'reconnect_required',
       }),
     );
-    expect(mocks.scheduleTransactionSync).not.toHaveBeenCalled();
+    expect(mocks.requestBankAccountSync).not.toHaveBeenCalled();
   });
 
   it('rejects a malformed account ID before querying', async () => {
@@ -126,7 +119,7 @@ describe('banking transaction sync controller', () => {
 
     expect(status).toHaveBeenCalledWith(400);
     expect(mocks.getBankAccountSyncEligibility).not.toHaveBeenCalled();
-    expect(mocks.scheduleTransactionSync).not.toHaveBeenCalled();
+    expect(mocks.requestBankAccountSync).not.toHaveBeenCalled();
   });
 
   it('does not register the retired credential sync-status route', () => {
@@ -134,6 +127,7 @@ describe('banking transaction sync controller', () => {
       .map((layer) => layer.route?.path)
       .filter(Boolean);
     expect(paths).not.toContain('/sync-status/:credentialId');
+    expect(paths).not.toContain('/set-sync-date');
   });
 });
 

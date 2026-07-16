@@ -24,7 +24,7 @@ db-provision: guard-nonprod ## Create or repair local development databases
 
 db-down: guard-nonprod ## Stop database and redis for local development
 	@echo "$(YELLOW)🛑 Stopping database and redis...$(RESET)"
-	@docker compose -f docker-compose.dev.yml down
+	@docker compose -f docker-compose.dev.yml down -v --remove-orphans
 
 db-logs: ## View local database logs
 	@docker compose -f docker-compose.dev.yml logs -f --tail=100 db redis

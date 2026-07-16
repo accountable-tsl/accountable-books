@@ -30,4 +30,11 @@ describe('outbox invariant: handlers do the work, never relay into a second queu
     );
     expect(src).not.toContain('enqueueCloseSignalEval(');
   });
+
+  it('bank sync handler does not re-enqueue into the transaction-sync queue', () => {
+    const src = readSource(
+      '../../../integrations/banking/transaction-sync.outbox.ts',
+    );
+    expect(src).not.toContain('scheduleTransactionSync(');
+  });
 });

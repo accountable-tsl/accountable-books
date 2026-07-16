@@ -155,14 +155,21 @@ describe('banking database integrity', () => {
   });
 
   it('throws transactional feed-entry failures so a sync update unit must roll back', async () => {
+    const transactionId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+
     await expect(
       upsertFeedEntry({
         data: {
           bank_account_feed_id: fixture.companyA.feedId,
           company_id: fixture.companyB.id,
           provider_transaction_id: randomUUID(),
+          bank_transaction_id: transactionId,
           observation_type: 'added',
-          resolution_state: 'resolved',
           provider_evidence: {},
           provider_evidence_schema_version: 1,
           observed_at: new Date(),
@@ -179,6 +186,12 @@ describe('banking database integrity', () => {
       companyId: fixture.companyA.id,
       userId: fixture.userId,
     });
+    const transactionId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
     const providerTransactionId = `shared-${randomToken()}`;
 
     for (const feedId of [fixture.companyA.feedId, spareFeedId]) {
@@ -187,8 +200,8 @@ describe('banking database integrity', () => {
           bank_account_feed_id: feedId,
           company_id: fixture.companyA.id,
           provider_transaction_id: providerTransactionId,
+          bank_transaction_id: transactionId,
           observation_type: 'added',
-          resolution_state: 'unresolved',
           provider_evidence: {},
           provider_evidence_schema_version: 1,
           observed_at: new Date(),
@@ -205,8 +218,14 @@ describe('banking database integrity', () => {
     ).resolves.toEqual([{ count: '2' }]);
   });
 
-  it('preserves a canonical link when a later observation is weaker', async () => {
-    const transactionId = await insertTransaction(trx, {
+  it('never re-points a canonical link on later observations', async () => {
+    const firstTransactionId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+    const secondTransactionId = await insertTransaction(trx, {
       bankAccountId: fixture.companyA.bankAccountId,
       bankTransactionBatchId: fixture.companyA.batchId,
       companyId: fixture.companyA.id,
@@ -220,9 +239,8 @@ describe('banking database integrity', () => {
         bank_account_feed_id: fixture.companyA.feedId,
         company_id: fixture.companyA.id,
         provider_transaction_id: providerTransactionId,
-        bank_transaction_id: transactionId,
+        bank_transaction_id: firstTransactionId,
         observation_type: 'added',
-        resolution_state: 'resolved',
         provider_evidence: { version: 1 },
         provider_evidence_schema_version: 1,
         observed_at: new Date(),
@@ -235,9 +253,8 @@ describe('banking database integrity', () => {
         bank_account_feed_id: fixture.companyA.feedId,
         company_id: fixture.companyA.id,
         provider_transaction_id: providerTransactionId,
-        bank_transaction_id: null,
+        bank_transaction_id: secondTransactionId,
         observation_type: 'modified',
-        resolution_state: 'unresolved',
         provider_evidence: { version: 2 },
         provider_evidence_schema_version: 1,
         observed_at: new Date(),
@@ -251,18 +268,59 @@ describe('banking database integrity', () => {
           bank_account_feed_id: fixture.companyA.feedId,
           provider_transaction_id: providerTransactionId,
         })
-        .first('bank_transaction_id', 'resolution_state'),
+        .first('bank_transaction_id', 'observation_type', 'provider_evidence'),
     ).resolves.toEqual({
-      bank_transaction_id: transactionId,
-      resolution_state: 'resolved',
+      bank_transaction_id: firstTransactionId,
+      observation_type: 'modified',
+      provider_evidence: { version: 2 },
     });
   });
 
-  it('rejects a non-resolved feed entry carrying a canonical transaction', async () => {
-    const transactionId = await insertTransaction(trx, {
+  it('rejects a superseded_by link on a transaction that is not retired', async () => {
+    const originalId = await insertTransaction(trx, {
       bankAccountId: fixture.companyA.bankAccountId,
       bankTransactionBatchId: fixture.companyA.batchId,
       companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+    const replacementId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+
+    // Savepoint so the expected violation does not abort the outer test trx.
+    await expect(
+      trx.transaction((inner) =>
+        inner('bank_transactions').where({ id: originalId }).update({
+          superseded_by_bank_transaction_id: replacementId,
+        }),
+      ),
+    ).rejects.toMatchObject({
+      constraint: 'bank_transactions_superseded_by_chk',
+    });
+
+    await trx('bank_transactions').where({ id: originalId }).update({
+      is_deleted: true,
+      deleted_at: trx.fn.now(),
+      deletion_origin: 'provider_sync',
+      deletion_reason: 'Superseded by provider correction',
+      superseded_by_bank_transaction_id: replacementId,
+    });
+
+    await expect(
+      trx('bank_transactions')
+        .where({ id: originalId })
+        .first('superseded_by_bank_transaction_id'),
+    ).resolves.toEqual({ superseded_by_bank_transaction_id: replacementId });
+  });
+
+  it('rejects a feed entry whose canonical transaction belongs to another company', async () => {
+    const foreignTransactionId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyB.bankAccountId,
+      bankTransactionBatchId: fixture.companyB.batchId,
+      companyId: fixture.companyB.id,
       userId: fixture.userId,
     });
 
@@ -271,10 +329,9 @@ describe('banking database integrity', () => {
         data: {
           bank_account_feed_id: fixture.companyA.feedId,
           company_id: fixture.companyA.id,
-          provider_transaction_id: `invalid-resolution-${randomToken()}`,
-          bank_transaction_id: transactionId,
+          provider_transaction_id: `foreign-transaction-${randomToken()}`,
+          bank_transaction_id: foreignTransactionId,
           observation_type: 'added',
-          resolution_state: 'unresolved',
           provider_evidence: {},
           provider_evidence_schema_version: 1,
           observed_at: new Date(),

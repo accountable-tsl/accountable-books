@@ -35,27 +35,9 @@ export async function upsertFeedEntry({
       })
       .onConflict(['bank_account_feed_id', 'provider_transaction_id'])
       .merge({
-        // A later provider observation may contain less information. Never
-        // erase an established canonical link while refreshing the evidence.
-        bank_transaction_id: knex.raw(
-          'coalesce("bank_transaction_feed_entries"."bank_transaction_id", excluded.bank_transaction_id)',
-        ),
+        // A later observation refreshes the evidence only. The canonical link
+        // is never changed here; superseding uses repointFeedEntryToReplacement.
         observation_type: v.observation_type,
-        resolution_state: knex.raw(
-          `case
-             when "bank_transaction_feed_entries"."bank_transaction_id" is not null
-               or excluded.bank_transaction_id is not null
-             then 'resolved'
-             else excluded.resolution_state
-           end`,
-        ),
-        resolution_reason: knex.raw(
-          `case
-             when "bank_transaction_feed_entries"."bank_transaction_id" is not null
-             then "bank_transaction_feed_entries"."resolution_reason"
-             else excluded.resolution_reason
-           end`,
-        ),
         provider_evidence: v.provider_evidence,
         provider_evidence_schema_version: v.provider_evidence_schema_version,
         observed_at: v.observed_at,
@@ -70,4 +52,63 @@ export async function upsertFeedEntry({
     if (trx) throw error;
     return errorResponse('Failed to upsert feed entry', error);
   }
+}
+
+/**
+ * The only sanctioned way to change a feed entry's canonical link: the
+ * supersede path retires a materially corrected transaction and points its
+ * provider identity at the replacement. Guarded on the current link so a
+ * concurrent change makes this a no-op failure instead of a silent re-point.
+ */
+export async function repointFeedEntryToReplacement({
+  bankAccountFeedId,
+  providerTransactionId,
+  fromBankTransactionId,
+  toBankTransactionId,
+  trx,
+}: {
+  bankAccountFeedId: string;
+  providerTransactionId: string;
+  fromBankTransactionId: string;
+  toBankTransactionId: string;
+  trx: Knex.Transaction;
+}): Promise<void> {
+  const updated = await trx('bank_transaction_feed_entries')
+    .where({
+      bank_account_feed_id: bankAccountFeedId,
+      provider_transaction_id: providerTransactionId,
+      bank_transaction_id: fromBankTransactionId,
+    })
+    .update({
+      bank_transaction_id: toBankTransactionId,
+      observation_type: 'modified',
+      updated_at: trx.fn.now(),
+    });
+  if (updated === 0) {
+    throw new Error(
+      'Feed entry link changed concurrently; refusing to re-point',
+    );
+  }
+}
+
+/**
+ * Removes the mapping when a corrected transaction leaves the imported set
+ * (its replacement becomes a history candidate). The entry is recreated on
+ * promotion.
+ */
+export async function deleteFeedEntry({
+  bankAccountFeedId,
+  providerTransactionId,
+  trx,
+}: {
+  bankAccountFeedId: string;
+  providerTransactionId: string;
+  trx: Knex.Transaction;
+}): Promise<void> {
+  await trx('bank_transaction_feed_entries')
+    .where({
+      bank_account_feed_id: bankAccountFeedId,
+      provider_transaction_id: providerTransactionId,
+    })
+    .delete();
 }

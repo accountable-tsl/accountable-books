@@ -1,17 +1,10 @@
 import type { Job } from 'bullmq';
 import { JobScheduler, Worker } from 'bullmq';
 
-import { getSyncableBankAccounts } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import { redis } from '../../../lib/redis.js';
 import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../shared/utils/logger.js';
-import {
-  isRetryableTransactionSyncFailure,
-  transactionSyncService,
-} from '../services/transaction-sync.service.js';
-import { scheduleTransactionSync } from './transaction-sync.queue.js';
-
-import type { TransactionSyncJobData } from './transaction-sync.queue.js';
+import { enqueuePeriodicBankSyncIntents } from './transaction-sync.queue.js';
 
 const logger = getLogger({
   component: 'transaction-sync-worker',
@@ -32,34 +25,27 @@ function buildTransactionSyncWorkerOptions(concurrency: number) {
   } as const;
 }
 
-async function processTransactionSyncJob(
-  job: Job<TransactionSyncJobData | { syncType: 'periodic' }>,
-) {
+async function processTransactionSyncJob(job: Job<{ syncType: 'periodic' }>) {
   const startedAt = Date.now();
   logger.info(
     { jobId: job.id, jobName: job.name, jobData: job.data },
-    'Starting transaction sync job',
+    'Starting transaction sync scheduler job',
   );
 
   try {
-    if (job.name === 'sync-bank-account') {
-      const data = job.data as TransactionSyncJobData;
-      await job.updateProgress(25);
-      const result = await transactionSyncService.syncBankAccount(data);
-      await job.updateProgress(100);
-      logger.info(
-        { jobId: job.id, ...result },
-        'Bank account transaction sync completed',
-      );
-    } else if (job.name === 'daily-sync-scan') {
-      await dailySyncScan(job);
-    } else {
+    if (job.name !== 'daily-sync-scan') {
       throw new Error(`Unknown transaction sync job: ${job.name}`);
     }
-  } catch (error) {
-    if (!isRetryableTransactionSyncFailure(error)) {
-      job.discard();
+    await job.updateProgress(10);
+    const result = await enqueuePeriodicBankSyncIntents();
+    await job.updateProgress(100);
+    logger.info({ jobId: job.id, ...result }, 'Daily bank sync scan completed');
+    if (result.failedCount > 0) {
+      throw new Error(
+        `Failed to write ${result.failedCount} bank account sync intents`,
+      );
     }
+  } catch (error) {
     logger.error(
       {
         jobId: job.id,
@@ -67,36 +53,9 @@ async function processTransactionSyncJob(
         error: error instanceof Error ? error.message : error,
         duration: Date.now() - startedAt,
       },
-      'Transaction sync job failed',
+      'Transaction sync scheduler job failed',
     );
     throw error;
-  }
-}
-
-async function dailySyncScan(job: Job) {
-  await job.updateProgress(10);
-  const accounts = await getSyncableBankAccounts();
-  await job.updateProgress(30);
-
-  const results = await Promise.allSettled(
-    accounts.map((account) =>
-      scheduleTransactionSync({
-        bankAccountId: account.id,
-        trigger: 'periodic',
-      }),
-    ),
-  );
-  await job.updateProgress(100);
-
-  const failed = results.filter((result) => result.status === 'rejected');
-  logger.info(
-    { accountCount: accounts.length, failedCount: failed.length },
-    'Daily bank account sync scan completed',
-  );
-  if (failed.length > 0) {
-    throw new Error(
-      `Failed to enqueue ${failed.length} bank account sync jobs`,
-    );
   }
 }
 

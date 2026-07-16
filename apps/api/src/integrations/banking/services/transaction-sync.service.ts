@@ -9,7 +9,6 @@ import {
 import { getSystemUser } from '../../../domains/users/users.model.js';
 import { logger } from '../../../shared/utils/logger.js';
 import { providerRegistry } from '../providers/registry.js';
-import { TransactionSyncStrategy } from '../types/base.js';
 import { applyCompleteTransactionUpdate } from './transaction-sync.applier.js';
 import {
   StaleBankAccountSyncError,
@@ -17,11 +16,6 @@ import {
   TransactionSyncLockBusyError,
 } from './transaction-sync.errors.js';
 import { handleTransactionSyncFailure } from './transaction-sync.failures.js';
-import {
-  fetchCompleteTransactionUpdate,
-  getInitialSyncCoverageFromDate,
-  getTransactionSyncFromDate,
-} from './transaction-sync.fetcher.js';
 import {
   acquireAccountTransactionSyncLock,
   releaseAccountTransactionSyncLock,
@@ -210,60 +204,40 @@ export class TransactionSyncService {
       }
       const { access_token: accessToken } = secretResult.data;
 
-      const usesDateRangeStrategy =
-        provider.transactionSyncStrategy ===
-        TransactionSyncStrategy.DATE_RANGE_OVERLAP;
-      const startingCursor = usesDateRangeStrategy
-        ? undefined
-        : account.sync_cursor || undefined;
-      const fromDate = getTransactionSyncFromDate({
-        initialSync,
-        usesDateRangeStrategy,
-        account,
-        initialTransactionHistoryDays: provider.initialTransactionHistoryDays,
-      });
-      const initialSyncFromDate = initialSync
-        ? getInitialSyncCoverageFromDate({
-            account,
-            initialTransactionHistoryDays:
-              provider.initialTransactionHistoryDays,
-          })
-        : undefined;
+      const startingCheckpoint = account.sync_cursor || null;
 
       log('fetch_started', {
         providerKey: provider.key,
         initialSync,
-        hasCursor: Boolean(startingCursor),
-        fromDate: fromDate?.toISOString(),
+        hasCheckpoint: Boolean(startingCheckpoint),
       });
 
       const fetchStartedAt = Date.now();
-      const update = await fetchCompleteTransactionUpdate({
-        provider,
+      const update = await provider.fetchTransactionUpdate({
         accessToken,
         providerBankAccountId: account.provider_account_id,
-        startingCursor,
-        fromDate,
-        usesDateRangeStrategy,
+        checkpoint: startingCheckpoint,
+        lastSuccessfulSyncAt: account.last_successful_sync_at,
+        isInitialSync: initialSync,
       });
       log('fetch_completed', {
         phase_duration_ms: Date.now() - fetchStartedAt,
         pageCount: update.pageCount,
+        historyStatus: update.historyStatus,
         transactionCount:
-          update.added.length + update.modified.length + update.removed.length,
+          update.observedTransactions.length +
+          update.removedTransactionIds.length,
         approximatePayloadBytes: update.approximatePayloadBytes,
       });
 
-      if (!usesDateRangeStrategy && !update.finalCursor) {
-        if (
-          update.added.length ||
-          update.modified.length ||
-          update.removed.length
-        ) {
-          throw new Error(
-            'Cursor-based provider returned updates without a cursor',
-          );
-        }
+      // Provider-neutral not-ready rule: nothing observed, nothing removed,
+      // no checkpoint to store, and the provider is still preparing data.
+      if (
+        update.observedTransactions.length === 0 &&
+        update.removedTransactionIds.length === 0 &&
+        update.nextCheckpoint === null &&
+        update.historyStatus === 'collecting'
+      ) {
         const skipped = await completeSyncRun({
           syncRunId,
           companyId: account.company_id,
@@ -281,31 +255,24 @@ export class TransactionSyncService {
       const userId = actorUserId || (await getSystemUserId());
 
       const applyStartedAt = Date.now();
-      await applyCompleteTransactionUpdate({
+      const counts = await applyCompleteTransactionUpdate({
         account,
         syncRunId,
         update,
-        startingCursor,
-        usesDateRangeStrategy,
-        initialSyncFromDate,
+        startingCheckpoint,
         userId,
       });
       log('apply_completed', {
         phase_duration_ms: Date.now() - applyStartedAt,
       });
 
-      log('completed', {
-        added: update.added.length,
-        modified: update.modified.length,
-        removed: update.removed.length,
-      });
+      log('completed', counts as unknown as Record<string, unknown>);
       return {
         bankAccountId,
         outcome: 'completed',
         initialSync,
-        added: update.added.length,
-        modified: update.modified.length,
-        removed: update.removed.length,
+        historyStatus: update.historyStatus,
+        ...counts,
       };
     } catch (error) {
       if (error instanceof TransactionSyncLockBusyError) {
@@ -390,22 +357,6 @@ export class TransactionSyncService {
       return null;
     }
     return rows[0] ?? null;
-  }
-
-  async setTransactionSyncDate(
-    connectionId: string,
-    fromDate: Date,
-    companyId: string,
-  ): Promise<boolean> {
-    const query = knexClient('bank_account_feeds').where({
-      bank_connection_id: connectionId,
-      company_id: companyId,
-    });
-    const updated = await query.whereNull('revoked_at').update({
-      sync_from_date: fromDate,
-      updated_at: new Date(),
-    });
-    return updated > 0;
   }
 }
 

@@ -6,7 +6,6 @@ import { NOTIFICATION_TYPE } from '../../../../domains/notifications/notificatio
 import { OUTBOX_INTENT } from '../../../../domains/outbox/intents.js';
 import { redis } from '../../../../lib/redis.js';
 import { providerRegistry } from '../../providers/registry.js';
-import { TransactionSyncStrategy } from '../../types/base.js';
 import {
   isRetryableTransactionSyncFailure,
   TransactionSyncLockBusyError,
@@ -22,11 +21,7 @@ import {
   providerTransaction,
 } from './transaction-sync.test-helpers.js';
 
-import type {
-  BankingProvider,
-  ProviderError,
-  ProviderTransaction,
-} from '../../types/base.js';
+import type { ProviderError, ProviderTransaction } from '../../types/base.js';
 
 const mocks = vi.hoisted(() => ({
   alertAdmins: vi.fn(async () => undefined),
@@ -130,9 +125,9 @@ describe('account-scoped transaction streams', () => {
       .select('bank_account_id', 'provider_account_id')) {
       accountIds.set(row.bank_account_id, row.provider_account_id);
     }
-    const provider = fakeProvider(async ({ providerBankAccountId }) => ({
+    const provider = fakeProvider(async ({ fetchInput }) => ({
       transactions: { added: [], modified: [], removed: [] },
-      nextCursor: `cursor:${providerBankAccountId}`,
+      nextCursor: `cursor:${fetchInput.providerBankAccountId}`,
       hasMore: false,
     }));
     vi.spyOn(providerRegistry, 'getById').mockResolvedValue(provider);
@@ -169,7 +164,7 @@ describe('account-scoped transaction streams', () => {
     }
   });
 
-  it('retains pending provider observations as feed entries without canonical transactions', async () => {
+  it('discards pending provider observations entirely and imports posted ones', async () => {
     const db = getTestDb();
     const fixture = await createSyncFailureFixture(db);
     const pendingTx = {
@@ -208,41 +203,25 @@ describe('account-scoped transaction streams', () => {
         completed_at: expect.any(Date),
       });
 
-      const pendingEntry = await db('bank_transaction_feed_entries')
-        .where({
-          bank_account_feed_id: fixture.feedId,
-          provider_transaction_id: pendingTx.transactionId,
-        })
-        .first(
-          'observation_type',
-          'resolution_state',
-          'resolution_reason',
-          'bank_transaction_id',
-        );
-      expect(pendingEntry).toMatchObject({
-        observation_type: 'pending',
-        resolution_state: 'awaiting_posted',
-        resolution_reason: 'provider_pending',
-        bank_transaction_id: null,
-      });
-
+      // The pending observation leaves no trace: no feed entry, no
+      // bank transaction.
       expect(
         await db('bank_transaction_feed_entries')
           .where({
             bank_account_feed_id: fixture.feedId,
             provider_transaction_id: pendingTx.transactionId,
           })
-          .first('bank_transaction_id'),
-      ).toMatchObject({ bank_transaction_id: null });
+          .first('id'),
+      ).toBeUndefined();
+
       const postedEntry = await db('bank_transaction_feed_entries')
         .where({
           bank_account_feed_id: fixture.feedId,
           provider_transaction_id: postedTx.transactionId,
         })
-        .first('observation_type', 'resolution_state', 'bank_transaction_id');
+        .first('observation_type', 'bank_transaction_id');
       expect(postedEntry).toMatchObject({
         observation_type: 'added',
-        resolution_state: 'resolved',
         bank_transaction_id: expect.any(String),
       });
 
@@ -405,73 +384,8 @@ describe('account-scoped transaction streams', () => {
     }
   });
 
-  it('discards mutation buffers and restarts from the original cursor', async () => {
-    const db = getTestDb();
-    const fixture = await createSyncFailureFixture(db);
-    const mutation = {
-      code: 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION',
-      message: 'stream changed',
-      displayMessage: 'stream changed',
-      retryable: true,
-    } satisfies ProviderError;
-    const sync = vi
-      .fn()
-      .mockResolvedValueOnce(emptyPage('discarded-page', true))
-      .mockRejectedValueOnce(mutation)
-      .mockResolvedValueOnce(emptyPage('retained-page', true))
-      .mockResolvedValueOnce(emptyPage('final-cursor', false));
-    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(fakeProvider(sync));
-
-    try {
-      const result = await transactionSyncService.syncBankAccount({
-        bankAccountId: fixture.bankAccountId,
-        trigger: 'webhook',
-        actorUserId: fixture.userId,
-      });
-      expect(result.outcome).toBe('completed');
-      expect(sync.mock.calls.map(([input]) => input.cursor)).toEqual([
-        undefined,
-        'discarded-page',
-        undefined,
-        'retained-page',
-      ]);
-      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
-        sync_cursor: 'final-cursor',
-      });
-    } finally {
-      await cleanupSyncFailureFixture(db, fixture);
-    }
-  });
-
-  it('surfaces repeated pagination mutations after three fresh attempts', async () => {
-    const db = getTestDb();
-    const fixture = await createSyncFailureFixture(db);
-    const mutation = {
-      code: 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION',
-      message: 'stream changed repeatedly',
-      displayMessage: 'stream changed repeatedly',
-      retryable: true,
-    } satisfies ProviderError;
-    const sync = vi.fn().mockRejectedValue(mutation);
-    vi.spyOn(providerRegistry, 'getById').mockResolvedValue(fakeProvider(sync));
-
-    try {
-      await expect(
-        transactionSyncService.syncBankAccount({
-          bankAccountId: fixture.bankAccountId,
-          trigger: 'webhook',
-          actorUserId: fixture.userId,
-        }),
-      ).rejects.toEqual(mutation);
-      expect(sync).toHaveBeenCalledTimes(3);
-      expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
-        sync_cursor: null,
-        last_successful_sync_at: null,
-      });
-    } finally {
-      await cleanupSyncFailureFixture(db, fixture);
-    }
-  });
+  // Plaid's restart-on-mutation-during-pagination is adapter-internal now;
+  // see plaid.provider.test.ts for its coverage.
 
   it('fails closed when a provider returns another account transaction', async () => {
     const db = getTestDb();
@@ -588,8 +502,13 @@ describe('account-scoped transaction streams', () => {
         await db('bank_account_feeds')
           .where({ id: fixture.feedId })
           .update({ last_successful_sync_at: concurrentSyncAt });
-        return emptyPage('unused-page', false);
-      }, TransactionSyncStrategy.DATE_RANGE_OVERLAP),
+        // Mono reports complete once its final page is in, so the service
+        // proceeds to apply (and hits the stale guard) instead of skipping.
+        return {
+          ...emptyPage('unused-page', false),
+          historyStatus: 'complete' as const,
+        };
+      }, 'mono'),
     );
 
     try {
@@ -659,20 +578,18 @@ describe('account-scoped transaction streams', () => {
     }
   });
 
-  it('uses connection history initially and account overlap incrementally for date providers', async () => {
+  it('passes initial vs incremental context to the provider adapter', async () => {
     const db = getTestDb();
     const fixture = await createSyncFailureFixture(db);
-    await db('bank_account_feeds')
-      .where({ id: fixture.feedId })
-      .update({ sync_from_date: new Date('2025-04-10T00:00:00Z') });
-    const sync = vi.fn(
-      async (_input: Parameters<BankingProvider['syncTransactions']>[0]) => ({
+    const pageFn = vi.fn(
+      async (_params: { cursor?: string; fetchInput: unknown }) => ({
         transactions: { added: [], modified: [], removed: [] },
         hasMore: false,
+        historyStatus: 'complete' as const,
       }),
     );
     vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
-      fakeProvider(sync, TransactionSyncStrategy.DATE_RANGE_OVERLAP),
+      fakeProvider(pageFn, 'mono'),
     );
 
     try {
@@ -681,29 +598,26 @@ describe('account-scoped transaction streams', () => {
         trigger: 'initial',
         actorUserId: fixture.userId,
       });
-      const initialFromDate = sync.mock.calls[0][0].fromDate!;
-      expect([
-        initialFromDate.getFullYear(),
-        initialFromDate.getMonth() + 1,
-        initialFromDate.getDate(),
-      ]).toEqual([2025, 4, 10]);
+      expect(pageFn.mock.calls[0][0].fetchInput).toMatchObject({
+        isInitialSync: true,
+        checkpoint: null,
+        lastSuccessfulSyncAt: null,
+      });
 
-      await db('bank_account_feeds')
-        .where({ id: fixture.feedId })
-        .update({
-          last_successful_sync_at: new Date('2026-02-20T12:00:00Z'),
-          initial_sync_completed_at: new Date('2026-02-20T12:00:00Z'),
-        });
+      // The first apply advanced the checkpoint; the incremental call sees it.
       await transactionSyncService.syncBankAccount({
         bankAccountId: fixture.bankAccountId,
         trigger: 'periodic',
         actorUserId: fixture.userId,
       });
-      expect(sync.mock.calls[1][0].fromDate).toEqual(
-        new Date('2026-02-19T12:00:00Z'),
-      );
+      expect(pageFn.mock.calls[1][0].fetchInput).toMatchObject({
+        isInitialSync: false,
+        checkpoint: null,
+        lastSuccessfulSyncAt: expect.any(Date),
+      });
       expect(await getFeedState(db, fixture.bankAccountId)).toMatchObject({
         sync_cursor: null,
+        initial_sync_completed_at: expect.any(Date),
       });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
@@ -736,6 +650,7 @@ describe('account-scoped transaction streams', () => {
         },
         nextCursor: 'cursor-one',
         hasMore: false,
+        historyStatus: 'complete',
       })
       .mockResolvedValueOnce({
         transactions: {
@@ -745,6 +660,7 @@ describe('account-scoped transaction streams', () => {
         },
         nextCursor: 'cursor-two',
         hasMore: false,
+        historyStatus: 'complete',
       });
     vi.spyOn(providerRegistry, 'getById').mockResolvedValue(fakeProvider(sync));
 
@@ -801,50 +717,56 @@ describe('account-scoped transaction streams', () => {
     }
   });
 
-  it('records modified and removed observations with no canonical transaction as unresolved', async () => {
+  it('imports unknown observations as new and ignores removals of unknown ids', async () => {
     const db = getTestDb();
     const fixture = await createSyncFailureFixture(db);
-    const modified = providerTransaction(
+    // Providers do not classify added-vs-modified: an observation whose
+    // provider id we have never stored is a new transaction, even if the
+    // provider labelled it "modified" (fixes the Mono corrected-amount case).
+    const observed = providerTransaction(
       fixture.providerBankAccountId,
-      `unknown-modified-${randomUUID()}`,
+      `unknown-observed-${randomUUID()}`,
     );
     const removedId = `unknown-removed-${randomUUID()}`;
     vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
       fakeProvider(async () => ({
-        transactions: { added: [], modified: [modified], removed: [removedId] },
+        transactions: { added: [], modified: [observed], removed: [removedId] },
         nextCursor: 'quarantine-cursor',
         hasMore: false,
       })),
     );
 
     try {
-      await transactionSyncService.syncBankAccount({
+      const result = await transactionSyncService.syncBankAccount({
         bankAccountId: fixture.bankAccountId,
         trigger: 'initial',
         actorUserId: fixture.userId,
       });
+      expect(result.outcome).toBe('completed');
+      expect(result.added).toBe(1);
+      expect(result.removed).toBe(0);
 
-      const entries = await db('bank_transaction_feed_entries')
-        .where({ bank_account_feed_id: fixture.feedId })
-        .whereIn('provider_transaction_id', [modified.transactionId, removedId])
-        .select(
-          'provider_transaction_id',
-          'resolution_state',
-          'resolution_reason',
-        )
-        .orderBy('provider_transaction_id');
-      expect(entries).toEqual([
-        {
-          provider_transaction_id: modified.transactionId,
-          resolution_state: 'unresolved',
-          resolution_reason: 'modified_without_canonical_transaction',
-        },
-        {
-          provider_transaction_id: removedId,
-          resolution_state: 'unresolved',
-          resolution_reason: 'removed_without_canonical_transaction',
-        },
-      ]);
+      expect(
+        await db('bank_transaction_feed_entries')
+          .where({
+            bank_account_feed_id: fixture.feedId,
+            provider_transaction_id: observed.transactionId,
+          })
+          .first('observation_type', 'bank_transaction_id'),
+      ).toMatchObject({
+        observation_type: 'added',
+        bank_transaction_id: expect.any(String),
+      });
+
+      // Removals of never-stored ids (e.g. formerly-pending) leave no trace.
+      expect(
+        await db('bank_transaction_feed_entries')
+          .where({
+            bank_account_feed_id: fixture.feedId,
+            provider_transaction_id: removedId,
+          })
+          .first('id'),
+      ).toBeUndefined();
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }

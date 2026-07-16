@@ -6,6 +6,7 @@ export const OUTBOX_INTENT = {
   NOTIFICATION_COMMS_REQUESTED: 'notification_comms_requested',
   GL_BALANCE_RECALC_REQUESTED: 'gl_balance_recalc_requested',
   CLOSE_SIGNAL_EVAL_REQUESTED: 'close_signal_eval_requested',
+  BANK_SYNC_REQUESTED: 'bank_sync_requested',
 } as const;
 
 export type OutboxIntentType =

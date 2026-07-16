@@ -233,9 +233,7 @@ async function validateCurrencyId({
   currencyId: string | null | undefined;
 }) {
   if (!currencyId) return;
-  const currency = await trx('currencies')
-    .where('id', currencyId)
-    .first('id');
+  const currency = await trx('currencies').where('id', currencyId).first('id');
 
   if (!currency) {
     throw new Error(`Invalid currency ID: ${currencyId}`);

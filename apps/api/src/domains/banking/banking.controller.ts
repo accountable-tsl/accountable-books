@@ -3,10 +3,10 @@ import { z } from 'zod';
 
 import {
   connectAccountsService,
-  scheduleTransactionSync,
   transactionSyncService,
 } from '../../integrations/banking/index.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
+import { requestBankAccountSync } from '../../integrations/banking/transaction-sync.outbox.js';
 import {
   ErrorCode,
   errorResponse,
@@ -235,7 +235,7 @@ export class BankingController {
         );
       }
 
-      const job = await scheduleTransactionSync({
+      const { id: outboxId } = await requestBankAccountSync({
         bankAccountId: account.id,
         trigger: 'manual',
         actorUserId: userId,
@@ -243,75 +243,12 @@ export class BankingController {
 
       res.json(
         successResponse('Transaction sync queued successfully', {
-          jobId: job?.id ?? 'disabled-job-id',
+          outboxId,
         }),
       );
     } catch (error: any) {
       console.error('Error queuing transaction sync:', error);
       res.status(500).json(errorResponse('Failed to queue transaction sync'));
-    }
-  }
-
-  /**
-   * Set transaction sync start date
-   * POST /api/banking/set-sync-date
-   */
-  async setTransactionSyncDate(req: AuthRequest, res: Response) {
-    try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
-      const { connectionId, fromDate } = req.body;
-
-      if (!userId || !companyId) {
-        return res
-          .status(400)
-          .json(errorResponse('Missing user or company ID'));
-      }
-
-      if (!connectionId) {
-        return res.status(400).json(errorResponse('Missing connectionId'));
-      }
-
-      if (!fromDate) {
-        return res.status(400).json(errorResponse('Missing fromDate'));
-      }
-
-      // Validate date format
-      const date = new Date(fromDate);
-      if (isNaN(date.getTime())) {
-        return res.status(400).json(errorResponse('Invalid date format'));
-      }
-
-      // Check if date is not too far in the past (limit to 2 years)
-      const twoYearsAgo = new Date();
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-
-      if (date < twoYearsAgo) {
-        return res
-          .status(400)
-          .json(errorResponse('Date cannot be more than 2 years in the past'));
-      }
-
-      const updated = await transactionSyncService.setTransactionSyncDate(
-        connectionId,
-        date,
-        companyId,
-      );
-      if (!updated) {
-        return res.status(404).json(errorResponse('Bank connection not found'));
-      }
-
-      res.json(
-        successResponse('Transaction sync date updated successfully', {
-          connectionId,
-          fromDate: date.toISOString(),
-        }),
-      );
-    } catch (error: any) {
-      console.error('Error setting transaction sync date:', error);
-      res
-        .status(500)
-        .json(errorResponse('Failed to set transaction sync date'));
     }
   }
 }

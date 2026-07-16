@@ -4,20 +4,22 @@ import type {
   ConnectedAccount,
 } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
-import { startOfDay, subDays } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
 import { knexClient } from '../../../db/knexClient.js';
+import { updateBankCurrentBalance } from '../../../domains/balances/bank-current-balance.js';
 import { createBankAccountFeed } from '../../../domains/banking/bank-account-feeds/bank-account-feeds.model.js';
 import { createBankConnectionSecret } from '../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js';
 import { createBankConnection } from '../../../domains/banking/bank-connections/bank-connections.model.js';
+import { createHistoryImport } from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import { logger } from '../../../shared/utils/logger.js';
 import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { scheduleTransactionSync } from '../jobs/transaction-sync.queue.js';
 import { providerRegistry } from '../providers/registry.js';
+import { writeBankSyncOutbox } from '../transaction-sync.outbox.js';
 import { sanitizeProviderSnapshot } from '../utils/provider-snapshot.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
@@ -162,6 +164,18 @@ export class ConnectAccountsService {
         }
         log('secret_created', { connectionId });
 
+        const companyRow = await trx('companies')
+          .where({ id: params.companyId })
+          .first<{ default_timezone: string }>('default_timezone');
+        const companyTimezone = companyRow?.default_timezone || 'Etc/UTC';
+        // Store the company-local calendar day as a date string so the PG
+        // date column is never shifted by UTC Date conversion.
+        const syncFromDate = formatInTimeZone(
+          new Date(),
+          companyTimezone,
+          'yyyy-MM-dd',
+        );
+
         const createdAccounts: ConnectedAccount[] = [];
         let newCount = 0;
         let updatedCount = 0;
@@ -194,9 +208,8 @@ export class ConnectAccountsService {
               bank_account_id: bankAccountId,
               bank_connection_id: connectionId,
               provider_account_id: account.accountId,
-              sync_from_date: startOfDay(
-                subDays(new Date(), provider.initialTransactionHistoryDays),
-              ),
+              sync_from_date: syncFromDate,
+              sync_from_timezone: companyTimezone,
               provider_snapshot: sanitizeProviderSnapshot(
                 account.rawData,
                 'account',
@@ -213,6 +226,30 @@ export class ConnectAccountsService {
             throw new Error(
               `Failed to create feed for account ${account.displayName}: ${feedResult.message}`,
             );
+          }
+
+          await createHistoryImport({
+            bankAccountFeedId: feedResult.data.id,
+            companyId: params.companyId,
+            trx,
+          });
+
+          if (provider.supportsTransactionSync()) {
+            await writeBankSyncOutbox(trx, {
+              bankAccountId,
+              trigger: 'initial',
+              actorUserId: params.userId,
+            });
+          }
+
+          if (account.reportedCurrentBalance) {
+            await updateBankCurrentBalance({
+              companyId: params.companyId,
+              bankAccountId,
+              balance: account.reportedCurrentBalance.amount,
+              asOf: account.reportedCurrentBalance.asOf,
+              client: trx,
+            });
           }
 
           createdAccounts.push({
@@ -254,39 +291,14 @@ export class ConnectAccountsService {
         });
       });
 
-      // Queue after commit so jobs never race an uncommitted connection.
       if (
         response.success &&
         response.data &&
         provider.supportsTransactionSync()
       ) {
-        try {
-          await Promise.all(
-            response.data.accounts.map((account) =>
-              scheduleTransactionSync(
-                {
-                  bankAccountId: account.id,
-                  trigger: 'initial',
-                  actorUserId: params.userId,
-                },
-                { delay: 5000 },
-              ),
-            ),
-          );
-          log('sync_queued', {
-            bankAccountIds: response.data.accounts.map((account) => account.id),
-            syncType: 'initial',
-            queueDelay: 5000,
-          });
-        } catch (error) {
-          // Account connection is already committed; a queue outage must not
-          // misreport it as a failed connection.
-          log('sync_queue_failed', {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            errorName: error instanceof Error ? error.name : 'UnknownError',
-            providerKey: params.providerKey,
-          });
-        }
+        log('initial_sync_outbox_written', {
+          bankAccountIds: response.data.accounts.map((account) => account.id),
+        });
       }
 
       return response;
@@ -351,16 +363,6 @@ async function createConnectedAccount(input: {
       currencyCode: account.currencyCode,
       bankId: input.bankId,
       businessOrPersonal: 'business', // Default to business
-      openingBalance: {
-        date: account.balanceDate,
-        amount: account.balance,
-        origin: 'system_snapshot',
-        metadata: {
-          capture_channel: 'connection',
-          capture_initiator: 'system',
-          note: `Account connected from ${input.providerName}. Opening balance was gotten from the connection.`,
-        },
-      },
     },
     trx: input.trx,
   });

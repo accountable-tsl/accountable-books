@@ -6,11 +6,11 @@ import plaidWebhookRouter from '../plaid.webhook.js';
 
 const mocks = vi.hoisted(() => ({
   findConnectionByItemId: vi.fn(),
-  scheduleSyncForConnection: vi.fn(),
+  requestBankSyncForConnection: vi.fn(),
 }));
 
-vi.mock('../../../../integrations/banking/index.js', () => ({
-  scheduleSyncForConnection: mocks.scheduleSyncForConnection,
+vi.mock('../../../../integrations/banking/transaction-sync.outbox.js', () => ({
+  requestBankSyncForConnection: mocks.requestBankSyncForConnection,
 }));
 
 vi.mock(
@@ -36,9 +36,9 @@ describe('Plaid transaction webhooks', () => {
     vi.clearAllMocks();
   });
 
-  it('routes Item updates through the account fan-out helper', async () => {
+  it('writes coalescable bank sync intents for the connection', async () => {
     mocks.findConnectionByItemId.mockResolvedValue({ id: 'connection-1' });
-    mocks.scheduleSyncForConnection.mockResolvedValue([]);
+    mocks.requestBankSyncForConnection.mockResolvedValue(2);
     const app = express();
     app.use(plaidWebhookRouter);
 
@@ -59,8 +59,7 @@ describe('Plaid transaction webhooks', () => {
       providerKey: 'plaid',
       itemId: 'item-1',
     });
-    expect(mocks.scheduleSyncForConnection).toHaveBeenCalledOnce();
-    expect(mocks.scheduleSyncForConnection).toHaveBeenCalledWith({
+    expect(mocks.requestBankSyncForConnection).toHaveBeenCalledWith({
       connectionId: 'connection-1',
       trigger: 'webhook',
     });

@@ -9,13 +9,14 @@ import {
   US_USER_EMAIL,
 } from '../../../../../test/helpers.js';
 import { encrypt } from '../../../../shared/utils/crypto.utils.js';
-import { TransactionSyncStrategy } from '../../types/base.js';
+import { TransactionUpdateBuffer } from '../../providers/provider-sync.utils.js';
 
 import type {
   BankingProvider,
+  FetchTransactionUpdateInput,
   ProviderError,
+  ProviderHistoryStatus,
   ProviderTransaction,
-  TransactionSyncResult,
 } from '../../types/base.js';
 
 export async function createSyncFailureFixture(db: Knex): Promise<{
@@ -103,6 +104,7 @@ export async function createSyncFailureFixture(db: Knex): Promise<{
       bank_account_id: bankAccount.id,
       bank_connection_id: connection.id,
       provider_account_id: providerBankAccountId,
+      sync_from_timezone: 'Etc/UTC',
       connected_by_id: userId,
     })
     .returning('id');
@@ -118,23 +120,82 @@ export async function createSyncFailureFixture(db: Knex): Promise<{
   };
 }
 
+/**
+ * One page of a fake provider's paginated stream, in the shape most tests
+ * find convenient. added/modified both flatten into observed transactions —
+ * the split only exists so tests read naturally.
+ */
+export interface FakeProviderPage {
+  transactions: {
+    added: ProviderTransaction[];
+    modified: ProviderTransaction[];
+    removed: string[];
+  };
+  nextCursor?: string;
+  hasMore: boolean;
+  /** Defaults to 'collecting' so not-ready semantics are opt-out. */
+  historyStatus?: ProviderHistoryStatus;
+}
+
+export type FakeProviderPageFn = (params: {
+  cursor?: string;
+  fetchInput: FetchTransactionUpdateInput;
+}) => Promise<FakeProviderPage>;
+
+/**
+ * Builds a BankingProvider whose fetchTransactionUpdate paginates the given
+ * page function exactly like a real adapter would: it loops until hasMore is
+ * false, enforces account scoping via the shared buffer, and reports the
+ * final page's cursor as the opaque checkpoint.
+ */
 export function fakeProvider(
-  syncTransactions: BankingProvider['syncTransactions'],
-  transactionSyncStrategy = TransactionSyncStrategy.CURSOR_BASED,
+  pageFn: FakeProviderPageFn,
+  key: 'plaid' | 'mono' = 'plaid',
 ): BankingProvider {
+  const fetchTransactionUpdate = async (input: FetchTransactionUpdateInput) => {
+    const buffer = new TransactionUpdateBuffer({
+      providerKey: key,
+      providerBankAccountId: input.providerBankAccountId,
+    });
+    let cursor = input.checkpoint ?? undefined;
+    let historyStatus: ProviderHistoryStatus = 'collecting';
+
+    while (true) {
+      const page = await pageFn({ cursor, fetchInput: input });
+      buffer.addPage({
+        observedTransactions: [
+          ...page.transactions.added,
+          ...page.transactions.modified,
+        ],
+        removedTransactionIds: page.transactions.removed,
+      });
+      if (page.historyStatus) historyStatus = page.historyStatus;
+      if (!page.hasMore) {
+        return {
+          observedTransactions: buffer.observedTransactions,
+          removedTransactionIds: buffer.removedTransactionIds,
+          nextCheckpoint: key === 'mono' ? null : (page.nextCursor ?? null),
+          historyStatus,
+          pageCount: buffer.pageCount,
+          approximatePayloadBytes: buffer.approximatePayloadBytes,
+        };
+      }
+      if (!page.nextCursor) {
+        throw new Error('Fake provider reported more pages without a cursor');
+      }
+      cursor = page.nextCursor;
+    }
+  };
+
   return {
-    key:
-      transactionSyncStrategy === TransactionSyncStrategy.CURSOR_BASED
-        ? 'plaid'
-        : 'mono',
+    key,
     name: 'Fake provider',
     initialTransactionHistoryDays: 730,
-    transactionSyncStrategy,
     createLinkToken: vi.fn(),
     exchangeToken: vi.fn(),
     getConnectionDetails: vi.fn(),
     supportsTransactionSync: vi.fn(() => true),
-    syncTransactions,
+    fetchTransactionUpdate,
     handleError: vi.fn((error) => error as ProviderError),
   } as unknown as BankingProvider;
 }
@@ -142,7 +203,7 @@ export function fakeProvider(
 export function emptyPage(
   nextCursor: string,
   hasMore: boolean,
-): TransactionSyncResult {
+): FakeProviderPage {
   return {
     transactions: { added: [], modified: [], removed: [] },
     nextCursor,
@@ -218,6 +279,12 @@ export async function cleanupBankAccountAndFeed(
       .first<{ id: string }>('id');
     if (feed) {
       await trx('bank_transaction_feed_entries')
+        .where({ bank_account_feed_id: feed.id })
+        .delete();
+      await trx('bank_transaction_history_candidates')
+        .where({ bank_account_feed_id: feed.id })
+        .delete();
+      await trx('bank_transaction_history_imports')
         .where({ bank_account_feed_id: feed.id })
         .delete();
     }

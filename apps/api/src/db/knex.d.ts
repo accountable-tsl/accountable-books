@@ -120,6 +120,12 @@ import type {
   NewGLPeriodBalance,
 } from '../domains/balances/balances.types.js';
 import type {
+  BankTransactionHistoryCandidate,
+  BankTransactionHistoryImport,
+  NewBankTransactionHistoryCandidate,
+  NewBankTransactionHistoryImport,
+} from '../domains/banking/bank-transaction-history/bank-transaction-history.types.js';
+import type {
   JournalBatch,
   JournalEntry,
   NewJournalBatch,
@@ -272,6 +278,18 @@ declare module 'knex/types/tables' {
       BankTransactionFeedEntry,
       NewBankTransactionFeedEntry,
       Partial<Omit<BankTransactionFeedEntry, 'id'>>
+    >;
+
+    bank_transaction_history_imports: Knex.CompositeTableType<
+      BankTransactionHistoryImport,
+      NewBankTransactionHistoryImport,
+      Partial<Omit<BankTransactionHistoryImport, 'id'>>
+    >;
+
+    bank_transaction_history_candidates: Knex.CompositeTableType<
+      BankTransactionHistoryCandidate,
+      NewBankTransactionHistoryCandidate,
+      Partial<Omit<BankTransactionHistoryCandidate, 'id'>>
     >;
 
     bank_transactions: Knex.CompositeTableType<

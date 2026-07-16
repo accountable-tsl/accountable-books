@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
+import { executeLeasedBankSync } from '../../integrations/banking/transaction-sync.outbox.js';
 import { getLogger } from '../../shared/utils/logger.js';
 import { dispatchActivityEventRequested } from '../activity/activity.model.js';
 import { handleGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
@@ -15,6 +16,7 @@ import { workMaterializationPayloadSchema } from '../work/work.types.js';
 import { OUTBOX_INTENT } from './intents.js';
 import { alertOutboxDeadLetter } from './outbox.alerts.js';
 import {
+  claimLeasedIntent,
   claimNextPendingIntent,
   deferIntent,
   markIntentProcessed,
@@ -35,6 +37,25 @@ class DeferSignal extends Error {
 }
 
 type IntentOutcome = 'processed' | 'deferred' | 'failed' | 'empty';
+
+function filterAllowsBankSync(filter?: DispatchFilter): boolean {
+  if (
+    filter?.intentType &&
+    filter.intentType !== OUTBOX_INTENT.BANK_SYNC_REQUESTED
+  ) {
+    return false;
+  }
+  if (
+    filter?.intentTypes?.length &&
+    !filter.intentTypes.includes(OUTBOX_INTENT.BANK_SYNC_REQUESTED)
+  ) {
+    return false;
+  }
+  if (filter?.excludeIntentTypes?.includes(OUTBOX_INTENT.BANK_SYNC_REQUESTED)) {
+    return false;
+  }
+  return true;
+}
 
 async function dispatchIntent(
   trx: Knex.Transaction,
@@ -72,6 +93,22 @@ async function dispatchIntent(
 async function processOneIntent(
   filter?: DispatchFilter,
 ): Promise<IntentOutcome> {
+  if (filterAllowsBankSync(filter)) {
+    const leased = await knexClient.transaction(async (trx) =>
+      claimLeasedIntent(trx, {
+        ...filter,
+        intentType: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+      }),
+    );
+    if (leased) {
+      const outcome = await executeLeasedBankSync(leased);
+      if (outcome === 'failed') {
+        return 'failed';
+      }
+      return outcome;
+    }
+  }
+
   const result = await knexClient.transaction(
     async (
       trx,
@@ -79,7 +116,13 @@ async function processOneIntent(
       outcome: IntentOutcome;
       deadLetter?: { row: OutboxRow; error: unknown };
     }> => {
-      const row = await claimNextPendingIntent(trx, filter);
+      const row = await claimNextPendingIntent(trx, {
+        ...filter,
+        excludeIntentTypes: [
+          ...(filter?.excludeIntentTypes ?? []),
+          OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+        ],
+      });
       if (!row) {
         return { outcome: 'empty' };
       }

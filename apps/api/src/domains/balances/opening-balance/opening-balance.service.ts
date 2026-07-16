@@ -237,9 +237,13 @@ export async function setBankOpeningBalance({
     let postJournal = false;
 
     if (!existingBaseline) {
-      // First-ever baseline, becomes the baseline
-      newRole = 'baseline';
-      postJournal = true;
+      if (origin === 'user_entered') {
+        newRole = 'baseline';
+        postJournal = true;
+      } else {
+        newRole = 'checkpoint';
+        postJournal = false;
+      }
     } else if (origin === 'user_entered') {
       // User-entered always becomes baseline, reverses old
       // We treat this as a deliberate correction — the new baseline overrides the old.
@@ -251,6 +255,12 @@ export async function setBankOpeningBalance({
       newRole = 'checkpoint';
       reverseOld = false;
       postJournal = false;
+    }
+
+    if (postJournal && origin !== 'user_entered') {
+      throw new Error(
+        'Invariant violated: postJournal requires user_entered origin',
+      );
     }
 
     // If replacing a baseline, flip old to checkpoint and reverse its journal (if any)

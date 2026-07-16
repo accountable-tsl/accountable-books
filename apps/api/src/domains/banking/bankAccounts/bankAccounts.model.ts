@@ -1,4 +1,5 @@
 import type { Knex } from 'knex';
+import { format } from 'date-fns';
 import z from 'zod';
 
 import { knexClient } from '../../../db/knexClient.js';
@@ -124,6 +125,8 @@ export async function getSyncableBankAccounts(
     connectionId?: string;
     companyId?: string;
     bankAccountId?: string;
+    /** When true, skip feeds still owned by the initial-sync outbox intent. */
+    requireInitialSyncComplete?: boolean;
   } = {},
   trx?: Knex.Transaction,
 ): Promise<SyncableBankAccount[]> {
@@ -154,8 +157,38 @@ export async function getSyncableBankAccounts(
   if (filters.bankAccountId) {
     query.andWhere('ba.id', filters.bankAccountId);
   }
+  if (filters.requireInitialSyncComplete) {
+    query.whereNotNull('baf.initial_sync_completed_at');
+  }
 
   return query;
+}
+
+function projectHistoricalImport(
+  row:
+    | {
+        status: string;
+        earliest_transaction_date: Date | null;
+        latest_transaction_date: Date | null;
+        transaction_count: number;
+        selected_from_date: Date | null;
+      }
+    | undefined,
+) {
+  if (!row) return null;
+  return {
+    status: row.status,
+    earliestTransactionDate: row.earliest_transaction_date
+      ? format(row.earliest_transaction_date, 'yyyy-MM-dd')
+      : null,
+    latestTransactionDate: row.latest_transaction_date
+      ? format(row.latest_transaction_date, 'yyyy-MM-dd')
+      : null,
+    transactionCount: row.transaction_count,
+    selectedFromDate: row.selected_from_date
+      ? format(row.selected_from_date, 'yyyy-MM-dd')
+      : null,
+  };
 }
 
 export const getBankAccountsWithDetails = async (
@@ -211,11 +244,25 @@ export const getBankAccountsWithDetails = async (
         db.raw('bam.ledger_balance_reporting::text as "ledgerBalance"'),
         'bam.uncategorized_count as uncategorizedTxCount',
         'bam.needs_review_count as needsReviewTxCount',
+        'bam.provider_removed_review_count as providerRemovedReviewCount',
         db.raw('bam.latest_exchange_rate::text as "latestExchangeRate"'),
       ])
       .where('bam.company_id', companyUUID);
 
     const rows = await query;
+    const feedIds = rows
+      .map((row) => row.bankAccountFeedId as string | null)
+      .filter((id): id is string => Boolean(id));
+    const historyImports =
+      feedIds.length > 0
+        ? await db('bank_transaction_history_imports')
+            .whereIn('bank_account_feed_id', feedIds)
+            .select('*')
+        : [];
+    const historyByFeedId = new Map(
+      historyImports.map((row) => [row.bank_account_feed_id, row]),
+    );
+
     const result = rows.map((row) => {
       const activeFeed =
         row.bankAccountFeedId && row.feedRevokedAt == null
@@ -244,6 +291,11 @@ export const getBankAccountsWithDetails = async (
         lastSyncAt: row.lastSyncAt
           ? new Date(row.lastSyncAt).toISOString()
           : null,
+        historicalImport: projectHistoricalImport(
+          row.bankAccountFeedId
+            ? historyByFeedId.get(row.bankAccountFeedId)
+            : undefined,
+        ),
       };
     });
 
@@ -575,55 +627,26 @@ async function createBankAccount({
       throw new Error('Bank account with the same details already exist');
     }
 
-    // Handle opening balance if provided
+    // Manual/user-entered opening balances only. Connect-path accounts never
+    // pass opening_balance — provider balance goes to native balances instead.
     if (v.opening_balance) {
-      try {
-        const obDate = new Date(v.opening_balance.date);
-        const obResult = await setBankOpeningBalance({
-          params: {
-            bank_account_id: bankAccountId,
-            amount: Number(v.opening_balance.amount),
-            coverage_start: obDate,
-            coverage_end: obDate, // Same day for manual entry
-            origin: v.opening_balance.origin ?? 'system_calculated',
-            role: v.opening_balance.role ?? 'checkpoint',
-            metadata: v.opening_balance.metadata,
-          },
-          userId,
-          trx: tx,
-        });
+      const obDate = new Date(v.opening_balance.date);
+      const obResult = await setBankOpeningBalance({
+        params: {
+          bank_account_id: bankAccountId,
+          amount: Number(v.opening_balance.amount),
+          coverage_start: obDate,
+          coverage_end: obDate,
+          origin: v.opening_balance.origin ?? 'user_entered',
+          role: v.opening_balance.role ?? 'baseline',
+          metadata: v.opening_balance.metadata,
+        },
+        userId,
+        trx: tx,
+      });
 
-        if (!obResult.success) {
-          log.warn(
-            {
-              error: obResult.message,
-              bankAccountId,
-              openingBalance: v.opening_balance.amount,
-              openingBalanceDate: v.opening_balance.date,
-            },
-            'Failed to create opening balance - continuing without it',
-          );
-          // Don't fail the whole transaction - just log the warning
-        } else {
-          log.info(
-            {
-              bankAccountId,
-              openingBalanceId: obResult.data?.openingBalanceId,
-              journalBatchId: obResult.data?.journalBatchId,
-              amount: v.opening_balance,
-            },
-            'Opening balance created successfully',
-          );
-        }
-      } catch (error) {
-        log.error(
-          {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            bankAccountId,
-          },
-          'Error creating opening balance',
-        );
-        // Don't fail the transaction - user can add opening balance later
+      if (!obResult.success) {
+        throw new Error(obResult.message || 'Failed to create opening balance');
       }
     }
 

@@ -106,6 +106,8 @@ export function resolveCommsTemplate(input: {
   'close.package_stale',
   'report.delivery_failed',
   'sync.failure_requires_action',
+  'bank.transaction_superseded_review',
+  'bank.transaction_removed_review',
   'user.profile_picture_update_failed',
 ].forEach((eventType) => {
   registerCommsTemplate({

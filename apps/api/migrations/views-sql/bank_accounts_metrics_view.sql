@@ -31,6 +31,16 @@ WITH transaction_stats AS (
     COUNT(*) FILTER (
       WHERE bt.is_deleted = false
         AND bt.ledger_transaction_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM bank_transaction_feed_entries bfe
+          WHERE bfe.bank_transaction_id = bt.id
+            AND bfe.company_id = bt.company_id
+            AND bfe.observation_type = 'removed'
+        )
+    )::int as provider_removed_review_count,
+    COUNT(*) FILTER (
+      WHERE bt.is_deleted = false
+        AND bt.ledger_transaction_id IS NOT NULL
     )::int as posted_count,
     MAX(bt.transaction_date) FILTER (WHERE bt.is_deleted = false) as last_transaction_date,
     MAX(bt.transaction_at) FILTER (WHERE bt.is_deleted = false) as last_transaction_at
@@ -139,6 +149,7 @@ SELECT
   COALESCE(ts.total_transactions, 0) as total_transactions,
   COALESCE(ts.uncategorized_count, 0) as uncategorized_count,
   COALESCE(ts.needs_review_count, 0) as needs_review_count,
+  COALESCE(ts.provider_removed_review_count, 0) as provider_removed_review_count,
   COALESCE(ts.posted_count, 0) as posted_count,
   ts.last_transaction_date,
   ts.last_transaction_at,

@@ -151,6 +151,26 @@ export const NOTIFICATION_EVENT_REGISTRY = {
     defaultPriority: 'high',
     defaultReadPolicy: 'explicit',
   },
+  [NOTIFICATION_TYPE.BANK_TRANSACTION_SUPERSEDED_REVIEW]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_TRANSACTION_SUPERSEDED_REVIEW,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'high',
+    defaultReadPolicy: 'explicit',
+  },
+  [NOTIFICATION_TYPE.BANK_TRANSACTION_REMOVED_REVIEW]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_TRANSACTION_REMOVED_REVIEW,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'high',
+    defaultReadPolicy: 'explicit',
+  },
   [NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED]:
     globalAttentionDefinition(
       NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED,

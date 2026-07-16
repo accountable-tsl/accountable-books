@@ -160,7 +160,7 @@ export type FeedApplyGuardSnapshot = {
   feedId: string;
   bankConnectionId: string;
   syncCursor: string | null;
-  syncFromDate: Date | null;
+  syncFromDate: Date | string | null;
   lastSuccessfulSyncAt: Date | null;
   providerAccountId: string;
   stateVersion: number;
@@ -168,6 +168,18 @@ export type FeedApplyGuardSnapshot = {
 
 function sameInstant(left: Date | null, right: Date | null): boolean {
   return (left?.getTime() ?? null) === (right?.getTime() ?? null);
+}
+
+function sameCalendarDate(
+  left: Date | string | null | undefined,
+  right: Date | string | null | undefined,
+): boolean {
+  const toYmd = (value: Date | string | null | undefined): string | null => {
+    if (value == null) return null;
+    if (typeof value === 'string') return value.slice(0, 10);
+    return value.toISOString().slice(0, 10);
+  };
+  return toYmd(left) === toYmd(right);
 }
 
 export async function assertFeedApplyGuard({
@@ -209,7 +221,10 @@ export async function assertFeedApplyGuard({
     return errorResponse('Feed checkpoint changed; refusing stale apply', null);
   }
   if (
-    !sameInstant(feed.sync_from_date ?? null, snapshot.syncFromDate ?? null) ||
+    !sameCalendarDate(
+      feed.sync_from_date ?? null,
+      snapshot.syncFromDate ?? null,
+    ) ||
     !sameInstant(
       feed.last_successful_sync_at ?? null,
       snapshot.lastSuccessfulSyncAt ?? null,
@@ -248,18 +263,19 @@ export async function advanceFeedCheckpoint({
   expectedStateVersion,
   syncCursor,
   markInitialComplete,
-  initialSyncFromDate,
   trx,
 }: {
   feedId: string;
   companyId: string;
   expectedStateVersion: number;
+  /** Opaque provider checkpoint, stored verbatim. */
   syncCursor: string | null;
   markInitialComplete: boolean;
-  initialSyncFromDate?: Date;
   trx: Knex.Transaction;
 }): Promise<ApiResponse<{ id: string }>> {
   try {
+    // sync_from_date is deliberately untouched: the accepted starting date is
+    // set at connect and only ever moved earlier by history promotion.
     const patch: Record<string, unknown> = {
       sync_cursor: syncCursor,
       last_successful_sync_at: trx.fn.now(),
@@ -267,9 +283,6 @@ export async function advanceFeedCheckpoint({
     };
     if (markInitialComplete) {
       patch.initial_sync_completed_at = trx.fn.now();
-      if (initialSyncFromDate) {
-        patch.sync_from_date = initialSyncFromDate;
-      }
     }
 
     const updated = await trx('bank_account_feeds')

@@ -72,23 +72,6 @@ pnpm store prune || true
 log '🐳 Cleaning Docker...'
 docker system prune -f || true
 
-# From here on, the tree is already wiped; install/check failures need a clear hint.
-on_exit() {
-  local ec=$?
-  [[ "$ec" -eq 0 ]] && return 0
-  printf '\n%b\n' "${RED}clean-all stopped with exit code ${ec} (see output above).${NC}"
-  printf '%b\n' "${YELLOW}Artifacts are already removed. After fixing the issue, run:${NC}"
-  printf '  %b\n' "${GREEN}pnpm install --frozen-lockfile && make check${NC}"
-  exit "$ec"
-}
-trap on_exit EXIT
-
-log '📦 Reinstalling dependencies from committed lockfile...'
-set -e
-pnpm install --frozen-lockfile
-
-log '🔨 Running quality checks (make check)...'
-make check
-
-trap - EXIT
 log_ok '✅ Nuclear cleanup complete!'
+printf '\n%b\n' "${YELLOW}To restore the environment, run:${NC}"
+printf '  %b\n' "${GREEN}make setup${NC}"

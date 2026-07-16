@@ -13,6 +13,8 @@ export const NOTIFICATION_TYPE = {
   CLOSE_PACKAGE_STALE: 'close.package_stale',
   REPORT_DELIVERY_FAILED: 'report.delivery_failed',
   SYNC_FAILURE_REQUIRES_ACTION: 'sync.failure_requires_action',
+  BANK_TRANSACTION_SUPERSEDED_REVIEW: 'bank.transaction_superseded_review',
+  BANK_TRANSACTION_REMOVED_REVIEW: 'bank.transaction_removed_review',
   USER_PROFILE_PICTURE_UPDATE_FAILED: 'user.profile_picture_update_failed',
 } as const;
 export type NotificationType =

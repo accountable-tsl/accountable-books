@@ -1,5 +1,3 @@
-import type { Job, JobsOptions } from 'bullmq';
-
 import { isProd } from '../../../config/env.js';
 import { getSyncableBankAccounts } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import {
@@ -7,31 +5,21 @@ import {
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { createQueue } from '../../../jobs/queues/queue-factory.js';
-import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { logger } from '../../../shared/utils/logger.js';
 import {
   BANK_ACCOUNT_SYNC_JOB_ATTEMPTS,
   BANK_ACCOUNT_SYNC_JOB_BACKOFF,
 } from '../transaction-sync.constants.js';
+import { requestBankAccountSync } from '../transaction-sync.outbox.js';
 
-import type { TransactionSyncTrigger } from '../services/transaction-sync.service.js';
-
-export interface TransactionSyncJobData {
-  bankAccountId: string;
-  trigger: TransactionSyncTrigger;
-  actorUserId?: string;
-}
-
-type TransactionSyncQueueData =
-  | TransactionSyncJobData
-  | { syncType: 'periodic' };
-
-export const transactionSyncQueue = createQueue<TransactionSyncQueueData>(
+/**
+ * BullMQ owns only the daily scan scheduler. Account sync execution is
+ * outbox-owned (`BANK_SYNC_REQUESTED`); the scan writes/coalesces intents.
+ */
+export const transactionSyncQueue = createQueue<{ syncType: 'periodic' }>(
   'transaction-sync',
   {
     defaultJobOptions: {
-      // Eight exponential attempts starting at 30 seconds extend beyond the
-      // account lock's 30-minute TTL, preserving a trailing webhook sync.
       attempts: BANK_ACCOUNT_SYNC_JOB_ATTEMPTS,
       backoff: BANK_ACCOUNT_SYNC_JOB_BACKOFF,
       removeOnComplete: isProd ? { age: 86400, count: 1000 } : { count: 100 },
@@ -39,64 +27,6 @@ export const transactionSyncQueue = createQueue<TransactionSyncQueueData>(
     },
   },
 );
-
-export async function scheduleTransactionSync(
-  data: TransactionSyncJobData,
-  options: {
-    delay?: number;
-    priority?: number;
-    attempts?: number;
-    backoff?: JobsOptions['backoff'];
-  } = {},
-): Promise<Job<TransactionSyncJobData> | null> {
-  const job = await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
-    transactionSyncQueue.add('sync-bank-account', withJobTelemetry(data), {
-      delay: options.delay,
-      priority: options.priority ?? 0,
-      ...(options.attempts === undefined ? {} : { attempts: options.attempts }),
-      ...(options.backoff === undefined ? {} : { backoff: options.backoff }),
-    }),
-  );
-  return job as Job<TransactionSyncJobData> | null;
-}
-
-/** Fan an Item-level event out into one independent job per eligible account. */
-export async function scheduleSyncForConnection({
-  connectionId,
-  trigger,
-  actorUserId,
-  delay,
-}: {
-  connectionId: string;
-  trigger: TransactionSyncTrigger;
-  actorUserId?: string;
-  delay?: number;
-}): Promise<Array<Job<TransactionSyncJobData> | null>> {
-  const accounts = await getSyncableBankAccounts({ connectionId });
-  const jobs = await Promise.all(
-    accounts.map((account) =>
-      scheduleTransactionSync(
-        {
-          bankAccountId: account.id,
-          trigger,
-          ...(actorUserId ? { actorUserId } : {}),
-        },
-        { delay },
-      ),
-    ),
-  );
-  logger.info(
-    {
-      connectionId,
-      trigger,
-      accountCount: accounts.length,
-      queuedJobCount: jobs.filter(Boolean).length,
-      delay: delay ?? 0,
-    },
-    'Connection transaction sync fanned out to account jobs',
-  );
-  return jobs;
-}
 
 export async function scheduleDailySyncScan(cronPattern = '0 2 * * *') {
   await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
@@ -114,6 +44,30 @@ export async function scheduleDailySyncScan(cronPattern = '0 2 * * *') {
       },
     ),
   );
+}
+
+/** Wake path: write one durable sync intent per syncable account. */
+export async function enqueuePeriodicBankSyncIntents(): Promise<{
+  accountCount: number;
+  failedCount: number;
+}> {
+  const accounts = await getSyncableBankAccounts();
+  const results = await Promise.allSettled(
+    accounts.map((account) =>
+      requestBankAccountSync({
+        bankAccountId: account.id,
+        trigger: 'periodic',
+      }),
+    ),
+  );
+  const failedCount = results.filter(
+    (result) => result.status === 'rejected',
+  ).length;
+  logger.info(
+    { accountCount: accounts.length, failedCount },
+    'Periodic bank sync intents written',
+  );
+  return { accountCount: accounts.length, failedCount };
 }
 
 export async function getTransactionSyncQueueStats() {

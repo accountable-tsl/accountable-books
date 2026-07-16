@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { markConnectionRequiresAction } from '../../../domains/banking/bank-connections/bank-connections.model.js';
+import { markHistoryImportStatus } from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
 import { completeSyncRun } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.model.js';
 import {
   writeBankReconnectNotificationLifecycle,
@@ -105,6 +106,33 @@ export async function handleTransactionSyncFailure(input: {
           error: syncErrorMessage(completionError),
         },
         'Failed to record transaction sync run failure',
+      );
+    }
+  }
+
+  // A non-retryable failure while history is still being collected means the
+  // bookkeeper will never get an earlier-date offer from this run; surface
+  // that as a failed history import (best-effort, own transaction).
+  if (!failure.retryable && input.account) {
+    const account = input.account;
+    try {
+      await knexClient.transaction((trx) =>
+        markHistoryImportStatus({
+          bankAccountFeedId: account.feed_id,
+          companyId: account.company_id,
+          status: 'failed',
+          onlyIfStatus: 'collecting',
+          trx,
+        }),
+      );
+    } catch (historyError) {
+      logger.error(
+        {
+          traceId: input.traceId,
+          bankAccountId: input.bankAccountId,
+          error: syncErrorMessage(historyError),
+        },
+        'Failed to mark bank history import as failed',
       );
     }
   }

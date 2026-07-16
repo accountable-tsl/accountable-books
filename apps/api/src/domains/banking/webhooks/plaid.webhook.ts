@@ -2,8 +2,8 @@ import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 import express, { Router } from 'express';
 
-import { scheduleSyncForConnection } from '../../../integrations/banking/index.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
+import { requestBankSyncForConnection } from '../../../integrations/banking/transaction-sync.outbox.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
 import { logger } from '../../../shared/utils/logger.js';
 
@@ -169,14 +169,14 @@ async function handleTransactionWebhook(
         return;
       }
 
-      const jobs = await scheduleSyncForConnection({
+      const intentCount = await requestBankSyncForConnection({
         connectionId: connection.id,
         trigger: 'webhook',
       });
 
-      log('Sync jobs queued', {
+      log('Bank sync intents written', {
         connection_id: connection.id,
-        queued_job_count: jobs.filter(Boolean).length,
+        intent_count: intentCount,
       });
       break;
     }
