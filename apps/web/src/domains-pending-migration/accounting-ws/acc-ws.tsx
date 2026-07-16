@@ -100,21 +100,30 @@ export function AccountingWorkspace() {
     totalLedgerBalance,
     totalBankBalanceRep,
     anyBankAccountWithoutExchangeRate,
+    hasRecordedBankBalance,
   } = bankAccounts.reduce(
     (totals, acc) => {
       const uncat = acc.uncategorizedTxCount;
       const review = acc.needsReviewTxCount;
       const ledger = parseFloat(acc.ledgerBalance);
       const rate = parseFloat(acc.latestExchangeRate ?? '1');
-      const statement = parseFloat(acc.statementBalance) * rate;
+      // Prefer derived recorded balance for company totals; skip unknown (null).
+      const recordedNative = acc.recordedBankBalance;
+      const recordedRep =
+        recordedNative == null ? null : parseFloat(recordedNative) * rate;
 
       return {
         totalUncategorizedCount: totals.totalUncategorizedCount + uncat,
         totalNeedsReviewCount: totals.totalNeedsReviewCount + review,
         totalLedgerBalance: totals.totalLedgerBalance + ledger,
-        totalBankBalanceRep: totals.totalBankBalanceRep + statement,
+        totalBankBalanceRep:
+          recordedRep == null
+            ? totals.totalBankBalanceRep
+            : totals.totalBankBalanceRep + recordedRep,
         anyBankAccountWithoutExchangeRate:
           totals.anyBankAccountWithoutExchangeRate || !acc.latestExchangeRate,
+        hasRecordedBankBalance:
+          totals.hasRecordedBankBalance || recordedNative != null,
       };
     },
     {
@@ -123,6 +132,7 @@ export function AccountingWorkspace() {
       totalLedgerBalance: 0,
       totalBankBalanceRep: 0,
       anyBankAccountWithoutExchangeRate: false,
+      hasRecordedBankBalance: false,
     },
   );
 
@@ -196,9 +206,9 @@ export function AccountingWorkspace() {
           <Separator className="mb-4" />
           <div className="grid min-h-[5rem] grid-cols-3 gap-4">
             <div className="flex h-full flex-col justify-between gap-2 divide-y overflow-clip rounded-md border p-4">
-              {!anyBankAccountWithoutExchangeRate && (
+              {!anyBankAccountWithoutExchangeRate && hasRecordedBankBalance && (
                 <SimpleTooltip
-                  content="Total native balances from bank feeds converted into reporting currency with today’s rate. Use it to see what the bank statements translate to right now"
+                  content="Bank balance per our records (derived from the latest provider balance and imported transactions), converted to reporting currency. Compare with ledger to see the gap."
                   contentClassName="text-center"
                 >
                   <div className="grid grid-cols-2 gap-2 truncate">
@@ -287,14 +297,18 @@ export function AccountingWorkspace() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
-                        <FormattedAmount
-                          amount={acc.statementBalance ?? 0}
-                          currency={acc.currencyCode}
-                          showSymbol={true}
-                        />
+                        {acc.recordedBankBalance == null ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <FormattedAmount
+                            amount={acc.recordedBankBalance}
+                            currency={acc.currencyCode}
+                            showSymbol={true}
+                          />
+                        )}
                       </div>
                       <div className="text-muted-foreground text-[0.80rem] font-light">
-                        Statement Balance
+                        Bank (our records)
                       </div>
                     </div>
                     <div>
@@ -489,7 +503,10 @@ function MiniBankAccountCard({
 }: MiniBankAccountCardProps) {
   const needsReview = account.needsReviewTxCount ?? 0;
   const Uncategorized = account.uncategorizedTxCount ?? 0;
-  const balance = formatAmount(account?.statementBalance ?? 0, {});
+  const balance =
+    account.recordedBankBalance == null
+      ? '—'
+      : formatAmount(account.recordedBankBalance, {});
   const syncAt = account.lastSyncAt
     ? formatDistanceToNowStrict(new Date(account.lastSyncAt))
     : undefined;

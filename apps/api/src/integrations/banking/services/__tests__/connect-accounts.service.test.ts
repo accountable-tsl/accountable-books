@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   createFeed: vi.fn(),
   createHistoryImport: vi.fn(),
   writeSyncOutbox: vi.fn(),
-  updateBankCurrentBalance: vi.fn(),
+  updateProviderReportedBalance: vi.fn(),
   getProvider: vi.fn(),
   getEnabledProvider: vi.fn(),
 }));
@@ -50,7 +50,7 @@ vi.mock('../../transaction-sync.outbox.js', () => ({
 }));
 
 vi.mock('../../../../domains/balances/bank-current-balance.js', () => ({
-  updateBankCurrentBalance: mocks.updateBankCurrentBalance,
+  updateProviderReportedBalance: mocks.updateProviderReportedBalance,
 }));
 
 vi.mock('../../providers/registry.js', () => ({
@@ -100,7 +100,7 @@ describe('connected account initial synchronization', () => {
     });
     mocks.createHistoryImport.mockResolvedValue(undefined);
     mocks.writeSyncOutbox.mockResolvedValue(undefined);
-    mocks.updateBankCurrentBalance.mockResolvedValue(undefined);
+    mocks.updateProviderReportedBalance.mockResolvedValue(undefined);
     mocks.getEnabledProvider.mockResolvedValue({
       id: 'provider-1',
       name: 'Plaid',
@@ -168,7 +168,7 @@ describe('connected account initial synchronization', () => {
         },
       ],
     ]);
-    expect(mocks.updateBankCurrentBalance).not.toHaveBeenCalled();
+    expect(mocks.updateProviderReportedBalance).not.toHaveBeenCalled();
   });
 
   it('stores native balance when the provider supplies reportedCurrentBalance', async () => {
@@ -211,7 +211,7 @@ describe('connected account initial synchronization', () => {
       userId: 'user-1',
     });
 
-    expect(mocks.updateBankCurrentBalance).toHaveBeenCalledWith(
+    expect(mocks.updateProviderReportedBalance).toHaveBeenCalledWith(
       expect.objectContaining({
         companyId: 'company-1',
         bankAccountId: 'account-1',

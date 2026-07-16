@@ -7,7 +7,7 @@ import type { Knex } from 'knex';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { knexClient } from '../../../db/knexClient.js';
-import { updateBankCurrentBalance } from '../../../domains/balances/bank-current-balance.js';
+import { updateProviderReportedBalance } from '../../../domains/balances/bank-current-balance.js';
 import { createBankAccountFeed } from '../../../domains/banking/bank-account-feeds/bank-account-feeds.model.js';
 import { createBankConnectionSecret } from '../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js';
 import { createBankConnection } from '../../../domains/banking/bank-connections/bank-connections.model.js';
@@ -243,7 +243,7 @@ export class ConnectAccountsService {
           }
 
           if (account.reportedCurrentBalance) {
-            await updateBankCurrentBalance({
+            await updateProviderReportedBalance({
               companyId: params.companyId,
               bankAccountId,
               balance: account.reportedCurrentBalance.amount,

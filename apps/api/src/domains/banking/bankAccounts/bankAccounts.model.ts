@@ -14,6 +14,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
+import { deriveRecordedBankBalances } from '../../balances/bank-balance-derivation.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { createCoaAccount } from '../../chart-of-accounts/coa.model.js';
 import {
@@ -263,6 +264,12 @@ export const getBankAccountsWithDetails = async (
       historyImports.map((row) => [row.bank_account_feed_id, row]),
     );
 
+    const recordedByAccountId = await deriveRecordedBankBalances({
+      companyId: companyUUID,
+      bankAccountIds: rows.map((row) => row.id as string),
+      ...(trx ? { trx } : {}),
+    });
+
     const result = rows.map((row) => {
       const activeFeed =
         row.bankAccountFeedId && row.feedRevokedAt == null
@@ -287,6 +294,8 @@ export const getBankAccountsWithDetails = async (
       } = row;
       return {
         ...account,
+        statementBalance: row.statementBalance ?? null,
+        recordedBankBalance: recordedByAccountId.get(row.id as string) ?? null,
         bankConnectionStatus,
         lastSyncAt: row.lastSyncAt
           ? new Date(row.lastSyncAt).toISOString()

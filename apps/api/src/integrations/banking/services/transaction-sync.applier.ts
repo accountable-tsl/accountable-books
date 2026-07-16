@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 import { format } from 'date-fns';
 
 import { knexClient } from '../../../db/knexClient.js';
+import { updateProviderReportedBalance } from '../../../domains/balances/bank-current-balance.js';
 import { scheduleBankBalanceAfterCommit } from '../../../domains/balances/index.js';
 import {
   advanceFeedCheckpoint,
@@ -209,6 +210,16 @@ export async function applyCompleteTransactionUpdate(
       bankAccountId: input.account.bank_account_id,
       stateVersion: new Date(),
     });
+
+    if (input.update.reportedCurrentBalance) {
+      await updateProviderReportedBalance({
+        companyId: input.account.company_id,
+        bankAccountId: input.account.bank_account_id,
+        balance: input.update.reportedCurrentBalance.amount,
+        asOf: input.update.reportedCurrentBalance.asOf,
+        client: trx,
+      });
+    }
 
     const earliestBalanceImpact = [
       observedResult.earliestBalanceImpactYmd,

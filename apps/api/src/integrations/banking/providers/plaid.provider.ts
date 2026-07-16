@@ -425,6 +425,13 @@ export class PlaidProvider extends BankingProvider {
             'Plaid returned transaction updates without a checkpoint',
           );
         }
+        const accountBalance = data.accounts?.find(
+          (account) => account.account_id === input.providerBankAccountId,
+        )?.balances?.current;
+        const reportedCurrentBalance =
+          typeof accountBalance === 'number'
+            ? { amount: accountBalance, asOf: new Date() }
+            : undefined;
         return {
           observedTransactions,
           removedTransactionIds,
@@ -432,6 +439,7 @@ export class PlaidProvider extends BankingProvider {
           historyStatus,
           pageCount: buffer.pageCount,
           approximatePayloadBytes: buffer.approximatePayloadBytes,
+          ...(reportedCurrentBalance ? { reportedCurrentBalance } : {}),
         };
       }
       if (!data.next_cursor) {

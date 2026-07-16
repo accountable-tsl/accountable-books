@@ -29,10 +29,14 @@ import type {
 /**
  * Sets or updates the opening balance for a bank account.
  *
+ * Journals / user attestation only: bank-side derived balances live in
+ * `bank-balance-derivation.ts` and must not be written here.
+ *
  * Rules:
- * - The first-ever record becomes the baseline (journal posted at 00:00Z of coverage_start day).
- * - User-entered balances override the existing baseline (old journal reversed, old role → checkpoint).
- * - System-calculated or snapshot origins append checkpoint-only records (no journal).
+ * - The first-ever user-entered record becomes the baseline (journal posted).
+ * - User-entered balances override the existing baseline (old journal reversed).
+ * - Non-user origins are checkpoint-only (no journal); new system writes are
+ *   not created by bank sync/recalc.
  * - Once a company has a conversion_date, all opening balance writes are blocked.
  *
  * Date conventions:

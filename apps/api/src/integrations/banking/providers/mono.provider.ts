@@ -273,6 +273,9 @@ export class MonoProvider extends BankingProvider {
         removedTransactionIds: [], // Mono doesn't track deletions
       });
       if (currentPage >= totalPages) {
+        const reportedCurrentBalance = await this.fetchReportedCurrentBalance(
+          input.accessToken,
+        );
         return {
           observedTransactions: buffer.observedTransactions,
           removedTransactionIds: [],
@@ -281,9 +284,31 @@ export class MonoProvider extends BankingProvider {
           historyStatus: 'complete',
           pageCount: buffer.pageCount,
           approximatePayloadBytes: buffer.approximatePayloadBytes,
+          ...(reportedCurrentBalance ? { reportedCurrentBalance } : {}),
         };
       }
       page = currentPage + 1;
+    }
+  }
+
+  private async fetchReportedCurrentBalance(
+    accessToken: string,
+  ): Promise<{ amount: number; asOf: Date } | undefined> {
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/accounts/${accessToken}`,
+        {
+          headers: {
+            'mono-sec-key': this.secretKey,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const balance = response.data?.data?.account?.balance;
+      if (typeof balance !== 'number') return undefined;
+      return { amount: balance, asOf: new Date() };
+    } catch {
+      return undefined;
     }
   }
 

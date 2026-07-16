@@ -89,7 +89,9 @@ export const bankAccountWithMetaSchema = z.object({
   lastSyncAt: z.iso.datetime().nullish(),
   historicalImport: bankHistoricalImportSchema.nullable(),
 
-  statementBalance: z.string(),
+  statementBalance: z.string().nullable(),
+  /** Derived bank balance at now from native anchor ± finalized bank txns. */
+  recordedBankBalance: z.string().nullable(),
   ledgerBalance: z.string(),
   uncategorizedTxCount: z.number().min(0),
   needsReviewTxCount: z.number().min(0),

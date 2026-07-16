@@ -141,9 +141,9 @@ describe('leased outbox intent ownership', () => {
       );
       expect(leased).not.toBeNull();
       // Re-open availability immediately so the next cycle can claim.
-      expect(await deferLeasedIntent(leased!.row.id, leased!.leaseToken, 0)).toBe(
-        true,
-      );
+      expect(
+        await deferLeasedIntent(leased!.row.id, leased!.leaseToken, 0),
+      ).toBe(true);
     }
 
     const row = await getTestDb()('app.outbox')

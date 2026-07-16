@@ -48,10 +48,12 @@ WITH transaction_stats AS (
   GROUP BY bt.bank_account_id
 ),
 balance_stats AS (
-  -- Get current balances
+  -- Provider-reported statement balance is nullable (unknown ≠ zero).
+  -- Ledger still defaults to 0 (empty books). Computed native_balance is
+  -- the recalc cache and is not exposed as statementBalance.
   SELECT
     ba.id as bank_account_id,
-    COALESCE(bab.native_balance, 0) as statement_balance_native,
+    bab.provider_reported_balance as statement_balance_native,
     COALESCE(glb.reporting_currency_balance, 0) as ledger_balance_reporting
   FROM bank_accounts ba
   LEFT JOIN bank_account_current_native_balances bab
@@ -142,7 +144,7 @@ SELECT
   ba.updated_at as updated_at,
 
   -- Balance Information
-  COALESCE(bs.statement_balance_native, 0) as statement_balance_native,
+  bs.statement_balance_native as statement_balance_native,
   COALESCE(bs.ledger_balance_reporting, 0) as ledger_balance_reporting,
 
   -- Transaction Statistics
@@ -160,12 +162,13 @@ SELECT
     ELSE COALESCE(erl.rate, 1.0)
   END as latest_exchange_rate,
 
-  -- Calculated Fields
+  -- Calculated Fields (null when provider has not reported a native balance)
   CASE
+    WHEN bs.statement_balance_native IS NULL THEN NULL
     WHEN ba.currency_id = c.reporting_currency_id THEN
-      COALESCE(bs.statement_balance_native, 0)
+      bs.statement_balance_native
     ELSE
-      COALESCE(bs.statement_balance_native, 0) * COALESCE(erl.rate, 1.0)
+      bs.statement_balance_native * COALESCE(erl.rate, 1.0)
   END as statement_balance_reporting,
 
   -- Health Indicators

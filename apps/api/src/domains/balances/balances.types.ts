@@ -248,15 +248,19 @@ export interface NewGLCurrentBalance {
 export interface BankCurrentBalance {
   company_id: string;
   bank_account_id: string;
-  native_balance: string;
-  as_of_time: Date;
+  native_balance: string | null;
+  as_of_time: Date | null;
+  provider_reported_balance: string | null;
+  provider_reported_at: Date | null;
 }
 
 export interface NewBankCurrentBalance {
   company_id: string;
   bank_account_id: string;
-  native_balance: string | number;
-  as_of_time?: Date;
+  native_balance?: string | number | null;
+  as_of_time?: Date | null;
+  provider_reported_balance?: string | number | null;
+  provider_reported_at?: Date | null;
 }
 
 export interface TrialBalanceAccount {

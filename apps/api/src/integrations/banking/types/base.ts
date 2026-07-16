@@ -142,6 +142,11 @@ export interface ProviderTransactionUpdate {
   historyStatus: ProviderHistoryStatus;
   pageCount: number;
   approximatePayloadBytes: number;
+  /**
+   * Latest provider-reported current balance for this account, when supplied.
+   * Persisted as provider_reported_* only — never as the recalc cache.
+   */
+  reportedCurrentBalance?: { amount: number; asOf: Date };
 }
 
 export interface FetchTransactionUpdateInput {
