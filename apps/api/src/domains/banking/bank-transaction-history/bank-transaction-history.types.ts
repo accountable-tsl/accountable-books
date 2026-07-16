@@ -4,12 +4,16 @@ export const bankTransactionHistoryImportStatus = z.enum([
   'collecting',
   'available',
   'selected',
+  'expired',
   'unavailable',
   'failed',
 ]);
 export type BankTransactionHistoryImportStatus = z.infer<
   typeof bankTransactionHistoryImportStatus
 >;
+
+export const HISTORY_IMPORT_OFFER_DAYS = 30;
+export const HISTORY_IMPORT_REMINDER_DAYS = 7;
 
 export const newBankTransactionHistoryImport = z.object({
   id: z.uuid().optional(),
@@ -32,6 +36,9 @@ export const bankTransactionHistoryImport = z.object({
   selected_from_date: z.date().nullable(),
   selected_at: z.date().nullable(),
   selected_by_id: z.uuid().nullable(),
+  available_at: z.date().nullable(),
+  expires_at: z.date().nullable(),
+  reminder_sent_at: z.date().nullable(),
   created_at: z.date(),
   updated_at: z.date(),
 });

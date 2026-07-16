@@ -133,4 +133,86 @@ describe('history promotion service', () => {
       await cleanupSyncFailureFixture(db, fixture);
     }
   });
+
+  it('rejects promotion after the offer expires', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+
+    try {
+      await db('bank_account_feeds').where({ id: fixture.feedId }).update({
+        sync_from_date: '2026-01-01',
+        sync_from_timezone: 'Etc/UTC',
+        state_version: 1,
+      });
+
+      await db.transaction(async (trx: Knex.Transaction) => {
+        await createHistoryImport({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          trx,
+        });
+        await upsertHistoryCandidates({
+          candidates: [
+            {
+              bank_account_feed_id: fixture.feedId,
+              company_id: fixture.companyId,
+              provider_transaction_id: 'hist-1',
+              transaction_date: new Date('2025-12-15'),
+              transaction_at: new Date('2025-12-15T10:00:00Z'),
+              amount: -25,
+              description: 'Older txn',
+              payee: 'Vendor',
+              provider_evidence: { id: 'hist-1' },
+              provider_evidence_schema_version: 1,
+              observed_at: new Date(),
+            },
+          ],
+          trx,
+        });
+        await refreshHistoryImportAggregates({
+          bankAccountFeedId: fixture.feedId,
+          trx,
+        });
+        await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'available',
+          onlyIfStatus: 'collecting',
+          trx,
+        });
+      });
+
+      await db('bank_transaction_history_imports')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .update({
+          available_at: db.raw(`now() - interval '31 days'`),
+          expires_at: db.raw(`now() - interval '1 minute'`),
+        });
+
+      const rejected = await promoteBankTransactionHistory({
+        companyId: fixture.companyId,
+        bankAccountId: fixture.bankAccountId,
+        feedId: fixture.feedId,
+        fromDate: '2025-12-01',
+        userId: fixture.userId,
+      });
+      expect(rejected.success).toBe(false);
+      expect(rejected.message).toMatch(/expired/i);
+
+      expect(
+        await db('bank_transaction_history_candidates')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .count<{ count: string }>('id as count')
+          .first(),
+      ).toMatchObject({ count: '1' });
+    } finally {
+      await db('bank_transaction_history_candidates')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .delete();
+      await db('bank_transaction_history_imports')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .delete();
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
 });

@@ -7,6 +7,7 @@ export type JobScheduleKey =
   | 'journalAutoReversal'
   | 'recurringJournalScan'
   | 'transactionSyncDailyScan'
+  | 'historyImportExpiry'
   | 'taskEvaluationSweep';
 
 export type JobSchedule = {
@@ -39,6 +40,12 @@ const SCHEDULES: Record<JobScheduleKey, JobSchedule> = {
     cron: '0 2 * * *',
     envVar: 'TRANSACTION_SYNC_CRON',
     description: 'Daily transaction sync scan',
+    tz: 'UTC',
+  },
+  historyImportExpiry: {
+    cron: '15 2 * * *',
+    envVar: 'HISTORY_IMPORT_EXPIRY_CRON',
+    description: 'Daily history import expiry and reminder sweep',
     tz: 'UTC',
   },
   taskEvaluationSweep: {

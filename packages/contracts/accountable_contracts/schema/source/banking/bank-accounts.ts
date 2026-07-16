@@ -25,6 +25,7 @@ export const bankHistoricalImportStatusSchema = z.enum([
   'collecting',
   'available',
   'selected',
+  'expired',
   'unavailable',
   'failed',
 ]);
@@ -38,6 +39,8 @@ export const bankHistoricalImportSchema = z.object({
   latestTransactionDate: z.string().nullable(),
   transactionCount: z.number().int().min(0),
   selectedFromDate: z.string().nullable(),
+  availableAt: z.iso.datetime().nullable(),
+  expiresAt: z.iso.datetime().nullable(),
 });
 export type BankHistoricalImport = z.infer<typeof bankHistoricalImportSchema>;
 

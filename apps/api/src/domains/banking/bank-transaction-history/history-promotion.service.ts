@@ -7,6 +7,7 @@ import {
 } from '../../../shared/utils/response.utils.js';
 import { getBankAccountFeed } from '../bank-account-feeds/bank-account-feeds.model.js';
 import { importFinalizedFeedTransactions } from '../bank-feed-import/import-feed-transactions.js';
+import { resolveHistoryImportAttention } from '../bankAccounts/bankAccountNotifications.js';
 import {
   deleteHistoryCandidates,
   getHistoryImportForFeed,
@@ -81,6 +82,13 @@ export async function promoteBankTransactionHistory({
           `History import is not available for promotion (status: ${historyImport.status})`,
           null,
         );
+      }
+
+      if (
+        historyImport.expires_at &&
+        historyImport.expires_at.getTime() <= Date.now()
+      ) {
+        return errorResponse('History import offer has expired', null);
       }
 
       if (
@@ -201,6 +209,12 @@ export async function promoteBankTransactionHistory({
         status: 'selected',
         selection: { fromDate, selectedById: userId },
         trx,
+      });
+
+      await resolveHistoryImportAttention(trx, {
+        clientCompanyId: companyId,
+        feedId,
+        stateVersion: historyImport.expires_at ?? new Date(),
       });
 
       return successResponse('History promoted successfully', {

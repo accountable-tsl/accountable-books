@@ -1,4 +1,5 @@
 import { isProd } from '../../../config/env.js';
+import { processHistoryImportExpirySweep } from '../../../domains/banking/bank-transaction-history/history-expiry.service.js';
 import { getSyncableBankAccounts } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import {
   executeQueueOperation,
@@ -12,21 +13,24 @@ import {
 } from '../transaction-sync.constants.js';
 import { requestBankAccountSync } from '../transaction-sync.outbox.js';
 
+export type TransactionSyncSchedulerJobData =
+  | { syncType: 'periodic' }
+  | { kind: 'history-import-expiry' };
+
 /**
- * BullMQ owns only the daily scan scheduler. Account sync execution is
- * outbox-owned (`BANK_SYNC_REQUESTED`); the scan writes/coalesces intents.
+ * BullMQ owns daily schedulers. Account sync execution is outbox-owned
+ * (`BANK_SYNC_REQUESTED`); the scan writes/coalesces intents. History-import
+ * expiry runs in-process against the DB.
  */
-export const transactionSyncQueue = createQueue<{ syncType: 'periodic' }>(
-  'transaction-sync',
-  {
+export const transactionSyncQueue =
+  createQueue<TransactionSyncSchedulerJobData>('transaction-sync', {
     defaultJobOptions: {
       attempts: BANK_ACCOUNT_SYNC_JOB_ATTEMPTS,
       backoff: BANK_ACCOUNT_SYNC_JOB_BACKOFF,
       removeOnComplete: isProd ? { age: 86400, count: 1000 } : { count: 100 },
       removeOnFail: { age: 172800, count: 1000 },
     },
-  },
-);
+  });
 
 export async function scheduleDailySyncScan(cronPattern = '0 2 * * *') {
   await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
@@ -36,6 +40,26 @@ export async function scheduleDailySyncScan(cronPattern = '0 2 * * *') {
       {
         name: 'daily-sync-scan',
         data: { syncType: 'periodic' as const },
+        opts: {
+          priority: -1,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 30000 },
+        },
+      },
+    ),
+  );
+}
+
+export async function scheduleHistoryImportExpiryScan(
+  cronPattern = '15 2 * * *',
+) {
+  await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
+    transactionSyncQueue.upsertJobScheduler(
+      'history-import-expiry',
+      { pattern: cronPattern },
+      {
+        name: 'history-import-expiry',
+        data: { kind: 'history-import-expiry' as const },
         opts: {
           priority: -1,
           attempts: 3,
@@ -68,6 +92,14 @@ export async function enqueuePeriodicBankSyncIntents(): Promise<{
     'Periodic bank sync intents written',
   );
   return { accountCount: accounts.length, failedCount };
+}
+
+export async function runHistoryImportExpiryJob(): Promise<{
+  expiredCount: number;
+  remindedCount: number;
+  candidateRowsDeleted: number;
+}> {
+  return processHistoryImportExpirySweep();
 }
 
 export async function getTransactionSyncQueueStats() {

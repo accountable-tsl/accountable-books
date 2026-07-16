@@ -13,6 +13,7 @@ import {
   refreshHistoryImportAggregates,
   upsertHistoryCandidates,
 } from '../bank-transaction-history.model.js';
+import { HISTORY_IMPORT_OFFER_DAYS } from '../bank-transaction-history.types.js';
 
 import type { NewBankTransactionHistoryCandidate } from '../bank-transaction-history.types.js';
 
@@ -135,6 +136,86 @@ describe('bank transaction history model', () => {
         });
       });
     } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('stamps available_at/expires_at once when becoming available', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+
+    try {
+      await db.transaction(async (trx) => {
+        await createHistoryImport({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          trx,
+        });
+        await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'available',
+          onlyIfStatus: 'collecting',
+          trx,
+        });
+
+        const first = await getHistoryImportForFeed({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          trx,
+        });
+        expect(first?.available_at).toBeInstanceOf(Date);
+        expect(first?.expires_at).toBeInstanceOf(Date);
+        const windowMs =
+          (first!.expires_at!.getTime() - first!.available_at!.getTime()) /
+          (24 * 60 * 60 * 1000);
+        expect(windowMs).toBeCloseTo(HISTORY_IMPORT_OFFER_DAYS, 0);
+
+        await trx('bank_transaction_history_imports')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .update({
+            available_at: trx.raw(`available_at - interval '1 day'`),
+            expires_at: trx.raw(`expires_at - interval '1 day'`),
+          });
+        const shifted = await getHistoryImportForFeed({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          trx,
+        });
+
+        // Already available — a second mark must not move the clock.
+        const moved = await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'available',
+          onlyIfStatus: 'collecting',
+          trx,
+        });
+        expect(moved).toBe(false);
+
+        // Direct update without onlyIfStatus still COALESCE-preserves stamps.
+        await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'available',
+          trx,
+        });
+        const second = await getHistoryImportForFeed({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          trx,
+        });
+        expect(second?.available_at?.getTime()).toBe(
+          shifted?.available_at?.getTime(),
+        );
+        expect(second?.expires_at?.getTime()).toBe(
+          shifted?.expires_at?.getTime(),
+        );
+      });
+    } finally {
+      await db('bank_transaction_history_imports')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .delete();
       await cleanupSyncFailureFixture(db, fixture);
     }
   });

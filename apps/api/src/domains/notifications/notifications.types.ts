@@ -15,6 +15,9 @@ export const NOTIFICATION_TYPE = {
   SYNC_FAILURE_REQUIRES_ACTION: 'sync.failure_requires_action',
   BANK_TRANSACTION_SUPERSEDED_REVIEW: 'bank.transaction_superseded_review',
   BANK_TRANSACTION_REMOVED_REVIEW: 'bank.transaction_removed_review',
+  BANK_HISTORY_IMPORT_AVAILABLE: 'bank.history_import_available',
+  BANK_HISTORY_IMPORT_EXPIRING_SOON: 'bank.history_import_expiring_soon',
+  BANK_HISTORY_IMPORT_EXPIRED: 'bank.history_import_expired',
   USER_PROFILE_PICTURE_UPDATE_FAILED: 'user.profile_picture_update_failed',
 } as const;
 export type NotificationType =

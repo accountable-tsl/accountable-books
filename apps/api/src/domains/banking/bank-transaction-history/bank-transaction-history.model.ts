@@ -1,6 +1,9 @@
 import type { Knex } from 'knex';
 
-import { newBankTransactionHistoryCandidate } from './bank-transaction-history.types.js';
+import {
+  HISTORY_IMPORT_OFFER_DAYS,
+  newBankTransactionHistoryCandidate,
+} from './bank-transaction-history.types.js';
 
 import type {
   BankTransactionHistoryCandidate,
@@ -112,6 +115,18 @@ export async function deleteHistoryCandidates({
     .delete();
 }
 
+export async function deleteAllHistoryCandidates({
+  bankAccountFeedId,
+  trx,
+}: {
+  bankAccountFeedId: string;
+  trx: Knex.Transaction;
+}): Promise<number> {
+  return trx('bank_transaction_history_candidates')
+    .where({ bank_account_feed_id: bankAccountFeedId })
+    .delete();
+}
+
 export async function listCandidatesFromDate({
   bankAccountFeedId,
   companyId,
@@ -210,6 +225,13 @@ export async function markHistoryImportStatus({
     patch.selected_from_date = selection.fromDate;
     patch.selected_at = trx.fn.now();
     patch.selected_by_id = selection.selectedById;
+  }
+  // COALESCE so a repeat mark to available does not restart the offer window.
+  if (status === 'available') {
+    patch.available_at = trx.raw('COALESCE(available_at, now())');
+    patch.expires_at = trx.raw(
+      `COALESCE(expires_at, now() + interval '${HISTORY_IMPORT_OFFER_DAYS} days')`,
+    );
   }
 
   const query = trx('bank_transaction_history_imports').where({

@@ -86,6 +86,7 @@
 - [ ] What if for personal finance, snapping and keeping receipts, people can get points
 - [ ] Consider adding chromatic or an alternative
 - [x] Plaid Webhook implementation
+- [ ] **Banking frontend (backend done, contract-typed):** wire the `historicalImport` block from `GET /bank-accounts` into (1) a "N older transactions available from {date}" banner with an earlier-date picker calling `POST /bank-accounts/:id/history-import/select`; (2) review surfaces for `bank.transaction_superseded_review` + `bank.transaction_removed_review` notifications and `providerRemovedReviewCount`; (3) real sync/history status on the connection success step (replace "syncing shortly"). Add the "choose before {expiresAt}" deadline once expiry ships.
 - [ ] Storage cleanup plan: delete orphaned uploaded blobs not referenced in DB after X hours/days (journals/ledger/bank). Consider also an on-discard cleanup endpoint for better UX.
 - [ ] Tenant-scoped file dedupe: store checksum/hash, reuse same blob key for identical content within a company, and maintain many-to-many attachments.
 - [ ] Once we're ready for lang and doc work, consider Google's oss langextract

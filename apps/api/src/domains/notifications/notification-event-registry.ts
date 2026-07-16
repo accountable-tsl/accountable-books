@@ -171,6 +171,36 @@ export const NOTIFICATION_EVENT_REGISTRY = {
     defaultPriority: 'high',
     defaultReadPolicy: 'explicit',
   },
+  [NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'normal',
+    defaultReadPolicy: 'explicit',
+  },
+  [NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'high',
+    defaultReadPolicy: 'explicit',
+  },
+  [NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRED]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRED,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'normal',
+    defaultReadPolicy: 'auto_on_view',
+  },
   [NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED]:
     globalAttentionDefinition(
       NOTIFICATION_TYPE.USER_PROFILE_PICTURE_UPDATE_FAILED,

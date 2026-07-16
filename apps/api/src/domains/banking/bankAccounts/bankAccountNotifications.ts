@@ -60,6 +60,19 @@ export function buildBankSyncFailureAttentionKey(
   return `bank_account:${bankAccountId}:sync_failure`;
 }
 
+export function buildHistoryImportAttentionKey(feedId: string): string {
+  return `bank_account_feed:${feedId}:history_import`;
+}
+
+export interface HistoryImportNotificationInput {
+  clientCompanyId: string;
+  bankAccountId: string;
+  bankAccountName: string;
+  feedId: string;
+  expiresAt: Date | string;
+  stateVersion: Date | string;
+}
+
 export interface LedgerLinkedBankTransactionReviewInput {
   clientCompanyId: string;
   bankAccountId: string;
@@ -169,6 +182,180 @@ async function writeLedgerLinkedReviewNotifications(
         bankTransactionId: input.bankTransactionId,
         ledgerTransactionId: input.ledgerTransactionId,
         ...input.extraData,
+      },
+    });
+  }
+
+  return recipients.length;
+}
+
+export async function writeHistoryImportAvailableNotifications(
+  trx: Knex.Transaction,
+  input: HistoryImportNotificationInput,
+): Promise<number> {
+  return writeHistoryImportLifecycleNotifications(trx, {
+    ...input,
+    eventType: NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE,
+    attentionTransition: 'opened',
+    priority: 'normal',
+    readPolicy: 'explicit',
+    title: `Historical transactions available for ${input.bankAccountName}`,
+    body: 'You can import older transactions from before this account was connected. This offer expires in 30 days.',
+    action: 'review_history_import',
+  });
+}
+
+export async function writeHistoryImportExpiringSoonNotifications(
+  trx: Knex.Transaction,
+  input: HistoryImportNotificationInput,
+): Promise<number> {
+  return writeHistoryImportLifecycleNotifications(trx, {
+    ...input,
+    eventType: NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON,
+    attentionTransition: 'material_update',
+    priority: 'high',
+    readPolicy: 'explicit',
+    title: `History import expiring soon for ${input.bankAccountName}`,
+    body: 'The offer to import older bank transactions expires in about 7 days. Select a starting date before it closes.',
+    action: 'review_history_import',
+  });
+}
+
+/**
+ * Available offers resolve open attention; selected leftovers are informational only.
+ */
+export async function writeHistoryImportExpiredNotifications(
+  trx: Knex.Transaction,
+  input: HistoryImportNotificationInput & {
+    priorStatus: 'available' | 'selected';
+  },
+): Promise<number> {
+  if (input.priorStatus === 'available') {
+    await resolveHistoryImportAttention(trx, {
+      clientCompanyId: input.clientCompanyId,
+      feedId: input.feedId,
+      stateVersion: input.stateVersion,
+    });
+  }
+
+  const body =
+    input.priorStatus === 'available'
+      ? 'The offer to import historical bank transactions has expired. Remaining unselected history was released.'
+      : 'Unselected historical transaction candidates for this account have been released. Your earlier selection is unchanged.';
+
+  return writeHistoryImportLifecycleNotifications(trx, {
+    ...input,
+    eventType: NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRED,
+    attentionTransition: 'routine_update',
+    priority: 'normal',
+    readPolicy: 'auto_on_view',
+    title: `History import closed for ${input.bankAccountName}`,
+    body,
+    action: 'view_bank_account',
+  });
+}
+
+export async function resolveHistoryImportAttention(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    feedId: string;
+    stateVersion: Date | string;
+  },
+): Promise<number> {
+  const attentionKey = buildHistoryImportAttentionKey(input.feedId);
+  const activeNotifications = await trx('app.notifications')
+    .where({
+      client_company_id: input.clientCompanyId,
+      attention_key: attentionKey,
+    })
+    .whereIn('event_type', [
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE,
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON,
+    ])
+    .whereNull('resolved_at')
+    .whereNull('archived_at')
+    .select('recipient_user_id', 'attention_key', 'event_type');
+
+  for (const notification of activeNotifications) {
+    await writeNotificationAttentionResolvedIntent(trx, {
+      recipientUserId: notification.recipient_user_id as string,
+      attentionKey: notification.attention_key as string,
+      companyId: input.clientCompanyId,
+      idempotencyKey: [
+        'notification',
+        notification.event_type as string,
+        notification.recipient_user_id as string,
+        notification.attention_key as string,
+        'resolved',
+        toNotificationStateVersion(input.stateVersion),
+      ].join(':'),
+    });
+  }
+
+  return activeNotifications.length;
+}
+
+async function writeHistoryImportLifecycleNotifications(
+  trx: Knex.Transaction,
+  input: HistoryImportNotificationInput & {
+    eventType:
+      | typeof NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE
+      | typeof NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON
+      | typeof NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRED;
+    attentionTransition: NotificationAttentionTransition;
+    priority: 'normal' | 'high';
+    readPolicy: 'explicit' | 'auto_on_view';
+    title: string;
+    body: string;
+    action: string;
+  },
+): Promise<number> {
+  const firmCompanyId = await resolveManagingFirmCompanyIdOrNull(
+    trx,
+    input.clientCompanyId,
+  );
+  const recipients = await loadBookkeepingActionRecipients(trx, {
+    clientCompanyId: input.clientCompanyId,
+    firmCompanyId,
+  });
+  const attentionKey = buildHistoryImportAttentionKey(input.feedId);
+  const expiresAtIso =
+    input.expiresAt instanceof Date
+      ? input.expiresAt.toISOString()
+      : String(input.expiresAt);
+
+  for (const recipient of recipients) {
+    await writeNotificationRequestedIntent(trx, {
+      recipientUserId: recipient.userId,
+      firmCompanyId,
+      clientCompanyId: input.clientCompanyId,
+      policyOwnerCompanyId: recipient.policyOwnerCompanyId,
+      eventType: input.eventType,
+      attentionKey,
+      attentionTransition: input.attentionTransition,
+      priority: input.priority,
+      readPolicy: input.readPolicy,
+      title: input.title,
+      body: input.body,
+      destination: {
+        workspace: 'banking',
+        bankAccountId: input.bankAccountId,
+        action: input.action,
+      },
+      sourceEntity: { type: 'bank_account', id: input.bankAccountId },
+      idempotencyKey: [
+        'notification',
+        input.eventType,
+        recipient.userId,
+        input.feedId,
+        toNotificationStateVersion(input.stateVersion),
+      ].join(':'),
+      data: {
+        bankAccountId: input.bankAccountId,
+        bankAccountName: input.bankAccountName,
+        feedId: input.feedId,
+        expiresAt: expiresAtIso,
       },
     });
   }

@@ -12,7 +12,8 @@ import {
  * reports its history complete the import becomes available for the
  * bookkeeper to select an earlier starting date, which promotes candidates
  * into bank_transactions. Providers that cannot supply history finish as
- * unavailable.
+ * unavailable. Available offers expire after a fixed window; leftover
+ * candidates are deleted by a daily sweeper.
  */
 
 const schemaName = 'app';
@@ -21,6 +22,7 @@ const STATUSES = [
   'collecting',
   'available',
   'selected',
+  'expired',
   'unavailable',
   'failed',
 ] as const;
@@ -72,6 +74,21 @@ export async function up(knex: Knex): Promise<void> {
       .onDelete('RESTRICT');
 
     table
+      .timestamp('available_at', { useTz: true })
+      .nullable()
+      .comment('When the history offer first became available');
+    table
+      .timestamp('expires_at', { useTz: true })
+      .nullable()
+      .comment(
+        'Offer deadline (available_at + 30 days); promotion blocked after',
+      );
+    table
+      .timestamp('reminder_sent_at', { useTz: true })
+      .nullable()
+      .comment('When the 7-day expiry reminder was sent (once)');
+
+    table
       .timestamp('created_at', { useTz: true })
       .notNullable()
       .defaultTo(knex.fn.now());
@@ -117,7 +134,25 @@ export async function up(knex: Knex): Promise<void> {
         CHECK (
           num_nonnulls(selected_from_date, selected_at, selected_by_id) IN (0, 3)
           AND ((status = 'selected') = (selected_from_date IS NOT NULL))
+        ),
+      ADD CONSTRAINT bank_transaction_history_imports_offer_clock_chk
+        CHECK (
+          (
+            status NOT IN ('available', 'selected', 'expired')
+            OR (available_at IS NOT NULL AND expires_at IS NOT NULL)
+          )
+          AND (
+            available_at IS NULL
+            OR expires_at IS NULL
+            OR expires_at > available_at
+          )
         );
+  `);
+
+  await knex.raw(`
+    CREATE INDEX bank_transaction_history_imports_expiry_idx
+      ON "${schemaName}"."${tableName}" (expires_at)
+      WHERE status IN ('available', 'selected');
   `);
 
   await createUpdateTimestampTrigger(knex, tableName, schemaName);

@@ -2,7 +2,10 @@ import { scheduleDailyJournalAutoReversalScan } from '../domains/journals/auto-r
 import { scheduleRecurringTemplateScan } from '../domains/journals/recurring-templates.queue.js';
 import { scheduleNightlyAutoExtend } from '../domains/reporting/fiscal-calendar/index.js';
 import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.queue.js';
-import { scheduleDailySyncScan } from '../integrations/banking/jobs/transaction-sync.queue.js';
+import {
+  scheduleDailySyncScan,
+  scheduleHistoryImportExpiryScan,
+} from '../integrations/banking/jobs/transaction-sync.queue.js';
 import { getLogger } from '../shared/utils/logger.js';
 import { getJobSchedule } from './schedules.js';
 
@@ -58,6 +61,15 @@ export const SCHEDULE_REGISTRY: ScheduleDefinition[] = [
     icon: '💳',
     run: async (schedule) => {
       await scheduleDailySyncScan(schedule.cron);
+    },
+  },
+  {
+    key: 'historyImportExpiry',
+    scheduleKey: 'historyImportExpiry',
+    label: 'History import expiry sweep',
+    icon: '⏳',
+    run: async (schedule) => {
+      await scheduleHistoryImportExpiryScan(schedule.cron);
     },
   },
   {

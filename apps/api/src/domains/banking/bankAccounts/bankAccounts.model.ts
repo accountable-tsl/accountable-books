@@ -173,6 +173,8 @@ function projectHistoricalImport(
         latest_transaction_date: Date | null;
         transaction_count: number;
         selected_from_date: Date | null;
+        available_at: Date | null;
+        expires_at: Date | null;
       }
     | undefined,
 ) {
@@ -189,6 +191,10 @@ function projectHistoricalImport(
     selectedFromDate: row.selected_from_date
       ? format(row.selected_from_date, 'yyyy-MM-dd')
       : null,
+    availableAt: row.available_at
+      ? new Date(row.available_at).toISOString()
+      : null,
+    expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
   };
 }
 

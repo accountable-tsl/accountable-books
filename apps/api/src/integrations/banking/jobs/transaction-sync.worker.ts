@@ -4,7 +4,12 @@ import { JobScheduler, Worker } from 'bullmq';
 import { redis } from '../../../lib/redis.js';
 import { runWithJobContext } from '../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../shared/utils/logger.js';
-import { enqueuePeriodicBankSyncIntents } from './transaction-sync.queue.js';
+import {
+  enqueuePeriodicBankSyncIntents,
+  runHistoryImportExpiryJob,
+} from './transaction-sync.queue.js';
+
+import type { TransactionSyncSchedulerJobData } from './transaction-sync.queue.js';
 
 const logger = getLogger({
   component: 'transaction-sync-worker',
@@ -25,7 +30,9 @@ function buildTransactionSyncWorkerOptions(concurrency: number) {
   } as const;
 }
 
-async function processTransactionSyncJob(job: Job<{ syncType: 'periodic' }>) {
+async function processTransactionSyncJob(
+  job: Job<TransactionSyncSchedulerJobData>,
+) {
   const startedAt = Date.now();
   logger.info(
     { jobId: job.id, jobName: job.name, jobData: job.data },
@@ -33,18 +40,34 @@ async function processTransactionSyncJob(job: Job<{ syncType: 'periodic' }>) {
   );
 
   try {
-    if (job.name !== 'daily-sync-scan') {
-      throw new Error(`Unknown transaction sync job: ${job.name}`);
-    }
-    await job.updateProgress(10);
-    const result = await enqueuePeriodicBankSyncIntents();
-    await job.updateProgress(100);
-    logger.info({ jobId: job.id, ...result }, 'Daily bank sync scan completed');
-    if (result.failedCount > 0) {
-      throw new Error(
-        `Failed to write ${result.failedCount} bank account sync intents`,
+    if (job.name === 'daily-sync-scan') {
+      await job.updateProgress(10);
+      const result = await enqueuePeriodicBankSyncIntents();
+      await job.updateProgress(100);
+      logger.info(
+        { jobId: job.id, ...result },
+        'Daily bank sync scan completed',
       );
+      if (result.failedCount > 0) {
+        throw new Error(
+          `Failed to write ${result.failedCount} bank account sync intents`,
+        );
+      }
+      return;
     }
+
+    if (job.name === 'history-import-expiry') {
+      await job.updateProgress(10);
+      const result = await runHistoryImportExpiryJob();
+      await job.updateProgress(100);
+      logger.info(
+        { jobId: job.id, ...result },
+        'History import expiry sweep completed',
+      );
+      return;
+    }
+
+    throw new Error(`Unknown transaction sync job: ${job.name}`);
   } catch (error) {
     logger.error(
       {

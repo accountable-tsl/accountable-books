@@ -30,6 +30,7 @@ import {
   writeBankSyncFailureResolvedNotifications,
   writeBankTransactionRemovedNotifications,
   writeBankTransactionSupersededNotifications,
+  writeHistoryImportAvailableNotifications,
 } from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { sanitizeProviderSnapshot } from '../utils/provider-snapshot.js';
 import {
@@ -155,16 +156,48 @@ export async function applyCompleteTransactionUpdate(
       });
     }
     if (input.update.historyStatus !== 'collecting') {
-      await markHistoryImportStatus({
-        bankAccountFeedId: input.account.feed_id,
-        companyId: input.account.company_id,
-        status:
-          input.update.historyStatus === 'complete'
-            ? 'available'
-            : 'unavailable',
-        onlyIfStatus: 'collecting',
-        trx,
-      });
+      const becameAvailable =
+        input.update.historyStatus === 'complete' &&
+        (await markHistoryImportStatus({
+          bankAccountFeedId: input.account.feed_id,
+          companyId: input.account.company_id,
+          status: 'available',
+          onlyIfStatus: 'collecting',
+          trx,
+        }));
+      if (input.update.historyStatus !== 'complete') {
+        await markHistoryImportStatus({
+          bankAccountFeedId: input.account.feed_id,
+          companyId: input.account.company_id,
+          status: 'unavailable',
+          onlyIfStatus: 'collecting',
+          trx,
+        });
+      }
+      if (becameAvailable) {
+        const historyImport = await trx('bank_transaction_history_imports')
+          .where({
+            bank_account_feed_id: input.account.feed_id,
+            company_id: input.account.company_id,
+          })
+          .first<{ expires_at: Date | null }>('expires_at');
+        const account = await trx('bank_accounts')
+          .where({
+            id: input.account.bank_account_id,
+            company_id: input.account.company_id,
+          })
+          .first<{ display_name: string }>('display_name');
+        if (historyImport?.expires_at && account) {
+          await writeHistoryImportAvailableNotifications(trx, {
+            clientCompanyId: input.account.company_id,
+            bankAccountId: input.account.bank_account_id,
+            bankAccountName: account.display_name,
+            feedId: input.account.feed_id,
+            expiresAt: historyImport.expires_at,
+            stateVersion: historyImport.expires_at,
+          });
+        }
+      }
     }
 
     // Initial sync completes only when history collection resolves; while
