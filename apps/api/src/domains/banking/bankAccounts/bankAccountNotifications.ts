@@ -60,6 +60,12 @@ export function buildBankSyncFailureAttentionKey(
   return `bank_account:${bankAccountId}:sync_failure`;
 }
 
+export function buildBankReplacementUnmatchedAttentionKey(
+  feedId: string,
+): string {
+  return `bank_account_feed:${feedId}:replacement_unmatched`;
+}
+
 export function buildHistoryImportAttentionKey(feedId: string): string {
   return `bank_account_feed:${feedId}:history_import`;
 }
@@ -125,6 +131,71 @@ export async function writeBankTransactionRemovedNotifications(
     action: 'review_removed_bank_transaction',
     extraData: {},
   });
+}
+
+export async function writeBankReplacementUnmatchedNotifications(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    bankAccountId: string;
+    bankAccountName: string;
+    feedId: string;
+    unmatchedCount: number;
+    stateVersion: Date | string;
+  },
+): Promise<number> {
+  if (input.unmatchedCount <= 0) return 0;
+
+  const firmCompanyId = await resolveManagingFirmCompanyIdOrNull(
+    trx,
+    input.clientCompanyId,
+  );
+  const recipients = await loadBookkeepingActionRecipients(trx, {
+    clientCompanyId: input.clientCompanyId,
+    firmCompanyId,
+  });
+
+  let intentCount = 0;
+  const attentionKey = buildBankReplacementUnmatchedAttentionKey(input.feedId);
+  for (const recipient of recipients) {
+    await writeNotificationRequestedIntent(trx, {
+      recipientUserId: recipient.userId,
+      firmCompanyId,
+      clientCompanyId: input.clientCompanyId,
+      policyOwnerCompanyId: recipient.policyOwnerCompanyId,
+      eventType: NOTIFICATION_TYPE.BANK_REPLACEMENT_UNMATCHED_REVIEW,
+      attentionKey,
+      attentionTransition: 'opened',
+      priority: 'high',
+      readPolicy: 'explicit',
+      title: `Review bank reconnection imports for ${input.bankAccountName}`,
+      body: `${input.unmatchedCount} transaction(s) were imported after reconnecting without a confident match to prior history. Review them so categorization stays accurate.`,
+      destination: {
+        workspace: 'banking',
+        bankAccountId: input.bankAccountId,
+        feedId: input.feedId,
+        action: 'review_replacement_unmatched',
+      },
+      sourceEntity: { type: 'bank_account', id: input.bankAccountId },
+      idempotencyKey: [
+        'notification',
+        NOTIFICATION_TYPE.BANK_REPLACEMENT_UNMATCHED_REVIEW,
+        recipient.userId,
+        input.feedId,
+        String(input.unmatchedCount),
+        toNotificationStateVersion(input.stateVersion),
+      ].join(':'),
+      data: {
+        bankAccountId: input.bankAccountId,
+        bankAccountName: input.bankAccountName,
+        feedId: input.feedId,
+        unmatchedCount: input.unmatchedCount,
+      },
+    });
+    intentCount += 1;
+  }
+
+  return intentCount;
 }
 
 async function writeLedgerLinkedReviewNotifications(

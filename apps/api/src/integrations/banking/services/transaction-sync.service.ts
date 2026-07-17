@@ -67,6 +67,11 @@ async function loadBankAccount(
   const row = await knexClient('bank_account_feeds as baf')
     .innerJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
     .innerJoin('bank_accounts as ba', 'ba.id', 'baf.bank_account_id')
+    .leftJoin(
+      'bank_account_feeds as pred',
+      'pred.id',
+      'baf.replaces_bank_account_feed_id',
+    )
     .where({ 'baf.bank_account_id': bankAccountId, 'ba.is_deleted': false })
     .whereNull('baf.revoked_at')
     .first<{
@@ -80,9 +85,13 @@ async function loadBankAccount(
       initial_sync_completed_at: Date | null;
       last_successful_sync_at: Date | null;
       state_version: number;
+      replaces_bank_account_feed_id: string | null;
+      replacement_reconciliation_completed_at: Date | null;
+      predecessor_sync_from_date: Date | null;
+      predecessor_last_successful_sync_at: Date | null;
       provider_id: string;
       authorization_status: BankConnectionAuthorizationStatus;
-    }>(['ba.id as bank_account_id', 'baf.id as feed_id', 'baf.company_id as company_id', 'baf.bank_connection_id as bank_connection_id', 'baf.provider_account_id as provider_account_id', 'baf.sync_cursor as sync_cursor', 'baf.sync_from_date as sync_from_date', 'baf.initial_sync_completed_at as initial_sync_completed_at', 'baf.last_successful_sync_at as last_successful_sync_at', 'baf.state_version as state_version', 'bc.provider_id as provider_id', 'bc.authorization_status as authorization_status']);
+    }>(['ba.id as bank_account_id', 'baf.id as feed_id', 'baf.company_id as company_id', 'baf.bank_connection_id as bank_connection_id', 'baf.provider_account_id as provider_account_id', 'baf.sync_cursor as sync_cursor', 'baf.sync_from_date as sync_from_date', 'baf.initial_sync_completed_at as initial_sync_completed_at', 'baf.last_successful_sync_at as last_successful_sync_at', 'baf.state_version as state_version', 'baf.replaces_bank_account_feed_id as replaces_bank_account_feed_id', 'baf.replacement_reconciliation_completed_at as replacement_reconciliation_completed_at', 'pred.sync_from_date as predecessor_sync_from_date', 'pred.last_successful_sync_at as predecessor_last_successful_sync_at', 'bc.provider_id as provider_id', 'bc.authorization_status as authorization_status']);
   if (!row) return null;
 
   return {
@@ -98,6 +107,12 @@ async function loadBankAccount(
       last_successful_sync_at: row.last_successful_sync_at,
       state_version: row.state_version,
       is_deleted: false,
+      replaces_bank_account_feed_id: row.replaces_bank_account_feed_id,
+      replacement_reconciliation_completed_at:
+        row.replacement_reconciliation_completed_at,
+      predecessor_sync_from_date: row.predecessor_sync_from_date,
+      predecessor_last_successful_sync_at:
+        row.predecessor_last_successful_sync_at,
     },
     providerId: row.provider_id,
     authorizationStatus: row.authorization_status,

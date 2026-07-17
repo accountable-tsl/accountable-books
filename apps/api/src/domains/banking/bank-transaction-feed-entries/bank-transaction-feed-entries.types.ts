@@ -19,6 +19,8 @@ export const newBankTransactionFeedEntry = z.object({
   provider_evidence: z.record(z.string(), z.unknown()),
   provider_evidence_schema_version: z.number().int().min(1),
   observed_at: z.date(),
+  adopted_from_feed_entry_id: z.uuid().nullish(),
+  replacement_unmatched: z.boolean().optional(),
 });
 export type NewBankTransactionFeedEntry = z.infer<
   typeof newBankTransactionFeedEntry

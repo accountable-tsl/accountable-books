@@ -27,6 +27,8 @@ export interface FinalizedFeedTransaction {
   additionalNotes?: string | null;
   /** Sanitized provider observation (see sanitizeProviderSnapshot). */
   providerEvidence: Record<string, unknown>;
+  /** Set when imported during replacement reconciliation without a confident adopt. */
+  replacementUnmatched?: boolean;
 }
 
 export class FeedTransactionImportError extends Error {
@@ -186,6 +188,7 @@ export async function importFinalizedFeedTransactions(
           provider_evidence: transaction.providerEvidence,
           provider_evidence_schema_version: 1,
           observed_at: observedAt,
+          replacement_unmatched: transaction.replacementUnmatched === true,
         },
         trx,
       });

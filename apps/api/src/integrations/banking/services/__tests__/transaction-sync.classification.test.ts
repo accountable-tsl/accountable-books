@@ -601,4 +601,204 @@ describe('observation classification and routing', () => {
       await cleanupSyncFailureFixture(db, fixture);
     }
   });
+
+  it('adopts predecessor transactions on a replacement feed without duplicating', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    let newConnectionId: string | undefined;
+
+    try {
+      const original = providerTransaction(
+        fixture.providerBankAccountId,
+        `orig-${randomUUID()}`,
+      );
+      await syncOnce(
+        fixture,
+        { added: [original] },
+        { historyStatus: 'complete', trigger: 'initial' },
+      );
+      const originalRow = await getImportedByProviderId(
+        fixture,
+        original.transactionId,
+      );
+      expect(originalRow).toBeTruthy();
+      const ledgerId = await linkToLedger(fixture, originalRow!.id);
+
+      await db('bank_account_feeds')
+        .where({ id: fixture.feedId })
+        .update({
+          sync_from_date: '2026-01-01',
+          last_successful_sync_at: new Date('2026-01-20T00:00:00Z'),
+          revoked_at: db.fn.now(),
+          revocation_origin: 'client',
+          revocation_reason: 'replaced',
+        });
+
+      const [newConnection] = await db('bank_connections')
+        .insert({
+          company_id: fixture.companyId,
+          provider_id: (await db('bank_connections')
+            .where({ id: fixture.connectionId })
+            .first('provider_id'))!.provider_id,
+          provider_item_id: `item-replacement-${randomUUID()}`,
+          authorization_status: 'active',
+          connected_by_id: fixture.userId,
+        })
+        .returning('id');
+      newConnectionId = newConnection.id as string;
+      const { encrypt } = await import(
+        '../../../../shared/utils/crypto.utils.js'
+      );
+      await db('bank_connection_secrets').insert({
+        bank_connection_id: newConnection.id,
+        encrypted_access_token: encrypt(
+          `access-${randomUUID()}`,
+          `${newConnection.id}:${fixture.companyId}`,
+        ),
+        encryption_key_version: 1,
+      });
+      const newProviderAccountId = `provider-account-${randomUUID()}`;
+      const [newFeed] = await db('bank_account_feeds')
+        .insert({
+          company_id: fixture.companyId,
+          bank_account_id: fixture.bankAccountId,
+          bank_connection_id: newConnection.id,
+          provider_account_id: newProviderAccountId,
+          sync_from_timezone: 'Etc/UTC',
+          sync_from_date: '2026-01-01',
+          connected_by_id: fixture.userId,
+          replaces_bank_account_feed_id: fixture.feedId,
+        })
+        .returning('id');
+
+      const matching = {
+        ...providerTransaction(newProviderAccountId, `new-${randomUUID()}`),
+        date: original.date,
+        amount: original.amount,
+      };
+      const unmatched = {
+        ...providerTransaction(
+          newProviderAccountId,
+          `unmatched-${randomUUID()}`,
+        ),
+        date: '2026-01-16',
+        amount: 99,
+      };
+      const outside = {
+        ...providerTransaction(newProviderAccountId, `outside-${randomUUID()}`),
+        // After predecessor last sync, still in the new feed accepted window.
+        date: '2026-01-25',
+        amount: 7,
+      };
+
+      vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
+        fakeProvider(
+          singlePage(
+            { added: [matching, unmatched, outside] },
+            { historyStatus: 'complete' },
+          ),
+        ),
+      );
+      await transactionSyncService.syncBankAccount({
+        bankAccountId: fixture.bankAccountId,
+        trigger: 'initial',
+        actorUserId: fixture.userId,
+      });
+
+      const adoptedEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: newFeed.id,
+          provider_transaction_id: matching.transactionId,
+        })
+        .first(
+          'bank_transaction_id',
+          'adopted_from_feed_entry_id',
+          'replacement_unmatched',
+        );
+      expect(adoptedEntry).toMatchObject({
+        bank_transaction_id: originalRow!.id,
+        replacement_unmatched: false,
+      });
+      expect(adoptedEntry!.adopted_from_feed_entry_id).toBeTruthy();
+
+      expect(
+        await db('bank_transactions')
+          .where({ id: originalRow!.id })
+          .first('ledger_transaction_id'),
+      ).toMatchObject({ ledger_transaction_id: ledgerId });
+
+      const unmatchedEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: newFeed.id,
+          provider_transaction_id: unmatched.transactionId,
+        })
+        .first('replacement_unmatched', 'bank_transaction_id');
+      expect(unmatchedEntry).toMatchObject({ replacement_unmatched: true });
+      expect(unmatchedEntry!.bank_transaction_id).not.toBe(originalRow!.id);
+
+      const outsideEntry = await db('bank_transaction_feed_entries')
+        .where({
+          bank_account_feed_id: newFeed.id,
+          provider_transaction_id: outside.transactionId,
+        })
+        .first('replacement_unmatched');
+      expect(outsideEntry).toMatchObject({ replacement_unmatched: false });
+
+      const canonicalCount = await db('bank_transactions')
+        .where({ bank_account_id: fixture.bankAccountId, is_deleted: false })
+        .count<{ count: string }>('id as count')
+        .first();
+      // original + unmatched + outside (adopted reuses original)
+      expect(canonicalCount?.count).toBe('3');
+
+      const feedAfter = await db('bank_account_feeds')
+        .where({ id: newFeed.id })
+        .first('replacement_reconciliation_completed_at');
+      expect(feedAfter?.replacement_reconciliation_completed_at).toBeTruthy();
+
+      const reviewIntent = await db('app.outbox')
+        .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+        .whereRaw(`payload->'event'->>'eventType' = ?`, [
+          NOTIFICATION_TYPE.BANK_REPLACEMENT_UNMATCHED_REVIEW,
+        ])
+        .first();
+      expect(reviewIntent).toBeTruthy();
+
+      // Re-sync must not re-run predecessor matching after complete marker.
+      vi.spyOn(providerRegistry, 'getById').mockResolvedValue(
+        fakeProvider(
+          singlePage(
+            {
+              added: [
+                {
+                  ...matching,
+                  transactionId: `replay-${randomUUID()}`,
+                  date: original.date,
+                  amount: original.amount,
+                },
+              ],
+            },
+            { historyStatus: 'complete' },
+          ),
+        ),
+      );
+      await transactionSyncService.syncBankAccount({
+        bankAccountId: fixture.bankAccountId,
+        trigger: 'webhook',
+        actorUserId: fixture.userId,
+      });
+      const afterReplay = await db('bank_transactions')
+        .where({ bank_account_id: fixture.bankAccountId, is_deleted: false })
+        .count<{ count: string }>('id as count')
+        .first();
+      // Extra import (no adopt) because reconciliation already completed.
+      expect(afterReplay?.count).toBe('4');
+    } finally {
+      await cleanupSyncFailureFixture(
+        db,
+        fixture,
+        newConnectionId ? [newConnectionId] : [],
+      );
+    }
+  });
 });

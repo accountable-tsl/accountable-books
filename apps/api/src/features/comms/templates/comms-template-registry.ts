@@ -108,6 +108,7 @@ export function resolveCommsTemplate(input: {
   'sync.failure_requires_action',
   'bank.transaction_superseded_review',
   'bank.transaction_removed_review',
+  'bank.replacement_unmatched_review',
   'bank.history_import_available',
   'bank.history_import_expiring_soon',
   'bank.history_import_expired',

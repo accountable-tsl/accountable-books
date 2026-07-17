@@ -114,9 +114,8 @@ router.post(
       }
 
       // Always respond quickly to webhooks
-      res.status(200).json({ received: true });
-
       log('completed', {});
+      return res.status(200).json({ received: true });
     } catch (error) {
       logger.error(
         {
@@ -126,8 +125,9 @@ router.post(
         'Plaid webhook processing failed',
       );
 
-      // Still return 200 to prevent Plaid from retrying
-      res.status(200).json({ received: true, error: true });
+      if (!res.headersSent) {
+        return res.status(200).json({ received: true, error: true });
+      }
     }
   },
 );

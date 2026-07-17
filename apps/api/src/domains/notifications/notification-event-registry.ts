@@ -171,6 +171,16 @@ export const NOTIFICATION_EVENT_REGISTRY = {
     defaultPriority: 'high',
     defaultReadPolicy: 'explicit',
   },
+  [NOTIFICATION_TYPE.BANK_REPLACEMENT_UNMATCHED_REVIEW]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_REPLACEMENT_UNMATCHED_REVIEW,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'high',
+    defaultReadPolicy: 'explicit',
+  },
   [NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE]: {
     ...companyAttentionDefinition(
       NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE,

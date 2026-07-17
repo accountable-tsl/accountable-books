@@ -1,5 +1,4 @@
 import type { Knex } from 'knex';
-import { format } from 'date-fns';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { updateProviderReportedBalance } from '../../../domains/balances/bank-current-balance.js';
@@ -27,12 +26,18 @@ import {
 } from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
 import { completeSyncRun } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.model.js';
 import {
+  writeBankReplacementUnmatchedNotifications,
   writeBankSyncFailureResolvedNotifications,
   writeBankTransactionRemovedNotifications,
   writeBankTransactionSupersededNotifications,
   writeHistoryImportAvailableNotifications,
 } from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { sanitizeProviderSnapshot } from '../utils/provider-snapshot.js';
+import {
+  loadPredecessorPool,
+  planReplacementMatches,
+  toDateYmd,
+} from './replacement-reconciliation.js';
 import {
   AccountTransactionApplyError,
   StaleBankAccountSyncError,
@@ -73,8 +78,7 @@ function providerEvidence(
  * normal import path, whose date validation owns the failure.
  */
 function toYmd(value: Date | string): string | null {
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : format(date, 'yyyy-MM-dd');
+  return toDateYmd(value);
 }
 
 function minYmd(left: string | null, right: string): string {
@@ -200,21 +204,58 @@ export async function applyCompleteTransactionUpdate(
       }
     }
 
+    if (observedResult.unmatchedReplacementCount > 0) {
+      const account = await trx('bank_accounts')
+        .where({
+          id: input.account.bank_account_id,
+          company_id: input.account.company_id,
+        })
+        .first<{ display_name: string }>('display_name');
+      if (account) {
+        await writeBankReplacementUnmatchedNotifications(trx, {
+          clientCompanyId: input.account.company_id,
+          bankAccountId: input.account.bank_account_id,
+          bankAccountName: account.display_name,
+          feedId: input.account.feed_id,
+          unmatchedCount: observedResult.unmatchedReplacementCount,
+          stateVersion: new Date(),
+        });
+      }
+    }
+
     // Initial sync completes only when history collection resolves; while
     // still collecting the outbox intent defers and webhooks must keep
     // waking feeds with initial_sync_completed_at IS NULL.
+    const markInitialComplete =
+      !input.account.initial_sync_completed_at &&
+      input.update.historyStatus !== 'collecting';
     const advanceResult = await advanceFeedCheckpoint({
       feedId: input.account.feed_id,
       companyId: input.account.company_id,
       expectedStateVersion: input.account.state_version,
       syncCursor: input.update.nextCheckpoint,
-      markInitialComplete:
-        !input.account.initial_sync_completed_at &&
-        input.update.historyStatus !== 'collecting',
+      markInitialComplete,
       trx,
     });
     if (!advanceResult.success) {
       throw new StaleBankAccountSyncError(input.account.bank_account_id);
+    }
+
+    if (
+      markInitialComplete &&
+      input.account.replaces_bank_account_feed_id &&
+      !input.account.replacement_reconciliation_completed_at
+    ) {
+      await trx('bank_account_feeds')
+        .where({
+          id: input.account.feed_id,
+          company_id: input.account.company_id,
+        })
+        .whereNull('replacement_reconciliation_completed_at')
+        .update({
+          replacement_reconciliation_completed_at: trx.fn.now(),
+          updated_at: trx.fn.now(),
+        });
     }
 
     const counts: AppliedTransactionUpdateCounts = {
@@ -302,6 +343,7 @@ async function applyObservedTransactions(
   modifiedCount: number;
   candidatesTouched: boolean;
   earliestBalanceImpactYmd: string | null;
+  unmatchedReplacementCount: number;
 }> {
   // Pending observations are discarded entirely; the transaction is imported
   // once when the provider finalizes it (dedupe by provider id).
@@ -313,6 +355,7 @@ async function applyObservedTransactions(
     modifiedCount: 0,
     candidatesTouched: false,
     earliestBalanceImpactYmd: null as string | null,
+    unmatchedReplacementCount: 0,
   };
   if (observed.length === 0) return result;
 
@@ -365,8 +408,13 @@ async function applyObservedTransactions(
   const canonicalById = new Map(canonicalRows.map((row) => [row.id, row]));
 
   const newImports: ProviderTransaction[] = [];
+  const unmatchedReplacementImports: ProviderTransaction[] = [];
   const candidateWrites: ProviderTransaction[] = [];
   const candidatePromotions: ProviderTransaction[] = [];
+  const unknownForReplacement: ProviderTransaction[] = [];
+  const shouldReconcileReplacement =
+    Boolean(context.account.replaces_bank_account_feed_id) &&
+    !context.account.replacement_reconciliation_completed_at;
 
   for (const transaction of observed) {
     const observedYmd = toYmd(transaction.date);
@@ -449,7 +497,12 @@ async function applyObservedTransactions(
       continue;
     }
 
-    // Unknown provider id → new transaction, routed by its date.
+    // Unknown provider id — may adopt from predecessor feed on replacement.
+    if (shouldReconcileReplacement && !beforeBoundary) {
+      unknownForReplacement.push(transaction);
+      continue;
+    }
+
     if (beforeBoundary) {
       candidateWrites.push(transaction);
       result.candidatesTouched = true;
@@ -457,6 +510,67 @@ async function applyObservedTransactions(
       newImports.push(transaction);
     }
     result.addedCount++;
+  }
+
+  if (shouldReconcileReplacement && unknownForReplacement.length > 0) {
+    const predecessorFeedId = context.account.replaces_bank_account_feed_id!;
+    const windowStartYmd = context.account.predecessor_sync_from_date
+      ? toYmd(context.account.predecessor_sync_from_date)
+      : null;
+    const windowEndYmd = context.account.predecessor_last_successful_sync_at
+      ? toYmd(context.account.predecessor_last_successful_sync_at)
+      : null;
+
+    const pool = await loadPredecessorPool({
+      trx,
+      predecessorFeedId,
+      bankAccountId: context.account.bank_account_id,
+      companyId: context.account.company_id,
+      windowStartYmd,
+      windowEndYmd,
+    });
+    const plan = planReplacementMatches({
+      unknownObservations: unknownForReplacement,
+      pool,
+      windowStartYmd,
+      windowEndYmd,
+    });
+
+    const observedAt = new Date();
+    for (const { observation, predecessor } of plan.adopts) {
+      await upsertFeedEntry({
+        data: {
+          bank_account_feed_id: context.account.feed_id,
+          company_id: context.account.company_id,
+          provider_transaction_id: observation.transactionId,
+          bank_transaction_id: predecessor.bankTransactionId,
+          observation_type: 'added',
+          provider_evidence: providerEvidence(observation.rawData),
+          provider_evidence_schema_version: 1,
+          observed_at: observedAt,
+          adopted_from_feed_entry_id: predecessor.feedEntryId,
+          replacement_unmatched: false,
+        },
+        trx,
+      });
+      result.addedCount++;
+      const impactYmd = toYmd(observation.date);
+      if (impactYmd) {
+        result.earliestBalanceImpactYmd = minYmd(
+          result.earliestBalanceImpactYmd,
+          impactYmd,
+        );
+      }
+    }
+
+    for (const observation of plan.unmatchedImports) {
+      unmatchedReplacementImports.push(observation);
+      result.addedCount++;
+    }
+    for (const observation of plan.passthrough) {
+      newImports.push(observation);
+      result.addedCount++;
+    }
   }
 
   if (candidatePromotions.length > 0) {
@@ -469,7 +583,20 @@ async function applyObservedTransactions(
     });
   }
 
-  const toImport = [...newImports, ...candidatePromotions];
+  const toImport = [
+    ...newImports.map((transaction) => ({
+      transaction,
+      replacementUnmatched: false,
+    })),
+    ...unmatchedReplacementImports.map((transaction) => ({
+      transaction,
+      replacementUnmatched: true,
+    })),
+    ...candidatePromotions.map((transaction) => ({
+      transaction,
+      replacementUnmatched: false,
+    })),
+  ];
   if (toImport.length > 0) {
     try {
       await importFinalizedFeedTransactions(trx, {
@@ -478,7 +605,10 @@ async function applyObservedTransactions(
         bankAccountId: context.account.bank_account_id,
         feedId: context.account.feed_id,
         syncRunId: context.syncRunId,
-        transactions: toImport.map(toFinalizedFeedTransaction),
+        transactions: toImport.map(({ transaction, replacementUnmatched }) => ({
+          ...toFinalizedFeedTransaction(transaction),
+          replacementUnmatched,
+        })),
       });
     } catch (error) {
       if (error instanceof FeedTransactionImportError) {
@@ -490,6 +620,8 @@ async function applyObservedTransactions(
       throw error;
     }
   }
+
+  result.unmatchedReplacementCount = unmatchedReplacementImports.length;
 
   if (candidateWrites.length > 0) {
     await createHistoryImport({

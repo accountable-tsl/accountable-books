@@ -110,6 +110,12 @@ export async function up(knex: Knex): Promise<void> {
       .comment(
         'When this feed replaces a retired feed after a provider item change',
       );
+    table
+      .timestamp('replacement_reconciliation_completed_at', { useTz: true })
+      .nullable()
+      .comment(
+        'When predecessor matching finished for a replacement feed (after initial sync)',
+      );
 
     table
       .timestamp('created_at', { useTz: true })

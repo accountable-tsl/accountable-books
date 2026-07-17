@@ -70,6 +70,20 @@ export async function up(knex: Knex): Promise<void> {
       .comment('When the provider observation was received');
 
     table
+      .uuid('adopted_from_feed_entry_id')
+      .nullable()
+      .comment(
+        'When this entry adopted a predecessor feed entry after a feed replacement',
+      );
+    table
+      .boolean('replacement_unmatched')
+      .notNullable()
+      .defaultTo(false)
+      .comment(
+        'True when imported during replacement reconciliation without a confident predecessor match',
+      );
+
+    table
       .timestamp('created_at', { useTz: true })
       .notNullable()
       .defaultTo(knex.fn.now());
@@ -78,6 +92,9 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
+    table.unique(['id', 'company_id'], {
+      indexName: 'bank_transaction_feed_entries_id_company_uniq',
+    });
     table
       .foreign(
         ['bank_account_feed_id', 'company_id'],
@@ -111,7 +128,22 @@ export async function up(knex: Knex): Promise<void> {
   `);
 
   await knex.raw(`
+    CREATE UNIQUE INDEX bank_transaction_feed_entries_adopted_from_uniq
+    ON "${schemaName}"."${tableName}" (adopted_from_feed_entry_id)
+    WHERE adopted_from_feed_entry_id IS NOT NULL;
+  `);
+
+  await knex.raw(`
     ALTER TABLE "${schemaName}"."${tableName}"
+      ADD CONSTRAINT bank_transaction_feed_entries_adopted_from_company_fk
+        FOREIGN KEY (adopted_from_feed_entry_id, company_id)
+        REFERENCES "${schemaName}"."${tableName}" (id, company_id)
+        ON DELETE RESTRICT,
+      ADD CONSTRAINT bank_transaction_feed_entries_adopted_not_self_chk
+        CHECK (
+          adopted_from_feed_entry_id IS NULL
+          OR adopted_from_feed_entry_id <> id
+        ),
       ADD CONSTRAINT bank_transaction_feed_entries_provider_txn_id_trimmed_chk
         CHECK (
           provider_transaction_id = btrim(provider_transaction_id)

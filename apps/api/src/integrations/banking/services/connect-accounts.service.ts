@@ -11,8 +11,16 @@ import { updateProviderReportedBalance } from '../../../domains/balances/bank-cu
 import { createBankAccountFeed } from '../../../domains/banking/bank-account-feeds/bank-account-feeds.model.js';
 import { createBankConnectionSecret } from '../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js';
 import { createBankConnection } from '../../../domains/banking/bank-connections/bank-connections.model.js';
-import { createHistoryImport } from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
-import { writeBankReconnectNotificationLifecycle } from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
+import {
+  createHistoryImport,
+  deleteAllHistoryCandidates,
+  markHistoryImportStatus,
+  refreshHistoryImportAggregates,
+} from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
+import {
+  resolveHistoryImportAttention,
+  writeBankReconnectNotificationLifecycle,
+} from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import { classifyConnectEvent } from '../../../domains/banking/connection-lifecycle/classify.js';
 import {
@@ -652,6 +660,29 @@ async function executeReplaceConnection(
   });
   if (!revoked.success) {
     throw new Error(revoked.message || 'Failed to revoke old connection');
+  }
+
+  const oldFeedIds = [...new Set(mappings.map((m) => m.oldFeedId))];
+  for (const oldFeedId of oldFeedIds) {
+    await deleteAllHistoryCandidates({
+      bankAccountFeedId: oldFeedId,
+      trx,
+    });
+    await refreshHistoryImportAggregates({
+      bankAccountFeedId: oldFeedId,
+      trx,
+    });
+    await markHistoryImportStatus({
+      bankAccountFeedId: oldFeedId,
+      companyId: params.companyId,
+      status: 'unavailable',
+      trx,
+    });
+    await resolveHistoryImportAttention(trx, {
+      clientCompanyId: params.companyId,
+      feedId: oldFeedId,
+      stateVersion: new Date(),
+    });
   }
 
   const sanitizedConnectionSnapshot = sanitizeProviderSnapshot(

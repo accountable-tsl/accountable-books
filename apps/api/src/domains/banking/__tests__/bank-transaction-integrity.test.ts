@@ -129,6 +129,75 @@ describe('banking database integrity', () => {
     ).rejects.toMatchObject({ code: '23505' });
   });
 
+  it('allows at most one feed entry to adopt a given predecessor entry', async () => {
+    const txnId = await insertTransaction(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankTransactionBatchId: fixture.companyA.batchId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+    });
+    const [predecessorEntry] = await trx('bank_transaction_feed_entries')
+      .insert({
+        bank_account_feed_id: fixture.companyA.feedId,
+        company_id: fixture.companyA.id,
+        provider_transaction_id: `pred-${randomToken()}`,
+        bank_transaction_id: txnId,
+        observation_type: 'added',
+        provider_evidence: {},
+        provider_evidence_schema_version: 1,
+        observed_at: trx.fn.now(),
+      })
+      .returning<{ id: string }[]>('id');
+
+    await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .update({
+        revoked_at: trx.fn.now(),
+        revocation_origin: 'client',
+        revocation_reason: 'replaced',
+      });
+
+    const replacementConnectionId = await insertConnection(trx, {
+      companyId: fixture.companyA.id,
+      providerId: fixture.providerId,
+      userId: fixture.userId,
+      providerItemId: `adopt-item-${randomToken()}`,
+    });
+    const successorFeedId = await insertFeed(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankConnectionId: replacementConnectionId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+      replacesBankAccountFeedId: fixture.companyA.feedId,
+    });
+
+    await trx('bank_transaction_feed_entries').insert({
+      bank_account_feed_id: successorFeedId,
+      company_id: fixture.companyA.id,
+      provider_transaction_id: `adopted-${randomToken()}`,
+      bank_transaction_id: txnId,
+      observation_type: 'added',
+      provider_evidence: {},
+      provider_evidence_schema_version: 1,
+      observed_at: trx.fn.now(),
+      adopted_from_feed_entry_id: predecessorEntry.id,
+    });
+
+    await expect(
+      trx('bank_transaction_feed_entries').insert({
+        bank_account_feed_id: successorFeedId,
+        company_id: fixture.companyA.id,
+        provider_transaction_id: `adopted-dup-${randomToken()}`,
+        bank_transaction_id: txnId,
+        observation_type: 'added',
+        provider_evidence: {},
+        provider_evidence_schema_version: 1,
+        observed_at: trx.fn.now(),
+        adopted_from_feed_entry_id: predecessorEntry.id,
+      }),
+    ).rejects.toMatchObject({ code: '23505' });
+  });
+
   it('reactivates a revoked feed on the same connection without creating a duplicate', async () => {
     const existing = await trx('bank_account_feeds')
       .where({ id: fixture.companyA.feedId })

@@ -47,6 +47,11 @@ export interface BankAccountForSync {
   last_successful_sync_at: Date | null;
   state_version: number;
   is_deleted: boolean;
+  replaces_bank_account_feed_id: string | null;
+  replacement_reconciliation_completed_at: Date | null;
+  /** Predecessor feed window when this feed is mid-replacement reconciliation. */
+  predecessor_sync_from_date: Date | null;
+  predecessor_last_successful_sync_at: Date | null;
 }
 
 /** Classification counts produced when one provider update is applied. */

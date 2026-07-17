@@ -274,18 +274,23 @@ export async function cleanupBankAccountAndFeed(
     .delete();
   await db.transaction(async (trx) => {
     await trx.raw("SELECT set_config('app.demo_seed_teardown', 'on', true)");
-    const feed = await trx('bank_account_feeds')
+    const feeds = await trx('bank_account_feeds')
       .where({ bank_account_id: bankAccountId })
-      .first<{ id: string }>('id');
-    if (feed) {
+      .select<{ id: string }[]>('id');
+    const feedIds = feeds.map((feed) => feed.id);
+    if (feedIds.length > 0) {
+      // Clear adoption links before deleting either side of the FK.
       await trx('bank_transaction_feed_entries')
-        .where({ bank_account_feed_id: feed.id })
+        .whereIn('bank_account_feed_id', feedIds)
+        .update({ adopted_from_feed_entry_id: null });
+      await trx('bank_transaction_feed_entries')
+        .whereIn('bank_account_feed_id', feedIds)
         .delete();
       await trx('bank_transaction_history_candidates')
-        .where({ bank_account_feed_id: feed.id })
+        .whereIn('bank_account_feed_id', feedIds)
         .delete();
       await trx('bank_transaction_history_imports')
-        .where({ bank_account_feed_id: feed.id })
+        .whereIn('bank_account_feed_id', feedIds)
         .delete();
     }
     await trx('bank_transactions')
@@ -294,9 +299,9 @@ export async function cleanupBankAccountAndFeed(
     await trx('bank_transaction_batches')
       .where({ bank_account_id: bankAccountId })
       .delete();
-    if (feed) {
+    if (feedIds.length > 0) {
       await trx('bank_transaction_sync_runs')
-        .where({ bank_account_feed_id: feed.id })
+        .whereIn('bank_account_feed_id', feedIds)
         .delete();
     }
     await trx('bank_account_feeds')
@@ -313,6 +318,7 @@ export async function cleanupSyncFailureFixture(
     connectionId: string;
     restoreRole: () => Promise<void>;
   },
+  extraConnectionIds: string[] = [],
 ): Promise<void> {
   await db('app.comms_deliveries')
     .whereRaw(`payload_data->>'bankAccountId' = ?`, [fixture.bankAccountId])
@@ -321,7 +327,8 @@ export async function cleanupSyncFailureFixture(
   // this connection/account; delete them so repeated test runs don't leave
   // orphaned rows that unrelated tests' broad outbox queries can pick up.
   await db('app.outbox')
-    .whereRaw(`payload->'event'->>'attentionKey' = ?`, [
+    .where({ scope_key: `bank_account:${fixture.bankAccountId}` })
+    .orWhereRaw(`payload->'event'->>'attentionKey' = ?`, [
       `bank_account:${fixture.bankAccountId}:reconnect`,
     ])
     .orWhereRaw(`payload->'event'->>'attentionKey' = ?`, [
@@ -330,12 +337,16 @@ export async function cleanupSyncFailureFixture(
     .orWhereRaw(`payload->>'attentionKey' = ?`, [
       `bank_account:${fixture.bankAccountId}:reconnect`,
     ])
+    .orWhereRaw(`payload->'event'->>'attentionKey' LIKE ?`, [
+      `bank_account_feed:%:replacement_unmatched`,
+    ])
     .delete();
   await cleanupBankAccountAndFeed(db, fixture.bankAccountId);
+  const connectionIds = [fixture.connectionId, ...extraConnectionIds];
   await db('bank_connection_secrets')
-    .where({ bank_connection_id: fixture.connectionId })
+    .whereIn('bank_connection_id', connectionIds)
     .delete();
-  await db('bank_connections').where({ id: fixture.connectionId }).delete();
+  await db('bank_connections').whereIn('id', connectionIds).delete();
   await fixture.restoreRole();
 }
 

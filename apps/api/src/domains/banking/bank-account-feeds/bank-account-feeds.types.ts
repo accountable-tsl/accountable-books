@@ -27,6 +27,7 @@ export const newBankAccountFeed = z.object({
   connected_at: z.date().optional(),
   connected_by_id: z.uuid(),
   replaces_bank_account_feed_id: z.uuid().nullish(),
+  replacement_reconciliation_completed_at: z.date().nullish(),
   revoked_at: z.date().nullish(),
   revoked_by_id: z.uuid().nullish(),
   revocation_origin: bankAccountFeedRevocationOrigin.nullish(),

@@ -1,7 +1,7 @@
 import express from 'express';
-import request from 'supertest';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { requestApp } from '../test/http.js';
 import { createHealthRouter, markReady, markUnready } from './health.js';
 
 const checkPostgres = vi.fn<() => Promise<unknown>>();
@@ -30,7 +30,7 @@ describe('health endpoints', () => {
   test('GET /health/live returns alive without dependency checks', async () => {
     const app = createTestApp();
 
-    const res = await request(app).get('/health/live');
+    const res = await requestApp(app, { path: '/health/live' });
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/application\/json/);
@@ -42,7 +42,7 @@ describe('health endpoints', () => {
   test('GET /health/ready returns 503 before startup is complete', async () => {
     const app = createTestApp();
 
-    const res = await request(app).get('/health/ready');
+    const res = await requestApp(app, { path: '/health/ready' });
 
     expect(res.status).toBe(503);
     expect(res.body).toEqual({
@@ -57,7 +57,7 @@ describe('health endpoints', () => {
     const app = createTestApp();
     markReady();
 
-    const res = await request(app).get('/health/ready');
+    const res = await requestApp(app, { path: '/health/ready' });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
@@ -71,7 +71,7 @@ describe('health endpoints', () => {
     markReady();
     checkPostgres.mockRejectedValueOnce(new Error('connection refused'));
 
-    const res = await request(app).get('/health/ready');
+    const res = await requestApp(app, { path: '/health/ready' });
 
     expect(res.status).toBe(503);
     expect(res.body).toEqual({
@@ -85,7 +85,7 @@ describe('health endpoints', () => {
     markReady();
     markUnready();
 
-    const res = await request(app).get('/health/ready');
+    const res = await requestApp(app, { path: '/health/ready' });
 
     expect(res.status).toBe(503);
     expect(res.body).toEqual({
