@@ -6,6 +6,10 @@ import { getLogger } from '../../shared/utils/logger.js';
 import { dispatchActivityEventRequested } from '../activity/activity.model.js';
 import { handleGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
 import {
+  processProviderWebhookReceived,
+  quarantineProviderWebhookAfterDeadLetter,
+} from '../banking/bank-provider-webhook-events/provider-webhook.processor.js';
+import {
   dispatchNotificationAttentionResolved,
   dispatchNotificationCommsRequested,
   dispatchNotificationRequested,
@@ -85,6 +89,9 @@ async function dispatchIntent(
     case OUTBOX_INTENT.CLOSE_SIGNAL_EVAL_REQUESTED:
       await handleCloseSignalEvalOutbox(row.payload, trx);
       return { status: 'done' };
+    case OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED:
+      await processProviderWebhookReceived(row.payload, trx);
+      return { status: 'done' };
     default:
       throw new Error(`Unknown outbox intent_type: ${row.intent_type}`);
   }
@@ -153,6 +160,19 @@ async function processOneIntent(
   // Alert after commit so the notification is never inside the dispatch transaction.
   if (result.deadLetter) {
     await alertOutboxDeadLetter(result.deadLetter.row, result.deadLetter.error);
+    if (
+      result.deadLetter.row.intent_type ===
+      OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED
+    ) {
+      const message =
+        result.deadLetter.error instanceof Error
+          ? result.deadLetter.error.message
+          : String(result.deadLetter.error);
+      await quarantineProviderWebhookAfterDeadLetter(
+        result.deadLetter.row.payload,
+        message,
+      );
+    }
   }
 
   return result.outcome;

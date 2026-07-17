@@ -7,6 +7,7 @@ export const OUTBOX_INTENT = {
   GL_BALANCE_RECALC_REQUESTED: 'gl_balance_recalc_requested',
   CLOSE_SIGNAL_EVAL_REQUESTED: 'close_signal_eval_requested',
   BANK_SYNC_REQUESTED: 'bank_sync_requested',
+  PROVIDER_WEBHOOK_RECEIVED: 'provider_webhook_received',
 } as const;
 
 export type OutboxIntentType =

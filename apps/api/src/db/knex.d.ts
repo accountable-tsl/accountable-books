@@ -126,6 +126,10 @@ import type {
   NewBankTransactionHistoryImport,
 } from '../domains/banking/bank-transaction-history/bank-transaction-history.types.js';
 import type {
+  BankProviderWebhookEvent,
+  NewBankProviderWebhookEvent,
+} from '../domains/banking/bank-provider-webhook-events/bank-provider-webhook-events.types.js';
+import type {
   JournalBatch,
   JournalEntry,
   NewJournalBatch,
@@ -290,6 +294,12 @@ declare module 'knex/types/tables' {
       BankTransactionHistoryCandidate,
       NewBankTransactionHistoryCandidate,
       Partial<Omit<BankTransactionHistoryCandidate, 'id'>>
+    >;
+
+    bank_provider_webhook_events: Knex.CompositeTableType<
+      BankProviderWebhookEvent,
+      NewBankProviderWebhookEvent,
+      Partial<Omit<BankProviderWebhookEvent, 'id'>>
     >;
 
     bank_transactions: Knex.CompositeTableType<
