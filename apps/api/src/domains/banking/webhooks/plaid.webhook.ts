@@ -2,10 +2,12 @@ import { randomUUID } from 'crypto';
 import type { Request, Response } from 'express';
 import express, { Router } from 'express';
 
+import { knexClient } from '../../../db/knexClient.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
 import { requestBankSyncForConnection } from '../../../integrations/banking/transaction-sync.outbox.js';
 import { webhookProviders } from '../../../integrations/banking/utils/webhookVerification.js';
 import { logger } from '../../../shared/utils/logger.js';
+import { revokeConnectionAndDestroySecret } from '../connection-lifecycle/lifecycle.commands.js';
 
 const router = Router();
 
@@ -245,11 +247,30 @@ async function handleItemWebhook(
       // TODO: Notify user to re-authenticate
       break;
 
-    case 'USER_PERMISSION_REVOKED':
-      // User revoked permissions at the bank
+    case 'USER_PERMISSION_REVOKED': {
       log('User permission revoked');
-      // TODO: Update credential status to 'revoked'
+      const connection = await transactionSyncService.findConnectionByItemId({
+        providerKey: 'plaid',
+        itemId: data.item_id,
+      });
+      if (!connection) {
+        log('Connection not found for revoked item', { item_id: data.item_id });
+        break;
+      }
+      await knexClient.transaction(async (trx) => {
+        await revokeConnectionAndDestroySecret({
+          connectionId: connection.id,
+          companyId: connection.company_id,
+          revocationOrigin: 'provider',
+          revocationReason: 'Plaid USER_PERMISSION_REVOKED',
+          trx,
+        });
+      });
+      log('Connection revoked from webhook', {
+        connection_id: connection.id,
+      });
       break;
+    }
 
     case 'WEBHOOK_UPDATE_ACKNOWLEDGED':
       // Webhook URL was successfully updated

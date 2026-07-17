@@ -8,8 +8,8 @@ import {
 /**
  * One-to-one restricted secret store for bank connections. Only the provider
  * execution boundary should load these rows; ordinary connection queries must
- * never select them. Revocation/destruction orchestration is deliberately a
- * later lifecycle milestone.
+ * never select them. Secrets are rotated in place on reauth and destroyed
+ * immediately when a connection is revoked.
  */
 
 const schemaName = 'app';
@@ -53,7 +53,7 @@ export async function up(knex: Knex): Promise<void> {
 
   await knex.raw(`
     COMMENT ON TABLE "${schemaName}"."${tableName}" IS
-    'Restricted one-to-one encrypted provider token store for bank_connections. Never selected by ordinary connection reads.';
+    'Restricted one-to-one encrypted provider token store for bank_connections. Never selected by ordinary connection reads. Destroyed immediately on connection revoke; rotated in place on reauth.';
   `);
 
   await knex.raw(`

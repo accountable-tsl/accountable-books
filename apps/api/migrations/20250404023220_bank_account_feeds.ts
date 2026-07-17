@@ -105,6 +105,13 @@ export async function up(knex: Knex): Promise<void> {
     table.string('revocation_reason', 512).nullable();
 
     table
+      .uuid('replaces_bank_account_feed_id')
+      .nullable()
+      .comment(
+        'When this feed replaces a retired feed after a provider item change',
+      );
+
+    table
       .timestamp('created_at', { useTz: true })
       .notNullable()
       .defaultTo(knex.fn.now());
@@ -157,11 +164,30 @@ export async function up(knex: Knex): Promise<void> {
   `);
 
   await knex.raw(`
+    CREATE UNIQUE INDEX bank_account_feeds_replaces_feed_uniq
+    ON "${schemaName}"."${tableName}" (replaces_bank_account_feed_id)
+    WHERE replaces_bank_account_feed_id IS NOT NULL;
+  `);
+
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."${tableName}"
+      ADD CONSTRAINT bank_account_feeds_replaces_feed_company_fk
+        FOREIGN KEY (replaces_bank_account_feed_id, company_id)
+        REFERENCES "${schemaName}"."${tableName}" (id, company_id)
+        ON DELETE RESTRICT;
+  `);
+
+  await knex.raw(`
     ALTER TABLE "${schemaName}"."${tableName}"
       ADD CONSTRAINT bank_account_feeds_provider_account_id_trimmed_chk
         CHECK (
           provider_account_id = btrim(provider_account_id)
           AND char_length(provider_account_id) >= 1
+        ),
+      ADD CONSTRAINT bank_account_feeds_replaces_not_self_chk
+        CHECK (
+          replaces_bank_account_feed_id IS NULL
+          OR replaces_bank_account_feed_id <> id
         ),
       ADD CONSTRAINT bank_account_feeds_revocation_chk
         CHECK (

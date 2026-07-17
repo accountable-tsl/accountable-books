@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 
+import { knexClient } from '../../db/knexClient.js';
 import {
   connectAccountsService,
   transactionSyncService,
@@ -14,6 +15,10 @@ import {
 } from '../../shared/utils/response.utils.js';
 import { getBankAccountSyncEligibility } from './bankAccounts/bankAccounts.model.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
+import {
+  revokeConnectionAndDestroySecret,
+  stopFeedAndCancelSync,
+} from './connection-lifecycle/lifecycle.commands.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
 
@@ -31,8 +36,13 @@ export class BankingController {
           .json(errorResponse('Missing user or company ID'));
       }
 
-      console.log('req.body', req.body);
-      const { providerKey, publicToken, metadata, countryCode } = req.body;
+      const {
+        providerKey,
+        publicToken,
+        metadata,
+        countryCode,
+        confirmReplacement,
+      } = req.body;
 
       if (!providerKey || !publicToken || !countryCode) {
         return res
@@ -51,22 +61,83 @@ export class BankingController {
         metadata,
         companyId,
         userId,
+        confirmReplacement: Boolean(confirmReplacement),
       });
-
-      console.log('Result:', result);
 
       if (result.success) {
         res.json(result);
       } else {
         res.status(400).json(result);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error connecting bank accounts:', error);
       res.status(500).json(errorResponse('Internal server error'));
     }
   }
 
-  // TODO: Remove this... add update bank account function to banks.model.ts, then we can build a think wrapper round that for this if needed
+  async stopBankAccountFeed(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const companyId = req.user?.currentCompanyId;
+      const feedId = String(req.params.feedId || '');
+      if (!userId || !companyId || !feedId) {
+        return res
+          .status(400)
+          .json(errorResponse('Missing user, company, or feed id'));
+      }
+
+      const result = await knexClient.transaction(async (trx) =>
+        stopFeedAndCancelSync({
+          feedId,
+          companyId,
+          revokedById: userId,
+          revocationOrigin: 'client',
+          revocationReason: 'Stopped by user',
+          trx,
+        }),
+      );
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (error: unknown) {
+      console.error('Error stopping bank account feed:', error);
+      return res.status(500).json(errorResponse('Failed to stop feed'));
+    }
+  }
+
+  async revokeBankConnection(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const companyId = req.user?.currentCompanyId;
+      const connectionId = String(req.params.connectionId || '');
+      if (!userId || !companyId || !connectionId) {
+        return res
+          .status(400)
+          .json(errorResponse('Missing user, company, or connection id'));
+      }
+
+      const result = await knexClient.transaction(async (trx) =>
+        revokeConnectionAndDestroySecret({
+          connectionId,
+          companyId,
+          revokedById: userId,
+          revocationOrigin: 'client',
+          revocationReason: 'Revoked by user',
+          trx,
+        }),
+      );
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (error: unknown) {
+      console.error('Error revoking bank connection:', error);
+      return res.status(500).json(errorResponse('Failed to revoke connection'));
+    }
+  }
 
   /**
    * Classify a bank account as business or personal
@@ -97,12 +168,6 @@ export class BankingController {
           );
       }
 
-      // const result = await bankingService.classifyBankAccount({
-      //   accountId,
-      //   companyId,
-      //   userId,
-      //   businessOrPersonal,
-      // });
       const result = { success: false, note: '' };
 
       if (result.success) {
@@ -110,7 +175,7 @@ export class BankingController {
       } else {
         res.status(400).json(result);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error classifying bank account:', error);
       res.status(500).json(errorResponse('Internal server error'));
     }

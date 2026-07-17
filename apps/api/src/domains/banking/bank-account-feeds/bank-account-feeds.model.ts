@@ -305,3 +305,120 @@ export async function advanceFeedCheckpoint({
     return errorResponse('Failed to advance feed checkpoint', error);
   }
 }
+
+export async function stopBankAccountFeed({
+  feedId,
+  companyId,
+  revokedById,
+  revocationOrigin,
+  revocationReason,
+  trx,
+}: {
+  feedId: string;
+  companyId: string;
+  revokedById?: string | null;
+  revocationOrigin: 'client' | 'provider';
+  revocationReason?: string | null;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ id: string; alreadyStopped: boolean }>> {
+  try {
+    const feed = await trx('bank_account_feeds')
+      .where({ id: feedId, company_id: companyId })
+      .forUpdate()
+      .first<{ id: string; revoked_at: Date | null }>('id', 'revoked_at');
+    if (!feed) {
+      return errorResponse('Bank account feed not found', null);
+    }
+    if (feed.revoked_at != null) {
+      return successResponse('Bank account feed already stopped', {
+        id: feedId,
+        alreadyStopped: true,
+      });
+    }
+
+    await trx('bank_account_feeds')
+      .where({ id: feedId, company_id: companyId })
+      .whereNull('revoked_at')
+      .update({
+        revoked_at: trx.fn.now(),
+        revoked_by_id: revokedById ?? null,
+        revocation_origin: revocationOrigin,
+        revocation_reason: revocationReason ?? null,
+        state_version: trx.raw('state_version + 1'),
+        updated_at: trx.fn.now(),
+      });
+
+    return successResponse('Bank account feed stopped', {
+      id: feedId,
+      alreadyStopped: false,
+    });
+  } catch (error) {
+    return errorResponse('Failed to stop bank account feed', error);
+  }
+}
+
+/** Clears revocation so the same feed row can resume (same connection + provider account). */
+export async function reactivateBankAccountFeed({
+  feedId,
+  companyId,
+  trx,
+}: {
+  feedId: string;
+  companyId: string;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ id: string }>> {
+  try {
+    const updated = await trx('bank_account_feeds')
+      .where({ id: feedId, company_id: companyId })
+      .whereNotNull('revoked_at')
+      .update({
+        revoked_at: null,
+        revoked_by_id: null,
+        revocation_origin: null,
+        revocation_reason: null,
+        state_version: trx.raw('state_version + 1'),
+        updated_at: trx.fn.now(),
+      });
+    if (!updated) {
+      return errorResponse('Revoked bank account feed not found', null);
+    }
+    return successResponse('Bank account feed reactivated', { id: feedId });
+  } catch (error) {
+    return errorResponse('Failed to reactivate bank account feed', error);
+  }
+}
+
+export async function listFeedsForConnection({
+  connectionId,
+  companyId,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  trx?: Knex | Knex.Transaction;
+}): Promise<ApiResponse<BankAccountFeed[]>> {
+  const knex = trx ?? knexClient;
+  try {
+    const rows = await knex('bank_account_feeds')
+      .where({
+        bank_connection_id: connectionId,
+        company_id: companyId,
+      })
+      .select('*');
+
+    const feeds: BankAccountFeed[] = [];
+    for (const row of rows) {
+      const parsed = bankAccountFeed.safeParse(row);
+      if (!parsed.success) {
+        return errorResponse(
+          'Invalid bank account feed row',
+          parsed.error.flatten(),
+        );
+      }
+      feeds.push(parsed.data);
+    }
+    return successResponse('Feeds retrieved', feeds);
+  } catch (error) {
+    return errorResponse('Failed to list feeds for connection', error);
+  }
+}

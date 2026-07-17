@@ -192,3 +192,154 @@ export async function markConnectionRequiresAction({
     feedsBumped: bumped,
   });
 }
+
+export async function findBankConnectionByProviderItem({
+  companyId,
+  providerId,
+  providerItemId,
+  trx,
+}: {
+  companyId: string;
+  providerId: string;
+  providerItemId: string;
+  trx?: Knex | Knex.Transaction;
+}): Promise<ApiResponse<BankConnection | null>> {
+  const knex = trx ?? knexClient;
+  try {
+    const row = await knex('bank_connections')
+      .select(CONNECTION_COLUMNS)
+      .where({
+        company_id: companyId,
+        provider_id: providerId,
+        provider_item_id: providerItemId,
+      })
+      .first();
+    if (!row) {
+      return successResponse('No connection for provider item', null);
+    }
+    const parsed = bankConnection.safeParse(row);
+    if (!parsed.success) {
+      return errorResponse(
+        'Invalid bank connection row',
+        parsed.error.flatten(),
+      );
+    }
+    return successResponse('Bank connection retrieved', parsed.data);
+  } catch (error) {
+    return errorResponse(
+      'Failed to find bank connection by provider item',
+      error,
+    );
+  }
+}
+
+export async function revokeBankConnection({
+  connectionId,
+  companyId,
+  revokedById,
+  revocationOrigin,
+  revocationReason,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  revokedById?: string | null;
+  revocationOrigin: 'client' | 'provider';
+  revocationReason?: string | null;
+  trx: Knex.Transaction;
+}): Promise<
+  ApiResponse<{ id: string; alreadyRevoked: boolean; feedsStopped: number }>
+> {
+  try {
+    const connection = await trx('bank_connections')
+      .where({ id: connectionId, company_id: companyId })
+      .forUpdate()
+      .first<{
+        id: string;
+        authorization_status: string;
+      }>('id', 'authorization_status');
+    if (!connection) {
+      return errorResponse('Bank connection not found', null);
+    }
+
+    if (connection.authorization_status === 'revoked') {
+      return successResponse('Bank connection already revoked', {
+        id: connectionId,
+        alreadyRevoked: true,
+        feedsStopped: 0,
+      });
+    }
+
+    const feedsStopped = await trx('bank_account_feeds')
+      .where({
+        bank_connection_id: connectionId,
+        company_id: companyId,
+      })
+      .whereNull('revoked_at')
+      .update({
+        revoked_at: trx.fn.now(),
+        revoked_by_id: revokedById ?? null,
+        revocation_origin: revocationOrigin,
+        revocation_reason: revocationReason ?? null,
+        state_version: trx.raw('state_version + 1'),
+        updated_at: trx.fn.now(),
+      });
+
+    await trx('bank_connections')
+      .where({ id: connectionId, company_id: companyId })
+      .update({
+        authorization_status: 'revoked',
+        requires_action_at: null,
+        authorization_reason_code: null,
+        revoked_at: trx.fn.now(),
+        revoked_by_id: revokedById ?? null,
+        revocation_origin: revocationOrigin,
+        revocation_reason: revocationReason ?? null,
+        updated_at: trx.fn.now(),
+        updated_by_id: revokedById ?? null,
+      });
+
+    return successResponse('Bank connection revoked', {
+      id: connectionId,
+      alreadyRevoked: false,
+      feedsStopped,
+    });
+  } catch (error) {
+    return errorResponse('Failed to revoke bank connection', error);
+  }
+}
+
+/** Clears revoke / requires_action and returns the connection to active. */
+export async function reactivateBankConnection({
+  connectionId,
+  companyId,
+  updatedById,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  updatedById?: string | null;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ id: string }>> {
+  try {
+    const updated = await trx('bank_connections')
+      .where({ id: connectionId, company_id: companyId })
+      .update({
+        authorization_status: 'active',
+        requires_action_at: null,
+        authorization_reason_code: null,
+        revoked_at: null,
+        revoked_by_id: null,
+        revocation_origin: null,
+        revocation_reason: null,
+        updated_at: trx.fn.now(),
+        updated_by_id: updatedById ?? null,
+      });
+    if (!updated) {
+      return errorResponse('Bank connection not found', null);
+    }
+    return successResponse('Bank connection reactivated', { id: connectionId });
+  } catch (error) {
+    return errorResponse('Failed to reactivate bank connection', error);
+  }
+}

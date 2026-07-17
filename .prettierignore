@@ -41,6 +41,9 @@ Thumbs.db
 .cursorrules
 .vscode
 
+# Local notes (gitignored via .git/info/exclude)
+my-notes/
+
 # Hosting
 .vercel
 .netlify

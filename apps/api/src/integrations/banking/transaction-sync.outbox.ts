@@ -107,6 +107,28 @@ export async function requestBankSyncForConnection(input: {
   return feeds.length;
 }
 
+/** Completes unleased pending sync intents so revoke/stop cannot leave zombies. */
+export async function cancelPendingBankSync({
+  bankAccountId,
+  trx,
+}: {
+  bankAccountId: string;
+  trx: Knex.Transaction;
+}): Promise<number> {
+  return trx('app.outbox')
+    .where({
+      intent_type: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+      scope_key: bankSyncScopeKey(bankAccountId),
+      status: 'pending',
+    })
+    .whereNull('lease_token')
+    .update({
+      status: 'processed',
+      completed_at: trx.fn.now(),
+      updated_at: trx.fn.now(),
+    });
+}
+
 /**
  * Executes a leased bank-sync outbox intent outside any outbox transaction.
  * The dispatcher calls this after claimLeasedIntent commits.

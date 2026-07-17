@@ -17,6 +17,18 @@ router.post(
   bankingController.connectBankAccounts.bind(bankingController),
 );
 
+// POST /api/banking/feeds/:feedId/stop
+router.post(
+  '/feeds/:feedId/stop',
+  bankingController.stopBankAccountFeed.bind(bankingController),
+);
+
+// POST /api/banking/connections/:connectionId/revoke
+router.post(
+  '/connections/:connectionId/revoke',
+  bankingController.revokeBankConnection.bind(bankingController),
+);
+
 // NEW: PUT /api/banking/accounts/:accountId/classify
 router.put(
   '/accounts/:accountId/classify',

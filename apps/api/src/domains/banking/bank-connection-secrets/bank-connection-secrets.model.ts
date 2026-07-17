@@ -137,3 +137,94 @@ export async function loadSecretForProviderExecution({
     return errorResponse('Failed to load connection secret', error);
   }
 }
+
+/**
+ * Overwrites ciphertext for an existing secret row. Active connection must
+ * retain exactly one secret; never insert a second row.
+ */
+export async function rotateBankConnectionSecret({
+  connectionId,
+  companyId,
+  accessToken,
+  refreshToken,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  accessToken: string;
+  refreshToken?: string | null;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ id: string }>> {
+  try {
+    const connection = await trx('bank_connections')
+      .where({
+        id: connectionId,
+        company_id: companyId,
+        authorization_status: 'active',
+      })
+      .first('id');
+    if (!connection) {
+      return errorResponse(
+        'Active bank connection not found for company',
+        null,
+      );
+    }
+
+    const aad = getSecretAad({ connectionId, companyId });
+    const encryptedAccessToken = encrypt(accessToken, aad);
+    const updated = await trx('bank_connection_secrets')
+      .where({ bank_connection_id: connectionId })
+      .update({
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: refreshToken
+          ? encrypt(refreshToken, aad)
+          : null,
+        encryption_key_version: getCiphertextKeyId(encryptedAccessToken),
+        rotated_at: trx.fn.now(),
+        updated_at: trx.fn.now(),
+      });
+
+    if (!updated) {
+      return errorResponse('Connection secret not found to rotate', null);
+    }
+
+    const row = await trx('bank_connection_secrets')
+      .where({ bank_connection_id: connectionId })
+      .first<{ id: string }>('id');
+    return successResponse('Bank connection secret rotated', {
+      id: row!.id,
+    });
+  } catch (error) {
+    return errorResponse('Failed to rotate bank connection secret', error);
+  }
+}
+
+/** Idempotent: deleting an already-missing secret succeeds. */
+export async function destroyBankConnectionSecret({
+  connectionId,
+  companyId,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ destroyed: boolean }>> {
+  try {
+    const connection = await trx('bank_connections')
+      .where({ id: connectionId, company_id: companyId })
+      .first('id');
+    if (!connection) {
+      return errorResponse('Bank connection not found for company', null);
+    }
+
+    const deleted = await trx('bank_connection_secrets')
+      .where({ bank_connection_id: connectionId })
+      .delete();
+
+    return successResponse('Bank connection secret destroyed', {
+      destroyed: deleted > 0,
+    });
+  } catch (error) {
+    return errorResponse('Failed to destroy bank connection secret', error);
+  }
+}

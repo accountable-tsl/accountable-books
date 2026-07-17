@@ -94,6 +94,89 @@ describe('banking database integrity', () => {
     ).rejects.toMatchObject({ code: '23505' });
   });
 
+  it('allows at most one successor feed to replace a given feed', async () => {
+    await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .update({
+        revoked_at: trx.fn.now(),
+        revocation_origin: 'client',
+        revocation_reason: 'replaced',
+      });
+
+    const replacementConnectionId = await insertConnection(trx, {
+      companyId: fixture.companyA.id,
+      providerId: fixture.providerId,
+      userId: fixture.userId,
+      providerItemId: `replacement-item-${randomToken()}`,
+    });
+
+    await insertFeed(trx, {
+      bankAccountId: fixture.companyA.bankAccountId,
+      bankConnectionId: replacementConnectionId,
+      companyId: fixture.companyA.id,
+      userId: fixture.userId,
+      replacesBankAccountFeedId: fixture.companyA.feedId,
+    });
+
+    await expect(
+      insertFeed(trx, {
+        bankAccountId: fixture.companyA.spareBankAccountId,
+        bankConnectionId: replacementConnectionId,
+        companyId: fixture.companyA.id,
+        userId: fixture.userId,
+        replacesBankAccountFeedId: fixture.companyA.feedId,
+      }),
+    ).rejects.toMatchObject({ code: '23505' });
+  });
+
+  it('reactivates a revoked feed on the same connection without creating a duplicate', async () => {
+    const existing = await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .first<{
+        provider_account_id: string;
+        sync_cursor: string | null;
+      }>('provider_account_id', 'sync_cursor');
+    if (!existing) throw new Error('Expected the fixture feed');
+
+    await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .update({
+        sync_cursor: 'checkpoint-before-revoke',
+        revoked_at: trx.fn.now(),
+        revocation_origin: 'client',
+        revocation_reason: 'temporary stop',
+      });
+
+    await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .update({
+        revoked_at: null,
+        revoked_by_id: null,
+        revocation_origin: null,
+        revocation_reason: null,
+      });
+
+    const reactivated = await trx('bank_account_feeds')
+      .where({ id: fixture.companyA.feedId })
+      .first('revoked_at', 'sync_cursor', 'provider_account_id');
+
+    expect(reactivated).toMatchObject({
+      revoked_at: null,
+      sync_cursor: 'checkpoint-before-revoke',
+      provider_account_id: existing.provider_account_id,
+    });
+
+    const activeCount = await trx('bank_account_feeds')
+      .where({
+        bank_connection_id: fixture.companyA.connectionId,
+        provider_account_id: existing.provider_account_id,
+      })
+      .whereNull('revoked_at')
+      .count<{ count: string }>('id as count')
+      .first();
+    expect(activeCount?.count).toBe('1');
+  });
+
   it('rejects an import batch when the bank account belongs to a different company', async () => {
     await expectForeignKeyViolation(
       insertBatch(trx, {
@@ -582,13 +665,19 @@ async function insertCoa(
 
 async function insertConnection(
   trx: Knex.Transaction,
-  params: { companyId: string; providerId: string; userId: string },
+  params: {
+    companyId: string;
+    providerId: string;
+    userId: string;
+    providerItemId?: string;
+  },
 ): Promise<string> {
   const [connection] = await trx('bank_connections')
     .insert({
       company_id: params.companyId,
       provider_id: params.providerId,
       connected_by_id: params.userId,
+      provider_item_id: params.providerItemId ?? null,
     })
     .returning<{ id: string }[]>('id');
 
@@ -630,6 +719,7 @@ async function insertFeed(
     companyId: string;
     providerAccountId?: string;
     userId: string;
+    replacesBankAccountFeedId?: string;
   },
 ): Promise<string> {
   const [feed] = await trx('bank_account_feeds')
@@ -640,6 +730,7 @@ async function insertFeed(
       connected_by_id: params.userId,
       provider_account_id:
         params.providerAccountId ?? `provider-account-${randomToken()}`,
+      replaces_bank_account_feed_id: params.replacesBankAccountFeedId ?? null,
     })
     .returning<{ id: string }[]>('id');
 

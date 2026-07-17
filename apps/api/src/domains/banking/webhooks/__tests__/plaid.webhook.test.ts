@@ -7,6 +7,7 @@ import plaidWebhookRouter from '../plaid.webhook.js';
 const mocks = vi.hoisted(() => ({
   findConnectionByItemId: vi.fn(),
   requestBankSyncForConnection: vi.fn(),
+  revokeConnection: vi.fn(),
 }));
 
 vi.mock('../../../../integrations/banking/transaction-sync.outbox.js', () => ({
@@ -22,6 +23,10 @@ vi.mock(
   }),
 );
 
+vi.mock('../../connection-lifecycle/lifecycle.commands.js', () => ({
+  revokeConnectionAndDestroySecret: mocks.revokeConnection,
+}));
+
 vi.mock(
   '../../../../integrations/banking/utils/webhookVerification.js',
   () => ({
@@ -34,6 +39,7 @@ vi.mock(
 describe('Plaid transaction webhooks', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.revokeConnection.mockResolvedValue({ success: true });
   });
 
   it('writes coalescable bank sync intents for the connection', async () => {
@@ -63,5 +69,36 @@ describe('Plaid transaction webhooks', () => {
       connectionId: 'connection-1',
       trigger: 'webhook',
     });
+  });
+
+  it('revokes the connection on USER_PERMISSION_REVOKED', async () => {
+    mocks.findConnectionByItemId.mockResolvedValue({
+      id: 'connection-1',
+      company_id: 'company-1',
+    });
+    const app = express();
+    app.use(plaidWebhookRouter);
+
+    const response = await request(app)
+      .post('/webhooks/banking/plaid')
+      .set('Content-Type', 'application/json')
+      .send(
+        JSON.stringify({
+          webhook_type: 'ITEM',
+          webhook_code: 'USER_PERMISSION_REVOKED',
+          item_id: 'item-1',
+          environment: 'sandbox',
+        }),
+      );
+
+    expect(response.status).toBe(200);
+    expect(mocks.revokeConnection).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connectionId: 'connection-1',
+        companyId: 'company-1',
+        revocationOrigin: 'provider',
+        revocationReason: 'Plaid USER_PERMISSION_REVOKED',
+      }),
+    );
   });
 });
