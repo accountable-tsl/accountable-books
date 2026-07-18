@@ -656,6 +656,7 @@ async function executeReplaceConnection(
     revokedById: params.userId,
     revocationOrigin: 'client',
     revocationReason: 'Replaced by new provider item',
+    notifyDisconnected: false,
     trx,
   });
   if (!revoked.success) {

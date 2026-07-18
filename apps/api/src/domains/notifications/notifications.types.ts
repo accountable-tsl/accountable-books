@@ -7,6 +7,7 @@ export const NOTIFICATION_TYPE = {
   WORK_REASSIGNED: 'work.reassigned',
   WORK_OVERDUE: 'work.overdue',
   BANK_RECONNECT_REQUIRED: 'bank.reconnect_required',
+  BANK_CONNECTION_DISCONNECTED: 'bank.connection_disconnected',
   CLIENT_QUERY_REQUIRES_RESPONSE: 'client_query.requires_response',
   CLOSE_APPROVAL_REQUESTED: 'close.approval_requested',
   CLOSE_APPROVAL_REJECTED: 'close.approval_rejected',

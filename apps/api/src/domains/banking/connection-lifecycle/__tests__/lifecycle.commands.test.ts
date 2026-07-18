@@ -6,6 +6,8 @@ import {
   cleanupSyncFailureFixture,
   createSyncFailureFixture,
 } from '../../../../integrations/banking/services/__tests__/transaction-sync.test-helpers.js';
+import { NOTIFICATION_TYPE } from '../../../notifications/notifications.types.js';
+import { OUTBOX_INTENT } from '../../../outbox/intents.js';
 import {
   loadSecretForProviderExecution,
   rotateBankConnectionSecret,
@@ -154,6 +156,40 @@ describe('connection lifecycle commands', () => {
         .first('authorization_status');
       expect(connection?.authorization_status).toBe('revoked');
 
+      const disconnectedIntents = await db('app.outbox')
+        .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+        .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+          NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED,
+        ])
+        .andWhereRaw(`payload->'event'->'sourceEntity'->>'id' = ?`, [
+          fixture.bankAccountId,
+        ]);
+      expect(disconnectedIntents.length).toBeGreaterThanOrEqual(1);
+      expect(disconnectedIntents[0]?.payload.event).toEqual(
+        expect.objectContaining({
+          eventType: NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED,
+          destination: expect.objectContaining({
+            action: 'view_bank_account',
+            bankAccountId: fixture.bankAccountId,
+            connectionId: fixture.connectionId,
+          }),
+          data: expect.objectContaining({
+            revocationOrigin: 'client',
+            connectionId: fixture.connectionId,
+          }),
+        }),
+      );
+
+      const reconnectIntents = await db('app.outbox')
+        .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+        .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+          NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
+        ])
+        .andWhereRaw(`payload->'event'->'sourceEntity'->>'id' = ?`, [
+          fixture.bankAccountId,
+        ]);
+      expect(reconnectIntents).toHaveLength(0);
+
       const second = await db.transaction(async (trx) =>
         revokeConnectionAndDestroySecret({
           connectionId: fixture.connectionId,
@@ -163,6 +199,18 @@ describe('connection lifecycle commands', () => {
         }),
       );
       expect(second.data?.alreadyRevoked).toBe(true);
+
+      const disconnectedAfterIdempotent = await db('app.outbox')
+        .where({ intent_type: OUTBOX_INTENT.NOTIFICATION_REQUESTED })
+        .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
+          NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED,
+        ])
+        .andWhereRaw(`payload->'event'->'sourceEntity'->>'id' = ?`, [
+          fixture.bankAccountId,
+        ]);
+      expect(disconnectedAfterIdempotent).toHaveLength(
+        disconnectedIntents.length,
+      );
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }

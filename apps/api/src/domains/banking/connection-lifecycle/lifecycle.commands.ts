@@ -19,8 +19,13 @@ import {
   reactivateBankConnection,
   revokeBankConnection,
 } from '../bank-connections/bank-connections.model.js';
+import {
+  writeBankConnectionDisconnectedNotifications,
+  writeBankReconnectNotificationLifecycle,
+} from '../bankAccounts/bankAccountNotifications.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
+import type { BankAccountConnectionStatus } from '../bankAccounts/bankAccounts.types.js';
 
 export async function stopFeedAndCancelSync({
   feedId,
@@ -82,6 +87,7 @@ export async function revokeConnectionAndDestroySecret({
   revokedById,
   revocationOrigin,
   revocationReason,
+  notifyDisconnected = true,
   trx,
 }: {
   connectionId: string;
@@ -89,6 +95,7 @@ export async function revokeConnectionAndDestroySecret({
   revokedById?: string | null;
   revocationOrigin: 'client' | 'provider';
   revocationReason?: string | null;
+  notifyDisconnected?: boolean;
   trx: Knex.Transaction;
 }): Promise<
   ApiResponse<{
@@ -106,6 +113,14 @@ export async function revokeConnectionAndDestroySecret({
     return errorResponse('Failed to list feeds for connection', null);
   }
 
+  const connectionBefore = await trx('bank_connections')
+    .where({ id: connectionId, company_id: companyId })
+    .first<{ authorization_status: string }>('authorization_status');
+  const previousConnectionStatus: BankAccountConnectionStatus =
+    connectionBefore?.authorization_status === 'requires_action'
+      ? 'error'
+      : 'connected';
+
   const revoked = await revokeBankConnection({
     connectionId,
     companyId,
@@ -119,11 +134,39 @@ export async function revokeConnectionAndDestroySecret({
   }
 
   if (!revoked.data.alreadyRevoked) {
+    const notifiedAccountIds = new Set<string>();
+    const stateVersion = new Date();
     for (const feed of feedsBefore.data) {
-      if (feed.revoked_at == null) {
-        await cancelPendingBankSync({
+      if (feed.revoked_at != null) continue;
+
+      await cancelPendingBankSync({
+        bankAccountId: feed.bank_account_id,
+        trx,
+      });
+      if (notifiedAccountIds.has(feed.bank_account_id)) continue;
+      notifiedAccountIds.add(feed.bank_account_id);
+
+      const account = await trx('bank_accounts')
+        .where({ id: feed.bank_account_id, company_id: companyId })
+        .first<{ display_name: string }>('display_name');
+      if (!account) continue;
+
+      await writeBankReconnectNotificationLifecycle(trx, {
+        bankAccountId: feed.bank_account_id,
+        clientCompanyId: companyId,
+        previousConnectionStatus,
+        nextConnectionStatus: 'revoked',
+        bankAccountName: account.display_name,
+        stateVersion,
+      });
+      if (notifyDisconnected) {
+        await writeBankConnectionDisconnectedNotifications(trx, {
+          clientCompanyId: companyId,
           bankAccountId: feed.bank_account_id,
-          trx,
+          bankAccountName: account.display_name,
+          connectionId,
+          revocationOrigin,
+          stateVersion,
         });
       }
     }

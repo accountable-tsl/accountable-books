@@ -100,6 +100,7 @@ export function resolveCommsTemplate(input: {
   'work.reassigned',
   'work.overdue',
   'bank.reconnect_required',
+  'bank.connection_disconnected',
   'client_query.requires_response',
   'close.approval_requested',
   'close.approval_rejected',

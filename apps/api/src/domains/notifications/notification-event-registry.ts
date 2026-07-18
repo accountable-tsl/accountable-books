@@ -112,6 +112,16 @@ export const NOTIFICATION_EVENT_REGISTRY = {
       external: { enabled: true, defaultMode: 'immediate' },
     },
   ),
+  [NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED]: {
+    ...companyAttentionDefinition(
+      NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED,
+      {
+        external: { enabled: true, defaultMode: 'immediate' },
+      },
+    ),
+    defaultPriority: 'normal',
+    defaultReadPolicy: 'auto_on_view',
+  },
   [NOTIFICATION_TYPE.CLIENT_QUERY_REQUIRES_RESPONSE]:
     companyAttentionDefinition(
       NOTIFICATION_TYPE.CLIENT_QUERY_REQUIRES_RESPONSE,

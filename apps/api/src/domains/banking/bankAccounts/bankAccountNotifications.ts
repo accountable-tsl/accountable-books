@@ -11,7 +11,6 @@ import type { NotificationAttentionTransition } from '../../notifications/notifi
 import type { BankAccountConnectionStatus } from './bankAccounts.types.js';
 
 const RECONNECT_REQUIRED_STATUSES = new Set<BankAccountConnectionStatus>([
-  'revoked',
   'error',
 ]);
 
@@ -555,11 +554,90 @@ export async function writeBankReconnectNotificationLifecycle(
     });
   }
 
-  if (wasReconnectRequired && input.nextConnectionStatus === 'connected') {
+  if (
+    wasReconnectRequired &&
+    (input.nextConnectionStatus === 'connected' ||
+      input.nextConnectionStatus === 'revoked')
+  ) {
     return writeBankReconnectResolvedNotifications(trx, input);
   }
 
   return 0;
+}
+
+export function buildBankConnectionDisconnectedAttentionKey(
+  bankAccountId: string,
+): string {
+  return `bank_account:${bankAccountId}:disconnected`;
+}
+
+/** Informational disconnect notice — not reconnect attention/work. */
+export async function writeBankConnectionDisconnectedNotifications(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    bankAccountId: string;
+    bankAccountName: string;
+    connectionId: string;
+    revocationOrigin: 'client' | 'provider';
+    stateVersion?: Date | string;
+  },
+): Promise<number> {
+  const firmCompanyId = await resolveManagingFirmCompanyId(
+    trx,
+    input.clientCompanyId,
+  );
+  const recipients = await loadBankReconnectRecipients(trx, {
+    clientCompanyId: input.clientCompanyId,
+    firmCompanyId,
+  });
+  const stateVersion = input.stateVersion ?? new Date();
+  const attentionKey = buildBankConnectionDisconnectedAttentionKey(
+    input.bankAccountId,
+  );
+  const originLabel =
+    input.revocationOrigin === 'provider' ? 'the bank' : 'a user';
+
+  let intentCount = 0;
+  for (const recipient of recipients) {
+    await writeNotificationRequestedIntent(trx, {
+      recipientUserId: recipient.userId,
+      firmCompanyId,
+      clientCompanyId: input.clientCompanyId,
+      policyOwnerCompanyId: recipient.policyOwnerCompanyId,
+      eventType: NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED,
+      attentionKey,
+      attentionTransition: 'opened',
+      priority: 'normal',
+      readPolicy: 'auto_on_view',
+      title: `${input.bankAccountName} was disconnected`,
+      body: `The bank connection for ${input.bankAccountName} was disconnected by ${originLabel}. Transactions will not sync until a new connection is made.`,
+      destination: {
+        workspace: 'banking',
+        bankAccountId: input.bankAccountId,
+        connectionId: input.connectionId,
+        action: 'view_bank_account',
+      },
+      sourceEntity: { type: 'bank_account', id: input.bankAccountId },
+      idempotencyKey: [
+        'notification',
+        NOTIFICATION_TYPE.BANK_CONNECTION_DISCONNECTED,
+        recipient.userId,
+        input.bankAccountId,
+        input.connectionId,
+        toNotificationStateVersion(stateVersion),
+      ].join(':'),
+      data: {
+        bankAccountId: input.bankAccountId,
+        bankAccountName: input.bankAccountName,
+        connectionId: input.connectionId,
+        revocationOrigin: input.revocationOrigin,
+      },
+    });
+    intentCount += 1;
+  }
+
+  return intentCount;
 }
 
 export async function writeBankSyncFailureRequiresActionNotifications(
@@ -692,7 +770,7 @@ async function writeBankReconnectRequestedNotifications(
       priority: 'high',
       readPolicy: 'explicit',
       title: `Reconnect ${input.bankAccountName}`,
-      body: bankReconnectBody(input.nextConnectionStatus),
+      body: bankReconnectBody(),
       destination: {
         workspace: 'banking',
         bankAccountId: input.bankAccountId,
@@ -766,10 +844,7 @@ async function writeBankReconnectResolvedNotifications(
   return recipientUserIds.length;
 }
 
-function bankReconnectBody(status: BankAccountConnectionStatus): string {
-  if (status === 'revoked') {
-    return 'The bank connection was revoked and needs to be reconnected before transactions can sync.';
-  }
+function bankReconnectBody(): string {
   return 'The bank connection has an error and needs attention before transactions can sync.';
 }
 

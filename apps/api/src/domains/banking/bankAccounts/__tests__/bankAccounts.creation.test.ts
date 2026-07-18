@@ -407,7 +407,7 @@ describe('bank account creation', () => {
     ).toEqual({
       id: account.id,
       eligible: false,
-      reason: 'reconnect_required',
+      reason: 'not_connected',
     });
 
     await trx('bank_accounts').where({ id: account.id }).update({
@@ -634,7 +634,7 @@ describe('bank account creation', () => {
     );
   });
 
-  it('keeps revoked in the existing per-account reconnect-required lifecycle', async () => {
+  it('does not open reconnect attention when projected status becomes revoked', async () => {
     const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
     await ensureClientOwnerRole(trx, {
       companyId,
@@ -662,7 +662,7 @@ describe('bank account creation', () => {
       syncError: 'Credential revoked',
       stateVersion: '2026-06-21T00:00:00.000Z',
     });
-    expect(intentCount).toBe(2);
+    expect(intentCount).toBe(0);
 
     const attentionKey = buildBankReconnectAttentionKey(bankAccount.id);
     const openedIntents = await trx('app.outbox')
@@ -670,23 +670,57 @@ describe('bank account creation', () => {
       .andWhereRaw(`payload->'event'->>'eventType' = ?`, [
         NOTIFICATION_TYPE.BANK_RECONNECT_REQUIRED,
       ])
-      .andWhereRaw(`payload->'event'->>'attentionKey' = ?`, [attentionKey])
-      .andWhereRaw(`payload->'event'->>'attentionTransition' = ?`, ['opened']);
-    expect(openedIntents).toHaveLength(2);
-    expect(openedIntents[0]?.payload.event).toEqual(
-      expect.objectContaining({
-        attentionKey,
-        sourceEntity: { type: 'bank_account', id: bankAccount.id },
-        destination: expect.objectContaining({
-          action: 'reconnect_bank_account',
-          bankAccountId: bankAccount.id,
-        }),
-        data: expect.objectContaining({
-          bankAccountId: bankAccount.id,
-          connectionStatus: 'revoked',
-        }),
-      }),
-    );
+      .andWhereRaw(`payload->'event'->>'attentionKey' = ?`, [attentionKey]);
+    expect(openedIntents).toHaveLength(0);
+  });
+
+  it('resolves open reconnect attention when projected status becomes revoked', async () => {
+    const firmAssigneeId = await getTestUserId(trx, NG_USER_EMAIL);
+    await ensureClientOwnerRole(trx, {
+      companyId,
+      userId,
+      actorUserId: userId,
+    });
+    await replaceClientAssignee(trx, {
+      clientCompanyId: companyId,
+      firmStaffUserId: firmAssigneeId,
+      actorUserId: userId,
+    });
+
+    const bankAccount = await createConnectedBankAccountFixture(trx, {
+      companyId,
+      userId,
+      bankId,
+    });
+
+    await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'connected',
+      nextConnectionStatus: 'error',
+      bankAccountName: bankAccount.displayName,
+      syncError: 'Please reconnect your bank account.',
+      stateVersion: '2026-06-21T00:00:00.000Z',
+    });
+
+    const resolvedCount = await writeBankReconnectNotificationLifecycle(trx, {
+      bankAccountId: bankAccount.id,
+      clientCompanyId: companyId,
+      previousConnectionStatus: 'error',
+      nextConnectionStatus: 'revoked',
+      bankAccountName: bankAccount.displayName,
+      previousSyncError: 'Please reconnect your bank account.',
+      stateVersion: '2026-06-21T00:00:01.000Z',
+    });
+    expect(resolvedCount).toBe(2);
+
+    const attentionKey = buildBankReconnectAttentionKey(bankAccount.id);
+    const resolvedIntents = await trx('app.outbox')
+      .where({
+        intent_type: OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED,
+      })
+      .andWhereRaw(`payload->>'attentionKey' = ?`, [attentionKey]);
+    expect(resolvedIntents).toHaveLength(2);
   });
 
   it('opens sync failure notifications for firm assignee when transaction import partially fails', async () => {

@@ -116,9 +116,9 @@ export async function getBankAccountSyncEligibility(
   });
 
   let reason: BankAccountSyncIneligibilityReason | null = null;
-  if (projected === 'not_connected') {
+  if (projected === 'not_connected' || projected === 'revoked') {
     reason = 'not_connected';
-  } else if (projected !== 'connected') {
+  } else if (projected === 'error') {
     reason = 'reconnect_required';
   }
 
