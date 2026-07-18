@@ -198,6 +198,7 @@ export abstract class BankingProvider {
     accessToken: string;
     countryCode: string;
     userId: string;
+    knownBankId?: string;
   }): Promise<ConnectionDetails>;
 
   // Transaction sync support

@@ -559,7 +559,11 @@ export async function writeBankReconnectNotificationLifecycle(
     (input.nextConnectionStatus === 'connected' ||
       input.nextConnectionStatus === 'revoked')
   ) {
-    return writeBankReconnectResolvedNotifications(trx, input);
+    return resolveBankReconnectAttention(trx, {
+      bankAccountId: input.bankAccountId,
+      clientCompanyId: input.clientCompanyId,
+      stateVersion: input.stateVersion,
+    });
   }
 
   return 0;
@@ -798,9 +802,13 @@ async function writeBankReconnectRequestedNotifications(
   return recipients.length;
 }
 
-async function writeBankReconnectResolvedNotifications(
+export async function resolveBankReconnectAttention(
   trx: Knex.Transaction,
-  input: BankReconnectLifecycleInput,
+  input: {
+    bankAccountId: string;
+    clientCompanyId: string;
+    stateVersion: Date | string;
+  },
 ): Promise<number> {
   const firmCompanyId = await resolveManagingFirmCompanyId(
     trx,

@@ -16,7 +16,6 @@ import type {
   ProviderTransaction,
   ProviderTransactionUpdate,
 } from '../types/base.js';
-import type { FindOrCreateBankMappingResponse } from '../utils/resolveBank.js';
 
 export class MonoProvider extends BankingProvider {
   readonly key = 'mono';
@@ -79,13 +78,13 @@ export class MonoProvider extends BankingProvider {
   async getConnectionDetails({
     accessToken,
     countryCode,
-    options,
     userId,
+    knownBankId,
   }: {
     accessToken: string;
-    options?: Record<string, any>;
     countryCode: string;
     userId: string;
+    knownBankId?: string;
   }): Promise<ConnectionDetails> {
     try {
       // For Mono, the access token is the account ID
@@ -116,9 +115,6 @@ export class MonoProvider extends BankingProvider {
         type?: string;
       } = accountData.institution;
 
-      // Determine institution ID
-      // Check db for this institution, if not found, check mono api and create bank + bank provider mapping , mono api not available, use other financial institutions for the specified country.
-      // This way, we can then use institution id directly in connect accounts service. get item details is almost useless for mono, we should find a way to conditionally skip it in connect accounts service in a way that is scalable, efficient, sustainable and extensible.
       const institutionResponse = await axios.get(
         `https://api.withmono.com/v3/institutions?country=${countryCode.toLowerCase()}${institutionData.type ? `&type=${institutionData.type.toLowerCase()}` : ''}`,
         {
@@ -159,38 +155,30 @@ export class MonoProvider extends BankingProvider {
           institution.institution === institutionData.name,
       );
 
-      let bankResult: FindOrCreateBankMappingResponse;
-      if (matchedInstitution) {
-        bankResult = await findOrCreateBankMapping({
-          providerKey: this.key,
-          institution: {
+      const providerInstitution = matchedInstitution
+        ? {
             providerInstitutionId: matchedInstitution.id,
             name: matchedInstitution.institution,
-            countryCode: countryCode,
-            bankCodes: {
-              local: institutionData.bank_code,
-            },
+            countryCode,
+            bankCodes: { local: institutionData.bank_code },
             rawData: matchedInstitution,
-          },
-          userId,
-        });
-      } else {
-        bankResult = await findOrCreateBankMapping({
-          providerKey: this.key,
-          institution: {
+          }
+        : {
             providerInstitutionId: institutionData.bank_code,
             name: institutionData.name,
-            countryCode: countryCode,
-            bankCodes: {
-              local: institutionData.bank_code,
-            },
+            countryCode,
+            bankCodes: { local: institutionData.bank_code },
             rawData: institutionData,
-          },
-          userId,
-        });
-      }
-
-      const { bankId } = bankResult;
+          };
+      const bankId = knownBankId
+        ? knownBankId
+        : (
+            await findOrCreateBankMapping({
+              providerKey: this.key,
+              institution: providerInstitution,
+              userId,
+            })
+          ).bankId;
 
       const accounts: ProviderAccount[] = [
         {

@@ -9,8 +9,14 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { knexClient } from '../../../db/knexClient.js';
 import { updateProviderReportedBalance } from '../../../domains/balances/bank-current-balance.js';
 import { createBankAccountFeed } from '../../../domains/banking/bank-account-feeds/bank-account-feeds.model.js';
-import { createBankConnectionSecret } from '../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js';
-import { createBankConnection } from '../../../domains/banking/bank-connections/bank-connections.model.js';
+import {
+  createBankConnectionSecret,
+  loadSecretForConnectionReauthorization,
+} from '../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js';
+import {
+  createBankConnection,
+  getBankConnectionReauthorizationContext,
+} from '../../../domains/banking/bank-connections/bank-connections.model.js';
 import {
   createHistoryImport,
   deleteAllHistoryCandidates,
@@ -18,8 +24,8 @@ import {
   refreshHistoryImportAggregates,
 } from '../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
 import {
+  resolveBankReconnectAttention,
   resolveHistoryImportAttention,
-  writeBankReconnectNotificationLifecycle,
 } from '../../../domains/banking/bankAccounts/bankAccountNotifications.js';
 import { createBankAccountWithConnection } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import { classifyConnectEvent } from '../../../domains/banking/connection-lifecycle/classify.js';
@@ -29,9 +35,11 @@ import {
   reactivateConnectionForReauth,
   reactivateFeedForReauth,
   revokeConnectionAndDestroySecret,
+  stopFeedAndCancelSync,
 } from '../../../domains/banking/connection-lifecycle/lifecycle.commands.js';
 import { logger } from '../../../shared/utils/logger.js';
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
@@ -41,7 +49,7 @@ import { sanitizeProviderSnapshot } from '../utils/provider-snapshot.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
 import type { BankProviderKey } from '../../../domains/banking/bankFeedProviders/bankFeedProviders.types.js';
-import type { ProviderAccount } from '../types/base.js';
+import type { ConnectionDetails, ProviderAccount } from '../types/base.js';
 
 export interface ConnectAccountsParams {
   providerKey: BankProviderKey;
@@ -279,6 +287,108 @@ export class ConnectAccountsService {
       return errorResponse(message, error, { metadata: { traceId } });
     }
   }
+
+  async completeReauthorization({
+    connectionId,
+    companyId,
+    userId,
+  }: {
+    connectionId: string;
+    companyId: string;
+    userId: string;
+  }): Promise<ApiResponse<ConnectAccountsResultData>> {
+    const context = await getBankConnectionReauthorizationContext({
+      connectionId,
+      companyId,
+    });
+    if (!context.success || !context.data) {
+      return errorResponse(context.message, context.error, {
+        code: context.code as ErrorCode | undefined,
+      });
+    }
+    const reauthorizationContext = context.data;
+
+    const secret = await loadSecretForConnectionReauthorization({
+      connectionId,
+      companyId,
+      providerKey: reauthorizationContext.providerKey,
+    });
+    if (!secret.success || !secret.data) {
+      return errorResponse(secret.message, secret.error);
+    }
+    const accessToken = secret.data.access_token;
+
+    const provider = await providerRegistry.get(
+      reauthorizationContext.providerKey,
+    );
+    if (!provider) {
+      return errorResponse('Bank connection provider is unavailable', null, {
+        code: ErrorCode.SERVICE_UNAVAILABLE,
+      });
+    }
+
+    let details: ConnectionDetails;
+    try {
+      details = await provider.getConnectionDetails({
+        accessToken,
+        countryCode: reauthorizationContext.countryCode,
+        userId,
+        knownBankId: reauthorizationContext.bankId,
+      });
+    } catch (error) {
+      return errorResponse('Bank provider reauthorization failed', error, {
+        code: ErrorCode.SERVICE_UNAVAILABLE,
+        report: true,
+      });
+    }
+    if (
+      reauthorizationContext.providerItemId &&
+      details.connection.id !== reauthorizationContext.providerItemId
+    ) {
+      return errorResponse(
+        'The provider returned a different bank connection',
+        null,
+        { code: ErrorCode.CONFLICT },
+      );
+    }
+    if (details.bankAccounts.length === 0) {
+      return errorResponse(
+        'Reauthorization returned no selected accounts; the existing connection was left unchanged',
+        null,
+        { code: ErrorCode.OPERATION_NOT_ALLOWED },
+      );
+    }
+
+    try {
+      return knexClient.transaction((trx) =>
+        executeReauthorizeConnection({
+          trx,
+          params: {
+            providerKey: reauthorizationContext.providerKey,
+            countryCode: reauthorizationContext.countryCode,
+            publicToken: '',
+            companyId,
+            userId,
+          },
+          provider,
+          accessToken,
+          connection: details.connection,
+          institution: details.institution,
+          providerAccounts: details.bankAccounts,
+          bankId: details.institution.systemInstitutionId,
+          bankLogoUrl: details.institution.logoUrl ?? null,
+          providerBankName: details.institution.name,
+          connectionId,
+          log: () => undefined,
+        }),
+      );
+    } catch (error) {
+      return errorResponse('Failed to complete bank reauthorization', error, {
+        code: ErrorCode.DATABASE_ERROR,
+        report: true,
+      });
+    }
+  }
 }
 
 type ConnectContext = {
@@ -414,6 +524,23 @@ async function executeReauthorizeConnection(
 
   log('reauthorize_connection', { connectionId });
 
+  if (providerAccounts.length === 0) {
+    return errorResponse(
+      'Reauthorization returned no selected accounts; the existing connection was left unchanged',
+      null,
+    );
+  }
+
+  const connection = await trx('bank_connections')
+    .where({ id: connectionId, company_id: params.companyId })
+    .forUpdate()
+    .first<{ authorization_status: string }>('authorization_status');
+  if (!connection || connection.authorization_status === 'revoked') {
+    return errorResponse('Bank connection cannot be reauthorized', null, {
+      code: ErrorCode.OPERATION_NOT_ALLOWED,
+    });
+  }
+
   const existingSecret = await trx('bank_connection_secrets')
     .where({ bank_connection_id: connectionId })
     .first('id');
@@ -461,6 +588,34 @@ async function executeReauthorizeConnection(
   const feedByProviderAccount = new Map(
     existingFeeds.map((feed) => [feed.provider_account_id, feed]),
   );
+  const selectedProviderAccountIds = new Set(
+    providerAccounts.map((account) => account.accountId),
+  );
+
+  for (const feed of existingFeeds) {
+    if (
+      feed.revoked_at != null ||
+      selectedProviderAccountIds.has(feed.provider_account_id)
+    ) {
+      continue;
+    }
+    const stopped = await stopFeedAndCancelSync({
+      feedId: feed.id,
+      companyId: params.companyId,
+      revokedById: params.userId,
+      revocationOrigin: 'client',
+      revocationReason: 'Omitted during bank reauthorization',
+      trx,
+    });
+    if (!stopped.success) {
+      throw new Error(stopped.message || 'Failed to stop omitted bank feed');
+    }
+    await resolveBankReconnectAttention(trx, {
+      bankAccountId: feed.bank_account_id,
+      clientCompanyId: params.companyId,
+      stateVersion: new Date(),
+    });
+  }
 
   const { syncFromDate, companyTimezone } = await resolveSyncFromDate(
     trx,
@@ -509,7 +664,6 @@ async function executeReauthorizeConnection(
       continue;
     }
 
-    // Newly selected account on this item.
     const { bankAccountId, wasUpdated } = await createConnectedAccount({
       trx,
       userId: params.userId,
@@ -558,26 +712,17 @@ async function executeReauthorizeConnection(
       currencyCode: account.currencyCode,
       businessOrPersonal: 'business',
     });
-    if (wasUpdated) {
-      // durable account reused
-    } else {
+    if (!wasUpdated) {
       newCount += 1;
     }
   }
 
   for (const account of accounts) {
-    try {
-      await writeBankReconnectNotificationLifecycle(trx, {
-        bankAccountId: account.id,
-        clientCompanyId: params.companyId,
-        previousConnectionStatus: 'error',
-        nextConnectionStatus: 'connected',
-        bankAccountName: account.displayName,
-        stateVersion: new Date(),
-      });
-    } catch {
-      // Resolving attention is best-effort; connect must not fail on it.
-    }
+    await resolveBankReconnectAttention(trx, {
+      bankAccountId: account.id,
+      clientCompanyId: params.companyId,
+      stateVersion: new Date(),
+    });
   }
 
   const message =

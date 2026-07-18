@@ -13,13 +13,13 @@ import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   ErrorCode,
   errorResponse,
+  getHttpStatusFromErrorCode,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { loadSecretForConnectionReauthorization } from './bank-connection-secrets/bank-connection-secrets.model.js';
 import { getBankAccountSyncEligibility } from './bankAccounts/bankAccounts.model.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
 import {
-  completeConnectionReauthorization,
   revokeConnectionAndDestroySecret,
   stopFeedAndCancelSync,
 } from './connection-lifecycle/lifecycle.commands.js';
@@ -275,23 +275,25 @@ export class BankingController {
       const { userId, companyId } = actor;
       const connectionId = parsedConnectionId.data;
 
-      const result = await knexClient.transaction((trx) =>
-        completeConnectionReauthorization({
-          connectionId,
-          companyId,
-          updatedById: userId,
-          trx,
-        }),
-      );
+      const result = await connectAccountsService.completeReauthorization({
+        connectionId,
+        companyId,
+        userId,
+      });
       if (!result.success) {
-        return res.status(400).json(result);
+        const status = getHttpStatusFromErrorCode(result.code);
+        logger.warn(
+          { companyId, connectionId, userId, status, code: result.code },
+          'Bank connection reauthorization failed',
+        );
+        return res.status(status).json(result);
       }
       logger.info(
         {
           companyId,
           connectionId,
           userId,
-          syncsQueued: result.data?.syncsQueued ?? 0,
+          selectedAccountCount: result.data?.accounts.length ?? 0,
         },
         'Bank connection reauthorization completed',
       );

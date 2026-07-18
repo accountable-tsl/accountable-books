@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   transactionCommitted: false,
   createConnection: vi.fn(),
   createConnectionSecret: vi.fn(),
+  getReauthorizationContext: vi.fn(),
+  loadReauthorizationSecret: vi.fn(),
   createAccount: vi.fn(),
   createFeed: vi.fn(),
   createHistoryImport: vi.fn(),
@@ -22,9 +24,11 @@ const mocks = vi.hoisted(() => ({
   ensureSecret: vi.fn(),
   bumpFeedVersions: vi.fn(),
   reactivateFeed: vi.fn(),
+  stopFeed: vi.fn(),
   revokeConnection: vi.fn(),
-  writeReconnectNotification: vi.fn(),
+  resolveReconnectAttention: vi.fn(),
   resolveHistoryImportAttention: vi.fn(),
+  lockedConnectionStatus: 'requires_action',
   predecessorFeeds: [] as Array<{
     id: string;
     sync_from_date: string | null;
@@ -44,12 +48,18 @@ vi.mock('../../../../db/knexClient.js', () => ({
 
 vi.mock(
   '../../../../domains/banking/bank-connections/bank-connections.model.js',
-  () => ({ createBankConnection: mocks.createConnection }),
+  () => ({
+    createBankConnection: mocks.createConnection,
+    getBankConnectionReauthorizationContext: mocks.getReauthorizationContext,
+  }),
 );
 
 vi.mock(
   '../../../../domains/banking/bank-connection-secrets/bank-connection-secrets.model.js',
-  () => ({ createBankConnectionSecret: mocks.createConnectionSecret }),
+  () => ({
+    createBankConnectionSecret: mocks.createConnectionSecret,
+    loadSecretForConnectionReauthorization: mocks.loadReauthorizationSecret,
+  }),
 );
 
 vi.mock(
@@ -91,6 +101,7 @@ vi.mock(
     ensureActiveConnectionSecret: mocks.ensureSecret,
     bumpActiveFeedStateVersions: mocks.bumpFeedVersions,
     reactivateFeedForReauth: mocks.reactivateFeed,
+    stopFeedAndCancelSync: mocks.stopFeed,
     revokeConnectionAndDestroySecret: mocks.revokeConnection,
   }),
 );
@@ -98,7 +109,7 @@ vi.mock(
 vi.mock(
   '../../../../domains/banking/bankAccounts/bankAccountNotifications.js',
   () => ({
-    writeBankReconnectNotificationLifecycle: mocks.writeReconnectNotification,
+    resolveBankReconnectAttention: mocks.resolveReconnectAttention,
     resolveHistoryImportAttention: mocks.resolveHistoryImportAttention,
   }),
 );
@@ -122,6 +133,21 @@ function makeTrx() {
       return {
         where: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue({ id: 'secret-1' }),
+      };
+    }
+    if (table === 'bank_connections') {
+      return {
+        where: vi.fn().mockReturnThis(),
+        forUpdate: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({
+          authorization_status: mocks.lockedConnectionStatus,
+        }),
+      };
+    }
+    if (table === 'bank_accounts') {
+      return {
+        where: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({ display_name: 'Omitted Account' }),
       };
     }
     if (table === 'bank_account_feeds') {
@@ -179,6 +205,19 @@ describe('connected account initial synchronization', () => {
       success: true,
       data: { id: 'secret-1' },
     });
+    mocks.getReauthorizationContext.mockResolvedValue({
+      success: true,
+      data: {
+        providerKey: 'plaid',
+        providerItemId: 'item-1',
+        countryCode: 'US',
+        bankId: 'bank-1',
+      },
+    });
+    mocks.loadReauthorizationSecret.mockResolvedValue({
+      success: true,
+      data: { access_token: 'access-token' },
+    });
     mocks.createFeed.mockResolvedValue({
       success: true,
       data: { id: 'feed-1' },
@@ -195,12 +234,21 @@ describe('connected account initial synchronization', () => {
     mocks.ensureSecret.mockResolvedValue({ success: true });
     mocks.bumpFeedVersions.mockResolvedValue(undefined);
     mocks.reactivateFeed.mockResolvedValue({ success: true });
+    mocks.stopFeed.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'feed-3',
+        alreadyStopped: false,
+        bankAccountId: 'account-3',
+      },
+    });
     mocks.revokeConnection.mockResolvedValue({
       success: true,
       data: { alreadyRevoked: false },
     });
-    mocks.writeReconnectNotification.mockResolvedValue(undefined);
+    mocks.resolveReconnectAttention.mockResolvedValue(undefined);
     mocks.resolveHistoryImportAttention.mockResolvedValue(undefined);
+    mocks.lockedConnectionStatus = 'requires_action';
     mocks.predecessorFeeds = [];
     mocks.getEnabledProvider.mockResolvedValue({
       id: 'provider-1',
@@ -229,6 +277,7 @@ describe('connected account initial synchronization', () => {
       supportsTransactionSync: vi.fn(() => true),
     });
     mocks.createAccount
+      .mockReset()
       .mockResolvedValueOnce({
         success: true,
         data: { bankAccountId: 'account-1', wasUpdated: false },
@@ -448,6 +497,148 @@ describe('connected account initial synchronization', () => {
         },
       ],
     ]);
+  });
+
+  it('stops an existing feed omitted from the reauthorization selection', async () => {
+    mocks.classifyConnect.mockResolvedValue({
+      kind: 'reauth',
+      connectionId: 'connection-1',
+    });
+    mocks.existingFeeds = [
+      {
+        id: 'feed-1',
+        provider_account_id: 'provider-account-1',
+        bank_account_id: 'account-1',
+        revoked_at: null,
+      },
+      {
+        id: 'feed-2',
+        provider_account_id: 'provider-account-2',
+        bank_account_id: 'account-2',
+        revoked_at: null,
+      },
+      {
+        id: 'feed-3',
+        provider_account_id: 'provider-account-3',
+        bank_account_id: 'account-3',
+        revoked_at: null,
+      },
+    ];
+
+    const result = await connectAccountsService.connectBankAccounts({
+      providerKey: 'plaid',
+      countryCode: 'US',
+      publicToken: 'public-token',
+      companyId: 'company-1',
+      userId: 'user-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.accounts.map((account) => account.id)).toEqual([
+      'account-1',
+      'account-2',
+    ]);
+    expect(mocks.stopFeed).toHaveBeenCalledWith({
+      feedId: 'feed-3',
+      companyId: 'company-1',
+      revokedById: 'user-1',
+      revocationOrigin: 'client',
+      revocationReason: 'Omitted during bank reauthorization',
+      trx: expect.anything(),
+    });
+    expect(mocks.resolveReconnectAttention).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        bankAccountId: 'account-3',
+      }),
+    );
+  });
+
+  it('completes update-mode reauthorization from the provider account set', async () => {
+    mocks.createAccount.mockReset().mockResolvedValue({
+      success: true,
+      data: { bankAccountId: 'account-2', wasUpdated: false },
+    });
+    mocks.existingFeeds = [
+      {
+        id: 'feed-1',
+        provider_account_id: 'provider-account-1',
+        bank_account_id: 'account-1',
+        revoked_at: null,
+      },
+      {
+        id: 'feed-3',
+        provider_account_id: 'provider-account-3',
+        bank_account_id: 'account-3',
+        revoked_at: null,
+      },
+    ];
+
+    const result = await connectAccountsService.completeReauthorization({
+      connectionId: 'connection-1',
+      companyId: 'company-1',
+      userId: 'user-1',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.outcome).toBe('reauthorized');
+    expect(result.data?.accounts.map((account) => account.id)).toEqual([
+      'account-1',
+      'account-2',
+    ]);
+    expect(mocks.stopFeed).toHaveBeenCalledWith(
+      expect.objectContaining({ feedId: 'feed-3' }),
+    );
+    expect(mocks.createFeed).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes no local changes when the provider returns no accounts', async () => {
+    const getConnectionDetails = vi.fn().mockResolvedValue({
+      connection: { id: 'item-1', metadata: {} },
+      institution: {
+        systemInstitutionId: 'bank-1',
+        providerInstitutionId: 'institution-1',
+        name: 'Test Bank',
+        countryCode: 'US',
+        rawData: {},
+      },
+      bankAccounts: [],
+    });
+    mocks.getProvider.mockResolvedValue({
+      getConnectionDetails,
+      supportsTransactionSync: vi.fn(() => true),
+    });
+
+    const result = await connectAccountsService.completeReauthorization({
+      connectionId: 'connection-1',
+      companyId: 'company-1',
+      userId: 'user-1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('OPERATION_NOT_ALLOWED');
+    expect(getConnectionDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ knownBankId: 'bank-1' }),
+    );
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.reactivateConnection).not.toHaveBeenCalled();
+    expect(mocks.stopFeed).not.toHaveBeenCalled();
+  });
+
+  it('does not resurrect a connection revoked during provider reauthorization', async () => {
+    mocks.lockedConnectionStatus = 'revoked';
+
+    const result = await connectAccountsService.completeReauthorization({
+      connectionId: 'connection-1',
+      companyId: 'company-1',
+      userId: 'user-1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('OPERATION_NOT_ALLOWED');
+    expect(mocks.reactivateConnection).not.toHaveBeenCalled();
+    expect(mocks.ensureSecret).not.toHaveBeenCalled();
+    expect(mocks.stopFeed).not.toHaveBeenCalled();
   });
 
   it.each(['2025-04-01', null])(

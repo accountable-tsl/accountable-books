@@ -2,9 +2,11 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
+import { bankProviderKey } from '../bankFeedProviders/bankFeedProviders.types.js';
 import { bankConnection, newBankConnection } from './bank-connections.types.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
@@ -98,6 +100,104 @@ export async function getBankConnection({
     return successResponse('Bank connection retrieved', parsed.data);
   } catch (error) {
     return errorResponse('Failed to retrieve bank connection', error);
+  }
+}
+
+export async function getBankConnectionReauthorizationContext({
+  connectionId,
+  companyId,
+}: {
+  connectionId: string;
+  companyId: string;
+}): Promise<
+  ApiResponse<{
+    providerKey: 'plaid' | 'mono';
+    providerItemId: string | null;
+    countryCode: string;
+    bankId: string;
+  }>
+> {
+  try {
+    const row = await knexClient('bank_connections as bc')
+      .join('bank_feed_providers as bfp', 'bfp.id', 'bc.provider_id')
+      .join('companies as company', 'company.id', 'bc.company_id')
+      .join(
+        'countries as company_country',
+        'company_country.id',
+        'company.country_id',
+      )
+      .leftJoin(
+        'bank_provider_mappings as bpm',
+        'bpm.id',
+        'bc.bank_provider_mapping_id',
+      )
+      .leftJoin('banks as bank', 'bank.id', 'bpm.bank_id')
+      .leftJoin(
+        'countries as bank_country',
+        'bank_country.id',
+        'bank.country_id',
+      )
+      .leftJoin(
+        'bank_account_feeds as feed',
+        'feed.bank_connection_id',
+        'bc.id',
+      )
+      .leftJoin('bank_accounts as account', 'account.id', 'feed.bank_account_id')
+      .leftJoin(
+        'banks as account_bank',
+        'account_bank.id',
+        'account.bank_id',
+      )
+      .leftJoin(
+        'countries as account_bank_country',
+        'account_bank_country.id',
+        'account_bank.country_id',
+      )
+      .where({ 'bc.id': connectionId, 'bc.company_id': companyId })
+      .first<{
+        provider_key: string;
+        provider_item_id: string | null;
+        authorization_status: string;
+        country_code: string;
+        bank_id: string | null;
+      }>(
+        'bfp.key as provider_key',
+        'bc.provider_item_id',
+        'bc.authorization_status',
+        knexClient.raw('COALESCE(bank.id, account_bank.id) as bank_id'),
+        knexClient.raw(
+          'COALESCE(bank_country.code, account_bank_country.code, company_country.code) as country_code',
+        ),
+      );
+
+    if (!row || row.authorization_status === 'revoked') {
+      return errorResponse('Bank connection cannot be reauthorized', null, {
+        code: ErrorCode.OPERATION_NOT_ALLOWED,
+      });
+    }
+    const parsedProviderKey = bankProviderKey.safeParse(row.provider_key);
+    if (!parsedProviderKey.success) {
+      return errorResponse('Bank connection provider is unsupported', null, {
+        code: ErrorCode.SERVICE_UNAVAILABLE,
+      });
+    }
+    if (!row.bank_id) {
+      return errorResponse('Bank connection institution is unavailable', null, {
+        code: ErrorCode.DATABASE_ERROR,
+      });
+    }
+    return successResponse('Bank connection reauthorization context loaded', {
+      providerKey: parsedProviderKey.data,
+      providerItemId: row.provider_item_id,
+      countryCode: row.country_code,
+      bankId: row.bank_id,
+    });
+  } catch (error) {
+    return errorResponse(
+      'Failed to load bank connection reauthorization context',
+      error,
+      { code: ErrorCode.DATABASE_ERROR, report: true },
+    );
   }
 }
 

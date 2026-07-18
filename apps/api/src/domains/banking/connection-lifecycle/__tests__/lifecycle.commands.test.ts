@@ -14,7 +14,6 @@ import {
 } from '../../bank-connection-secrets/bank-connection-secrets.model.js';
 import { classifyConnectEvent } from '../classify.js';
 import {
-  completeConnectionReauthorization,
   revokeConnectionAndDestroySecret,
   stopFeedAndCancelSync,
 } from '../lifecycle.commands.js';
@@ -244,47 +243,6 @@ describe('connection lifecycle commands', () => {
           .first();
         expect(count?.count).toBe('1');
       });
-    } finally {
-      await cleanupSyncFailureFixture(db, fixture);
-    }
-  });
-
-  it('reactivates a requires-action connection and durably requests a fresh sync', async () => {
-    const db = getTestDb();
-    const fixture = await createSyncFailureFixture(db);
-
-    try {
-      await db('bank_connections').where({ id: fixture.connectionId }).update({
-        authorization_status: 'requires_action',
-        authorization_reason_code: 'ITEM_LOGIN_REQUIRED',
-        requires_action_at: db.fn.now(),
-      });
-
-      const result = await db.transaction(async (trx) =>
-        completeConnectionReauthorization({
-          connectionId: fixture.connectionId,
-          companyId: fixture.companyId,
-          updatedById: fixture.userId,
-          trx,
-        }),
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.data?.syncsQueued).toBe(1);
-      expect(
-        await db('bank_connections')
-          .where({ id: fixture.connectionId })
-          .first('authorization_status'),
-      ).toEqual({ authorization_status: 'active' });
-      expect(
-        await db('app.outbox')
-          .where({
-            intent_type: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
-            scope_key: `bank_account:${fixture.bankAccountId}`,
-            status: 'pending',
-          })
-          .first('id'),
-      ).toBeTruthy();
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }

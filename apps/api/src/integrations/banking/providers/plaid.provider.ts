@@ -93,7 +93,10 @@ export class PlaidProvider extends BankingProvider {
         language: 'en',
         webhook: `${ENV.BACKEND_URL}/webhooks/banking/plaid`,
         ...(accessToken
-          ? { access_token: accessToken }
+          ? {
+              access_token: accessToken,
+              update: { account_selection_enabled: true },
+            }
           : { products, transactions: { days_requested: 730 } }),
       };
 
@@ -236,10 +239,12 @@ export class PlaidProvider extends BankingProvider {
     accessToken,
     countryCode,
     userId,
+    knownBankId,
   }: {
     accessToken: string;
     countryCode: string;
     userId: string;
+    knownBankId?: string;
   }): Promise<ConnectionDetails> {
     const item = await this.getItemDetails({ accessToken });
     const providerInstitutionId = item.institutionId;
@@ -251,13 +256,21 @@ export class PlaidProvider extends BankingProvider {
     });
 
     const bankAccounts = await this.fetchBankAccounts({ accessToken });
+    if (bankAccounts.length === 0 && !knownBankId) {
+      throw new Error('Provider returned no bank accounts');
+    }
 
-    const { bankId, bankLogoUrl, providerInstitutionName } =
-      await findOrCreateBankMapping({
-        providerKey: this.key,
-        institution: i,
-        userId,
-      });
+    const bankMapping = knownBankId
+      ? {
+          bankId: knownBankId,
+          bankLogoUrl: i.logoUrl ?? null,
+          providerInstitutionName: i.name,
+        }
+      : await findOrCreateBankMapping({
+          providerKey: this.key,
+          institution: i,
+          userId,
+        });
 
     return {
       connection: {
@@ -266,9 +279,10 @@ export class PlaidProvider extends BankingProvider {
       },
       institution: {
         ...i,
-        name: institutionName || providerInstitutionName || i.name,
-        logoUrl: bankLogoUrl,
-        systemInstitutionId: bankId,
+        name:
+          institutionName || bankMapping.providerInstitutionName || i.name,
+        logoUrl: bankMapping.bankLogoUrl,
+        systemInstitutionId: bankMapping.bankId,
         providerInstitutionId,
       },
       bankAccounts,

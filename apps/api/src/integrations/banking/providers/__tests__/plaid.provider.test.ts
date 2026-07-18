@@ -76,10 +76,39 @@ describe('PlaidProvider link tokens', () => {
     expect(linkTokenCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         access_token: 'existing-access-token',
+        update: { account_selection_enabled: true },
       }),
     );
     expect(linkTokenCreate.mock.calls[0][0]).not.toHaveProperty('products');
     expect(linkTokenCreate.mock.calls[0][0]).not.toHaveProperty('transactions');
+  });
+});
+
+describe('PlaidProvider connection details', () => {
+  it('does not resolve a bank mapping when no accounts were returned', async () => {
+    const provider = new PlaidProvider();
+    Object.assign(provider as unknown as Record<string, unknown>, {
+      getItemDetails: vi.fn().mockResolvedValue({
+        itemId: 'item-1',
+        institutionId: 'institution-1',
+        institutionName: 'Test Bank',
+      }),
+      getInstitutionById: vi.fn().mockResolvedValue({
+        providerInstitutionId: 'institution-1',
+        name: 'Test Bank',
+        countryCode: 'US',
+        rawData: {},
+      }),
+      fetchBankAccounts: vi.fn().mockResolvedValue([]),
+    });
+
+    await expect(
+      provider.getConnectionDetails({
+        accessToken: 'access-token',
+        countryCode: 'US',
+        userId: 'user-1',
+      }),
+    ).rejects.toThrow('Provider returned no bank accounts');
   });
 });
 

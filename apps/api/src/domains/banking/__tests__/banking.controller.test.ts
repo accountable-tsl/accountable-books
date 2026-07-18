@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { knexClient } from '../../../db/knexClient.js';
 import { connectAccountsService } from '../../../integrations/banking/index.js';
 import { providerRegistry } from '../../../integrations/banking/providers/registry.js';
 import { BankingController } from '../banking.controller.js';
@@ -11,7 +10,6 @@ import bankingRouter from '../banking.routes.js';
 import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
 const mocks = vi.hoisted(() => ({
-  completeConnectionReauthorization: vi.fn(),
   getCompanyUUID: vi.fn(),
   getBankAccountSyncEligibility: vi.fn(),
   loadSecretForConnectionReauthorization: vi.fn(),
@@ -44,16 +42,6 @@ vi.mock(
     >()),
     loadSecretForConnectionReauthorization:
       mocks.loadSecretForConnectionReauthorization,
-  }),
-);
-
-vi.mock(
-  '../connection-lifecycle/lifecycle.commands.js',
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import('../connection-lifecycle/lifecycle.commands.js')
-    >()),
-    completeConnectionReauthorization: mocks.completeConnectionReauthorization,
   }),
 );
 
@@ -171,7 +159,6 @@ describe('banking transaction sync controller', () => {
 describe('bank connection controller ownership', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mocks.completeConnectionReauthorization.mockReset();
     mocks.getCompanyUUID.mockReset();
     mocks.getCompanyUUID.mockImplementation(
       async (identifier: string) => identifier,
@@ -312,17 +299,17 @@ describe('bank connection controller ownership', () => {
     const userId = randomUUID();
     const connectionId = randomUUID();
     mocks.getCompanyUUID.mockResolvedValue(companyId);
-    mocks.completeConnectionReauthorization.mockResolvedValue({
-      success: true,
-      message: 'Bank connection reauthorized',
-      data: { id: connectionId, syncsQueued: 2 },
-    });
-    vi.spyOn(knexClient, 'transaction').mockImplementation(async (handler) => {
-      if (typeof handler !== 'function') {
-        throw new Error('Expected transaction handler');
-      }
-      return handler(vi.fn() as never) as never;
-    });
+    const complete = vi
+      .spyOn(connectAccountsService, 'completeReauthorization')
+      .mockResolvedValue({
+        success: true,
+        message: 'Bank connection reauthorized',
+        data: {
+          bank: { id: randomUUID(), name: 'Bank', logoUrl: null },
+          accounts: [],
+          outcome: 'reauthorized',
+        },
+      });
     const { response, json } = responseDouble();
 
     await new BankingController().completeConnectionReauthorization(
@@ -334,15 +321,39 @@ describe('bank connection controller ownership', () => {
       response,
     );
 
-    expect(mocks.completeConnectionReauthorization).toHaveBeenCalledWith({
+    expect(complete).toHaveBeenCalledWith({
       connectionId,
       companyId,
-      updatedById: userId,
-      trx: expect.any(Function),
+      userId,
     });
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true }),
     );
+  });
+
+  it('returns a service error when the provider cannot complete reauthorization', async () => {
+    const companyId = randomUUID();
+    const userId = randomUUID();
+    const connectionId = randomUUID();
+    mocks.getCompanyUUID.mockResolvedValue(companyId);
+    vi.spyOn(connectAccountsService, 'completeReauthorization').mockResolvedValue(
+      {
+        success: false,
+        message: 'Bank provider reauthorization failed',
+        code: 'SERVICE_UNAVAILABLE',
+      },
+    );
+    const { response, status } = responseDouble();
+
+    await new BankingController().completeConnectionReauthorization(
+      {
+        user: { id: userId, currentCompanyId: 'authenticated-company' },
+        params: { connectionId },
+      } as unknown as AuthRequest,
+      response,
+    );
+
+    expect(status).toHaveBeenCalledWith(503);
   });
 });
 
