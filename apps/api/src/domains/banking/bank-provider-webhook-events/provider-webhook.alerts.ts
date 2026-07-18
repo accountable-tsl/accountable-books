@@ -19,7 +19,6 @@ async function sendBestEffort(
   }
 }
 
-/** One alert per quarantined webhook event (idempotency-keyed by event id). */
 export async function alertProviderWebhookQuarantined({
   eventId,
   reason,

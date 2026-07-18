@@ -25,7 +25,7 @@ export async function up(knex: Knex): Promise<void> {
     table.text('event_code').notNullable();
 
     table.text('dedupe_key').notNullable();
-    table.jsonb('payload').notNullable();
+    table.jsonb('payload').nullable();
 
     table
       .string('status', 16)

@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import { OUTBOX_INTENT } from '../../outbox/intents.js';
 import { writeOutbox } from '../../outbox/outbox.model.js';
 import { bankProviderWebhookEvent } from './bank-provider-webhook-events.types.js';
@@ -8,6 +9,9 @@ import { bankProviderWebhookEvent } from './bank-provider-webhook-events.types.j
 import type { BankProviderWebhookEvent } from './bank-provider-webhook-events.types.js';
 
 const TABLE = 'bank_provider_webhook_events';
+const logger = getLogger({ component: 'provider-webhook-events' });
+
+export const WEBHOOK_PAYLOAD_RETENTION_DAYS = 7;
 
 function parseEvent(row: unknown): BankProviderWebhookEvent {
   return bankProviderWebhookEvent.parse(row);
@@ -147,4 +151,32 @@ export async function setProviderWebhookEventLastError({
     last_error: lastError.slice(0, 2000),
     updated_at: knex.fn.now(),
   });
+}
+
+export async function purgeProviderWebhookPayloads(
+  retentionDays = WEBHOOK_PAYLOAD_RETENTION_DAYS,
+  client: Knex = knexClient,
+): Promise<{ cleared: number }> {
+  const cleared = await client(TABLE)
+    .whereIn('status', ['completed', 'quarantined'])
+    .whereNotNull('payload')
+    .whereNotNull('processed_at')
+    .andWhere(
+      'processed_at',
+      '<',
+      client.raw(`now() - (interval '1 day' * ?)`, [retentionDays]),
+    )
+    .update({
+      payload: null,
+      updated_at: client.fn.now(),
+    });
+
+  if (cleared > 0) {
+    logger.info(
+      { cleared, retentionDays },
+      'Purged provider webhook payloads',
+    );
+  }
+
+  return { cleared };
 }

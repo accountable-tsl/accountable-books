@@ -1,5 +1,7 @@
 import { isProd } from '../../../config/env.js';
+import { purgeProviderWebhookPayloads } from '../../../domains/banking/bank-provider-webhook-events/bank-provider-webhook-events.model.js';
 import { processHistoryImportExpirySweep } from '../../../domains/banking/bank-transaction-history/history-expiry.service.js';
+import { purgeOldSyncRuns } from '../../../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.model.js';
 import { getSyncableBankAccounts } from '../../../domains/banking/bankAccounts/bankAccounts.model.js';
 import {
   executeQueueOperation,
@@ -15,7 +17,8 @@ import { requestBankAccountSync } from '../transaction-sync.outbox.js';
 
 export type TransactionSyncSchedulerJobData =
   | { syncType: 'periodic' }
-  | { kind: 'history-import-expiry' };
+  | { kind: 'history-import-expiry' }
+  | { kind: 'banking-retention' };
 
 /**
  * BullMQ owns daily schedulers. Account sync execution is outbox-owned
@@ -70,6 +73,26 @@ export async function scheduleHistoryImportExpiryScan(
   );
 }
 
+export async function scheduleBankingRetentionScan(
+  cronPattern = '30 2 * * *',
+) {
+  await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
+    transactionSyncQueue.upsertJobScheduler(
+      'banking-retention',
+      { pattern: cronPattern },
+      {
+        name: 'banking-retention',
+        data: { kind: 'banking-retention' as const },
+        opts: {
+          priority: -1,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 30000 },
+        },
+      },
+    ),
+  );
+}
+
 /** Wake path: write one durable sync intent per syncable account. */
 export async function enqueuePeriodicBankSyncIntents(): Promise<{
   accountCount: number;
@@ -100,6 +123,27 @@ export async function runHistoryImportExpiryJob(): Promise<{
   candidateRowsDeleted: number;
 }> {
   return processHistoryImportExpirySweep();
+}
+
+export async function runBankingRetentionJob(): Promise<{
+  webhookPayloadsCleared: number;
+  syncRunsDeleted: number;
+}> {
+  const [webhooks, syncRuns] = await Promise.all([
+    purgeProviderWebhookPayloads(),
+    purgeOldSyncRuns(),
+  ]);
+  logger.info(
+    {
+      webhookPayloadsCleared: webhooks.cleared,
+      syncRunsDeleted: syncRuns.deleted,
+    },
+    'Banking retention purge completed',
+  );
+  return {
+    webhookPayloadsCleared: webhooks.cleared,
+    syncRunsDeleted: syncRuns.deleted,
+  };
 }
 
 export async function getTransactionSyncQueueStats() {

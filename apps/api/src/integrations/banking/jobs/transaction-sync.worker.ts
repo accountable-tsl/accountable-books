@@ -6,6 +6,7 @@ import { runWithJobContext } from '../../../shared/telemetry/request-context.js'
 import { getLogger } from '../../../shared/utils/logger.js';
 import {
   enqueuePeriodicBankSyncIntents,
+  runBankingRetentionJob,
   runHistoryImportExpiryJob,
 } from './transaction-sync.queue.js';
 
@@ -63,6 +64,17 @@ async function processTransactionSyncJob(
       logger.info(
         { jobId: job.id, ...result },
         'History import expiry sweep completed',
+      );
+      return;
+    }
+
+    if (job.name === 'banking-retention') {
+      await job.updateProgress(10);
+      const result = await runBankingRetentionJob();
+      await job.updateProgress(100);
+      logger.info(
+        { jobId: job.id, ...result },
+        'Banking retention purge completed',
       );
       return;
     }

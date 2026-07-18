@@ -5,6 +5,7 @@ import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.qu
 import {
   scheduleDailySyncScan,
   scheduleHistoryImportExpiryScan,
+  scheduleBankingRetentionScan,
 } from '../integrations/banking/jobs/transaction-sync.queue.js';
 import { getLogger } from '../shared/utils/logger.js';
 import { getJobSchedule } from './schedules.js';
@@ -70,6 +71,15 @@ export const SCHEDULE_REGISTRY: ScheduleDefinition[] = [
     icon: '⏳',
     run: async (schedule) => {
       await scheduleHistoryImportExpiryScan(schedule.cron);
+    },
+  },
+  {
+    key: 'bankingRetention',
+    scheduleKey: 'bankingRetention',
+    label: 'Banking retention purge',
+    icon: '🧹',
+    run: async (schedule) => {
+      await scheduleBankingRetentionScan(schedule.cron);
     },
   },
   {

@@ -31,7 +31,7 @@ export const bankProviderWebhookEvent = z.object({
   event_type: z.string(),
   event_code: z.string(),
   dedupe_key: z.string(),
-  payload: z.record(z.string(), z.unknown()),
+  payload: z.record(z.string(), z.unknown()).nullable(),
   status: bankProviderWebhookEventStatus,
   received_at: z.date(),
   processed_at: z.date().nullable(),

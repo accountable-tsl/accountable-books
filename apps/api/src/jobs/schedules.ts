@@ -8,6 +8,7 @@ export type JobScheduleKey =
   | 'recurringJournalScan'
   | 'transactionSyncDailyScan'
   | 'historyImportExpiry'
+  | 'bankingRetention'
   | 'taskEvaluationSweep';
 
 export type JobSchedule = {
@@ -46,6 +47,12 @@ const SCHEDULES: Record<JobScheduleKey, JobSchedule> = {
     cron: '15 2 * * *',
     envVar: 'HISTORY_IMPORT_EXPIRY_CRON',
     description: 'Daily history import expiry and reminder sweep',
+    tz: 'UTC',
+  },
+  bankingRetention: {
+    cron: '30 2 * * *',
+    envVar: 'BANKING_RETENTION_CRON',
+    description: 'Daily banking retention purge (webhook payloads, sync runs)',
     tz: 'UTC',
   },
   taskEvaluationSweep: {

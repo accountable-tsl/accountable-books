@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
+import { getLogger } from '../../../shared/utils/logger.js';
 import {
   errorResponse,
   successResponse,
@@ -12,6 +13,12 @@ import type {
   BankTransactionSyncRunOutcome,
   NewBankTransactionSyncRun,
 } from './bank-transaction-sync-runs.types.js';
+
+const logger = getLogger({ component: 'bank-transaction-sync-runs' });
+
+export const SYNC_RUN_RETENTION_DAYS = 30;
+
+const DIAGNOSTIC_SUMMARY_MAX = 2048;
 
 export async function createSyncRun({
   data,
@@ -78,7 +85,10 @@ export async function completeSyncRun({
         retryable: retryable ?? null,
         failure_classification: failureClassification ?? null,
         provider_error_code: providerErrorCode ?? null,
-        diagnostic_summary: diagnosticSummary ?? null,
+        diagnostic_summary:
+          diagnosticSummary == null
+            ? null
+            : diagnosticSummary.slice(0, DIAGNOSTIC_SUMMARY_MAX),
         page_count: pageCount ?? null,
         added_count: addedCount ?? null,
         modified_count: modifiedCount ?? null,
@@ -94,4 +104,25 @@ export async function completeSyncRun({
   } catch (error) {
     return errorResponse('Failed to complete sync run', error);
   }
+}
+
+export async function purgeOldSyncRuns(
+  retentionDays = SYNC_RUN_RETENTION_DAYS,
+  client: Knex = knexClient,
+): Promise<{ deleted: number }> {
+  const deleted = await client('bank_transaction_sync_runs')
+    .whereNot('outcome', 'running')
+    .whereNotNull('completed_at')
+    .andWhere(
+      'completed_at',
+      '<',
+      client.raw(`now() - (interval '1 day' * ?)`, [retentionDays]),
+    )
+    .delete();
+
+  if (deleted > 0) {
+    logger.info({ deleted, retentionDays }, 'Purged old bank sync runs');
+  }
+
+  return { deleted };
 }
