@@ -30,6 +30,7 @@
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
+- [ ] Bank accounts UI: surface API `syncHealth` so reconnect needed (`action_required`) is distinct from data delayed (`delayed`/`pending`), instead of only showing “Last updated … ago”.
 - [ ] Design and validate a product-owned headless table module after launch. Learn from TanStack Table, Tabulator, AG Grid, and other strong grids, but define the interface from our actual requirements: semantic table and div/grid renderers, virtualization, stable row identity, variable density, selection/expansion, keyboard navigation, accessible focus, inline editing with durable drafts, server filtering/sorting/pagination, infinite loading, pinned columns, and explicit performance budgets. Prototype the hardest Cat Engine workflow and one conventional table before committing to a full migration; keep rendering, remote data access, and accounting-specific behaviour behind separate seams.
 - [ ] Recurring templates: in template view mode, add a “Generated journals” section (show latest N with date/status/reference, link to open journal, plus “View all” once we add an API filter by `recurring_template_id`).
 - [ ] AI inline autocomplete (code-completion-style): ghost suggestion while typing (e.g. journal title/description/line description), accept with `Tab`, and telemetry for impressions/accepts/dismissals, latency, and cost.

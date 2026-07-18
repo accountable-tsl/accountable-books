@@ -9,6 +9,7 @@ import {
   processProviderWebhookReceived,
   quarantineProviderWebhookAfterDeadLetter,
 } from '../banking/bank-provider-webhook-events/provider-webhook.processor.js';
+import { alertProviderWebhookQuarantined } from '../banking/bank-provider-webhook-events/provider-webhook.alerts.js';
 import {
   dispatchNotificationAttentionResolved,
   dispatchNotificationCommsRequested,
@@ -42,6 +43,17 @@ class DeferSignal extends Error {
 
 type IntentOutcome = 'processed' | 'deferred' | 'failed' | 'empty';
 
+type QuarantineAlert = {
+  eventId: string;
+  reason: string;
+  lastError?: string | null;
+};
+
+type DispatchIntentResult = {
+  status: 'done' | 'deferred';
+  quarantineAlert?: QuarantineAlert;
+};
+
 function filterAllowsBankSync(filter?: DispatchFilter): boolean {
   if (
     filter?.intentType &&
@@ -64,7 +76,7 @@ function filterAllowsBankSync(filter?: DispatchFilter): boolean {
 async function dispatchIntent(
   trx: Knex.Transaction,
   row: OutboxRow,
-): Promise<{ status: 'done' | 'deferred' }> {
+): Promise<DispatchIntentResult> {
   switch (row.intent_type) {
     case OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED: {
       const payload = workMaterializationPayloadSchema.parse(row.payload);
@@ -89,9 +101,13 @@ async function dispatchIntent(
     case OUTBOX_INTENT.CLOSE_SIGNAL_EVAL_REQUESTED:
       await handleCloseSignalEvalOutbox(row.payload, trx);
       return { status: 'done' };
-    case OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED:
-      await processProviderWebhookReceived(row.payload, trx);
-      return { status: 'done' };
+    case OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED: {
+      const result = await processProviderWebhookReceived(row.payload, trx);
+      return {
+        status: 'done',
+        quarantineAlert: result.quarantineAlert,
+      };
+    }
     default:
       throw new Error(`Unknown outbox intent_type: ${row.intent_type}`);
   }
@@ -122,6 +138,7 @@ async function processOneIntent(
     ): Promise<{
       outcome: IntentOutcome;
       deadLetter?: { row: OutboxRow; error: unknown };
+      quarantineAlert?: QuarantineAlert;
     }> => {
       const row = await claimNextPendingIntent(trx, {
         ...filter,
@@ -135,14 +152,16 @@ async function processOneIntent(
       }
 
       try {
+        let quarantineAlert: QuarantineAlert | undefined;
         await trx.transaction(async (effectTrx) => {
           const dispatch = await dispatchIntent(effectTrx, row);
           if (dispatch.status === 'deferred') {
             throw new DeferSignal(row.id);
           }
+          quarantineAlert = dispatch.quarantineAlert;
         });
         await markIntentProcessed(trx, row.id);
-        return { outcome: 'processed' };
+        return { outcome: 'processed', quarantineAlert };
       } catch (error) {
         if (error instanceof DeferSignal) {
           await deferIntent(error.intentId, trx);
@@ -173,6 +192,8 @@ async function processOneIntent(
         message,
       );
     }
+  } else if (result.quarantineAlert) {
+    await alertProviderWebhookQuarantined(result.quarantineAlert);
   }
 
   return result.outcome;

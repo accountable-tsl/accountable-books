@@ -73,6 +73,7 @@ feed_status AS (
     baf.revoked_at as feed_revoked_at,
     baf.initial_sync_completed_at,
     baf.last_successful_sync_at,
+    baf.connected_at as feed_connected_at,
     bc.id as bank_connection_id,
     bc.authorization_status,
     bc.provider_id
@@ -110,6 +111,7 @@ SELECT
   fs.feed_revoked_at as feed_revoked_at,
   fs.authorization_status as authorization_status,
   fs.initial_sync_completed_at as initial_sync_completed_at,
+  fs.feed_connected_at as feed_connected_at,
 
   -- Bank Details
   b.display_name as bank_name,

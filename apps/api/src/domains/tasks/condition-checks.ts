@@ -176,6 +176,7 @@ export async function checkBankConnectionHealth(
             ? {
                 initial_sync_completed_at: null,
                 last_successful_sync_at: null,
+                connected_at: null,
               }
             : null,
         latestFeedRevoked: row.feed_revoked_at !== null,

@@ -66,6 +66,18 @@ export function buildBankReplacementUnmatchedAttentionKey(
   return `bank_account_feed:${feedId}:replacement_unmatched`;
 }
 
+export function buildBankTransactionSupersededAttentionKey(
+  bankTransactionId: string,
+): string {
+  return `bank_transaction:${bankTransactionId}:provider_superseded`;
+}
+
+export function buildBankTransactionRemovedAttentionKey(
+  bankTransactionId: string,
+): string {
+  return `bank_transaction:${bankTransactionId}:provider_removed`;
+}
+
 export function buildHistoryImportAttentionKey(feedId: string): string {
   return `bank_account_feed:${feedId}:history_import`;
 }
@@ -100,10 +112,22 @@ export async function writeBankTransactionSupersededNotifications(
     replacementBankTransactionId: string | null;
   },
 ): Promise<number> {
+  const attentionKey = buildBankTransactionSupersededAttentionKey(
+    input.bankTransactionId,
+  );
+  if (
+    await hasTerminalReviewAttention(trx, {
+      clientCompanyId: input.clientCompanyId,
+      attentionKey,
+    })
+  ) {
+    return 0;
+  }
+
   return writeLedgerLinkedReviewNotifications(trx, {
     ...input,
     eventType: NOTIFICATION_TYPE.BANK_TRANSACTION_SUPERSEDED_REVIEW,
-    attentionKey: `bank_transaction:${input.bankTransactionId}:provider_superseded`,
+    attentionKey,
     title: `Review corrected bank transaction in ${input.bankAccountName}`,
     body: 'The bank corrected a transaction that was already posted to the ledger. The correction is in the inbox; the original posting needs review.',
     action: 'review_superseded_bank_transaction',
@@ -122,10 +146,22 @@ export async function writeBankTransactionRemovedNotifications(
   trx: Knex.Transaction,
   input: LedgerLinkedBankTransactionReviewInput,
 ): Promise<number> {
+  const attentionKey = buildBankTransactionRemovedAttentionKey(
+    input.bankTransactionId,
+  );
+  if (
+    await hasTerminalReviewAttention(trx, {
+      clientCompanyId: input.clientCompanyId,
+      attentionKey,
+    })
+  ) {
+    return 0;
+  }
+
   return writeLedgerLinkedReviewNotifications(trx, {
     ...input,
     eventType: NOTIFICATION_TYPE.BANK_TRANSACTION_REMOVED_REVIEW,
-    attentionKey: `bank_transaction:${input.bankTransactionId}:provider_removed`,
+    attentionKey,
     title: `Review removed bank transaction in ${input.bankAccountName}`,
     body: 'The bank removed a transaction that was already posted to the ledger. The bank line is kept for audit; the posting needs review.',
     action: 'review_removed_bank_transaction',
@@ -334,16 +370,42 @@ export async function resolveHistoryImportAttention(
     stateVersion: Date | string;
   },
 ): Promise<number> {
-  const attentionKey = buildHistoryImportAttentionKey(input.feedId);
+  return resolveBankReviewAttention(trx, {
+    clientCompanyId: input.clientCompanyId,
+    attentionKey: buildHistoryImportAttentionKey(input.feedId),
+    eventTypes: [
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE,
+      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON,
+    ],
+    stateVersion: input.stateVersion,
+  });
+}
+
+/**
+ * Resolve open attentions for a review key from active notification rows.
+ */
+export async function resolveBankReviewAttention(
+  trx: Knex.Transaction,
+  input: {
+    clientCompanyId: string;
+    attentionKey: string;
+    eventType?: string;
+    eventTypes?: string[];
+    stateVersion: Date | string;
+  },
+): Promise<number> {
+  const eventTypes =
+    input.eventTypes ?? (input.eventType ? [input.eventType] : null);
+  if (!eventTypes || eventTypes.length === 0) {
+    throw new Error('resolveBankReviewAttention requires eventType(s)');
+  }
+
   const activeNotifications = await trx('app.notifications')
     .where({
       client_company_id: input.clientCompanyId,
-      attention_key: attentionKey,
+      attention_key: input.attentionKey,
     })
-    .whereIn('event_type', [
-      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_AVAILABLE,
-      NOTIFICATION_TYPE.BANK_HISTORY_IMPORT_EXPIRING_SOON,
-    ])
+    .whereIn('event_type', eventTypes)
     .whereNull('resolved_at')
     .whereNull('archived_at')
     .select('recipient_user_id', 'attention_key', 'event_type');
@@ -365,6 +427,30 @@ export async function resolveHistoryImportAttention(
   }
 
   return activeNotifications.length;
+}
+
+async function hasTerminalReviewAttention(
+  trx: Knex.Transaction,
+  input: { clientCompanyId: string; attentionKey: string },
+): Promise<boolean> {
+  const active = await trx('app.notifications')
+    .where({
+      client_company_id: input.clientCompanyId,
+      attention_key: input.attentionKey,
+    })
+    .whereNull('resolved_at')
+    .whereNull('archived_at')
+    .first('id');
+  if (active) return false;
+
+  const resolved = await trx('app.notifications')
+    .where({
+      client_company_id: input.clientCompanyId,
+      attention_key: input.attentionKey,
+    })
+    .whereNotNull('resolved_at')
+    .first('id');
+  return resolved != null;
 }
 
 async function writeHistoryImportLifecycleNotifications(

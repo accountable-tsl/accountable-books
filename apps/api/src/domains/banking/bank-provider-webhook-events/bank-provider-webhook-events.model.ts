@@ -118,8 +118,8 @@ export async function markProviderWebhookEventQuarantined({
   reason: string;
   lastError?: string | null;
   trx: Knex | Knex.Transaction;
-}): Promise<void> {
-  await trx(TABLE)
+}): Promise<boolean> {
+  const updated = await trx(TABLE)
     .where({ id: eventId })
     .whereIn('status', ['pending'])
     .update({
@@ -129,6 +129,8 @@ export async function markProviderWebhookEventQuarantined({
       last_error: lastError?.slice(0, 2000) ?? null,
       updated_at: trx.fn.now(),
     });
+
+  return updated > 0;
 }
 
 export async function setProviderWebhookEventLastError({

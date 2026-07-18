@@ -11,6 +11,14 @@ export type BankAccountConnectionStatus = z.infer<
   typeof bankAccountConnectionStatusSchema
 >;
 
+export const bankAccountSyncHealthSchema = z.enum([
+  'pending',
+  'healthy',
+  'delayed',
+  'action_required',
+]);
+export type BankAccountSyncHealth = z.infer<typeof bankAccountSyncHealthSchema>;
+
 export const bankAccountTypeSchema = z.enum([
   'other',
   'credit_card',
@@ -51,6 +59,18 @@ export type SelectBankHistoryImportInput = z.infer<
   typeof selectBankHistoryImportInputSchema
 >;
 
+export const resolveBankTransactionReviewInputSchema = z.object({}).strict();
+export type ResolveBankTransactionReviewInput = z.infer<
+  typeof resolveBankTransactionReviewInputSchema
+>;
+
+export const resolveReplacementUnmatchedReviewInputSchema = z.object({
+  decision: z.enum(['genuine', 'duplicate']),
+});
+export type ResolveReplacementUnmatchedReviewInput = z.infer<
+  typeof resolveReplacementUnmatchedReviewInputSchema
+>;
+
 export const bankAccountWithMetaSchema = z.object({
   id: z.uuid(),
   displayName: z.string(),
@@ -84,6 +104,7 @@ export const bankAccountWithMetaSchema = z.object({
   /** @deprecated Use bankConnectionId. Kept for response compatibility. */
   connectionCredentialId: z.string().nullish(),
   bankConnectionStatus: bankAccountConnectionStatusSchema.nullish(),
+  syncHealth: bankAccountSyncHealthSchema.nullish(),
   bankAccountFeedId: z.string().nullish(),
   providerBankAccountId: z.string().nullish(),
   providerKey: z.string().nullish(),

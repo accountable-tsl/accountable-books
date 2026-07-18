@@ -39,7 +39,41 @@ const PLAID_NOOP_CODES: ReadonlySet<string> = new Set([
   'ITEM:WEBHOOK_UPDATE_ACKNOWLEDGED',
 ]);
 
-type ProcessResult = { status: 'done' };
+type QuarantineAlert = {
+  eventId: string;
+  reason: string;
+  lastError?: string | null;
+};
+
+type ProcessResult = {
+  status: 'done';
+  quarantineAlert?: QuarantineAlert;
+};
+
+async function quarantineInline({
+  eventId,
+  reason,
+  lastError,
+  trx,
+}: {
+  eventId: string;
+  reason: string;
+  lastError?: string | null;
+  trx: Knex.Transaction;
+}): Promise<ProcessResult> {
+  const didQuarantine = await markProviderWebhookEventQuarantined({
+    eventId,
+    reason,
+    lastError,
+    trx,
+  });
+  return {
+    status: 'done',
+    quarantineAlert: didQuarantine
+      ? { eventId, reason, lastError }
+      : undefined,
+  };
+}
 
 export async function processProviderWebhookReceived(
   payload: unknown,
@@ -60,26 +94,24 @@ export async function processProviderWebhookReceived(
   }
 
   if (event.provider_key !== providerKey) {
-    await markProviderWebhookEventQuarantined({
+    return quarantineInline({
       eventId,
       reason: 'provider_key_mismatch',
       lastError: `Expected ${event.provider_key}, got ${providerKey}`,
       trx,
     });
-    return { status: 'done' };
   }
 
   if (providerKey === 'plaid') {
     return processPlaidWebhookEvent(eventId, event, trx);
   }
 
-  await markProviderWebhookEventQuarantined({
+  return quarantineInline({
     eventId,
     reason: 'unsupported_provider',
     lastError: `No processor for provider_key=${providerKey}`,
     trx,
   });
-  return { status: 'done' };
 }
 
 async function processPlaidWebhookEvent(
@@ -143,13 +175,12 @@ async function processPlaidWebhookEvent(
     return { status: 'done' };
   }
 
-  await markProviderWebhookEventQuarantined({
+  return quarantineInline({
     eventId,
     reason: 'unhandled_webhook',
     lastError: `Unhandled Plaid webhook ${typeCode}`,
     trx,
   });
-  return { status: 'done' };
 }
 
 async function resolveConnection(
@@ -184,6 +215,7 @@ export async function quarantineProviderWebhookAfterDeadLetter(
   const parsed = providerWebhookReceivedPayloadSchema.safeParse(payload);
   if (!parsed.success) return;
 
+  // Outbox dead-letter alert already covers this path — no quarantine alert.
   await markProviderWebhookEventQuarantined({
     eventId: parsed.data.eventId,
     reason: 'outbox_dead_lettered',

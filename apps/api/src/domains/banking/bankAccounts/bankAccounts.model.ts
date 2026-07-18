@@ -21,7 +21,7 @@ import {
   deriveAccountNumberIdentity,
   findAccountByFingerprint,
 } from '../account-identity.js';
-import { projectConnectionStatus } from '../bank-account-projections.js';
+import { projectConnectionStatus, projectSyncHealth } from '../bank-account-projections.js';
 import {
   bankAccountWithConnectionInput,
   manualBankAccountInputCamel,
@@ -85,22 +85,26 @@ export async function getBankAccountSyncEligibility(
       revoked_at: Date | null;
       initial_sync_completed_at: Date | null;
       last_successful_sync_at: Date | null;
+      connected_at: Date | null;
       authorization_status: BankConnectionAuthorizationStatus | null;
     }>([
       'baf.revoked_at',
       'baf.initial_sync_completed_at',
       'baf.last_successful_sync_at',
+      'baf.connected_at',
       'bc.authorization_status',
     ]);
 
   let activeFeed: {
     initial_sync_completed_at: Date | null;
     last_successful_sync_at: Date | null;
+    connected_at: Date | null;
   } | null = null;
   if (feedRow?.revoked_at === null) {
     activeFeed = {
       initial_sync_completed_at: feedRow.initial_sync_completed_at,
       last_successful_sync_at: feedRow.last_successful_sync_at,
+      connected_at: feedRow.connected_at ?? null,
     };
   }
 
@@ -245,6 +249,7 @@ export const getBankAccountsWithDetails = async (
         'bam.feed_revoked_at as feedRevokedAt',
         'bam.authorization_status as authorizationStatus',
         'bam.initial_sync_completed_at as initialSyncCompletedAt',
+        'bam.feed_connected_at as feedConnectedAt',
         'bam.last_sync_at as lastSyncAt',
         'bam.mask as mask',
         db.raw('bam.statement_balance_native::text as "statementBalance"'),
@@ -280,22 +285,32 @@ export const getBankAccountsWithDetails = async (
       const activeFeed =
         row.bankAccountFeedId && row.feedRevokedAt == null
           ? {
-              initial_sync_completed_at: row.initialSyncCompletedAt,
-              last_successful_sync_at: row.lastSyncAt,
+              initial_sync_completed_at: row.initialSyncCompletedAt
+                ? new Date(row.initialSyncCompletedAt as string | Date)
+                : null,
+              last_successful_sync_at: row.lastSyncAt
+                ? new Date(row.lastSyncAt as string | Date)
+                : null,
+              connected_at: row.feedConnectedAt
+                ? new Date(row.feedConnectedAt as string | Date)
+                : null,
             }
           : null;
-      const bankConnectionStatus = projectConnectionStatus({
+      const connectionFacts = {
         hasEverHadFeed: Boolean(row.bankAccountFeedId),
         activeFeed,
         latestFeedRevoked: Boolean(
           row.bankAccountFeedId && row.feedRevokedAt != null,
         ),
         connectionAuthorizationStatus: row.authorizationStatus,
-      });
+      };
+      const bankConnectionStatus = projectConnectionStatus(connectionFacts);
+      const syncHealth = projectSyncHealth(connectionFacts);
       const {
         authorizationStatus: _authorizationStatus,
         feedRevokedAt: _feedRevokedAt,
         initialSyncCompletedAt: _initialSyncCompletedAt,
+        feedConnectedAt: _feedConnectedAt,
         ...account
       } = row;
       return {
@@ -303,6 +318,7 @@ export const getBankAccountsWithDetails = async (
         statementBalance: row.statementBalance ?? null,
         recordedBankBalance: recordedByAccountId.get(row.id as string) ?? null,
         bankConnectionStatus,
+        syncHealth,
         lastSyncAt: row.lastSyncAt
           ? new Date(row.lastSyncAt).toISOString()
           : null,
