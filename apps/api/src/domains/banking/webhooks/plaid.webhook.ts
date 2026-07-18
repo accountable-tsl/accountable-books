@@ -49,13 +49,12 @@ router.post(
       }
 
       const plaidConfig = webhookProviders.plaid;
-      if (plaidConfig?.verificationEnabled && plaidConfig.verify) {
-        const isValid = plaidConfig.verify(req);
+      if (plaidConfig?.verificationEnabled) {
+        const isValid = await plaidConfig.verify(req);
         if (!isValid) {
           log('verification_failed', {
             provider: 'plaid',
             hasSignature: !!req.headers['plaid-verification'],
-            hasTimestamp: !!req.headers['plaid-verification-timestamp'],
           });
           return res.status(401).json({ error: 'Webhook verification failed' });
         }
@@ -63,9 +62,7 @@ router.post(
       } else {
         log('verification_skipped', {
           provider: 'plaid',
-          reason: plaidConfig?.verificationEnabled
-            ? 'No verify function'
-            : 'Verification disabled',
+          reason: 'Verification disabled for local development',
         });
       }
 

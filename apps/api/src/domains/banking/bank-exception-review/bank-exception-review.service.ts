@@ -1,11 +1,11 @@
 import type { Knex } from 'knex';
 
-import { deleteBankTransactions } from '../../bankTransactions/bankTransactions.model.js';
-import { NOTIFICATION_TYPE } from '../../notifications/notifications.types.js';
 import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
+import { deleteBankTransactions } from '../../bankTransactions/bankTransactions.model.js';
+import { NOTIFICATION_TYPE } from '../../notifications/notifications.types.js';
 import {
   buildBankReplacementUnmatchedAttentionKey,
   buildBankTransactionRemovedAttentionKey,
@@ -38,9 +38,8 @@ export async function acknowledgeBankTransactionSupersededReview({
     return errorResponse('Bank transaction not found', null);
   }
 
-  const attentionKey = buildBankTransactionSupersededAttentionKey(
-    bankTransactionId,
-  );
+  const attentionKey =
+    buildBankTransactionSupersededAttentionKey(bankTransactionId);
   const resolvedCount = await resolveBankReviewAttention(trx, {
     clientCompanyId: companyId,
     attentionKey,

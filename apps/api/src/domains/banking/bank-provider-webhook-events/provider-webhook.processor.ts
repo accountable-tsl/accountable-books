@@ -1,6 +1,5 @@
-import { z } from 'zod';
-
 import type { Knex } from 'knex';
+import { z } from 'zod';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { transactionSyncService } from '../../../integrations/banking/services/transaction-sync.service.js';
@@ -69,9 +68,7 @@ async function quarantineInline({
   });
   return {
     status: 'done',
-    quarantineAlert: didQuarantine
-      ? { eventId, reason, lastError }
-      : undefined,
+    quarantineAlert: didQuarantine ? { eventId, reason, lastError } : undefined,
   };
 }
 
@@ -79,9 +76,8 @@ export async function processProviderWebhookReceived(
   payload: unknown,
   trx: Knex.Transaction,
 ): Promise<ProcessResult> {
-  const { eventId, providerKey } = providerWebhookReceivedPayloadSchema.parse(
-    payload,
-  );
+  const { eventId, providerKey } =
+    providerWebhookReceivedPayloadSchema.parse(payload);
 
   const event = await getProviderWebhookEvent({ eventId, trx });
   if (!event) {

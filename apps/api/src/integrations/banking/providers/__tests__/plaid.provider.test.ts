@@ -14,6 +14,17 @@ function stubTransactionsSync(
   ).client.transactionsSync = implementation;
 }
 
+function stubLinkTokenCreate(
+  provider: PlaidProvider,
+  implementation: ReturnType<typeof vi.fn>,
+): void {
+  (
+    provider as unknown as {
+      client: { linkTokenCreate: typeof implementation };
+    }
+  ).client.linkTokenCreate = implementation;
+}
+
 function plaidPage(overrides: Record<string, unknown> = {}) {
   return {
     data: {
@@ -46,6 +57,31 @@ function plaidTransaction(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+describe('PlaidProvider link tokens', () => {
+  it('uses update mode when repairing an existing connection', async () => {
+    const provider = new PlaidProvider();
+    const linkTokenCreate = vi.fn().mockResolvedValue({
+      data: { link_token: 'update-link-token' },
+    });
+    stubLinkTokenCreate(provider, linkTokenCreate);
+
+    const token = await provider.createLinkToken({
+      userId: 'user-1',
+      companyId: 'company-1',
+      accessToken: 'existing-access-token',
+    });
+
+    expect(token).toBe('update-link-token');
+    expect(linkTokenCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        access_token: 'existing-access-token',
+      }),
+    );
+    expect(linkTokenCreate.mock.calls[0][0]).not.toHaveProperty('products');
+    expect(linkTokenCreate.mock.calls[0][0]).not.toHaveProperty('transactions');
+  });
+});
 
 describe('PlaidProvider transaction update fetch', () => {
   it('requests the independent stream for the supplied bank account', async () => {

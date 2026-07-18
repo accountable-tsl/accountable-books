@@ -62,11 +62,8 @@ export function projectSyncHealth(
     return 'action_required';
   }
 
-  const {
-    initial_sync_completed_at,
-    last_successful_sync_at,
-    connected_at,
-  } = facts.activeFeed;
+  const { initial_sync_completed_at, last_successful_sync_at, connected_at } =
+    facts.activeFeed;
 
   if (initial_sync_completed_at == null) {
     if (

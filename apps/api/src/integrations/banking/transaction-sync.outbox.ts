@@ -167,11 +167,12 @@ export async function executeLeasedBankSync(
         { outboxId: leased.row.id, bankAccountId: payload.bankAccountId },
         'Bank sync intent completed as unsupported',
       );
-      const processedUnsupported = await markLeasedIntentProcessed(
+      const completion = await markLeasedIntentProcessed(
         leased.row.id,
         leased.leaseToken,
       );
-      return processedUnsupported ? 'processed' : 'failed';
+      if (completion === 'ownership_lost') return 'failed';
+      return completion === 'requeued' ? 'deferred' : 'processed';
     }
 
     if (
@@ -186,11 +187,12 @@ export async function executeLeasedBankSync(
       return deferred ? 'deferred' : 'failed';
     }
 
-    const processed = await markLeasedIntentProcessed(
+    const completion = await markLeasedIntentProcessed(
       leased.row.id,
       leased.leaseToken,
     );
-    return processed ? 'processed' : 'failed';
+    if (completion === 'ownership_lost') return 'failed';
+    return completion === 'requeued' ? 'deferred' : 'processed';
   } catch (error) {
     if (error instanceof TransactionSyncLockBusyError) {
       const deferred = await deferLeasedIntent(

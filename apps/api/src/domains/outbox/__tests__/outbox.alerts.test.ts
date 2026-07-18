@@ -23,6 +23,7 @@ function makeRow(overrides: Partial<OutboxRow> = {}): OutboxRow {
     status: 'failed',
     available_at: new Date(),
     lease_token: null,
+    follow_up_requested: false,
     completed_at: new Date(),
     dispatch_attempt_count: 10,
     last_error: 'boom',

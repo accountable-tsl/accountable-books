@@ -32,6 +32,7 @@ export class MonoProvider extends BankingProvider {
   }: {
     userId: string;
     companyId: string;
+    accessToken?: string;
   }): Promise<string> {
     // Mono uses a widget-based approach with public key on frontend
     // We only return metadata for tracking - no secret key!

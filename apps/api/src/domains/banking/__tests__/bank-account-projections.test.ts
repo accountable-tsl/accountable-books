@@ -60,9 +60,7 @@ describe('projectConnectionStatus', () => {
 
 describe('projectSyncHealth', () => {
   it('returns null when there is no active feed', () => {
-    expect(
-      projectSyncHealth(facts({ activeFeed: null }), NOW),
-    ).toBeNull();
+    expect(projectSyncHealth(facts({ activeFeed: null }), NOW)).toBeNull();
   });
 
   it('returns action_required when connection needs repair', () => {

@@ -24,6 +24,7 @@ export interface OutboxRow {
   status: 'pending' | 'processed' | 'failed';
   available_at: Date;
   lease_token: string | null;
+  follow_up_requested: boolean;
   completed_at: Date | null;
   dispatch_attempt_count: number;
   last_error: string | null;
@@ -51,6 +52,12 @@ export async function writeOutbox(
     ON CONFLICT (intent_type, scope_key) WHERE status = 'pending'
     DO UPDATE SET
       payload = EXCLUDED.payload,
+      -- A leased row remains the coalescing key, so remember arrivals that
+      -- cannot safely replace work already being applied.
+      follow_up_requested = (
+        ${OUTBOX_TABLE}.follow_up_requested
+        OR ${OUTBOX_TABLE}.lease_token IS NOT NULL
+      ),
       available_at = CASE
         WHEN ${OUTBOX_TABLE}.lease_token IS NULL THEN now()
         ELSE ${OUTBOX_TABLE}.available_at
@@ -242,6 +249,7 @@ export async function claimLeasedIntent(
     .where({ id: row.id })
     .update({
       lease_token: leaseToken,
+      follow_up_requested: false,
       dispatch_attempt_count: trx.raw('dispatch_attempt_count + 1'),
       available_at: trx.raw(`now() + (interval '1 second' * ?)`, [
         OUTBOX_LEASE_DURATION_SECONDS,
@@ -272,24 +280,34 @@ export async function markLeasedIntentProcessed(
   id: string,
   leaseToken: string,
   client: Knex = knexClient,
-): Promise<boolean> {
-  const updated = await client(OUTBOX_TABLE)
-    .where({ id, lease_token: leaseToken, status: 'pending' })
-    .update({
-      status: 'processed',
-      completed_at: client.fn.now(),
-      lease_token: null,
-      last_error: null,
-      failed_at: null,
-      updated_at: client.fn.now(),
-    });
-  if (updated === 0) {
+): Promise<'processed' | 'requeued' | 'ownership_lost'> {
+  const result = await client.raw(
+    `
+      UPDATE ${OUTBOX_TABLE}
+      SET
+        status = CASE WHEN follow_up_requested THEN 'pending' ELSE 'processed' END,
+        available_at = CASE WHEN follow_up_requested THEN now() ELSE available_at END,
+        completed_at = CASE WHEN follow_up_requested THEN NULL ELSE now() END,
+        lease_token = NULL,
+        follow_up_requested = false,
+        last_error = NULL,
+        failed_at = NULL,
+        updated_at = now()
+      WHERE id = ? AND lease_token = ? AND status = 'pending'
+      RETURNING status
+    `,
+    [id, leaseToken],
+  );
+  const status = (result as { rows: Array<{ status: string }> }).rows[0]
+    ?.status;
+  if (!status) {
     logger.warn(
       { outboxId: id },
       'Leased outbox intent ownership lost on complete',
     );
+    return 'ownership_lost';
   }
-  return updated > 0;
+  return status === 'pending' ? 'requeued' : 'processed';
 }
 
 export async function deferLeasedIntent(
@@ -303,6 +321,7 @@ export async function deferLeasedIntent(
     .update({
       status: 'pending',
       lease_token: null,
+      follow_up_requested: false,
       // A defer is not a failure: give back the attempt the claim charged,
       // or routine waiting (e.g. provider history still collecting) would
       // eat the retry budget and dead-letter the first real failure.
@@ -330,13 +349,57 @@ export async function recordLeasedIntentFailure(
   client: Knex = knexClient,
 ): Promise<{ deadLettered: boolean; ownershipLost: boolean }> {
   const message = error instanceof Error ? error.message : String(error);
-  // claimLeasedIntent already increments dispatch_attempt_count; reuse that
-  // value so retries are not double-counted.
-  const row = await client<OutboxRow>(OUTBOX_TABLE)
-    .where({ id, lease_token: leaseToken, status: 'pending' })
-    .first('dispatch_attempt_count');
+  const outcome = await client.transaction(async (trx) => {
+    const row = await trx<OutboxRow>(OUTBOX_TABLE)
+      .where({ id, lease_token: leaseToken, status: 'pending' })
+      .forUpdate()
+      .first('dispatch_attempt_count', 'follow_up_requested');
+    if (!row) return { kind: 'ownership_lost' as const };
 
-  if (!row) {
+    const dispatchAttemptCount = row.dispatch_attempt_count ?? 0;
+    const exhausted = dispatchAttemptCount >= OUTBOX_MAX_DISPATCH_ATTEMPTS;
+    const restartForFollowUp = exhausted && row.follow_up_requested;
+    const deadLettered = exhausted && !restartForFollowUp;
+    const backoffSeconds = Math.min(
+      300,
+      2 ** Math.min(dispatchAttemptCount, 8),
+    );
+
+    await trx(OUTBOX_TABLE)
+      .where({ id, lease_token: leaseToken, status: 'pending' })
+      .update({
+        lease_token: null,
+        follow_up_requested: false,
+        last_error: message.slice(0, 2000),
+        ...(deadLettered
+          ? {
+              status: 'failed',
+              completed_at: trx.fn.now(),
+              failed_at: trx.fn.now(),
+            }
+          : {
+              status: 'pending',
+              completed_at: null,
+              failed_at: null,
+              ...(restartForFollowUp ? { dispatch_attempt_count: 0 } : {}),
+              available_at: trx.raw(`now() + (interval '1 second' * ?)`, [
+                restartForFollowUp ? 1 : backoffSeconds,
+              ]),
+            }),
+        updated_at: trx.fn.now(),
+      });
+
+    let kind: 'dead_lettered' | 'restarted' | 'retrying' = 'retrying';
+    if (deadLettered) kind = 'dead_lettered';
+    if (restartForFollowUp) kind = 'restarted';
+    return {
+      kind,
+      dispatchAttemptCount,
+      backoffSeconds,
+    };
+  });
+
+  if (outcome.kind === 'ownership_lost') {
     logger.warn(
       { outboxId: id },
       'Leased outbox intent ownership lost on failure',
@@ -344,48 +407,33 @@ export async function recordLeasedIntentFailure(
     return { deadLettered: false, ownershipLost: true };
   }
 
-  const dispatchAttemptCount = row.dispatch_attempt_count ?? 0;
-  const exhausted = dispatchAttemptCount >= OUTBOX_MAX_DISPATCH_ATTEMPTS;
-  const backoffSeconds = Math.min(300, 2 ** Math.min(dispatchAttemptCount, 8));
-
-  const updated = await client(OUTBOX_TABLE)
-    .where({ id, lease_token: leaseToken, status: 'pending' })
-    .update({
-      lease_token: null,
-      last_error: message.slice(0, 2000),
-      ...(exhausted
-        ? {
-            status: 'failed',
-            completed_at: client.fn.now(),
-            failed_at: client.fn.now(),
-          }
-        : {
-            status: 'pending',
-            available_at: client.raw(`now() + (interval '1 second' * ?)`, [
-              backoffSeconds,
-            ]),
-          }),
-      updated_at: client.fn.now(),
-    });
-
-  if (updated === 0) {
-    logger.warn(
-      { outboxId: id },
-      'Leased outbox intent ownership lost on failure',
-    );
-    return { deadLettered: false, ownershipLost: true };
-  }
-
-  if (exhausted) {
+  if (outcome.kind === 'dead_lettered') {
     logger.error(
-      { outboxId: id, dispatchAttemptCount, error: message },
+      {
+        outboxId: id,
+        dispatchAttemptCount: outcome.dispatchAttemptCount,
+        error: message,
+      },
       'Leased outbox intent dead-lettered after exhausting max dispatch attempts',
     );
     return { deadLettered: true, ownershipLost: false };
   }
 
+  if (outcome.kind === 'restarted') {
+    logger.warn(
+      { outboxId: id, error: message },
+      'Leased outbox intent received fresh work; retry budget restarted',
+    );
+    return { deadLettered: false, ownershipLost: false };
+  }
+
   logger.warn(
-    { outboxId: id, dispatchAttemptCount, backoffSeconds, error: message },
+    {
+      outboxId: id,
+      dispatchAttemptCount: outcome.dispatchAttemptCount,
+      backoffSeconds: outcome.backoffSeconds,
+      error: message,
+    },
     'Leased outbox intent dispatch failed; scheduled for retry',
   );
   return { deadLettered: false, ownershipLost: false };

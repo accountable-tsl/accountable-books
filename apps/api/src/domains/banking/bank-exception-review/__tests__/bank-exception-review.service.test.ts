@@ -9,21 +9,21 @@ import {
 } from '../../../../integrations/banking/services/__tests__/transaction-sync.test-helpers.js';
 import { notify } from '../../../notifications/notifications.model.js';
 import { NOTIFICATION_TYPE } from '../../../notifications/notifications.types.js';
-import { dispatchPendingIntents } from '../../../outbox/outbox.dispatcher.js';
 import { OUTBOX_INTENT } from '../../../outbox/intents.js';
+import { dispatchPendingIntents } from '../../../outbox/outbox.dispatcher.js';
+import {
+  buildBankReplacementUnmatchedAttentionKey,
+  buildBankTransactionRemovedAttentionKey,
+  buildBankTransactionSupersededAttentionKey,
+  writeBankReplacementUnmatchedNotifications,
+  writeBankTransactionRemovedNotifications,
+  writeBankTransactionSupersededNotifications,
+} from '../../bankAccounts/bankAccountNotifications.js';
 import {
   acknowledgeBankTransactionRemovedReview,
   acknowledgeBankTransactionSupersededReview,
   resolveReplacementUnmatchedReview,
 } from '../bank-exception-review.service.js';
-import {
-  buildBankReplacementUnmatchedAttentionKey,
-  buildBankTransactionRemovedAttentionKey,
-  buildBankTransactionSupersededAttentionKey,
-  writeBankTransactionRemovedNotifications,
-  writeBankTransactionSupersededNotifications,
-  writeBankReplacementUnmatchedNotifications,
-} from '../../bankAccounts/bankAccountNotifications.js';
 
 describe('bank exception review resolution (M5a)', () => {
   let db: Knex;
@@ -48,7 +48,9 @@ describe('bank exception review resolution (M5a)', () => {
     await cleanupSyncFailureFixture(db, fixture);
   });
 
-  async function insertBankTransaction(overrides: { isDeleted?: boolean } = {}) {
+  async function insertBankTransaction(
+    overrides: { isDeleted?: boolean } = {},
+  ) {
     const [batch] = await db('bank_transaction_batches')
       .insert({
         company_id: fixture.companyId,

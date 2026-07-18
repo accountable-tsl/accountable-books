@@ -29,6 +29,11 @@ router.post(
   bankingController.revokeBankConnection.bind(bankingController),
 );
 
+router.post(
+  '/connections/:connectionId/reauthorization-completed',
+  bankingController.completeConnectionReauthorization.bind(bankingController),
+);
+
 // NEW: PUT /api/banking/accounts/:accountId/classify
 router.put(
   '/accounts/:accountId/classify',

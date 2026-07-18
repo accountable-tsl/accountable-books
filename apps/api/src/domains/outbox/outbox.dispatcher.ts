@@ -5,11 +5,11 @@ import { executeLeasedBankSync } from '../../integrations/banking/transaction-sy
 import { getLogger } from '../../shared/utils/logger.js';
 import { dispatchActivityEventRequested } from '../activity/activity.model.js';
 import { handleGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
+import { alertProviderWebhookQuarantined } from '../banking/bank-provider-webhook-events/provider-webhook.alerts.js';
 import {
   processProviderWebhookReceived,
   quarantineProviderWebhookAfterDeadLetter,
 } from '../banking/bank-provider-webhook-events/provider-webhook.processor.js';
-import { alertProviderWebhookQuarantined } from '../banking/bank-provider-webhook-events/provider-webhook.alerts.js';
 import {
   dispatchNotificationAttentionResolved,
   dispatchNotificationCommsRequested,

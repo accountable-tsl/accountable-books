@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDb } from '../../../../../config/test-db.js';
+import { createHistoryImport } from '../../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js';
 import { NOTIFICATION_TYPE } from '../../../../domains/notifications/notifications.types.js';
 import { OUTBOX_INTENT } from '../../../../domains/outbox/intents.js';
 import { providerRegistry } from '../../providers/registry.js';
@@ -272,6 +273,49 @@ describe('observation classification and routing', () => {
           .where({ bank_account_feed_id: fixture.feedId })
           .first('status'),
       ).toMatchObject({ status: 'unavailable' });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('does not offer historical import when no older transactions exist', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    await setBoundary(fixture, '2026-01-01');
+    await db.transaction((trx) =>
+      createHistoryImport({
+        bankAccountFeedId: fixture.feedId,
+        companyId: fixture.companyId,
+        trx,
+      }),
+    );
+
+    try {
+      await syncOnce(
+        fixture,
+        {
+          added: [
+            {
+              ...providerTransaction(
+                fixture.providerBankAccountId,
+                'current-only',
+              ),
+              date: '2026-01-02',
+            },
+          ],
+        },
+        { historyStatus: 'complete', trigger: 'initial' },
+      );
+
+      const historyImport = await db('bank_transaction_history_imports')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .first('status', 'transaction_count', 'available_at', 'expires_at');
+      expect(historyImport).toMatchObject({
+        status: 'unavailable',
+        transaction_count: 0,
+        available_at: null,
+        expires_at: null,
+      });
     } finally {
       await cleanupSyncFailureFixture(db, fixture);
     }

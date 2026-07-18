@@ -1,6 +1,6 @@
 import http from 'node:http';
-import type { AddressInfo } from 'node:net';
 import type { Express } from 'express';
+import type { AddressInfo } from 'node:net';
 
 type RequestOptions = {
   method?: string;

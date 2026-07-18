@@ -71,12 +71,13 @@ export class PlaidProvider extends BankingProvider {
   async createLinkToken({
     userId,
     companyId,
+    accessToken,
   }: {
     userId: string;
     companyId: string;
+    accessToken?: string;
   }): Promise<string> {
     try {
-      // get actual country code as retrieved from api, fallback to ENV or maybe env is simpler
       const countries = (ENV.PLAID_COUNTRY_CODES || 'US,CA').split(
         ',',
       ) as CountryCode[];
@@ -90,12 +91,10 @@ export class PlaidProvider extends BankingProvider {
         client_name: clientName,
         country_codes: countries,
         language: 'en',
-        products: products,
         webhook: `${ENV.BACKEND_URL}/webhooks/banking/plaid`,
-        // Configure transaction sync settings
-        transactions: {
-          days_requested: 730,
-        },
+        ...(accessToken
+          ? { access_token: accessToken }
+          : { products, transactions: { days_requested: 730 } }),
       };
 
       if (ENV.PLAID_REDIRECT_URI) {

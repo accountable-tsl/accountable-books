@@ -147,10 +147,12 @@ export async function setProviderWebhookEventLastError({
   trx?: Knex | Knex.Transaction;
 }): Promise<void> {
   const knex = trx ?? knexClient;
-  await knex(TABLE).where({ id: eventId }).update({
-    last_error: lastError.slice(0, 2000),
-    updated_at: knex.fn.now(),
-  });
+  await knex(TABLE)
+    .where({ id: eventId })
+    .update({
+      last_error: lastError.slice(0, 2000),
+      updated_at: knex.fn.now(),
+    });
 }
 
 export async function purgeProviderWebhookPayloads(
@@ -172,10 +174,7 @@ export async function purgeProviderWebhookPayloads(
     });
 
   if (cleared > 0) {
-    logger.info(
-      { cleared, retentionDays },
-      'Purged provider webhook payloads',
-    );
+    logger.info({ cleared, retentionDays }, 'Purged provider webhook payloads');
   }
 
   return { cleared };

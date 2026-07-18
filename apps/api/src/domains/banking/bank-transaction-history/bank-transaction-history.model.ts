@@ -225,6 +225,10 @@ export async function markHistoryImportStatus({
     patch.selected_from_date = selection.fromDate;
     patch.selected_at = trx.fn.now();
     patch.selected_by_id = selection.selectedById;
+  } else {
+    patch.selected_from_date = null;
+    patch.selected_at = null;
+    patch.selected_by_id = null;
   }
   // COALESCE so a repeat mark to available does not restart the offer window.
   if (status === 'available') {

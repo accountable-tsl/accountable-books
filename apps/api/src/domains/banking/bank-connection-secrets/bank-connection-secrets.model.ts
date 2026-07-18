@@ -30,6 +30,69 @@ export type DecryptedConnectionTokens = {
   encryption_key_version: number;
 };
 
+async function loadConnectionSecret({
+  connectionId,
+  companyId,
+  authorizationStatuses,
+  providerKey,
+  unavailableMessage,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  authorizationStatuses: Array<'active' | 'requires_action'>;
+  providerKey?: string;
+  unavailableMessage: string;
+  trx?: Knex | Knex.Transaction;
+}): Promise<ApiResponse<DecryptedConnectionTokens>> {
+  const knex = trx ?? knexClient;
+  try {
+    const query = knex('bank_connection_secrets as bcs')
+      .join('bank_connections as bc', 'bc.id', 'bcs.bank_connection_id')
+      .where({
+        'bcs.bank_connection_id': connectionId,
+        'bc.company_id': companyId,
+      })
+      .whereIn('bc.authorization_status', authorizationStatuses);
+
+    if (providerKey) {
+      query
+        .join('bank_feed_providers as bfp', 'bfp.id', 'bc.provider_id')
+        .where('bfp.key', providerKey);
+    }
+
+    const row = await query
+      .select(
+        'bcs.bank_connection_id',
+        'bcs.encrypted_access_token',
+        'bcs.encrypted_refresh_token',
+        'bcs.encryption_key_version',
+      )
+      .first<{
+        bank_connection_id: string;
+        encrypted_access_token: string;
+        encrypted_refresh_token: string | null;
+        encryption_key_version: number;
+      }>();
+
+    if (!row?.encrypted_access_token) {
+      return errorResponse(unavailableMessage, null);
+    }
+
+    const aad = getSecretAad({ connectionId, companyId });
+    return successResponse('Connection secret loaded', {
+      bank_connection_id: row.bank_connection_id,
+      access_token: decrypt(row.encrypted_access_token, aad),
+      ...(row.encrypted_refresh_token
+        ? { refresh_token: decrypt(row.encrypted_refresh_token, aad) }
+        : {}),
+      encryption_key_version: row.encryption_key_version,
+    });
+  } catch (error) {
+    return errorResponse('Failed to load connection secret', error);
+  }
+}
+
 export async function createBankConnectionSecret({
   connectionId,
   companyId,
@@ -95,47 +158,34 @@ export async function loadSecretForProviderExecution({
   companyId: string;
   trx?: Knex | Knex.Transaction;
 }): Promise<ApiResponse<DecryptedConnectionTokens>> {
-  const knex = trx ?? knexClient;
-  try {
-    const row = await knex('bank_connection_secrets as bcs')
-      .join('bank_connections as bc', 'bc.id', 'bcs.bank_connection_id')
-      .where({
-        'bcs.bank_connection_id': connectionId,
-        'bc.company_id': companyId,
-        'bc.authorization_status': 'active',
-      })
-      .select(
-        'bcs.bank_connection_id',
-        'bcs.encrypted_access_token',
-        'bcs.encrypted_refresh_token',
-        'bcs.encryption_key_version',
-      )
-      .first<{
-        bank_connection_id: string;
-        encrypted_access_token: string;
-        encrypted_refresh_token: string | null;
-        encryption_key_version: number;
-      }>();
+  return loadConnectionSecret({
+    connectionId,
+    companyId,
+    authorizationStatuses: ['active'],
+    unavailableMessage: 'Connection secret unavailable for provider execution',
+    trx,
+  });
+}
 
-    if (!row?.encrypted_access_token) {
-      return errorResponse(
-        'Connection secret unavailable for provider execution',
-        null,
-      );
-    }
-
-    const aad = getSecretAad({ connectionId, companyId });
-    return successResponse('Connection secret loaded', {
-      bank_connection_id: row.bank_connection_id,
-      access_token: decrypt(row.encrypted_access_token, aad),
-      ...(row.encrypted_refresh_token
-        ? { refresh_token: decrypt(row.encrypted_refresh_token, aad) }
-        : {}),
-      encryption_key_version: row.encryption_key_version,
-    });
-  } catch (error) {
-    return errorResponse('Failed to load connection secret', error);
-  }
+export async function loadSecretForConnectionReauthorization({
+  connectionId,
+  companyId,
+  providerKey,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  providerKey: string;
+  trx?: Knex | Knex.Transaction;
+}): Promise<ApiResponse<DecryptedConnectionTokens>> {
+  return loadConnectionSecret({
+    connectionId,
+    companyId,
+    authorizationStatuses: ['active', 'requires_action'],
+    providerKey,
+    unavailableMessage: 'Connection secret unavailable for reauthorization',
+    trx,
+  });
 }
 
 /**

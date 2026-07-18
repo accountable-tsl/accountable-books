@@ -19,10 +19,9 @@ describe('purgeProviderWebhookPayloads', () => {
         dedupe_key: `purge-old-completed-${Date.now()}`,
         payload: { secretish: 'keep-for-audit-window' },
         status: 'completed',
-        processed_at: db.raw(
-          `now() - (interval '1 day' * ?)`,
-          [WEBHOOK_PAYLOAD_RETENTION_DAYS + 1],
-        ),
+        processed_at: db.raw(`now() - (interval '1 day' * ?)`, [
+          WEBHOOK_PAYLOAD_RETENTION_DAYS + 1,
+        ]),
       })
       .returning('id');
 

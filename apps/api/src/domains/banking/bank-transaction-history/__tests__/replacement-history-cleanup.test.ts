@@ -83,4 +83,53 @@ describe('replacement history cleanup', () => {
       await cleanupSyncFailureFixture(db, fixture);
     }
   });
+
+  it('can retire an import after a bookkeeper selected history', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+
+    try {
+      await db.transaction(async (trx) => {
+        await createHistoryImport({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          trx,
+        });
+        await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'available',
+          trx,
+        });
+        await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'selected',
+          selection: {
+            fromDate: '2025-01-01',
+            selectedById: fixture.userId,
+          },
+          trx,
+        });
+        await markHistoryImportStatus({
+          bankAccountFeedId: fixture.feedId,
+          companyId: fixture.companyId,
+          status: 'unavailable',
+          trx,
+        });
+      });
+
+      const historyImport = await db('bank_transaction_history_imports')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .first('status', 'selected_from_date', 'selected_at', 'selected_by_id');
+      expect(historyImport).toMatchObject({
+        status: 'unavailable',
+        selected_from_date: null,
+        selected_at: null,
+        selected_by_id: null,
+      });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
 });

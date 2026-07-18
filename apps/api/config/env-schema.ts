@@ -637,15 +637,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
   },
 
-  PLAID_WEBHOOK_SECRET: {
-    description:
-      'Plaid webhook verification secret (optional - enables webhook signature verification)',
-    type: 'secret',
-    required: false,
-  },
-
   ENABLE_WEBHOOK_VERIFICATION: {
-    description: 'Force webhook verification even in development mode',
+    description: 'Verify Plaid webhooks during local development',
     type: 'boolean',
     required: false,
     local: 'false',

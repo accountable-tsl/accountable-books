@@ -8,8 +8,8 @@ import {
   cleanupSyncFailureFixture,
   createSyncFailureFixture,
 } from '../../../../integrations/banking/services/__tests__/transaction-sync.test-helpers.js';
-import { dispatchPendingIntents } from '../../../outbox/outbox.dispatcher.js';
 import { OUTBOX_INTENT } from '../../../outbox/intents.js';
+import { dispatchPendingIntents } from '../../../outbox/outbox.dispatcher.js';
 import { OUTBOX_MAX_DISPATCH_ATTEMPTS } from '../../../outbox/outbox.model.js';
 import {
   buildWebhookDedupeKey,
@@ -84,9 +84,11 @@ describe('Plaid banking webhooks', () => {
     });
 
     expect(response.status).toBe(400);
-    const events = await db('bank_provider_webhook_events').count<{
-      count: string;
-    }>('id as count').first();
+    const events = await db('bank_provider_webhook_events')
+      .count<{
+        count: string;
+      }>('id as count')
+      .first();
     expect(events?.count).toBe('0');
   });
 
@@ -102,9 +104,11 @@ describe('Plaid banking webhooks', () => {
     });
 
     expect(response.status).toBe(401);
-    const events = await db('bank_provider_webhook_events').count<{
-      count: string;
-    }>('id as count').first();
+    const events = await db('bank_provider_webhook_events')
+      .count<{
+        count: string;
+      }>('id as count')
+      .first();
     expect(events?.count).toBe('0');
   });
 
@@ -336,10 +340,12 @@ describe('Plaid banking webhooks', () => {
       .first<{ id: string }>('id');
     expect(intent?.id).toBeTruthy();
 
-    await db('app.outbox').where({ id: intent!.id }).update({
-      dispatch_attempt_count: OUTBOX_MAX_DISPATCH_ATTEMPTS - 1,
-      available_at: db.fn.now(),
-    });
+    await db('app.outbox')
+      .where({ id: intent!.id })
+      .update({
+        dispatch_attempt_count: OUTBOX_MAX_DISPATCH_ATTEMPTS - 1,
+        available_at: db.fn.now(),
+      });
 
     const result = await dispatchPendingIntents(5, {
       intentType: OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED,

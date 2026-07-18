@@ -2,9 +2,9 @@ import { billing } from '@accountable-books/contracts/schema';
 import jwt from 'jsonwebtoken';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { requestApp } from '../../../../test/http.js';
 import { app, setupApp } from '../../../app.js';
 import { JWT_CONFIG } from '../../../features/auth/auth.utils.js';
-import { requestApp } from '../../../../test/http.js';
 
 const LAUNCH_EFFECTIVE_AT = '2026-05-18T00:00:00.000Z';
 const EXPECTED_LAUNCH_PLAN_COUNT = billing.BILLING_LAUNCH_PLAN_KEYS.length;

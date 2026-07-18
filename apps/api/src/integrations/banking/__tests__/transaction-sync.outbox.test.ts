@@ -119,6 +119,44 @@ describe('bank sync outbox intent execution', () => {
     }
   });
 
+  it('runs again when a sync request arrives during provider work', async () => {
+    const bankAccountId = randomUUID();
+    try {
+      const sync = vi
+        .spyOn(transactionSyncService, 'syncBankAccount')
+        .mockResolvedValue(
+          syncResult({ bankAccountId, historyStatus: 'complete' }),
+        );
+      const firstLease = await claimFreshIntent(bankAccountId);
+
+      await getTestDb().transaction((trx: Knex.Transaction) =>
+        writeBankSyncOutbox(trx, {
+          bankAccountId,
+          trigger: 'webhook',
+        }),
+      );
+
+      expect(await executeLeasedBankSync(firstLease)).toBe('deferred');
+      expect(await getIntentRow(bankAccountId)).toMatchObject({
+        status: 'pending',
+        lease_token: null,
+      });
+
+      const secondLease = await getTestDb().transaction(
+        (trx: Knex.Transaction) =>
+          claimLeasedIntent(trx, {
+            intentType: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+            scopeKey: bankSyncScopeKey(bankAccountId),
+          }),
+      );
+      if (!secondLease) throw new Error('Expected follow-up sync intent');
+      expect(await executeLeasedBankSync(secondLease)).toBe('processed');
+      expect(sync).toHaveBeenCalledTimes(2);
+    } finally {
+      await cleanupIntent(bankAccountId);
+    }
+  });
+
   it('defers on lock contention and records real failures with backoff', async () => {
     const bankAccountId = randomUUID();
     try {

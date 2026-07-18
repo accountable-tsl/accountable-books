@@ -120,15 +120,15 @@ import type {
   NewGLPeriodBalance,
 } from '../domains/balances/balances.types.js';
 import type {
+  BankProviderWebhookEvent,
+  NewBankProviderWebhookEvent,
+} from '../domains/banking/bank-provider-webhook-events/bank-provider-webhook-events.types.js';
+import type {
   BankTransactionHistoryCandidate,
   BankTransactionHistoryImport,
   NewBankTransactionHistoryCandidate,
   NewBankTransactionHistoryImport,
 } from '../domains/banking/bank-transaction-history/bank-transaction-history.types.js';
-import type {
-  BankProviderWebhookEvent,
-  NewBankProviderWebhookEvent,
-} from '../domains/banking/bank-provider-webhook-events/bank-provider-webhook-events.types.js';
 import type {
   JournalBatch,
   JournalEntry,

@@ -10,6 +10,7 @@ import {
 } from '../../../../test/helpers.js';
 import {
   createBankConnectionSecret,
+  loadSecretForConnectionReauthorization,
   loadSecretForProviderExecution,
 } from '../bank-connection-secrets/bank-connection-secrets.model.js';
 import {
@@ -22,6 +23,7 @@ describe('bank connection secrets', () => {
   let companyId: string;
   let userId: string;
   let connectionId: string;
+  let providerKey: string;
 
   beforeEach(async () => {
     trx = await getTestDb().transaction();
@@ -29,9 +31,10 @@ describe('bank connection secrets', () => {
     userId = await getTestUserId(trx, US_USER_EMAIL);
 
     const provider = await trx('bank_feed_providers')
-      .select('id')
-      .first<{ id: string }>();
+      .select('id', 'key')
+      .first<{ id: string; key: string }>();
     if (!provider) throw new Error('Expected a bank feed provider fixture');
+    providerKey = provider.key;
 
     const [connection] = await trx('bank_connections')
       .insert({
@@ -130,6 +133,35 @@ describe('bank connection secrets', () => {
     });
 
     expect(loaded.success).toBe(false);
+  });
+
+  it('loads a requires-action connection secret only for its company and provider during reauthorization', async () => {
+    await createBankConnectionSecret({
+      connectionId,
+      companyId,
+      accessToken: 'reauthorization-token',
+      trx,
+    });
+    await trx('bank_connections').where({ id: connectionId }).update({
+      authorization_status: 'requires_action',
+      requires_action_at: trx.fn.now(),
+    });
+
+    const loaded = await loadSecretForConnectionReauthorization({
+      connectionId,
+      companyId,
+      providerKey,
+      trx,
+    });
+    const wrongCompany = await loadSecretForConnectionReauthorization({
+      connectionId,
+      companyId: randomUUID(),
+      providerKey,
+      trx,
+    });
+
+    expect(loaded.data?.access_token).toBe('reauthorization-token');
+    expect(wrongCompany.success).toBe(false);
   });
 
   it('refuses to create secret material with the wrong tenant context', async () => {

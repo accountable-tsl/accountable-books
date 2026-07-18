@@ -160,24 +160,28 @@ export async function applyCompleteTransactionUpdate(
       });
     }
     if (input.update.historyStatus !== 'collecting') {
-      const becameAvailable =
-        input.update.historyStatus === 'complete' &&
-        (await markHistoryImportStatus({
-          bankAccountFeedId: input.account.feed_id,
-          companyId: input.account.company_id,
-          status: 'available',
-          onlyIfStatus: 'collecting',
-          trx,
-        }));
-      if (input.update.historyStatus !== 'complete') {
-        await markHistoryImportStatus({
-          bankAccountFeedId: input.account.feed_id,
-          companyId: input.account.company_id,
-          status: 'unavailable',
-          onlyIfStatus: 'collecting',
-          trx,
-        });
+      let nextHistoryStatus: 'available' | 'unavailable' = 'unavailable';
+      if (input.update.historyStatus === 'complete') {
+        const historyImport = await trx('bank_transaction_history_imports')
+          .where({
+            bank_account_feed_id: input.account.feed_id,
+            company_id: input.account.company_id,
+          })
+          .first<{ transaction_count: number }>('transaction_count');
+        nextHistoryStatus =
+          (historyImport?.transaction_count ?? 0) > 0
+            ? 'available'
+            : 'unavailable';
       }
+      const historyStatusChanged = await markHistoryImportStatus({
+        bankAccountFeedId: input.account.feed_id,
+        companyId: input.account.company_id,
+        status: nextHistoryStatus,
+        onlyIfStatus: 'collecting',
+        trx,
+      });
+      const becameAvailable =
+        nextHistoryStatus === 'available' && historyStatusChanged;
       if (becameAvailable) {
         const historyImport = await trx('bank_transaction_history_imports')
           .where({

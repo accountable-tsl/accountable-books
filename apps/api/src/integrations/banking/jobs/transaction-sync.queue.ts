@@ -73,9 +73,7 @@ export async function scheduleHistoryImportExpiryScan(
   );
 }
 
-export async function scheduleBankingRetentionScan(
-  cronPattern = '30 2 * * *',
-) {
+export async function scheduleBankingRetentionScan(cronPattern = '30 2 * * *') {
   await executeQueueOperation(QueueName.TRANSACTION_SYNC, () =>
     transactionSyncQueue.upsertJobScheduler(
       'banking-retention',

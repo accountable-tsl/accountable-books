@@ -1,6 +1,9 @@
 import type { Knex } from 'knex';
 
-import { cancelPendingBankSync } from '../../../integrations/banking/transaction-sync.outbox.js';
+import {
+  cancelPendingBankSync,
+  writeBankSyncOutbox,
+} from '../../../integrations/banking/transaction-sync.outbox.js';
 import {
   errorResponse,
   successResponse,
@@ -230,6 +233,73 @@ export async function reactivateConnectionForReauth({
     companyId,
     updatedById,
     trx,
+  });
+}
+
+export async function completeConnectionReauthorization({
+  connectionId,
+  companyId,
+  updatedById,
+  trx,
+}: {
+  connectionId: string;
+  companyId: string;
+  updatedById: string;
+  trx: Knex.Transaction;
+}): Promise<ApiResponse<{ id: string; syncsQueued: number }>> {
+  const connection = await trx('bank_connections')
+    .where({ id: connectionId, company_id: companyId })
+    .first<{ authorization_status: string }>('authorization_status');
+  if (!connection || connection.authorization_status === 'revoked') {
+    return errorResponse('Bank connection cannot be reauthorized', null);
+  }
+
+  const reactivated = await reactivateBankConnection({
+    connectionId,
+    companyId,
+    updatedById,
+    trx,
+  });
+  if (!reactivated.success) {
+    return errorResponse(reactivated.message, reactivated.error);
+  }
+
+  await bumpActiveFeedStateVersions({ connectionId, companyId, trx });
+  const accounts = await trx('bank_account_feeds as baf')
+    .join('bank_accounts as ba', 'ba.id', 'baf.bank_account_id')
+    .where({
+      'baf.bank_connection_id': connectionId,
+      'baf.company_id': companyId,
+      'ba.is_deleted': false,
+    })
+    .whereNull('baf.revoked_at')
+    .distinct<{ id: string; display_name: string }[]>(
+      'ba.id',
+      'ba.display_name',
+    );
+
+  const stateVersion = new Date();
+  for (const account of accounts) {
+    await writeBankSyncOutbox(trx, {
+      bankAccountId: account.id,
+      trigger: 'manual',
+      actorUserId: updatedById,
+    });
+    if (connection.authorization_status === 'requires_action') {
+      await writeBankReconnectNotificationLifecycle(trx, {
+        bankAccountId: account.id,
+        clientCompanyId: companyId,
+        previousConnectionStatus: 'error',
+        nextConnectionStatus: 'connected',
+        bankAccountName: account.display_name,
+        stateVersion,
+      });
+    }
+  }
+
+  return successResponse('Bank connection reauthorized', {
+    id: connectionId,
+    syncsQueued: accounts.length,
   });
 }
 

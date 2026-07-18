@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => ({
   createAccount: vi.fn(),
   createFeed: vi.fn(),
   createHistoryImport: vi.fn(),
+  deleteAllHistoryCandidates: vi.fn(),
+  refreshHistoryImportAggregates: vi.fn(),
+  markHistoryImportStatus: vi.fn(),
   writeSyncOutbox: vi.fn(),
   updateProviderReportedBalance: vi.fn(),
   getProvider: vi.fn(),
@@ -21,6 +24,12 @@ const mocks = vi.hoisted(() => ({
   reactivateFeed: vi.fn(),
   revokeConnection: vi.fn(),
   writeReconnectNotification: vi.fn(),
+  resolveHistoryImportAttention: vi.fn(),
+  predecessorFeeds: [] as Array<{
+    id: string;
+    sync_from_date: string | null;
+    sync_from_timezone: string;
+  }>,
   existingFeeds: [] as Array<{
     id: string;
     provider_account_id: string;
@@ -55,7 +64,12 @@ vi.mock(
 
 vi.mock(
   '../../../../domains/banking/bank-transaction-history/bank-transaction-history.model.js',
-  () => ({ createHistoryImport: mocks.createHistoryImport }),
+  () => ({
+    createHistoryImport: mocks.createHistoryImport,
+    deleteAllHistoryCandidates: mocks.deleteAllHistoryCandidates,
+    refreshHistoryImportAggregates: mocks.refreshHistoryImportAggregates,
+    markHistoryImportStatus: mocks.markHistoryImportStatus,
+  }),
 );
 
 vi.mock('../../transaction-sync.outbox.js', () => ({
@@ -85,6 +99,7 @@ vi.mock(
   '../../../../domains/banking/bankAccounts/bankAccountNotifications.js',
   () => ({
     writeBankReconnectNotificationLifecycle: mocks.writeReconnectNotification,
+    resolveHistoryImportAttention: mocks.resolveHistoryImportAttention,
   }),
 );
 
@@ -110,10 +125,33 @@ function makeTrx() {
       };
     }
     if (table === 'bank_account_feeds') {
-      return {
-        where: vi.fn().mockReturnThis(),
-        select: vi.fn().mockResolvedValue(mocks.existingFeeds),
+      const query = {
+        where: vi.fn(),
+        whereIn: vi.fn(),
+        select: vi.fn(),
       };
+      query.where.mockReturnValue(query);
+      query.whereIn.mockReturnValue(query);
+      query.select.mockImplementation(() =>
+        query.whereIn.mock.calls.length > 0
+          ? Promise.resolve(mocks.predecessorFeeds)
+          : Promise.resolve(mocks.existingFeeds),
+      );
+      return query;
+    }
+    if (table === 'bank_account_feeds as baf') {
+      const query = {
+        join: vi.fn(),
+        where: vi.fn(),
+        whereNull: vi.fn(),
+        whereNot: vi.fn(),
+        first: vi.fn().mockResolvedValue(undefined),
+      };
+      query.join.mockReturnValue(query);
+      query.where.mockReturnValue(query);
+      query.whereNull.mockReturnValue(query);
+      query.whereNot.mockReturnValue(query);
+      return query;
     }
     throw new Error(`unexpected table ${table}`);
   });
@@ -146,6 +184,9 @@ describe('connected account initial synchronization', () => {
       data: { id: 'feed-1' },
     });
     mocks.createHistoryImport.mockResolvedValue(undefined);
+    mocks.deleteAllHistoryCandidates.mockResolvedValue(0);
+    mocks.refreshHistoryImportAggregates.mockResolvedValue(undefined);
+    mocks.markHistoryImportStatus.mockResolvedValue(true);
     mocks.writeSyncOutbox.mockResolvedValue(undefined);
     mocks.updateProviderReportedBalance.mockResolvedValue(undefined);
     mocks.classifyConnect.mockResolvedValue({ kind: 'first' });
@@ -159,6 +200,8 @@ describe('connected account initial synchronization', () => {
       data: { alreadyRevoked: false },
     });
     mocks.writeReconnectNotification.mockResolvedValue(undefined);
+    mocks.resolveHistoryImportAttention.mockResolvedValue(undefined);
+    mocks.predecessorFeeds = [];
     mocks.getEnabledProvider.mockResolvedValue({
       id: 'provider-1',
       name: 'Plaid',
@@ -406,6 +449,58 @@ describe('connected account initial synchronization', () => {
       ],
     ]);
   });
+
+  it.each(['2025-04-01', null])(
+    'keeps the accepted transaction boundary when replacing a feed',
+    async (acceptedBoundary) => {
+      mocks.classifyConnect.mockResolvedValue({
+        kind: 'replace',
+        oldConnectionId: 'old-connection',
+        mappings: [
+          {
+            oldFeedId: 'old-feed',
+            oldConnectionId: 'old-connection',
+            bankAccountId: 'account-1',
+            providerAccountId: 'provider-account-1',
+          },
+        ],
+      });
+      mocks.predecessorFeeds = [
+        {
+          id: 'old-feed',
+          sync_from_date: acceptedBoundary,
+          sync_from_timezone: 'Europe/London',
+        },
+      ];
+      mocks.createAccount.mockReset().mockResolvedValue({
+        success: true,
+        data: { bankAccountId: 'account-1', wasUpdated: true },
+      });
+      mocks.createFeed.mockReset().mockResolvedValue({
+        success: true,
+        data: { id: 'replacement-feed' },
+      });
+
+      const result = await connectAccountsService.connectBankAccounts({
+        providerKey: 'plaid',
+        countryCode: 'US',
+        publicToken: 'public-token',
+        companyId: 'company-1',
+        userId: 'user-1',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mocks.createFeed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            sync_from_date: acceptedBoundary,
+            sync_from_timezone: 'Europe/London',
+            replaces_bank_account_feed_id: 'old-feed',
+          }),
+        }),
+      );
+    },
+  );
 });
 
 function providerAccount(accountId: string, displayName: string) {

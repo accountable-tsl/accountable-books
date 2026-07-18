@@ -8,6 +8,7 @@ import {
   claimLeasedIntent,
   deferLeasedIntent,
   markLeasedIntentProcessed,
+  OUTBOX_MAX_DISPATCH_ATTEMPTS,
   recordLeasedIntentFailure,
   wakePendingIntent,
   writeOutbox,
@@ -109,7 +110,7 @@ describe('leased outbox intent ownership', () => {
 
     expect(
       await markLeasedIntentProcessed(first!.row.id, first!.leaseToken),
-    ).toBe(false);
+    ).toBe('ownership_lost');
     expect(
       (
         await recordLeasedIntentFailure(
@@ -122,7 +123,7 @@ describe('leased outbox intent ownership', () => {
 
     expect(
       await markLeasedIntentProcessed(second!.row.id, second!.leaseToken),
-    ).toBe(true);
+    ).toBe('processed');
   });
 
   it('gives back the claimed attempt on defer so waiting never eats the retry budget', async () => {
@@ -191,5 +192,53 @@ describe('leased outbox intent ownership', () => {
     expect(after?.dispatch_attempt_count).toBe(1);
     expect(after?.status).toBe('pending');
     expect(after?.lease_token).toBeNull();
+  });
+
+  it('restarts the retry budget for a fresh request during the final attempt', async () => {
+    const scopeKey = `bank_account:${randomUUID()}`;
+    scopes.push(scopeKey);
+    const id = await insertPendingInitialSync(scopeKey);
+    const leased = await getTestDb().transaction((trx: Knex.Transaction) =>
+      claimLeasedIntent(trx, {
+        intentType: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+        scopeKey,
+      }),
+    );
+    if (!leased) throw new Error('Expected leased intent');
+
+    await getTestDb()('app.outbox').where({ id }).update({
+      dispatch_attempt_count: OUTBOX_MAX_DISPATCH_ATTEMPTS,
+    });
+    const writer = await getTestDb().transaction();
+    await writeOutbox(writer, {
+      intentType: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+      scopeKey,
+      payload: { bankAccountId: randomUUID() },
+    });
+    const failure = recordLeasedIntentFailure(
+      id,
+      leased.leaseToken,
+      new Error('provider unavailable'),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    await writer.commit();
+
+    const result = await failure;
+    const row = await getTestDb()('app.outbox')
+      .where({ id })
+      .first(
+        'status',
+        'dispatch_attempt_count',
+        'lease_token',
+        'follow_up_requested',
+      );
+
+    expect(result).toEqual({ deadLettered: false, ownershipLost: false });
+    expect(row).toMatchObject({
+      status: 'pending',
+      dispatch_attempt_count: 0,
+      lease_token: null,
+      follow_up_requested: false,
+    });
   });
 });

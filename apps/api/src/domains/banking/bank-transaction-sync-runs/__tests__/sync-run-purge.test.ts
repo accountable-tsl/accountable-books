@@ -24,14 +24,12 @@ describe('purgeOldSyncRuns', () => {
           sync_mode: 'incremental',
           outcome: 'succeeded',
           observed_state_version: 1,
-          started_at: db.raw(
-            `now() - (interval '1 day' * ?)`,
-            [SYNC_RUN_RETENTION_DAYS + 2],
-          ),
-          completed_at: db.raw(
-            `now() - (interval '1 day' * ?)`,
-            [SYNC_RUN_RETENTION_DAYS + 1],
-          ),
+          started_at: db.raw(`now() - (interval '1 day' * ?)`, [
+            SYNC_RUN_RETENTION_DAYS + 2,
+          ]),
+          completed_at: db.raw(`now() - (interval '1 day' * ?)`, [
+            SYNC_RUN_RETENTION_DAYS + 1,
+          ]),
           diagnostic_summary: 'old success',
         })
         .returning('id');
@@ -58,10 +56,9 @@ describe('purgeOldSyncRuns', () => {
           sync_mode: 'incremental',
           outcome: 'running',
           observed_state_version: 1,
-          started_at: db.raw(
-            `now() - (interval '1 day' * ?)`,
-            [SYNC_RUN_RETENTION_DAYS + 5],
-          ),
+          started_at: db.raw(`now() - (interval '1 day' * ?)`, [
+            SYNC_RUN_RETENTION_DAYS + 5,
+          ]),
           completed_at: null,
         })
         .returning('id');

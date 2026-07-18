@@ -664,6 +664,18 @@ async function executeReplaceConnection(
   }
 
   const oldFeedIds = [...new Set(mappings.map((m) => m.oldFeedId))];
+  const predecessorFeeds = await trx('bank_account_feeds')
+    .whereIn('id', oldFeedIds)
+    .select<
+      Array<{
+        id: string;
+        sync_from_date: Date | string | null;
+        sync_from_timezone: string;
+      }>
+    >('id', 'sync_from_date', 'sync_from_timezone');
+  const predecessorById = new Map(
+    predecessorFeeds.map((feed) => [feed.id, feed]),
+  );
   for (const oldFeedId of oldFeedIds) {
     await deleteAllHistoryCandidates({
       bankAccountFeedId: oldFeedId,
@@ -728,8 +740,6 @@ async function executeReplaceConnection(
   const replacesByProviderAccountId = new Map(
     mappings.map((m) => [m.providerAccountId, m.oldFeedId]),
   );
-  // Also map by durable bank account when provider account ids changed but
-  // fingerprint reused the same bank_accounts row — handled after account create.
 
   const { syncFromDate, companyTimezone } = await resolveSyncFromDate(
     trx,
@@ -769,6 +779,9 @@ async function executeReplaceConnection(
       replacesByProviderAccountId.get(account.accountId) ??
       oldFeedByBankAccount.get(bankAccountId) ??
       null;
+    const predecessor = replacesFeedId
+      ? predecessorById.get(replacesFeedId)
+      : undefined;
 
     const feedResult = await createBankAccountFeed({
       data: {
@@ -776,8 +789,8 @@ async function executeReplaceConnection(
         bank_account_id: bankAccountId,
         bank_connection_id: connectionId,
         provider_account_id: account.accountId,
-        sync_from_date: syncFromDate,
-        sync_from_timezone: companyTimezone,
+        sync_from_date: predecessor ? predecessor.sync_from_date : syncFromDate,
+        sync_from_timezone: predecessor?.sync_from_timezone ?? companyTimezone,
         provider_snapshot: sanitizeProviderSnapshot(account.rawData, 'account'),
         provider_snapshot_version: account.rawData ? 1 : null,
         provider_snapshot_captured_at: account.rawData ? new Date() : null,

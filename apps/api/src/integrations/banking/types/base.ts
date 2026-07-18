@@ -168,9 +168,11 @@ export abstract class BankingProvider {
   abstract createLinkToken({
     userId,
     companyId,
+    accessToken,
   }: {
     userId: string;
     companyId: string;
+    accessToken?: string;
   }): Promise<string>;
 
   // Exchange public token for a long-lived access token

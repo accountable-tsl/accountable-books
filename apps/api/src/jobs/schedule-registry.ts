@@ -3,9 +3,9 @@ import { scheduleRecurringTemplateScan } from '../domains/journals/recurring-tem
 import { scheduleNightlyAutoExtend } from '../domains/reporting/fiscal-calendar/index.js';
 import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.queue.js';
 import {
+  scheduleBankingRetentionScan,
   scheduleDailySyncScan,
   scheduleHistoryImportExpiryScan,
-  scheduleBankingRetentionScan,
 } from '../integrations/banking/jobs/transaction-sync.queue.js';
 import { getLogger } from '../shared/utils/logger.js';
 import { getJobSchedule } from './schedules.js';
