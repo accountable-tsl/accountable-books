@@ -132,6 +132,10 @@ jobs:
       - name: Test ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} test --run
 
+      - name: Verify API worker database isolation
+        if: matrix.package == 'api'
+        run: pnpm --filter @accountable-books/api run test:parallel-isolation
+
       # Optional: Sentry sourcemaps (enable once secrets exist)
       # - name: Upload Sentry sourcemaps
       #   env:

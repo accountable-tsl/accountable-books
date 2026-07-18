@@ -2,6 +2,8 @@ import './config/env-loader.js';
 
 import type { Knex } from 'knex';
 
+import { resolveTestDatabaseName } from './config/test-worker-sandbox.js';
+
 // Environment detection
 const ENV = process.env.NODE_ENV ?? 'local';
 const IS_PROD = ENV === 'production';
@@ -26,10 +28,19 @@ const DB_CONFIG = {
 const isNeonHost = (url?: string): boolean =>
   Boolean(url?.includes('.neon.tech'));
 
-const getLocalConnection = ({ isTest = false }: { isTest?: boolean } = {}) => ({
-  ...DB_CONFIG,
-  database: isTest ? `${DB_CONFIG.name}_test` : DB_CONFIG.name,
-});
+const getLocalConnection = ({ isTest = false }: { isTest?: boolean } = {}) => {
+  const database =
+    isTest && ENV === 'test'
+      ? resolveTestDatabaseName(DB_CONFIG.name)
+      : isTest
+        ? `${DB_CONFIG.name}_test`
+        : DB_CONFIG.name;
+
+  return {
+    ...DB_CONFIG,
+    database,
+  };
+};
 
 const getRemoteConnection = (url: string | undefined) => {
   if (!url) return undefined;
@@ -55,19 +66,27 @@ const baseConfig: Knex.Config = {
   asyncStackTraces: !IS_PROD,
 };
 
+const testPoolConfig: Knex.PoolConfig = {
+  min: 0,
+  max: 4,
+};
+
 // Runtime configuration
 export const runtimeKnexConfig: Knex.Config = {
   ...baseConfig,
   connection: getRuntimeConnection(),
+  pool: ENV === 'test' ? testPoolConfig : baseConfig.pool,
 };
 
 // Migration configuration factory
 const cfg = (
   tableName: string,
   connection: Knex.Config['connection'],
+  pool: Knex.PoolConfig = baseConfig.pool!,
 ): Knex.Config => ({
   ...baseConfig,
   connection,
+  pool,
   migrations: {
     tableName,
     directory: './migrations',
@@ -78,7 +97,11 @@ const cfg = (
 // Environment-specific configurations
 const config: Record<string, Knex.Config> = {
   local: cfg('knex_migrations_dev', getLocalConnection()),
-  test: cfg('knex_migrations_test', getLocalConnection({ isTest: true })),
+  test: cfg(
+    'knex_migrations_test',
+    getLocalConnection({ isTest: true }),
+    testPoolConfig,
+  ),
   staging: cfg(
     'knex_migrations_staging',
     IS_LOCAL_STAGING

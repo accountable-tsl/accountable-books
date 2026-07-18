@@ -18,6 +18,8 @@
     "src",
     "config/env-loader.ts",
     "config/env-schema.ts",
+    "config/redis-url.ts",
+    "config/test-worker-sandbox.ts",
     "./src/db/knex.d.ts"
   ],
   "exclude": [

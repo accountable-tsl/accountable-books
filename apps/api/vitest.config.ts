@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+import { resolveTestWorkerCount } from './config/test-worker-sandbox.js';
+
 export default defineConfig({
   test: {
     environment: 'node',
@@ -8,7 +10,9 @@ export default defineConfig({
     globalSetup: './test/global-setup.js',
     setupFiles: ['./test/setup.ts'],
     passWithNoTests: true,
-    fileParallelism: false,
+    fileParallelism: true,
+    maxWorkers: resolveTestWorkerCount(),
+    pool: 'forks',
     env: {
       NODE_ENV: 'test',
     },

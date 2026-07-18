@@ -13,6 +13,7 @@
     "typecheck:all": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tooling.json --noEmit",
     "lint": "eslint .",
     "test": "pnpm --filter @accountable-books/contracts build && pnpm run build && NODE_ENV=test vitest run",
+    "test:parallel-isolation": "NODE_ENV=test vitest run --config vitest.parallel-isolation.config.ts",
     "test:watch": "pnpm build && NODE_ENV=test vitest --watch",
     "test:coverage": "pnpm build && NODE_ENV=test vitest run --coverage",
     "generate-env": "tsx config/env-schema.ts",

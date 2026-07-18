@@ -19,6 +19,17 @@ pnpm test
 pnpm migrate:local
 ```
 
+### Test isolation
+
+Vitest runs files across four workers by default. Global setup migrates and
+bootstraps `<POSTGRES_DB>_test`, then clones one PostgreSQL database and selects
+one Redis logical database per worker. Set `API_TEST_WORKERS` to 1–8 to tune
+local concurrency; the test connection pool is capped separately.
+
+Worker databases are temporary and are removed after the suite. Because their
+names are stable, only one API test command can run at a time. CI also runs
+`pnpm test:parallel-isolation` to verify that two files reach distinct databases.
+
 See [docs/local-dev.md](../../docs/local-dev.md) and [root README](../../README.md).
 
 ## Ports & URLs

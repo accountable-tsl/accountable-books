@@ -9,6 +9,9 @@
     "migrations",
     "seeds",
     "knexfile.ts",
+    "vitest.parallel-isolation.config.ts",
+    "config/redis-url.ts",
+    "config/test-worker-sandbox.ts",
     "scripts",
     "./src/db/knex.d.ts"
   ],
