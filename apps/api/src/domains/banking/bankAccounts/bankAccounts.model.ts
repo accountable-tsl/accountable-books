@@ -21,7 +21,10 @@ import {
   deriveAccountNumberIdentity,
   findAccountByFingerprint,
 } from '../account-identity.js';
-import { projectConnectionStatus, projectSyncHealth } from '../bank-account-projections.js';
+import {
+  projectConnectionStatus,
+  projectSyncHealth,
+} from '../bank-account-projections.js';
 import {
   bankAccountWithConnectionInput,
   manualBankAccountInputCamel,
