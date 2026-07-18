@@ -8,6 +8,10 @@ pnpm-debug.log*
 # pnpm
 .pnpm-store
 
+# Lockfiles
+pnpm-lock.yaml
+uv.lock
+
 # Turbo
 .turbo
 
