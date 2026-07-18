@@ -33,6 +33,14 @@ export async function up(knex: Knex): Promise<void> {
       .nullable()
       .comment('Ownership token for long-running leased intents');
 
+    table
+      .boolean('follow_up_requested')
+      .notNullable()
+      .defaultTo(false)
+      .comment(
+        'Set when new work arrives while this pending row is leased; requeue on complete',
+      );
+
     table.timestamp('completed_at', { useTz: true }).nullable();
     table.integer('dispatch_attempt_count').notNullable().defaultTo(0);
     table.text('last_error').nullable();
