@@ -167,6 +167,8 @@ export class ConnectAccountsService {
           providerId: providerInfo.id,
           providerItemId: itemId ?? null,
           providerAccountIds: providerAccounts.map((a) => a.accountId),
+          bankId,
+          accountNumbers: providerAccounts.map((a) => a.accountNumber),
         });
 
         if (classification.kind === 'needs_confirmation') {
@@ -659,6 +661,7 @@ async function executeReauthorizeConnection(
         mask: account.mask || account.accountNumber?.slice(-4) || '****',
         currencyCode: account.currencyCode,
         businessOrPersonal: 'business',
+        linkage: 'existing',
       });
       resumedCount += 1;
       continue;
@@ -711,6 +714,7 @@ async function executeReauthorizeConnection(
       mask: account.mask || account.accountNumber?.slice(-4) || '****',
       currencyCode: account.currencyCode,
       businessOrPersonal: 'business',
+      linkage: wasUpdated ? 'existing' : 'new',
     });
     if (!wasUpdated) {
       newCount += 1;
@@ -981,13 +985,14 @@ async function executeReplaceConnection(
       mask: account.mask || account.accountNumber?.slice(-4) || '****',
       currencyCode: account.currencyCode,
       businessOrPersonal: 'business',
+      linkage: wasUpdated ? 'existing' : 'new',
     });
 
     if (wasUpdated) updatedCount += 1;
     else newCount += 1;
   }
 
-  return successResponse('Connection replaced successfully.', {
+  return successResponse(buildReplaceMessage(newCount, updatedCount), {
     bank: {
       id: bankId,
       name: providerBankName ?? institution.name,
@@ -1096,6 +1101,7 @@ async function createFeedsForAccounts(input: {
       mask: account.mask || account.accountNumber?.slice(-4) || '****',
       currencyCode: account.currencyCode,
       businessOrPersonal: 'business',
+      linkage: wasUpdated ? 'existing' : 'new',
     });
 
     if (wasUpdated) updatedCount += 1;
@@ -1114,6 +1120,17 @@ function buildConnectMessage(newCount: number, updatedCount: number): string {
     return `All set! ${updatedCount} existing account${plural(updatedCount)} reconnected successfully.`;
   }
   return `All set! ${newCount} new account${plural(newCount)} connected and ${updatedCount} updated successfully.`;
+}
+
+function buildReplaceMessage(newCount: number, updatedCount: number): string {
+  const plural = (n: number) => (n > 1 ? 's' : '');
+  if (updatedCount === 0) {
+    return `Connection updated. ${newCount} new account${plural(newCount)} linked.`;
+  }
+  if (newCount === 0) {
+    return `Connection updated. ${updatedCount} existing account${plural(updatedCount)} relinked.`;
+  }
+  return `Connection updated. ${newCount} new account${plural(newCount)} linked and ${updatedCount} existing account${plural(updatedCount)} relinked.`;
 }
 
 async function resolveSyncFromDate(

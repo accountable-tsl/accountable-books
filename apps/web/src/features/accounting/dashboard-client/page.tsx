@@ -45,7 +45,7 @@ export function DashboardClientPage() {
 
   const navigate = useNavigate();
   const { companyId, tab } = useParams<{ companyId: string; tab?: string }>();
-  const { user, company } = useSession();
+  const { user, company, tenantRoutes } = useSession();
   const periodBounds = useMemo(() => getDefaultBounds(), []);
   const [period, setPeriod] = useState(() => getDefaultPeriod(periodBounds));
   const [reportPeriod, setReportPeriod] = useState(() =>
@@ -122,6 +122,10 @@ export function DashboardClientPage() {
             <Button
               variant="outline"
               className="self-end font-normal tracking-tight"
+              onClick={() => {
+                if (!tenantRoutes) return;
+                navigate(tenantRoutes.banking.connect());
+              }}
             >
               Link a new bank
             </Button>

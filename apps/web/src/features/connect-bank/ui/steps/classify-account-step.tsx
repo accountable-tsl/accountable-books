@@ -26,12 +26,19 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const FETCHING_COPY =
+  "We're fetching your recent transactions. They'll show up shortly.";
+const REFRESHING_COPY =
+  "We're refreshing recent activity. Updates will show up shortly.";
+
 interface ClassifyAccountStepProps {
   stepWrapperClass: string;
   connectedAccounts: ConnectAccountsResponse;
   onComplete: () => void;
   onConnectAnother: () => void;
   companyId: string;
+  /** When false (individuals), show linked accounts without business/personal toggles. */
+  showClassification?: boolean;
 }
 
 export function ClassifyAccountStep({
@@ -40,6 +47,7 @@ export function ClassifyAccountStep({
   onComplete,
   onConnectAnother,
   companyId,
+  showClassification = true,
 }: ClassifyAccountStepProps) {
   const updateBankAccountsMutation = useUpdateBankAccounts();
 
@@ -60,35 +68,34 @@ export function ClassifyAccountStep({
 
   // When database response arrives, update saved state and current accounts
   useEffect(() => {
-    if (databaseResponse?.data) {
-      const mergedAccounts = connectedAccounts.accounts.map((bankAccount) => {
-        const dbAccount = databaseResponse.data!.find(
-          (db: MinimalBankAccountDetails) => db.id === bankAccount.id,
-        );
-        const mergedAccount = {
-          ...bankAccount,
-          businessOrPersonal:
-            dbAccount?.businessOrPersonal ?? bankAccount.businessOrPersonal,
-        };
-        return mergedAccount;
-      });
+    if (!showClassification || !databaseResponse?.data) return;
 
-      // Update both saved state and current accounts
-      setSavedState(mergedAccounts);
-      setAccounts(mergedAccounts);
-    }
-  }, [connectedAccounts.accounts, databaseResponse?.data]);
+    const mergedAccounts = connectedAccounts.accounts.map((bankAccount) => {
+      const dbAccount = databaseResponse.data!.find(
+        (db: MinimalBankAccountDetails) => db.id === bankAccount.id,
+      );
+      return {
+        ...bankAccount,
+        businessOrPersonal:
+          dbAccount?.businessOrPersonal ?? bankAccount.businessOrPersonal,
+      };
+    });
 
-  // Calculate unsaved changes by comparing current vs saved state
+    setSavedState(mergedAccounts);
+    setAccounts(mergedAccounts);
+  }, [connectedAccounts.accounts, databaseResponse?.data, showClassification]);
+
   const hasUnsavedChanges = useMemo(() => {
+    if (!showClassification) return false;
     return accounts.some((account) => {
       const savedAccount = savedState.find((saved) => saved.id === account.id);
       return savedAccount?.businessOrPersonal !== account.businessOrPersonal;
     });
-  }, [accounts, savedState]);
+  }, [accounts, savedState, showClassification]);
 
-  // Prevent navigation away with unsaved changes
   useEffect(() => {
+    if (!showClassification) return;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
@@ -98,15 +105,23 @@ export function ClassifyAccountStep({
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  }, [hasUnsavedChanges, showClassification]);
 
-  // Sync with new accounts when connectedAccounts changes (if no unsaved changes)
   useEffect(() => {
-    if (!hasUnsavedChanges) {
-      // Refetch database state to get latest data for new connections
-      refetchDatabaseState();
-    }
-  }, [connectedAccounts.accounts, hasUnsavedChanges, refetchDatabaseState]);
+    if (!showClassification || hasUnsavedChanges) return;
+    refetchDatabaseState();
+  }, [
+    connectedAccounts.accounts,
+    hasUnsavedChanges,
+    refetchDatabaseState,
+    showClassification,
+  ]);
+
+  useEffect(() => {
+    if (hasUnsavedChanges) return;
+    setAccounts(connectedAccounts.accounts);
+    setSavedState(connectedAccounts.accounts);
+  }, [connectedAccounts.accounts, hasUnsavedChanges]);
 
   const handleAccountTypeChange = useCallback(
     (accountId: string, newType: BusinessOrPersonalAccount) => {
@@ -124,7 +139,6 @@ export function ClassifyAccountStep({
   const handleUpdateAccounts = useCallback(() => {
     if (!companyId || !hasUnsavedChanges) return;
 
-    // Send ALL current account states (simple and idempotent)
     const payload = accounts.map((account) => ({
       id: account.id,
       businessOrPersonal: account.businessOrPersonal,
@@ -134,17 +148,11 @@ export function ClassifyAccountStep({
       { companyId, data: payload },
       {
         onSuccess: () => {
-          // Optimistic update: immediately update saved state to match current
           setSavedState([...accounts]);
-          // Still refetch database in background for verification
           refetchDatabaseState();
           toast.success('Bank account(s) updated successfully');
         },
         onError: (error) => {
-          // Save failure edge case: We deliberately keep the current UI state unchanged
-          // so the user can retry. The savedState remains at its previous value, which
-          // means hasUnsavedChanges will still be true and the "Update accounts" button
-          // remains visible for retry. No optimistic rollback needed - just let user retry.
           console.error('Failed to save account classifications:', error);
           toast.error('Failed to update bank accounts');
         },
@@ -174,12 +182,34 @@ export function ClassifyAccountStep({
     [accounts],
   );
 
+  const newAccountCount = useMemo(
+    () => accounts.filter((acc) => acc.linkage === 'new').length,
+    [accounts],
+  );
+  const existingAccountCount = accounts.length - newAccountCount;
+
+  const statusCopy =
+    newAccountCount === 0
+      ? REFRESHING_COPY
+      : existingAccountCount === 0
+        ? FETCHING_COPY
+        : `We're fetching new accounts and refreshing existing ones. Updates will show up shortly.`;
+
+  const headerTitle = showClassification
+    ? 'Mark your business accounts'
+    : existingAccountCount > 0 && newAccountCount === 0
+      ? 'Connection updated'
+      : "You're connected";
+  const headerDescription = showClassification
+    ? `Toggle on the accounts you use for business. ${statusCopy}`
+    : statusCopy;
+
   return (
     <div className={cn(stepWrapperClass, 'h-[490px] w-full')}>
       <StepHeader
         Icon={Check}
-        title="Mark your business accounts"
-        description="Toggle on the accounts you use for business"
+        title={headerTitle}
+        description={headerDescription}
       />
 
       <div className="space-y-4">
@@ -199,9 +229,18 @@ export function ClassifyAccountStep({
             <div>{bank.name || 'Bank'}</div>
           </div>
           <div className="text-muted-foreground flex items-center">
-            <span>{businessAccounts.length} business</span>
-            <Dot className="size-4" />
-            <span>{personalAccounts.length} personal</span>
+            {showClassification ? (
+              <>
+                <span>{businessAccounts.length} business</span>
+                <Dot className="size-4" />
+                <span>{personalAccounts.length} personal</span>
+              </>
+            ) : (
+              <span>
+                {accounts.length} account{accounts.length === 1 ? '' : 's'}{' '}
+                linked
+              </span>
+            )}
           </div>
         </div>
 
@@ -209,52 +248,67 @@ export function ClassifyAccountStep({
           {accounts.map((acc) => (
             <div
               key={acc.id}
-              className="bg-card hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 transition-colors"
+              className={cn(
+                'bg-card hover:bg-accent/50 flex items-center justify-between rounded-lg border p-3 transition-colors',
+                acc.linkage === 'new' && 'border-foreground/25',
+              )}
             >
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm">{acc.displayName}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm">{acc.displayName}</div>
+                      <span
+                        className={cn(
+                          'text-muted-foreground text-[11px]',
+                          acc.linkage === 'new' && 'text-foreground/80',
+                        )}
+                      >
+                        {acc.linkage === 'new' ? 'New' : 'Already linked'}
+                      </span>
+                    </div>
                     <div className="text-muted-foreground text-xs">
                       ****{acc.mask}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm">
-                      {acc.businessOrPersonal === 'business' ? (
-                        <span className="flex items-center gap-1 text-green-700">
-                          <Building2 className="h-3 w-3" />
-                          Business
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          Personal
-                        </span>
-                      )}
+                  {showClassification ? (
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm">
+                        {acc.businessOrPersonal === 'business' ? (
+                          <span className="flex items-center gap-1 text-green-700">
+                            <Building2 className="h-3 w-3" />
+                            Business
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            Personal
+                          </span>
+                        )}
+                      </div>
+                      <Switch
+                        checked={acc.businessOrPersonal === 'business'}
+                        disabled={updateBankAccountsMutation.isPending}
+                        className={cn(
+                          updateBankAccountsMutation.isPending &&
+                            'cursor-not-allowed opacity-70',
+                        )}
+                        onCheckedChange={(checked) =>
+                          handleAccountTypeChange(
+                            acc.id,
+                            checked ? 'business' : 'personal',
+                          )
+                        }
+                      />
                     </div>
-                    <Switch
-                      checked={acc.businessOrPersonal === 'business'}
-                      disabled={updateBankAccountsMutation.isPending}
-                      className={cn(
-                        updateBankAccountsMutation.isPending &&
-                          'cursor-not-allowed opacity-70',
-                      )}
-                      onCheckedChange={(checked) =>
-                        handleAccountTypeChange(
-                          acc.id,
-                          checked ? 'business' : 'personal',
-                        )
-                      }
-                    />
-                  </div>
+                  ) : null}
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {personalAccounts.length > 0 && (
+        {showClassification && personalAccounts.length > 0 && (
           <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
             <p className="text-sm text-orange-800">
               Personal accounts are excluded from business reports. Transfers
@@ -290,7 +344,7 @@ export function ClassifyAccountStep({
               onClick={handleDone}
               disabled={updateBankAccountsMutation.isPending}
             >
-              Done linking accounts
+              {showClassification ? 'Done linking accounts' : 'Continue'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}

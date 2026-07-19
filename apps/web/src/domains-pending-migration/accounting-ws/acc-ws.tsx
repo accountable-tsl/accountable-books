@@ -57,9 +57,9 @@ export function AccountingWorkspace() {
   }
 
   const handleTxnRefresh = (bankAccountId: string) => {
-    if (!bankAccountId) return;
+    if (!bankAccountId || !companyId) return;
     syncTransactions.mutate(
-      { bankAccountId },
+      { companyId, bankAccountId },
       {
         onSuccess: () => toast.success('Transaction sync queued'),
         onError: () => toast.error('Failed to sync transactions'),

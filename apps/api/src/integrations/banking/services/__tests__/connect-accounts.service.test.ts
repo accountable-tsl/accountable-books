@@ -298,6 +298,10 @@ describe('connected account initial synchronization', () => {
     });
 
     expect(result.success).toBe(true);
+    expect(result.data?.accounts).toEqual([
+      expect.objectContaining({ id: 'account-1', linkage: 'new' }),
+      expect.objectContaining({ id: 'account-2', linkage: 'new' }),
+    ]);
     expect(mocks.createHistoryImport).toHaveBeenCalledTimes(2);
     expect(mocks.writeSyncOutbox).toHaveBeenCalledTimes(2);
     expect(mocks.writeSyncOutbox.mock.calls).toEqual([
@@ -690,6 +694,13 @@ describe('connected account initial synchronization', () => {
           }),
         }),
       );
+      expect(result.data?.accounts[0]).toEqual(
+        expect.objectContaining({
+          id: 'account-1',
+          linkage: 'existing',
+        }),
+      );
+      expect(result.message).toMatch(/existing account/i);
     },
   );
 });

@@ -8,6 +8,7 @@ import {
 } from '../../../../integrations/banking/services/__tests__/transaction-sync.test-helpers.js';
 import { NOTIFICATION_TYPE } from '../../../notifications/notifications.types.js';
 import { OUTBOX_INTENT } from '../../../outbox/intents.js';
+import { deriveAccountNumberIdentity } from '../../account-identity.js';
 import {
   loadSecretForProviderExecution,
   rotateBankConnectionSecret,
@@ -279,6 +280,65 @@ describe('connection lifecycle commands', () => {
         expect(replace.kind).toBe('replace');
         if (replace.kind === 'replace') {
           expect(replace.oldConnectionId).toBe(fixture.connectionId);
+        }
+      });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
+  it('classifies fingerprint overlap as replace when provider account ids differ', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    const accountNumber = `9911${Date.now().toString().slice(-8)}`;
+    const identity = deriveAccountNumberIdentity(accountNumber);
+
+    try {
+      const bank = await db('bank_accounts')
+        .where({ id: fixture.bankAccountId })
+        .first<{ bank_id: string }>('bank_id');
+      if (!bank) throw new Error('Expected fixture bank account');
+
+      await db('bank_accounts').where({ id: fixture.bankAccountId }).update({
+        account_number_fingerprint: identity.account_number_fingerprint,
+        account_number_fingerprint_version:
+          identity.account_number_fingerprint_version,
+        account_number_mask: identity.account_number_mask,
+      });
+
+      await db.transaction(async (trx) => {
+        const providerId = (await trx('bank_connections')
+          .where({ id: fixture.connectionId })
+          .first('provider_id'))!.provider_id;
+
+        const asFirstWithoutFingerprint = await classifyConnectEvent({
+          trx,
+          companyId: fixture.companyId,
+          providerId,
+          providerItemId: 'brand-new-item',
+          providerAccountIds: [`new-provider-account-${Date.now()}`],
+        });
+        expect(asFirstWithoutFingerprint.kind).toBe('first');
+
+        const byFingerprint = await classifyConnectEvent({
+          trx,
+          companyId: fixture.companyId,
+          providerId,
+          providerItemId: 'brand-new-item',
+          providerAccountIds: [`new-provider-account-${Date.now()}`],
+          bankId: bank.bank_id,
+          accountNumbers: [accountNumber],
+        });
+        expect(byFingerprint.kind).toBe('replace');
+        if (byFingerprint.kind === 'replace') {
+          expect(byFingerprint.oldConnectionId).toBe(fixture.connectionId);
+          expect(byFingerprint.mappings).toEqual([
+            expect.objectContaining({
+              oldFeedId: fixture.feedId,
+              bankAccountId: fixture.bankAccountId,
+              providerAccountId: fixture.providerBankAccountId,
+            }),
+          ]);
         }
       });
     } finally {

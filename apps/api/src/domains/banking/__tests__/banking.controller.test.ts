@@ -10,7 +10,6 @@ import bankingRouter from '../banking.routes.js';
 import type { AuthRequest } from '../../../features/auth/auth.types.js';
 
 const mocks = vi.hoisted(() => ({
-  getCompanyUUID: vi.fn(),
   getBankAccountSyncEligibility: vi.fn(),
   loadSecretForConnectionReauthorization: vi.fn(),
   requestBankAccountSync: vi.fn(),
@@ -27,13 +26,6 @@ vi.mock('../../../integrations/banking/transaction-sync.outbox.js', () => ({
   requestBankAccountSync: mocks.requestBankAccountSync,
 }));
 
-vi.mock('../../../shared/utils/random.utils.js', async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import('../../../shared/utils/random.utils.js')
-  >()),
-  getCompanyUUID: mocks.getCompanyUUID,
-}));
-
 vi.mock(
   '../bank-connection-secrets/bank-connection-secrets.model.js',
   async (importOriginal) => ({
@@ -45,12 +37,29 @@ vi.mock(
   }),
 );
 
+function companyContext(companyId: string) {
+  return {
+    identifier: companyId,
+    uuid: companyId,
+    shortCode: 'co',
+  };
+}
+
+function authedReq(overrides: {
+  user: { id: string };
+  companyContext?: ReturnType<typeof companyContext>;
+  body?: unknown;
+  params?: Record<string, string>;
+}): AuthRequest {
+  return {
+    companyContext: overrides.companyContext ?? companyContext(randomUUID()),
+    ...overrides,
+  } as AuthRequest;
+}
+
 describe('banking transaction sync controller', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getCompanyUUID.mockImplementation(
-      async (identifier: string) => identifier,
-    );
   });
 
   it('queues only the selected company-owned account', async () => {
@@ -66,10 +75,11 @@ describe('banking transaction sync controller', () => {
     const { response, status, json } = responseDouble();
 
     await new BankingController().syncTransactions(
-      {
-        user: { id: userId, currentCompanyId: companyId },
+      authedReq({
+        user: { id: userId },
+        companyContext: companyContext(companyId),
         body: { bankAccountId },
-      } as AuthRequest,
+      }),
       response,
     );
 
@@ -93,10 +103,10 @@ describe('banking transaction sync controller', () => {
     const { response, status } = responseDouble();
 
     await new BankingController().syncTransactions(
-      {
-        user: { id: randomUUID(), currentCompanyId: randomUUID() },
+      authedReq({
+        user: { id: randomUUID() },
         body: { bankAccountId: randomUUID() },
-      } as AuthRequest,
+      }),
       response,
     );
 
@@ -114,10 +124,10 @@ describe('banking transaction sync controller', () => {
     const { response, status, json } = responseDouble();
 
     await new BankingController().syncTransactions(
-      {
-        user: { id: randomUUID(), currentCompanyId: randomUUID() },
+      authedReq({
+        user: { id: randomUUID() },
         body: { bankAccountId },
-      } as AuthRequest,
+      }),
       response,
     );
 
@@ -135,10 +145,10 @@ describe('banking transaction sync controller', () => {
     const { response, status } = responseDouble();
 
     await new BankingController().syncTransactions(
-      {
-        user: { id: randomUUID(), currentCompanyId: randomUUID() },
+      authedReq({
+        user: { id: randomUUID() },
         body: { bankAccountId: 'not-a-uuid' },
-      } as AuthRequest,
+      }),
       response,
     );
 
@@ -154,24 +164,47 @@ describe('banking transaction sync controller', () => {
     expect(paths).not.toContain('/sync-status/:credentialId');
     expect(paths).not.toContain('/set-sync-date');
   });
+
+  it('applies checkCompanyId to all routes after supported-countries', () => {
+    const paths = bankingRouter.stack
+      .filter((layer) => layer.route)
+      .map((layer) => layer.route!.path);
+
+    expect(paths[0]).toBe('/supported-countries');
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        '/link-token',
+        '/connect-accounts',
+        '/sync-transactions',
+      ]),
+    );
+
+    // Router-level checkCompanyId sits between supported-countries and the rest
+    const supportedIdx = bankingRouter.stack.findIndex(
+      (layer) => layer.route?.path === '/supported-countries',
+    );
+    const companyGateIdx = bankingRouter.stack.findIndex(
+      (layer) => !layer.route && typeof layer.handle === 'function',
+    );
+    const linkTokenIdx = bankingRouter.stack.findIndex(
+      (layer) => layer.route?.path === '/link-token',
+    );
+
+    expect(companyGateIdx).toBeGreaterThan(supportedIdx);
+    expect(linkTokenIdx).toBeGreaterThan(companyGateIdx);
+  });
 });
 
 describe('bank connection controller ownership', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mocks.getCompanyUUID.mockReset();
-    mocks.getCompanyUUID.mockImplementation(
-      async (identifier: string) => identifier,
-    );
     mocks.loadSecretForConnectionReauthorization.mockReset();
   });
 
   it('connects accounts only to the authenticated company', async () => {
     const authenticatedCompanyId = randomUUID();
-    const authenticatedCompanyIdentifier = 'authenticated-company';
     const submittedCompanyId = randomUUID();
     const userId = randomUUID();
-    mocks.getCompanyUUID.mockResolvedValue(authenticatedCompanyId);
     const connect = vi
       .spyOn(connectAccountsService, 'connectBankAccounts')
       .mockResolvedValue({
@@ -186,18 +219,16 @@ describe('bank connection controller ownership', () => {
     const { response, json } = responseDouble();
 
     await new BankingController().connectBankAccounts(
-      {
-        user: {
-          id: userId,
-          currentCompanyId: authenticatedCompanyIdentifier,
-        },
+      authedReq({
+        user: { id: userId },
+        companyContext: companyContext(authenticatedCompanyId),
         body: {
           providerKey: 'plaid',
           countryCode: 'US',
           publicToken: 'public-token',
           companyId: submittedCompanyId,
         },
-      } as AuthRequest,
+      }),
       response,
     );
 
@@ -207,9 +238,6 @@ describe('bank connection controller ownership', () => {
         userId,
       }),
     );
-    expect(mocks.getCompanyUUID).toHaveBeenCalledWith(
-      authenticatedCompanyIdentifier,
-    );
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true }),
     );
@@ -217,9 +245,7 @@ describe('bank connection controller ownership', () => {
 
   it('creates link tokens for the authenticated user and company', async () => {
     const authenticatedCompanyId = randomUUID();
-    const authenticatedCompanyIdentifier = 'authenticated-company';
     const authenticatedUserId = randomUUID();
-    mocks.getCompanyUUID.mockResolvedValue(authenticatedCompanyId);
     const createLinkToken = vi.fn().mockResolvedValue('safe-link-token');
     vi.spyOn(providerRegistry, 'get').mockResolvedValue({
       createLinkToken,
@@ -227,17 +253,15 @@ describe('bank connection controller ownership', () => {
     const { response, json } = responseDouble();
 
     await new BankingController().createLinkToken(
-      {
-        user: {
-          id: authenticatedUserId,
-          currentCompanyId: authenticatedCompanyIdentifier,
-        },
+      authedReq({
+        user: { id: authenticatedUserId },
+        companyContext: companyContext(authenticatedCompanyId),
         body: {
           provider: 'plaid',
           userId: randomUUID(),
           companyId: randomUUID(),
         },
-      } as AuthRequest,
+      }),
       response,
     );
 
@@ -254,10 +278,8 @@ describe('bank connection controller ownership', () => {
 
   it('creates a reauthorization token only from the authenticated company connection', async () => {
     const companyId = randomUUID();
-    const companyIdentifier = 'authenticated-company';
     const userId = randomUUID();
     const connectionId = randomUUID();
-    mocks.getCompanyUUID.mockResolvedValue(companyId);
     const createLinkToken = vi.fn().mockResolvedValue('update-token');
     vi.spyOn(providerRegistry, 'get').mockResolvedValue({
       createLinkToken,
@@ -269,10 +291,11 @@ describe('bank connection controller ownership', () => {
     const { response, json } = responseDouble();
 
     await new BankingController().createLinkToken(
-      {
-        user: { id: userId, currentCompanyId: companyIdentifier },
-        body: { provider: 'plaid', connectionId },
-      } as AuthRequest,
+      authedReq({
+        user: { id: userId },
+        companyContext: companyContext(companyId),
+        body: { provider: 'plaid', connectionId, companyId },
+      }),
       response,
     );
 
@@ -295,10 +318,8 @@ describe('bank connection controller ownership', () => {
 
   it('completes reauthorization only for the authenticated company', async () => {
     const companyId = randomUUID();
-    const companyIdentifier = 'authenticated-company';
     const userId = randomUUID();
     const connectionId = randomUUID();
-    mocks.getCompanyUUID.mockResolvedValue(companyId);
     const complete = vi
       .spyOn(connectAccountsService, 'completeReauthorization')
       .mockResolvedValue({
@@ -313,11 +334,12 @@ describe('bank connection controller ownership', () => {
     const { response, json } = responseDouble();
 
     await new BankingController().completeConnectionReauthorization(
-      {
-        user: { id: userId, currentCompanyId: companyIdentifier },
+      authedReq({
+        user: { id: userId },
+        companyContext: companyContext(companyId),
         params: { connectionId },
         body: { companyId: randomUUID() },
-      } as unknown as AuthRequest,
+      }),
       response,
     );
 
@@ -335,21 +357,22 @@ describe('bank connection controller ownership', () => {
     const companyId = randomUUID();
     const userId = randomUUID();
     const connectionId = randomUUID();
-    mocks.getCompanyUUID.mockResolvedValue(companyId);
-    vi.spyOn(connectAccountsService, 'completeReauthorization').mockResolvedValue(
-      {
-        success: false,
-        message: 'Bank provider reauthorization failed',
-        code: 'SERVICE_UNAVAILABLE',
-      },
-    );
+    vi.spyOn(
+      connectAccountsService,
+      'completeReauthorization',
+    ).mockResolvedValue({
+      success: false,
+      message: 'Bank provider reauthorization failed',
+      code: 'SERVICE_UNAVAILABLE',
+    });
     const { response, status } = responseDouble();
 
     await new BankingController().completeConnectionReauthorization(
-      {
-        user: { id: userId, currentCompanyId: 'authenticated-company' },
+      authedReq({
+        user: { id: userId },
+        companyContext: companyContext(companyId),
         params: { connectionId },
-      } as unknown as AuthRequest,
+      }),
       response,
     );
 

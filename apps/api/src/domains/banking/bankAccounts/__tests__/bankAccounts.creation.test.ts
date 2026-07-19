@@ -105,7 +105,7 @@ describe('bank account creation', () => {
     expect(currentVersion?.version_seq).toBe(1);
   });
 
-  it('rolls back the associated COA when bank-account insertion fails', async () => {
+  it('fails manual create when an explicit COA name already exists', async () => {
     const coaName = `Duplicate bank COA ${randomUUID()}`;
     // Seed the name conflict in its own committed transaction. Creating it
     // on the still-open outer `trx` would leave an uncommitted conflicting
@@ -139,22 +139,18 @@ describe('bank account creation', () => {
     try {
       const before = await countCompanyRows(trx, companyId);
 
-      // The connect-path schema has no coa_name field: its COA name always
-      // defaults to displayName, so reusing the first COA's name here
-      // reproduces the same uniqueness conflict. Deliberately omit `trx` so
-      // the failure runs in its own transaction and rolls back on its own
-      // (Postgres rolls back a commit attempted against an aborted
-      // transaction), leaving the outer test transaction usable afterward.
-      const result = await createBankAccountWithConnection({
+      // Omit `trx` so failure rolls back in its own transaction.
+      const result = await createManualBankAccount({
         companyId,
         userId,
         params: {
-          displayName: coaName,
+          displayName: `Manual bank ${randomUUID()}`,
+          coaName,
           accountNumber: randomUUID(),
           accountType: 'checkings_current',
           businessOrPersonal: 'business',
           bankId,
-          currencyCode: 'USD',
+          currencyId: reportingCurrencyId,
         },
       });
 
@@ -163,6 +159,108 @@ describe('bank account creation', () => {
     } finally {
       await getTestDb()('coa').where({ id: seedCoaId }).delete();
     }
+  });
+
+  it('connect path uses displayName••mask COA names with null code and disambiguates collisions', async () => {
+    const sharedDisplayName = `Plaid Saving ${randomUUID().slice(0, 8)}`;
+    const firstNumber = `111122223333${randomUUID().replace(/-/g, '').slice(0, 4)}`;
+    const secondNumber = `555566667777${randomUUID().replace(/-/g, '').slice(0, 4)}`;
+    const firstMask =
+      deriveAccountNumberIdentity(firstNumber).account_number_mask;
+    const secondMask =
+      deriveAccountNumberIdentity(secondNumber).account_number_mask;
+
+    const first = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: sharedDisplayName,
+        accountNumber: firstNumber,
+        accountType: 'savings',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+      },
+    });
+    expect(first.success).toBe(true);
+
+    const second = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: sharedDisplayName,
+        accountNumber: secondNumber,
+        accountType: 'savings',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+      },
+    });
+    expect(second.success).toBe(true);
+    expect(second.data?.bankAccountId).not.toBe(first.data?.bankAccountId);
+    expect(second.data?.coaId).not.toBe(first.data?.coaId);
+
+    const coas = await trx('coa')
+      .whereIn('id', [first.data!.coaId, second.data!.coaId])
+      .select('id', 'name', 'code');
+
+    const byId = new Map(coas.map((row) => [row.id, row]));
+    expect(byId.get(first.data!.coaId)).toEqual({
+      id: first.data!.coaId,
+      name: `${sharedDisplayName} ••${firstMask}`,
+      code: null,
+    });
+    expect(byId.get(second.data!.coaId)).toEqual({
+      id: second.data!.coaId,
+      name: `${sharedDisplayName} ••${secondMask}`,
+      code: null,
+    });
+  });
+
+  it('connect path suffixes COA name when displayName••mask already exists', async () => {
+    const displayName = `Shared product ${randomUUID().slice(0, 8)}`;
+    const accountNumber = `999988887777${randomUUID().replace(/-/g, '').slice(0, 4)}`;
+    const mask = deriveAccountNumberIdentity(accountNumber).account_number_mask;
+    const conflictingName = `${displayName} ••${mask}`;
+
+    const accountTypeBank = await trx('account_types')
+      .where('key', 'ca_bank')
+      .first<{ id: string }>('id');
+    if (!accountTypeBank) throw new Error('account_types.ca_bank not found');
+
+    await trx('coa').insert({
+      company_id: companyId,
+      account_type_id: accountTypeBank.id,
+      currency_id: reportingCurrencyId,
+      name: conflictingName,
+      code: null,
+      created_by_id: userId,
+    });
+
+    const result = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName,
+        accountNumber,
+        accountType: 'savings',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+      },
+    });
+
+    expect(result.success).toBe(true);
+    const coa = await trx('coa')
+      .where({ id: result.data!.coaId })
+      .first<{ name: string; code: string | null }>('name', 'code');
+    expect(coa).toEqual({
+      name: `${conflictingName} (2)`,
+      code: null,
+    });
   });
 
   it('reuses the same bank account on a repeat manual create with the same account number', async () => {
@@ -225,10 +323,6 @@ describe('bank account creation', () => {
       userId,
       params: {
         displayName: `Mask source bank ${randomUUID()}`,
-        // Distinct explicit code: both accounts below share a mask, and the
-        // connect path (with no coa_code field) would otherwise derive the
-        // same `**mask` COA code for both, colliding on an unrelated
-        // uniqueness constraint instead of exercising identity matching.
         coaCode: `mask-src-${randomUUID()}`,
         accountNumber,
         accountType: 'checkings_current',

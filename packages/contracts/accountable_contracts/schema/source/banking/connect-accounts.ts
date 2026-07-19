@@ -5,6 +5,11 @@ export type BusinessOrPersonalAccount = z.infer<
   typeof businessOrPersonalAccountSchema
 >;
 
+export const connectedAccountLinkageSchema = z.enum(['new', 'existing']);
+export type ConnectedAccountLinkage = z.infer<
+  typeof connectedAccountLinkageSchema
+>;
+
 export const connectedAccountSchema = z.object({
   id: z.uuid(),
   feedId: z.uuid(),
@@ -12,6 +17,8 @@ export const connectedAccountSchema = z.object({
   mask: z.string(),
   currencyCode: z.string().length(3),
   businessOrPersonal: businessOrPersonalAccountSchema,
+  /** Durable bank account created this connect vs rematched/resumed. */
+  linkage: connectedAccountLinkageSchema,
 });
 export type ConnectedAccount = z.infer<typeof connectedAccountSchema>;
 

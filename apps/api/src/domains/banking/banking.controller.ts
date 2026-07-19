@@ -2,14 +2,10 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
-import {
-  connectAccountsService,
-  transactionSyncService,
-} from '../../integrations/banking/index.js';
+import { connectAccountsService } from '../../integrations/banking/index.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
 import { requestBankAccountSync } from '../../integrations/banking/transaction-sync.outbox.js';
 import { getLogger } from '../../shared/utils/logger.js';
-import { getCompanyUUID } from '../../shared/utils/random.utils.js';
 import {
   ErrorCode,
   errorResponse,
@@ -33,21 +29,18 @@ const createLinkTokenBody = z.object({
 });
 const logger = getLogger({ component: 'banking-controller' });
 
-async function resolveBankingActor(req: AuthRequest) {
+/** Requires `checkCompanyId` middleware (sets `req.companyContext.uuid`). */
+function requireBankingActor(req: AuthRequest) {
   const userId = req.user?.id;
-  const companyIdentifier = req.user?.currentCompanyId;
-  if (!userId || !companyIdentifier) return null;
-
-  return {
-    userId,
-    companyId: await getCompanyUUID(companyIdentifier),
-  };
+  const companyId = req.companyContext?.uuid;
+  if (!userId || !companyId) return null;
+  return { userId, companyId };
 }
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {
     try {
-      const actor = await resolveBankingActor(req);
+      const actor = requireBankingActor(req);
 
       if (!actor) {
         return res
@@ -97,7 +90,7 @@ export class BankingController {
 
   async stopBankAccountFeed(req: AuthRequest, res: Response) {
     try {
-      const actor = await resolveBankingActor(req);
+      const actor = requireBankingActor(req);
       const feedId = String(req.params.feedId || '');
       if (!actor || !feedId) {
         return res
@@ -129,7 +122,7 @@ export class BankingController {
 
   async revokeBankConnection(req: AuthRequest, res: Response) {
     try {
-      const actor = await resolveBankingActor(req);
+      const actor = requireBankingActor(req);
       const connectionId = String(req.params.connectionId || '');
       if (!actor || !connectionId) {
         return res
@@ -164,12 +157,11 @@ export class BankingController {
    */
   async classifyBankAccount(req: AuthRequest, res: Response) {
     try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
+      const actor = requireBankingActor(req);
       const { accountId } = req.params;
       const { businessOrPersonal } = req.body;
 
-      if (!userId || !companyId || !accountId) {
+      if (!actor || !accountId) {
         return res
           .status(400)
           .json(errorResponse('Missing required parameters'));
@@ -203,7 +195,7 @@ export class BankingController {
 
   async createLinkToken(req: AuthRequest, res: Response) {
     try {
-      const actor = await resolveBankingActor(req);
+      const actor = requireBankingActor(req);
       const parsedBody = createLinkTokenBody.safeParse(req.body);
 
       if (!actor) {
@@ -265,7 +257,7 @@ export class BankingController {
 
   async completeConnectionReauthorization(req: AuthRequest, res: Response) {
     try {
-      const actor = await resolveBankingActor(req);
+      const actor = requireBankingActor(req);
       const parsedConnectionId = z.uuid().safeParse(req.params.connectionId);
       if (!actor || !parsedConnectionId.success) {
         return res
@@ -318,9 +310,9 @@ export class BankingController {
   async testConnection(req: AuthRequest, res: Response) {
     try {
       const { provider } = req.params;
-      const companyId = String(req.user?.currentCompanyId);
+      const actor = requireBankingActor(req);
 
-      if (!provider || !companyId) {
+      if (!provider || !actor) {
         return res
           .status(400)
           .json(errorResponse('Missing provider or company ID'));
@@ -344,7 +336,7 @@ export class BankingController {
    */
   async syncTransactions(req: AuthRequest, res: Response) {
     try {
-      const actor = await resolveBankingActor(req);
+      const actor = requireBankingActor(req);
       const parsedBody = bankAccountSyncBody.safeParse(req.body);
 
       if (!actor) {

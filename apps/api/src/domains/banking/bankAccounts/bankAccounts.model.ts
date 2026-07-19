@@ -76,7 +76,7 @@ export async function getBankAccountSyncEligibility(
 
   if (!account) return null;
 
-  // Active feed preferred; else latest revoked (same order as metrics view).
+  // Prefer active feed, else latest revoked — same order as metrics view.
   const feedRow = await db('bank_account_feeds as baf')
     .leftJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
     .where({
@@ -133,7 +133,6 @@ export async function getSyncableBankAccounts(
     connectionId?: string;
     companyId?: string;
     bankAccountId?: string;
-    /** When true, skip feeds still owned by the initial-sync outbox intent. */
     requireInitialSyncComplete?: boolean;
   } = {},
   trx?: Knex.Transaction,
@@ -218,7 +217,6 @@ export const getBankAccountsWithDetails = async (
       return errorResponse('Invalid company ID');
     }
 
-    // Query the comprehensive view instead of complex joins
     const query = db('bank_accounts_metrics_view as bam')
       .select([
         'bam.id as id',
@@ -401,23 +399,6 @@ export const getMinimalBankAccountDetails = async ({
   }
 };
 
-/**
- * Builds a full banking snapshot for a company.
- *
- * This snapshot includes both:
- * - **Bank Account Balances** from raw bank transactions (native + reporting currency)
- * - **Bank Ledger Balances** from ledger entries (reporting currency + optional source)
- *
- * It also includes:
- * - Number of bank accounts
- * - Total balances (across all accounts)
- * - Transaction count breakdown: categorized, uncategorized, auto-categorized
- *
- * Useful for building dashboards, reports, or syncing financial summaries.
- *
- * @param companyId - UUID or shortCode of the company
- * @returns snapshot of banking health and categorization coverage
- */
 export async function getBankAccountsSnapshot(
   companyId: string,
 ): Promise<ApiResponse<CompanyBankingSnapshot>> {
@@ -428,13 +409,6 @@ export async function getBankAccountsSnapshot(
     if (!companyUUID) {
       return errorResponse('Invalid company ID');
     }
-    // We'll build out each part (1. metadata, 2. balances, 3. transaction stats) step-by-step below.
-    // TODO: Fetch all bank accounts with relevant metadata
-    // TODO: Fetch balances from bank_transactions and ledger_entries
-    // TODO: Fetch categorization stats per bank account
-    // TODO: Combine and summarize into the final response
-    // TODO; Include last synced at or last transaction field or something
-    // TODO: GROUP BY BANK, ORDER BY BALANCE, BY REPORTING CURRENCY
 
     const bankAccountRows = await getBankAccountsWithDetails(companyId);
     if (!bankAccountRows.success) {
@@ -483,15 +457,26 @@ interface CreateBankAccountRes {
   bankName: string;
 }
 
-/**
- * Creates or reuses the durable, provider-agnostic bank_accounts row for
- * both the manual and connect-path creation flows. Identity matching is
- * fingerprint-only (never mask-only): when no account number is supplied
- * (e.g. a provider connect that didn't return the full number), no existing
- * account can be matched and a new one is always created. This function
- * never touches provider identity, credentials, or sync state — those are
- * owned by bank_connections / bank_account_feeds and created by the caller.
- */
+export function defaultConnectCoaName(
+  displayName: string,
+  accountNumberMask: string | null | undefined,
+): string {
+  const mask = accountNumberMask?.trim();
+  return mask ? `${displayName} ••${mask}` : displayName;
+}
+
+function coaNameCandidates(
+  baseName: string,
+  { allowSuffixes }: { allowSuffixes: boolean },
+): string[] {
+  if (!allowSuffixes) return [baseName];
+  const names = [baseName];
+  for (let n = 2; n <= 10; n += 1) {
+    names.push(`${baseName} (${n})`);
+  }
+  return names;
+}
+
 async function createBankAccount({
   bankAccountData,
   userId,
@@ -524,7 +509,6 @@ async function createBankAccount({
   const exec = async (
     tx: Knex.Transaction,
   ): Promise<ApiResponse<CreateBankAccountRes>> => {
-    // Get currencyId, validate bankId
     const [company, currency, bank] = await Promise.all([
       tx('companies')
         .select('id')
@@ -562,16 +546,18 @@ async function createBankAccount({
     const currencyId = currency.id;
     const bankId = bank.id || v.bank_id;
 
-    // Write-only: mask/fingerprint only; mask-only rows cannot rematch later.
+    // Mask alone cannot rematch an existing account later.
     const identity = v.account_number
       ? deriveAccountNumberIdentity(v.account_number)
       : null;
     const accountNumberMask =
       identity?.account_number_mask ?? v.account_number_mask ?? null;
 
-    const coaName = v.coa_name ?? v.display_name;
-    const coaCode =
-      v.coa_code || (accountNumberMask ? `**${accountNumberMask}` : null);
+    const explicitCoaName = v.coa_name?.trim() || null;
+    const coaCode = v.coa_code ?? null;
+    const baseCoaName =
+      explicitCoaName ??
+      defaultConnectCoaName(v.display_name, accountNumberMask);
 
     const existingBankAccount = identity
       ? await findAccountByFingerprint({
@@ -583,11 +569,35 @@ async function createBankAccount({
         })
       : null;
 
-    // Existing accounts keep their COA; new ones always create one.
     let coaId: string;
     if (existingBankAccount?.coa_id) {
       coaId = existingBankAccount.coa_id;
     } else {
+      // Catch-and-retry on 23505 aborts the surrounding Postgres transaction.
+      const nameAttempts = coaNameCandidates(baseCoaName, {
+        allowSuffixes: !explicitCoaName,
+      });
+      let chosenName: string | null = null;
+      for (const name of nameAttempts) {
+        const taken = await tx('coa')
+          .where({
+            company_id: companyUUID,
+            is_deleted: false,
+          })
+          .whereRaw('lower(name) = lower(?)', [name])
+          .first('id');
+        if (!taken) {
+          chosenName = name;
+          break;
+        }
+      }
+
+      if (!chosenName) {
+        throw new Error(
+          'Chart of account with the same name or code already exists',
+        );
+      }
+
       try {
         const coa = await createCoaAccount({
           trx: tx,
@@ -595,7 +605,7 @@ async function createBankAccount({
           userId,
           input: {
             code: coaCode,
-            name: coaName,
+            name: chosenName,
             description: v.coa_description,
             account_type_key: 'ca_bank',
             source: v.source || 'user',
@@ -661,8 +671,6 @@ async function createBankAccount({
       throw new Error('Bank account with the same details already exist');
     }
 
-    // Manual/user-entered opening balances only. Connect-path accounts never
-    // pass opening_balance — provider balance goes to native balances instead.
     if (v.opening_balance) {
       const obDate = new Date(v.opening_balance.date);
       const obResult = await setBankOpeningBalance({
@@ -731,12 +739,7 @@ export async function createManualBankAccount({
   });
 }
 
-/**
- * Creates or reuses the accounting bank_account for a connect-path account.
- * This does not create the bank_connection or bank_account_feed — the
- * connect-accounts flow creates those separately, in the same transaction,
- * once it has a bankAccountId to bind them to.
- */
+/** Durable bank_account only — caller owns connection/feed rows. */
 export async function createBankAccountWithConnection({
   params,
   userId,
