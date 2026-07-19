@@ -315,6 +315,81 @@ describe('bank account creation', () => {
     });
   });
 
+  it('connects a manual account without rewriting its existing transactions', async () => {
+    const accountNumber = randomUUID();
+    const manual = await createManualBankAccount({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Manual bank ${randomUUID()}`,
+        accountNumber,
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyId: reportingCurrencyId,
+      },
+    });
+    expect(manual.success).toBe(true);
+
+    const transactionId = randomUUID();
+    const [batch] = await trx('bank_transaction_batches')
+      .insert({
+        bank_account_id: manual.data!.bankAccountId,
+        company_id: companyId,
+        start_date: '2026-07-15',
+        end_date: '2026-07-15',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: 1,
+        created_by_id: userId,
+      })
+      .returning<{ id: string }[]>('id');
+    await trx('bank_transactions').insert({
+      id: transactionId,
+      company_id: companyId,
+      bank_account_id: manual.data!.bankAccountId,
+      bank_transaction_batch_id: batch!.id,
+      amount: 125,
+      transaction_date: '2026-07-15',
+      transaction_at: new Date('2026-07-15T12:00:00.000Z'),
+      description: 'Existing manual transaction',
+      system_exchange_rate: 1,
+      idempotency_key: randomUUID(),
+      created_by_id: userId,
+    });
+
+    const connected = await createBankAccountWithConnection({
+      trx,
+      companyId,
+      userId,
+      params: {
+        displayName: `Connected bank ${randomUUID()}`,
+        accountNumber,
+        accountType: 'checkings_current',
+        businessOrPersonal: 'business',
+        bankId,
+        currencyCode: 'USD',
+      },
+    });
+
+    expect(connected.success).toBe(true);
+    expect(connected.data).toMatchObject({
+      bankAccountId: manual.data!.bankAccountId,
+      wasUpdated: true,
+    });
+    expect(
+      await trx('bank_transactions')
+        .where({ id: transactionId })
+        .first('bank_account_id', 'amount', 'description', 'is_deleted'),
+    ).toMatchObject({
+      bank_account_id: manual.data!.bankAccountId,
+      amount: '125.0000',
+      description: 'Existing manual transaction',
+      is_deleted: false,
+    });
+  });
+
   it('never matches an existing account by mask alone when no account number is supplied', async () => {
     const accountNumber = randomUUID();
     const manual = await createManualBankAccount({

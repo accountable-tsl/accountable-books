@@ -302,6 +302,32 @@ describe('PlaidProvider transaction update fetch', () => {
     });
   });
 
+  it('normalizes a credit balance returned during transaction sync', async () => {
+    const provider = new PlaidProvider();
+    const transactionsSync = vi.fn().mockResolvedValue(
+      plaidPage({
+        accounts: [
+          {
+            account_id: 'plaid-account-1',
+            type: 'credit',
+            balances: { current: 500 },
+          },
+        ],
+      }),
+    );
+    stubTransactionsSync(provider, transactionsSync);
+
+    const update = await provider.fetchTransactionUpdate({
+      accessToken: 'access-token',
+      providerBankAccountId: 'plaid-account-1',
+      checkpoint: 'account-cursor',
+      lastSuccessfulSyncAt: null,
+      isInitialSync: false,
+    });
+
+    expect(update.reportedCurrentBalance?.amount).toBe(-500);
+  });
+
   it('fails closed when no account ID is supplied at runtime', async () => {
     const provider = new PlaidProvider();
     const transactionsSync = vi.fn();
@@ -348,11 +374,14 @@ describe('PlaidProvider transaction update fetch', () => {
 });
 
 describe('PlaidProvider account balance mapping', () => {
-  function mapAccounts(balances: {
-    current: number | null;
-    available: number | null;
-    iso_currency_code: string;
-  }) {
+  function mapAccounts(
+    balances: {
+      current: number | null;
+      available: number | null;
+      iso_currency_code: string;
+    },
+    type: 'depository' | 'credit' = 'depository',
+  ) {
     const provider = new PlaidProvider();
     return (
       provider as unknown as {
@@ -374,8 +403,8 @@ describe('PlaidProvider account balance mapping', () => {
             account_id: 'acct-1',
             name: 'Checking',
             official_name: 'Checking',
-            type: 'depository',
-            subtype: 'checking',
+            type,
+            subtype: type === 'credit' ? 'credit card' : 'checking',
             mask: '1234',
             balances,
           },
@@ -403,6 +432,19 @@ describe('PlaidProvider account balance mapping', () => {
       iso_currency_code: 'USD',
     });
     expect(missingCurrent.reportedCurrentBalance).toBeUndefined();
+  });
+
+  it('stores credit balances as a negative bank position', () => {
+    const [credit] = mapAccounts(
+      {
+        current: 500,
+        available: 1500,
+        iso_currency_code: 'USD',
+      },
+      'credit',
+    );
+
+    expect(credit.reportedCurrentBalance?.amount).toBe(-500);
   });
 });
 

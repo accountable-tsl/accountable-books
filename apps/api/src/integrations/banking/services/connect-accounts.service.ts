@@ -37,6 +37,7 @@ import {
   revokeConnectionAndDestroySecret,
   stopFeedAndCancelSync,
 } from '../../../domains/banking/connection-lifecycle/lifecycle.commands.js';
+import { addDaysToYMD, toYMD } from '../../../shared/utils/date.utils.js';
 import { logger } from '../../../shared/utils/logger.js';
 import {
   ErrorCode,
@@ -675,13 +676,21 @@ async function executeReauthorizeConnection(
       providerName: 'provider',
       account,
     });
+    const syncPolicy = await resolveInitialSyncPolicy({
+      trx,
+      companyId: params.companyId,
+      bankAccountId,
+      wasUpdated,
+      replacesFeedId: null,
+      defaultSyncFromDate: syncFromDate,
+    });
     const feedResult = await createBankAccountFeed({
       data: {
         company_id: params.companyId,
         bank_account_id: bankAccountId,
         bank_connection_id: connectionId,
         provider_account_id: account.accountId,
-        sync_from_date: syncFromDate,
+        sync_from_date: syncPolicy.syncFromDate,
         sync_from_timezone: companyTimezone,
         provider_snapshot: sanitizeProviderSnapshot(account.rawData, 'account'),
         provider_snapshot_version: account.rawData ? 1 : null,
@@ -695,9 +704,10 @@ async function executeReauthorizeConnection(
         `Failed to create feed for account ${account.displayName}: ${feedResult.message}`,
       );
     }
-    await createHistoryImport({
+    await initializeHistoryImport({
       bankAccountFeedId: feedResult.data.id,
       companyId: params.companyId,
+      collectOlderTransactions: syncPolicy.collectOlderTransactions,
       trx,
     });
     if (provider.supportsTransactionSync()) {
@@ -931,6 +941,16 @@ async function executeReplaceConnection(
     const predecessor = replacesFeedId
       ? predecessorById.get(replacesFeedId)
       : undefined;
+    const syncPolicy = await resolveInitialSyncPolicy({
+      trx,
+      companyId: params.companyId,
+      bankAccountId,
+      wasUpdated,
+      replacesFeedId,
+      defaultSyncFromDate: toCalendarDate(
+        predecessor ? predecessor.sync_from_date : syncFromDate,
+      ),
+    });
 
     const feedResult = await createBankAccountFeed({
       data: {
@@ -938,7 +958,7 @@ async function executeReplaceConnection(
         bank_account_id: bankAccountId,
         bank_connection_id: connectionId,
         provider_account_id: account.accountId,
-        sync_from_date: predecessor ? predecessor.sync_from_date : syncFromDate,
+        sync_from_date: syncPolicy.syncFromDate,
         sync_from_timezone: predecessor?.sync_from_timezone ?? companyTimezone,
         provider_snapshot: sanitizeProviderSnapshot(account.rawData, 'account'),
         provider_snapshot_version: account.rawData ? 1 : null,
@@ -954,9 +974,10 @@ async function executeReplaceConnection(
       );
     }
 
-    await createHistoryImport({
+    await initializeHistoryImport({
       bankAccountFeedId: feedResult.data.id,
       companyId: params.companyId,
+      collectOlderTransactions: syncPolicy.collectOlderTransactions,
       trx,
     });
 
@@ -1046,6 +1067,16 @@ async function createFeedsForAccounts(input: {
       providerName: input.providerName,
       account,
     });
+    const replacesFeedId =
+      input.replacesByProviderAccountId.get(account.accountId) ?? null;
+    const syncPolicy = await resolveInitialSyncPolicy({
+      trx: input.trx,
+      companyId: input.params.companyId,
+      bankAccountId,
+      wasUpdated,
+      replacesFeedId,
+      defaultSyncFromDate: input.syncFromDate,
+    });
 
     const feedResult = await createBankAccountFeed({
       data: {
@@ -1053,14 +1084,13 @@ async function createFeedsForAccounts(input: {
         bank_account_id: bankAccountId,
         bank_connection_id: input.connectionId,
         provider_account_id: account.accountId,
-        sync_from_date: input.syncFromDate,
+        sync_from_date: syncPolicy.syncFromDate,
         sync_from_timezone: input.companyTimezone,
         provider_snapshot: sanitizeProviderSnapshot(account.rawData, 'account'),
         provider_snapshot_version: account.rawData ? 1 : null,
         provider_snapshot_captured_at: account.rawData ? new Date() : null,
         connected_by_id: input.params.userId,
-        replaces_bank_account_feed_id:
-          input.replacesByProviderAccountId.get(account.accountId) ?? null,
+        replaces_bank_account_feed_id: replacesFeedId,
       },
       trx: input.trx,
     });
@@ -1070,9 +1100,10 @@ async function createFeedsForAccounts(input: {
       );
     }
 
-    await createHistoryImport({
+    await initializeHistoryImport({
       bankAccountFeedId: feedResult.data.id,
       companyId: input.params.companyId,
+      collectOlderTransactions: syncPolicy.collectOlderTransactions,
       trx: input.trx,
     });
 
@@ -1131,6 +1162,97 @@ function buildReplaceMessage(newCount: number, updatedCount: number): string {
     return `Connection updated. ${updatedCount} existing account${plural(updatedCount)} relinked.`;
   }
   return `Connection updated. ${newCount} new account${plural(newCount)} linked and ${updatedCount} existing account${plural(updatedCount)} relinked.`;
+}
+
+function toCalendarDate(value: Date | string | null): string | null {
+  if (value === null) return null;
+  return toYMD(value);
+}
+
+async function resolveInitialSyncPolicy(input: {
+  trx: Knex.Transaction;
+  companyId: string;
+  bankAccountId: string;
+  wasUpdated: boolean;
+  replacesFeedId: string | null;
+  defaultSyncFromDate: string | null;
+}): Promise<{
+  syncFromDate: string | null;
+  collectOlderTransactions: boolean;
+}> {
+  if (!input.wasUpdated || input.replacesFeedId) {
+    return {
+      syncFromDate: input.defaultSyncFromDate,
+      collectOlderTransactions: true,
+    };
+  }
+
+  const priorFeed = await input
+    .trx('bank_account_feeds')
+    .where({
+      company_id: input.companyId,
+      bank_account_id: input.bankAccountId,
+    })
+    .first('id');
+  if (priorFeed) {
+    return {
+      syncFromDate: input.defaultSyncFromDate,
+      collectOlderTransactions: true,
+    };
+  }
+
+  const latest = await input
+    .trx('bank_transactions')
+    .where({
+      company_id: input.companyId,
+      bank_account_id: input.bankAccountId,
+      is_deleted: false,
+    })
+    .max<{ latest_transaction_date: Date | string | null }>(
+      'transaction_date as latest_transaction_date',
+    )
+    .first();
+  if (!latest?.latest_transaction_date) {
+    return {
+      syncFromDate: input.defaultSyncFromDate,
+      collectOlderTransactions: true,
+    };
+  }
+
+  const latestYmd = toCalendarDate(latest.latest_transaction_date)!;
+  const dayAfterExistingTransactions = addDaysToYMD(latestYmd, 1);
+
+  return {
+    syncFromDate:
+      input.defaultSyncFromDate &&
+      input.defaultSyncFromDate > dayAfterExistingTransactions
+        ? input.defaultSyncFromDate
+        : dayAfterExistingTransactions,
+    // Provider ids cannot safely match transactions created outside the feed.
+    collectOlderTransactions: false,
+  };
+}
+
+async function initializeHistoryImport(input: {
+  bankAccountFeedId: string;
+  companyId: string;
+  collectOlderTransactions: boolean;
+  trx: Knex.Transaction;
+}): Promise<void> {
+  await createHistoryImport({
+    bankAccountFeedId: input.bankAccountFeedId,
+    companyId: input.companyId,
+    trx: input.trx,
+  });
+  if (input.collectOlderTransactions) return;
+
+  await markHistoryImportStatus({
+    bankAccountFeedId: input.bankAccountFeedId,
+    companyId: input.companyId,
+    status: 'unavailable',
+    onlyIfStatus: 'collecting',
+    trx: input.trx,
+  });
 }
 
 async function resolveSyncFromDate(

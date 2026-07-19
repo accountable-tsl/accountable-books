@@ -45,6 +45,7 @@ import {
 } from './transaction-sync.errors.js';
 
 import type { FinalizedFeedTransaction } from '../../../domains/banking/bank-feed-import/import-feed-transactions.js';
+import type { BankTransactionHistoryImportStatus } from '../../../domains/banking/bank-transaction-history/bank-transaction-history.types.js';
 import type {
   ProviderTransaction,
   ProviderTransactionUpdate,
@@ -65,6 +66,7 @@ interface ApplyCompleteTransactionUpdateInput {
 interface ApplyContext extends ApplyCompleteTransactionUpdateInput {
   /** yyyy-MM-dd accepted starting date, or null when the feed has none. */
   boundaryYmd: string | null;
+  acceptsHistoryCandidates: boolean;
 }
 
 function providerEvidence(
@@ -83,6 +85,17 @@ function toYmd(value: Date | string): string | null {
 
 function minYmd(left: string | null, right: string): string {
   return left === null || right < left ? right : left;
+}
+
+function acceptsHistoryCandidates(
+  status: BankTransactionHistoryImportStatus | undefined,
+): boolean {
+  return (
+    status === undefined ||
+    status === 'collecting' ||
+    status === 'available' ||
+    status === 'selected'
+  );
 }
 
 /** Key-order-independent equality for sanitized provider evidence. */
@@ -143,11 +156,18 @@ export async function applyCompleteTransactionUpdate(
       throw new StaleBankAccountSyncError(input.account.bank_account_id);
     }
 
+    const historyImport = await trx('bank_transaction_history_imports')
+      .where({
+        bank_account_feed_id: input.account.feed_id,
+        company_id: input.account.company_id,
+      })
+      .first<{ status: BankTransactionHistoryImportStatus }>('status');
     const context: ApplyContext = {
       ...input,
       boundaryYmd: input.account.sync_from_date
         ? toYmd(input.account.sync_from_date)
         : null,
+      acceptsHistoryCandidates: acceptsHistoryCandidates(historyImport?.status),
     };
 
     const observedResult = await applyObservedTransactions(trx, context);
@@ -476,7 +496,9 @@ async function applyObservedTransactions(
         stored,
         beforeBoundary,
       });
-      if (beforeBoundary) result.candidatesTouched = true;
+      if (beforeBoundary && context.acceptsHistoryCandidates) {
+        result.candidatesTouched = true;
+      }
       result.modifiedCount++;
       for (const impactYmd of [storedYmd, observedYmd]) {
         if (impactYmd) {
@@ -508,12 +530,15 @@ async function applyObservedTransactions(
     }
 
     if (beforeBoundary) {
-      candidateWrites.push(transaction);
-      result.candidatesTouched = true;
+      if (context.acceptsHistoryCandidates) {
+        candidateWrites.push(transaction);
+        result.candidatesTouched = true;
+        result.addedCount++;
+      }
     } else {
       newImports.push(transaction);
+      result.addedCount++;
     }
-    result.addedCount++;
   }
 
   if (shouldReconcileReplacement && unknownForReplacement.length > 0) {
@@ -783,31 +808,33 @@ async function supersedeTransaction(
       providerTransactionId: transaction.transactionId,
       trx,
     });
-    await createHistoryImport({
-      bankAccountFeedId: context.account.feed_id,
-      companyId: context.account.company_id,
-      trx,
-    });
-    await upsertHistoryCandidates({
-      candidates: [
-        {
-          bank_account_feed_id: context.account.feed_id,
-          company_id: context.account.company_id,
-          provider_transaction_id: transaction.transactionId,
-          transaction_date: new Date(transaction.date),
-          transaction_at: transaction.txnAt || new Date(transaction.date),
-          amount: transaction.amount,
-          description: transaction.description || null,
-          payee: transaction.merchantName || null,
-          additional_notes: transaction.additionalNotes || null,
-          provider_evidence: providerEvidence(transaction.rawData),
-          provider_evidence_schema_version: 1,
-          observed_at: new Date(),
-          supersedes_bank_transaction_id: stored.id,
-        },
-      ],
-      trx,
-    });
+    if (context.acceptsHistoryCandidates) {
+      await createHistoryImport({
+        bankAccountFeedId: context.account.feed_id,
+        companyId: context.account.company_id,
+        trx,
+      });
+      await upsertHistoryCandidates({
+        candidates: [
+          {
+            bank_account_feed_id: context.account.feed_id,
+            company_id: context.account.company_id,
+            provider_transaction_id: transaction.transactionId,
+            transaction_date: new Date(transaction.date),
+            transaction_at: transaction.txnAt || new Date(transaction.date),
+            amount: transaction.amount,
+            description: transaction.description || null,
+            payee: transaction.merchantName || null,
+            additional_notes: transaction.additionalNotes || null,
+            provider_evidence: providerEvidence(transaction.rawData),
+            provider_evidence_schema_version: 1,
+            observed_at: new Date(),
+            supersedes_bank_transaction_id: stored.id,
+          },
+        ],
+        trx,
+      });
+    }
   }
 
   if (stored.ledger_transaction_id) {

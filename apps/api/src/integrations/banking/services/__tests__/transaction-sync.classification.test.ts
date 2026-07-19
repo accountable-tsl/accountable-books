@@ -321,6 +321,64 @@ describe('observation classification and routing', () => {
     }
   });
 
+  it('discards overlapping history when the account already had manual transactions', async () => {
+    const db = getTestDb();
+    const fixture = await createSyncFailureFixture(db);
+    await setBoundary(fixture, '2026-01-16');
+    await db.transaction(async (trx) => {
+      await createHistoryImport({
+        bankAccountFeedId: fixture.feedId,
+        companyId: fixture.companyId,
+        trx,
+      });
+      await trx('bank_transaction_history_imports')
+        .where({ bank_account_feed_id: fixture.feedId })
+        .update({ status: 'unavailable' });
+    });
+
+    const overlapping = {
+      ...providerTransaction(fixture.providerBankAccountId, 'manual-overlap'),
+      date: '2026-01-15',
+    };
+    const newTransaction = {
+      ...providerTransaction(fixture.providerBankAccountId, 'provider-owned'),
+      date: '2026-01-16',
+    };
+
+    try {
+      const result = await syncOnce(
+        fixture,
+        { added: [overlapping, newTransaction] },
+        { historyStatus: 'complete', trigger: 'initial' },
+      );
+
+      expect(result.added).toBe(1);
+      expect(
+        await getImportedByProviderId(fixture, 'manual-overlap'),
+      ).toBeNull();
+      expect(
+        await db('bank_transaction_history_candidates')
+          .where({
+            bank_account_feed_id: fixture.feedId,
+            provider_transaction_id: 'manual-overlap',
+          })
+          .first('id'),
+      ).toBeUndefined();
+      expect(
+        await getImportedByProviderId(fixture, 'provider-owned'),
+      ).toMatchObject({
+        is_deleted: false,
+      });
+      expect(
+        await db('bank_transaction_history_imports')
+          .where({ bank_account_feed_id: fixture.feedId })
+          .first('status', 'transaction_count'),
+      ).toMatchObject({ status: 'unavailable', transaction_count: 0 });
+    } finally {
+      await cleanupSyncFailureFixture(db, fixture);
+    }
+  });
+
   it('supersedes on a corrected amount, and survives an A→B→A flip-flop', async () => {
     const db = getTestDb();
     const fixture = await createSyncFailureFixture(db);

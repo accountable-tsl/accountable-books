@@ -40,6 +40,8 @@ const mocks = vi.hoisted(() => ({
     bank_account_id: string;
     revoked_at: Date | null;
   }>,
+  latestTransactionDateByAccount: new Map<string, string>(),
+  bankAccountIdsWithPriorFeeds: new Set<string>(),
 }));
 
 vi.mock('../../../../db/knexClient.js', () => ({
@@ -150,13 +152,37 @@ function makeTrx() {
         first: vi.fn().mockResolvedValue({ display_name: 'Omitted Account' }),
       };
     }
-    if (table === 'bank_account_feeds') {
+    if (table === 'bank_transactions') {
+      let bankAccountId: string | undefined;
       const query = {
-        where: vi.fn(),
+        where: vi.fn((conditions: { bank_account_id?: string }) => {
+          bankAccountId = conditions.bank_account_id;
+          return query;
+        }),
+        max: vi.fn().mockReturnThis(),
+        first: vi.fn(async () => ({
+          latest_transaction_date: bankAccountId
+            ? (mocks.latestTransactionDateByAccount.get(bankAccountId) ?? null)
+            : null,
+        })),
+      };
+      return query;
+    }
+    if (table === 'bank_account_feeds') {
+      let bankAccountId: string | undefined;
+      const query = {
+        where: vi.fn((conditions: { bank_account_id?: string }) => {
+          bankAccountId = conditions.bank_account_id;
+          return query;
+        }),
         whereIn: vi.fn(),
         select: vi.fn(),
+        first: vi.fn(async () =>
+          bankAccountId && mocks.bankAccountIdsWithPriorFeeds.has(bankAccountId)
+            ? { id: 'prior-feed' }
+            : undefined,
+        ),
       };
-      query.where.mockReturnValue(query);
       query.whereIn.mockReturnValue(query);
       query.select.mockImplementation(() =>
         query.whereIn.mock.calls.length > 0
@@ -230,6 +256,8 @@ describe('connected account initial synchronization', () => {
     mocks.updateProviderReportedBalance.mockResolvedValue(undefined);
     mocks.classifyConnect.mockResolvedValue({ kind: 'first' });
     mocks.existingFeeds = [];
+    mocks.latestTransactionDateByAccount.clear();
+    mocks.bankAccountIdsWithPriorFeeds.clear();
     mocks.reactivateConnection.mockResolvedValue({ success: true });
     mocks.ensureSecret.mockResolvedValue({ success: true });
     mocks.bumpFeedVersions.mockResolvedValue(undefined);
@@ -323,6 +351,126 @@ describe('connected account initial synchronization', () => {
       ],
     ]);
     expect(mocks.updateProviderReportedBalance).not.toHaveBeenCalled();
+  });
+
+  it('starts after existing manual transactions and disables overlapping history', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-19T12:00:00.000Z'));
+    mocks.getProvider.mockResolvedValue({
+      exchangeToken: vi.fn().mockResolvedValue({
+        accessToken: 'access-token',
+        itemId: 'item-1',
+      }),
+      getConnectionDetails: vi.fn().mockResolvedValue({
+        connection: { id: 'item-1', metadata: {} },
+        institution: {
+          systemInstitutionId: 'bank-1',
+          providerInstitutionId: 'institution-1',
+          name: 'Test Bank',
+          countryCode: 'US',
+          rawData: {},
+        },
+        bankAccounts: [
+          providerAccount('provider-account-1', 'Existing Manual Account'),
+        ],
+      }),
+      supportsTransactionSync: vi.fn(() => true),
+    });
+    mocks.createAccount.mockReset().mockResolvedValue({
+      success: true,
+      data: { bankAccountId: 'account-1', wasUpdated: true },
+    });
+    mocks.latestTransactionDateByAccount.set('account-1', '2026-07-19');
+
+    try {
+      const result = await connectAccountsService.connectBankAccounts({
+        providerKey: 'plaid',
+        countryCode: 'US',
+        publicToken: 'public-token',
+        companyId: 'company-1',
+        userId: 'user-1',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mocks.createFeed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sync_from_date: '2026-07-20' }),
+        }),
+      );
+      expect(mocks.markHistoryImportStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bankAccountFeedId: 'feed-1',
+          companyId: 'company-1',
+          status: 'unavailable',
+          onlyIfStatus: 'collecting',
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not treat a previously connected account as manual after a provider-id change', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-19T12:00:00.000Z'));
+    mocks.classifyConnect.mockResolvedValue({
+      kind: 'reauth',
+      connectionId: 'connection-1',
+    });
+    mocks.existingFeeds = [
+      {
+        id: 'old-feed',
+        provider_account_id: 'old-provider-account',
+        bank_account_id: 'account-1',
+        revoked_at: null,
+      },
+    ];
+    mocks.getProvider.mockResolvedValue({
+      exchangeToken: vi.fn().mockResolvedValue({
+        accessToken: 'access-token',
+        itemId: 'item-1',
+      }),
+      getConnectionDetails: vi.fn().mockResolvedValue({
+        connection: { id: 'item-1', metadata: {} },
+        institution: {
+          systemInstitutionId: 'bank-1',
+          providerInstitutionId: 'institution-1',
+          name: 'Test Bank',
+          countryCode: 'US',
+          rawData: {},
+        },
+        bankAccounts: [
+          providerAccount('new-provider-account', 'Previously Connected'),
+        ],
+      }),
+      supportsTransactionSync: vi.fn(() => true),
+    });
+    mocks.createAccount.mockReset().mockResolvedValue({
+      success: true,
+      data: { bankAccountId: 'account-1', wasUpdated: true },
+    });
+    mocks.latestTransactionDateByAccount.set('account-1', '2026-07-19');
+    mocks.bankAccountIdsWithPriorFeeds.add('account-1');
+
+    try {
+      const result = await connectAccountsService.connectBankAccounts({
+        providerKey: 'plaid',
+        countryCode: 'US',
+        publicToken: 'public-token',
+        companyId: 'company-1',
+        userId: 'user-1',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mocks.createFeed).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ sync_from_date: '2026-07-19' }),
+        }),
+      );
+      expect(mocks.markHistoryImportStatus).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('stores native balance when the provider supplies reportedCurrentBalance', async () => {

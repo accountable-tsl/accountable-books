@@ -1,4 +1,5 @@
 import type {
+  AccountType,
   AuthGetResponse,
   LinkTokenCreateRequest,
   Transaction as PlaidTransaction,
@@ -42,6 +43,13 @@ function isPaginationMutationError(error: unknown): boolean {
     'code' in error &&
     (error as { code: unknown }).code === PLAID_PAGINATION_MUTATION
   );
+}
+
+function normalizeCurrentBalance(
+  current: number,
+  accountType: AccountType | undefined,
+): number {
+  return accountType === 'credit' ? -current : current;
 }
 
 export class PlaidProvider extends BankingProvider {
@@ -279,8 +287,7 @@ export class PlaidProvider extends BankingProvider {
       },
       institution: {
         ...i,
-        name:
-          institutionName || bankMapping.providerInstitutionName || i.name,
+        name: institutionName || bankMapping.providerInstitutionName || i.name,
         logoUrl: bankMapping.bankLogoUrl,
         systemInstitutionId: bankMapping.bankId,
         providerInstitutionId,
@@ -333,7 +340,10 @@ export class PlaidProvider extends BankingProvider {
           balanceDate: new Date(timestamp),
           reportedCurrentBalance:
             typeof current === 'number'
-              ? { amount: current, asOf: new Date(timestamp) }
+              ? {
+                  amount: normalizeCurrentBalance(current, account.type),
+                  asOf: new Date(timestamp),
+                }
               : undefined,
         };
       });
@@ -438,12 +448,16 @@ export class PlaidProvider extends BankingProvider {
             'Plaid returned transaction updates without a checkpoint',
           );
         }
-        const accountBalance = data.accounts?.find(
+        const account = data.accounts?.find(
           (account) => account.account_id === input.providerBankAccountId,
-        )?.balances?.current;
+        );
+        const accountBalance = account?.balances?.current;
         const reportedCurrentBalance =
           typeof accountBalance === 'number'
-            ? { amount: accountBalance, asOf: new Date() }
+            ? {
+                amount: normalizeCurrentBalance(accountBalance, account?.type),
+                asOf: new Date(),
+              }
             : undefined;
         return {
           observedTransactions,
