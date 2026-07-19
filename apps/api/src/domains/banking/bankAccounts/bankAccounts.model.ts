@@ -14,7 +14,7 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { deriveRecordedBankBalances } from '../../balances/bank-balance-derivation.js';
+import { getCurrentRecordedBankBalances } from '../../balances/bank-balance-derivation.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
 import { createCoaAccount } from '../../chart-of-accounts/coa.model.js';
 import {
@@ -258,6 +258,7 @@ export const getBankAccountsWithDetails = async (
         'bam.uncategorized_count as uncategorizedTxCount',
         'bam.needs_review_count as needsReviewTxCount',
         'bam.provider_removed_review_count as providerRemovedReviewCount',
+        'bam.total_transactions as totalTransactions',
         db.raw('bam.latest_exchange_rate::text as "latestExchangeRate"'),
       ])
       .where('bam.company_id', companyUUID);
@@ -276,7 +277,7 @@ export const getBankAccountsWithDetails = async (
       historyImports.map((row) => [row.bank_account_feed_id, row]),
     );
 
-    const recordedByAccountId = await deriveRecordedBankBalances({
+    const recordedByAccountId = await getCurrentRecordedBankBalances({
       companyId: companyUUID,
       bankAccountIds: rows.map((row) => row.id as string),
       ...(trx ? { trx } : {}),
@@ -312,12 +313,14 @@ export const getBankAccountsWithDetails = async (
         feedRevokedAt: _feedRevokedAt,
         initialSyncCompletedAt: _initialSyncCompletedAt,
         feedConnectedAt: _feedConnectedAt,
+        totalTransactions: _totalTransactions,
         ...account
       } = row;
       return {
         ...account,
         statementBalance: row.statementBalance ?? null,
-        recordedBankBalance: recordedByAccountId.get(row.id as string) ?? null,
+        recordedBankBalance:
+          recordedByAccountId.get(row.id as string) ?? '0.0000',
         bankConnectionStatus,
         syncHealth,
         lastSyncAt: row.lastSyncAt

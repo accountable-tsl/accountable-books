@@ -100,30 +100,21 @@ export function AccountingWorkspace() {
     totalLedgerBalance,
     totalBankBalanceRep,
     anyBankAccountWithoutExchangeRate,
-    hasRecordedBankBalance,
   } = bankAccounts.reduce(
     (totals, acc) => {
       const uncat = acc.uncategorizedTxCount;
       const review = acc.needsReviewTxCount;
       const ledger = parseFloat(acc.ledgerBalance);
       const rate = parseFloat(acc.latestExchangeRate ?? '1');
-      // Prefer derived recorded balance for company totals; skip unknown (null).
-      const recordedNative = acc.recordedBankBalance;
-      const recordedRep =
-        recordedNative == null ? null : parseFloat(recordedNative) * rate;
+      const recordedRep = parseFloat(acc.recordedBankBalance) * rate;
 
       return {
         totalUncategorizedCount: totals.totalUncategorizedCount + uncat,
         totalNeedsReviewCount: totals.totalNeedsReviewCount + review,
         totalLedgerBalance: totals.totalLedgerBalance + ledger,
-        totalBankBalanceRep:
-          recordedRep == null
-            ? totals.totalBankBalanceRep
-            : totals.totalBankBalanceRep + recordedRep,
+        totalBankBalanceRep: totals.totalBankBalanceRep + recordedRep,
         anyBankAccountWithoutExchangeRate:
           totals.anyBankAccountWithoutExchangeRate || !acc.latestExchangeRate,
-        hasRecordedBankBalance:
-          totals.hasRecordedBankBalance || recordedNative != null,
       };
     },
     {
@@ -132,7 +123,6 @@ export function AccountingWorkspace() {
       totalLedgerBalance: 0,
       totalBankBalanceRep: 0,
       anyBankAccountWithoutExchangeRate: false,
-      hasRecordedBankBalance: false,
     },
   );
 
@@ -206,23 +196,24 @@ export function AccountingWorkspace() {
           <Separator className="mb-4" />
           <div className="grid min-h-[5rem] grid-cols-3 gap-4">
             <div className="flex h-full flex-col justify-between gap-2 divide-y overflow-clip rounded-md border p-4">
-              {!anyBankAccountWithoutExchangeRate && hasRecordedBankBalance && (
-                <SimpleTooltip
-                  content="Bank balance per our records (derived from the latest provider balance and imported transactions), converted to reporting currency. Compare with ledger to see the gap."
-                  contentClassName="text-center"
-                >
-                  <div className="grid grid-cols-2 gap-2 truncate">
-                    <div className="truncate text-sm">Cash in Bank</div>
-                    <div className="truncate text-right">
-                      <FormattedAmount
-                        amount={totalBankBalanceRep}
-                        currency={reportingCurrencyCode}
-                        showSymbol
-                      />
+              {!anyBankAccountWithoutExchangeRate &&
+                bankAccounts.length > 0 && (
+                  <SimpleTooltip
+                    content="Bank balance per our records (provider statement, opening balance, or imported bank transactions), converted to reporting currency. Compare with ledger to see the gap."
+                    contentClassName="text-center"
+                  >
+                    <div className="grid grid-cols-2 gap-2 truncate">
+                      <div className="truncate text-sm">Cash in Bank</div>
+                      <div className="truncate text-right">
+                        <FormattedAmount
+                          amount={totalBankBalanceRep}
+                          currency={reportingCurrencyCode}
+                          showSymbol
+                        />
+                      </div>
                     </div>
-                  </div>
-                </SimpleTooltip>
-              )}
+                  </SimpleTooltip>
+                )}
               <SimpleTooltip
                 content="Current balances from the GL, stored in your reporting currency. This is the amount that will flow into financial statements"
                 contentClassName="text-center"
@@ -297,15 +288,11 @@ export function AccountingWorkspace() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
-                        {acc.recordedBankBalance == null ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <FormattedAmount
-                            amount={acc.recordedBankBalance}
-                            currency={acc.currencyCode}
-                            showSymbol={true}
-                          />
-                        )}
+                        <FormattedAmount
+                          amount={acc.recordedBankBalance}
+                          currency={acc.currencyCode}
+                          showSymbol={true}
+                        />
                       </div>
                       <div className="text-muted-foreground text-[0.80rem] font-light">
                         Bank (our records)
@@ -503,10 +490,7 @@ function MiniBankAccountCard({
 }: MiniBankAccountCardProps) {
   const needsReview = account.needsReviewTxCount ?? 0;
   const Uncategorized = account.uncategorizedTxCount ?? 0;
-  const balance =
-    account.recordedBankBalance == null
-      ? '—'
-      : formatAmount(account.recordedBankBalance, {});
+  const balance = formatAmount(account.recordedBankBalance, {});
   const syncAt = account.lastSyncAt
     ? formatDistanceToNowStrict(new Date(account.lastSyncAt))
     : undefined;
@@ -549,7 +533,7 @@ function MiniBankAccountCard({
           trigger={
             <>
               <span className="truncate">{account.displayName} </span>
-              <span className="text-muted-foreground flex-1">
+              <span className="text-muted-foreground shrink-0">
                 **{account.mask}
               </span>
             </>

@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 
+import { updateBankCurrentBalance } from '../../../../src/domains/balances/bank-current-balance.js';
 import { generateBatchFingerprint } from '../../../../src/domains/bankTransactions/bankTransactions.utils.js';
 import { determineExchangeRate } from '../../../../src/domains/exchangeRates/exchangeRates.utils.js';
 import { generateFingerprintSync } from '../../../../src/shared/index.js';
@@ -29,6 +30,30 @@ async function getCompanyUUID(
     .first();
 
   return company?.id || null;
+}
+
+async function refreshSeedBankBalance(input: {
+  trx: Knex.Transaction;
+  companyId: string;
+  bankAccountId: string;
+}): Promise<void> {
+  const row = await input
+    .trx('bank_transactions')
+    .where({
+      company_id: input.companyId,
+      bank_account_id: input.bankAccountId,
+      is_deleted: false,
+    })
+    .first<{ balance: string }>(
+      input.trx.raw('COALESCE(SUM(amount), 0)::text as balance'),
+    );
+
+  await updateBankCurrentBalance({
+    companyId: input.companyId,
+    bankAccountId: input.bankAccountId,
+    balance: Number(row?.balance ?? 0),
+    client: input.trx,
+  });
 }
 
 /**
@@ -241,6 +266,11 @@ export const createDemoBankTransactions = async (
         .returning(['id']);
 
       if (!batchRecord) {
+        await refreshSeedBankBalance({
+          trx,
+          companyId: companyUUID,
+          bankAccountId: bankAccount.id,
+        });
         console.log(
           `Batch already exists for ${company.short_code} account ${bankAccount.id}, skipping`,
         );
@@ -337,9 +367,11 @@ export const createDemoBankTransactions = async (
         `✓ Created ${inserted} transactions for ${company.short_code} account ${bankAccount.display_name}${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`,
       );
 
-      // NOTE: We deliberately skip balance recalculation and enrichment queues
-      // to avoid Redis connection during seeding. Balances can be recalculated
-      // later if needed through the production API or worker.
+      await refreshSeedBankBalance({
+        trx,
+        companyId: companyUUID,
+        bankAccountId: bankAccount.id,
+      });
     }
   }
 };

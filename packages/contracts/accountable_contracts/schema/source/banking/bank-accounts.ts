@@ -114,8 +114,11 @@ export const bankAccountWithMetaSchema = z.object({
   historicalImport: bankHistoricalImportSchema.nullable(),
 
   statementBalance: z.string().nullable(),
-  /** Derived bank balance at now from native anchor ± finalized bank txns. */
-  recordedBankBalance: z.string().nullable(),
+  /**
+   * Bank (our records): provider ± txs, or opening balance + imported txs, or 0.
+   * Always a decimal string — empty accounts are `"0.0000"`, never null.
+   */
+  recordedBankBalance: z.string(),
   ledgerBalance: z.string(),
   uncategorizedTxCount: z.number().min(0),
   needsReviewTxCount: z.number().min(0),

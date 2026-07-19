@@ -8,6 +8,7 @@ import {
   getTestUserId,
   US_USER_EMAIL,
 } from '../../../../test/helpers.js';
+import { getBankAccountsWithDetails } from '../../banking/bankAccounts/bankAccounts.model.js';
 import { deriveBankBalanceAt } from '../bank-balance-derivation.js';
 import { bankBalanceService } from '../bank-balance.service.js';
 import {
@@ -21,16 +22,25 @@ describe('bank balance derivation (db)', () => {
   afterEach(async () => {
     const db = getTestDb();
     if (createdAccountIds.length === 0) return;
-    await db('bank_account_current_native_balances')
-      .whereIn('bank_account_id', createdAccountIds)
-      .delete();
-    await db('bank_account_daily_native_snapshots')
-      .whereIn('bank_account_id', createdAccountIds)
-      .delete();
-    await db('bank_account_opening_balances')
-      .whereIn('bank_account_id', createdAccountIds)
-      .delete();
-    await db('bank_accounts').whereIn('id', createdAccountIds).delete();
+    await db.transaction(async (trx) => {
+      await trx.raw("SELECT set_config('app.demo_seed_teardown', 'on', true)");
+      await trx('bank_transactions')
+        .whereIn('bank_account_id', createdAccountIds)
+        .delete();
+      await trx('bank_transaction_batches')
+        .whereIn('bank_account_id', createdAccountIds)
+        .delete();
+      await trx('bank_account_current_native_balances')
+        .whereIn('bank_account_id', createdAccountIds)
+        .delete();
+      await trx('bank_account_daily_native_snapshots')
+        .whereIn('bank_account_id', createdAccountIds)
+        .delete();
+      await trx('bank_account_opening_balances')
+        .whereIn('bank_account_id', createdAccountIds)
+        .delete();
+      await trx('bank_accounts').whereIn('id', createdAccountIds).delete();
+    });
     createdAccountIds.length = 0;
   });
 
@@ -66,20 +76,172 @@ describe('bank balance derivation (db)', () => {
     });
   }
 
-  it('returns null when no provider-reported anchor exists', async () => {
+  it('uses the maintained current balance when no provider balance exists', async () => {
+    const db = getTestDb();
+    const { companyId, userId, bankAccountId } = await seedAccount();
+    const [batch] = await db('bank_transaction_batches')
+      .insert({
+        bank_account_id: bankAccountId,
+        company_id: companyId,
+        start_date: '2026-01-10',
+        end_date: '2026-01-12',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: 2,
+        created_by_id: userId,
+      })
+      .returning<{ id: string }[]>('id');
+    await db('bank_transactions').insert([
+      {
+        company_id: companyId,
+        bank_account_id: bankAccountId,
+        bank_transaction_batch_id: batch!.id,
+        amount: 1000,
+        transaction_date: '2026-01-10',
+        transaction_at: new Date('2026-01-10T12:00:00.000Z'),
+        system_exchange_rate: 1,
+        idempotency_key: randomUUID(),
+        created_by_id: userId,
+      },
+      {
+        company_id: companyId,
+        bank_account_id: bankAccountId,
+        bank_transaction_batch_id: batch!.id,
+        amount: -250,
+        transaction_date: '2026-01-12',
+        transaction_at: new Date('2026-01-12T12:00:00.000Z'),
+        system_exchange_rate: 1,
+        idempotency_key: randomUUID(),
+        created_by_id: userId,
+      },
+    ]);
+    await bankBalanceService.recalculateBalance({
+      companyId,
+      bankAccountId,
+      recalcFrom: '2026-01-10',
+      recalcTo: '2026-01-12',
+      triggeredBy: 'manual',
+      userId,
+    });
+
+    const result = await getBankAccountsWithDetails(companyId);
+
+    expect(
+      result.data?.find((account) => account.id === bankAccountId)
+        ?.recordedBankBalance,
+    ).toBe('750.0000');
+  });
+
+  it('shows zero for an empty manual bank account', async () => {
     const { companyId, bankAccountId } = await seedAccount();
-    await updateBankCurrentBalance({
-      companyId,
-      bankAccountId,
-      balance: 999,
-      asOf: new Date('2026-01-15T00:00:00.000Z'),
+
+    const result = await getBankAccountsWithDetails(companyId);
+
+    expect(
+      result.data?.find((account) => account.id === bankAccountId)
+        ?.recordedBankBalance,
+    ).toBe('0.0000');
+  });
+
+  it('warms cold cache from transaction sum when native_balance is missing', async () => {
+    const db = getTestDb();
+    const { companyId, userId, bankAccountId } = await seedAccount();
+    const [batch] = await db('bank_transaction_batches')
+      .insert({
+        bank_account_id: bankAccountId,
+        company_id: companyId,
+        start_date: '2026-03-01',
+        end_date: '2026-03-02',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: 2,
+        created_by_id: userId,
+      })
+      .returning<{ id: string }[]>('id');
+    await db('bank_transactions').insert([
+      {
+        company_id: companyId,
+        bank_account_id: bankAccountId,
+        bank_transaction_batch_id: batch!.id,
+        amount: 400,
+        transaction_date: '2026-03-01',
+        transaction_at: new Date('2026-03-01T12:00:00.000Z'),
+        system_exchange_rate: 1,
+        idempotency_key: randomUUID(),
+        created_by_id: userId,
+      },
+      {
+        company_id: companyId,
+        bank_account_id: bankAccountId,
+        bank_transaction_batch_id: batch!.id,
+        amount: -50,
+        transaction_date: '2026-03-02',
+        transaction_at: new Date('2026-03-02T12:00:00.000Z'),
+        system_exchange_rate: 1,
+        idempotency_key: randomUUID(),
+        created_by_id: userId,
+      },
+    ]);
+
+    const result = await getBankAccountsWithDetails(companyId);
+    expect(
+      result.data?.find((account) => account.id === bankAccountId)
+        ?.recordedBankBalance,
+    ).toBe('350.0000');
+
+    const cached = await db('bank_account_current_native_balances')
+      .where({ bank_account_id: bankAccountId })
+      .first<{ native_balance: string }>('native_balance');
+    expect(Number(cached?.native_balance)).toBe(350);
+  });
+
+  it('adds opening balance to post-OB transactions on cold cache', async () => {
+    const db = getTestDb();
+    const { companyId, userId, bankAccountId } = await seedAccount();
+    const coverageStart = new Date('2026-02-02T00:00:00.000Z');
+    await db('bank_account_opening_balances').insert({
+      id: randomUUID(),
+      bank_account_id: bankAccountId,
+      amount: 1000,
+      as_of_date: '2026-02-01',
+      coverage_start: coverageStart,
+      coverage_end: coverageStart,
+      origin: 'user_entered',
+      role: 'baseline',
+      is_deleted: false,
+      created_by_id: userId,
+      updated_by_id: userId,
     });
-    const result = await deriveBankBalanceAt({
-      companyId,
-      bankAccountId,
-      at: new Date('2026-01-15T00:00:00.000Z'),
+    const [batch] = await db('bank_transaction_batches')
+      .insert({
+        bank_account_id: bankAccountId,
+        company_id: companyId,
+        start_date: '2026-02-05',
+        end_date: '2026-02-05',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: 1,
+        created_by_id: userId,
+      })
+      .returning<{ id: string }[]>('id');
+    await db('bank_transactions').insert({
+      company_id: companyId,
+      bank_account_id: bankAccountId,
+      bank_transaction_batch_id: batch!.id,
+      amount: 200,
+      transaction_date: '2026-02-05',
+      transaction_at: new Date('2026-02-05T12:00:00.000Z'),
+      system_exchange_rate: 1,
+      idempotency_key: randomUUID(),
+      created_by_id: userId,
     });
-    expect(result).toBeNull();
+
+    const result = await getBankAccountsWithDetails(companyId);
+    // OB 1000 at coverage_start − 1ms + tx 200 after that → 1200
+    expect(
+      result.data?.find((account) => account.id === bankAccountId)
+        ?.recordedBankBalance,
+    ).toBe('1200.0000');
   });
 
   it('does not write system_calculated opening balances after backsolve', async () => {
