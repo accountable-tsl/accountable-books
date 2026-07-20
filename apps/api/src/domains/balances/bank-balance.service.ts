@@ -5,14 +5,14 @@ import {
   //   format as dateFnsFormat,
   min,
 } from 'date-fns';
-import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 import { knexClient as db } from '../../db/knexClient.js';
 import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import { getLogger } from '../../shared/utils/logger.js';
-import { getSystemUser } from '../users/users.model.js';
 import { bankBalanceRecalcParamsSchema } from './balances.types.js';
-import { setBankOpeningBalance } from './opening-balance/opening-balance.service.js';
+import { deriveBankBalanceAt } from './bank-balance-derivation.js';
+import { updateBankCurrentBalance } from './bank-current-balance.js';
 
 import type {
   BalanceRecalcResult,
@@ -31,7 +31,7 @@ export interface ChooseOpeningInput {
 }
 
 interface BalanceCheckpoint {
-  source: 'opening_balance' | 'snapshot';
+  source: 'opening_balance' | 'snapshot' | 'derived';
   asOfDate: string; // Balance as of end-of-day (YYYY-MM-DD)
   amount: number;
   coverageStart?: string | null;
@@ -136,7 +136,7 @@ class BankBalanceService {
       recalcFrom,
       recalcTo,
       triggeredBy,
-      userId,
+      userId: _userId,
     } = validationResult.data;
 
     logger.info(
@@ -170,12 +170,9 @@ class BankBalanceService {
           companyId,
           bankAccountId,
           recalcFrom: fromDay,
+          companyTz: context.defaultTimezone,
           trx,
         });
-
-        if (!startingPoint) {
-          throw new Error('No starting balance checkpoint found');
-        }
 
         // Decide recalculation direction, start/end dates
         const recalcWindow = this.determineRecalcWindow({
@@ -252,34 +249,6 @@ class BankBalanceService {
           trx,
         });
 
-        // For backsolve mode, create an opening balance checkpoint to help future recalcs
-        if (recalcWindow.mode === 'backsolve' && snapshots.length > 0) {
-          const firstSnapshot = snapshots[0];
-          let userIdentifier;
-          if (userId) {
-            userIdentifier = userId;
-          } else {
-            const systemUser = await getSystemUser({ trx });
-            if (!systemUser) {
-              throw new Error('System user not found');
-            }
-            userIdentifier = systemUser.id;
-          }
-
-          await setBankOpeningBalance({
-            params: {
-              bank_account_id: bankAccountId,
-              amount: Number(firstSnapshot.openingBalance),
-              coverage_start: new Date(firstSnapshot.day),
-              coverage_end: new Date(recalcWindow.endDate),
-              origin: 'system_calculated',
-              role: 'checkpoint',
-            },
-            userId: userIdentifier,
-            trx,
-          });
-        }
-
         // if (!recalcTo || recalcTo === todayYmdString) {
         await this.refreshCurrentBalance({
           companyId,
@@ -349,24 +318,23 @@ class BankBalanceService {
   }
 
   /**
-   * Find the best starting balance checkpoint for recalculation
+   * Find the best starting balance checkpoint for recalculation.
    *
-   * Searches for opening balances and snapshots, prioritizing:
-   * 1. User-converted opening balances (highest priority)
-   * 2. System-calculated opening balances
-   * 3. Existing snapshots
-   *
-   * Returns the closest checkpoint before or at the recalc date
+   * Priority: user-entered opening balances → daily native snapshots →
+   * derived balance from the current native provider anchor. Historical
+   * system_calculated opening-balance rows are ignored.
    */
   private async findBestBalanceCheckpoint({
     companyId,
     bankAccountId,
     recalcFrom,
+    companyTz,
     trx,
   }: {
     companyId: string;
     bankAccountId: string;
     recalcFrom: string; // ISO date string in company timezone
+    companyTz: string;
     trx?: Knex.Transaction;
   }): Promise<BalanceCheckpoint | null> {
     const knex = trx || db;
@@ -378,13 +346,21 @@ class BankBalanceService {
       futureSnapshot,
     ] = await Promise.all([
       knex('bank_account_opening_balances')
-        .where({ bank_account_id: bankAccountId, is_deleted: false })
+        .where({
+          bank_account_id: bankAccountId,
+          is_deleted: false,
+          origin: 'user_entered',
+        })
         .andWhere('as_of_date', '<', recalcFrom)
         .orderBy('as_of_date', 'desc')
         .limit(1),
 
       knex('bank_account_opening_balances')
-        .where({ bank_account_id: bankAccountId, is_deleted: false })
+        .where({
+          bank_account_id: bankAccountId,
+          is_deleted: false,
+          origin: 'user_entered',
+        })
         .andWhere('as_of_date', '>=', recalcFrom)
         .orderBy('as_of_date', 'asc')
         .limit(1),
@@ -413,7 +389,6 @@ class BankBalanceService {
 
     const candidates: BalanceCheckpoint[] = [];
 
-    // Opening balances (native currency)
     if (openingBalances.length > 0) {
       for (const ob of openingBalances) {
         const date = formatDateToYMD(ob.as_of_date);
@@ -433,7 +408,6 @@ class BankBalanceService {
     }
 
     if (nativeSnapshots.length > 0) {
-      // Add GL snapshot candidates (already ordered by distance from database)
       for (const s of nativeSnapshots) {
         const date = formatDateToYMD(s.day);
         const dist = daysDiff(date, recalcFrom);
@@ -448,7 +422,21 @@ class BankBalanceService {
     }
 
     if (candidates.length === 0) {
-      return null;
+      const prevDay = previousYmd(recalcFrom);
+      const at = endOfCompanyDay(prevDay, companyTz);
+      const derived = await deriveBankBalanceAt({
+        companyId,
+        bankAccountId,
+        at,
+        trx,
+      });
+      if (!derived) return null;
+      return {
+        source: 'derived',
+        asOfDate: prevDay,
+        amount: derived.amount,
+        distanceDays: daysDiff(prevDay, recalcFrom),
+      };
     }
 
     // Prefer candidates on/before fromDate; if none, allow future pool
@@ -457,22 +445,20 @@ class BankBalanceService {
     );
     const pool = strictlyPast.length ? strictlyPast : candidates;
 
-    // Priority: OB(user_conversion) > OB(system_calculated) > native_snapshot
+    // Priority: user-entered OB > daily native snapshot
     const priority = (c: BalanceCheckpoint): number => {
       if (c.source === 'opening_balance' && c.origin === 'user_entered')
         return 0;
-      if (c.source === 'opening_balance' && c.origin === 'system_calculated')
-        return 1;
-      if (c.source === 'snapshot') return 2;
-      return 2; // gl
+      if (c.source === 'snapshot') return 1;
+      return 2;
     };
 
     pool.sort((a, b) => {
       const pa = priority(a),
         pb = priority(b);
       if (pa !== pb) return pa - pb;
-      if (strictlyPast.length) return b.asOfDate.localeCompare(a.asOfDate); // later past wins
-      return a.asOfDate.localeCompare(b.asOfDate); // earlier future wins
+      if (strictlyPast.length) return b.asOfDate.localeCompare(a.asOfDate);
+      return a.asOfDate.localeCompare(b.asOfDate);
     });
 
     return pool[0];
@@ -581,11 +567,11 @@ class BankBalanceService {
     const rows = await knex('bank_transactions as t')
       .select<
         BankTransactionRecord[]
-      >(['t.id', 't.date', 't.txn_at as txnAt', 't.amount', 't.absolute_amount as absoluteAmount', 't.payee', 't.reference', 't.description'])
+      >(['t.id', 't.transaction_date as date', 't.transaction_at as txnAt', 't.amount', 't.absolute_amount as absoluteAmount', 't.payee', 't.reference', 't.description'])
       .where('t.bank_account_id', bankAccountId)
       .andWhere('t.is_deleted', false)
-      .andWhereBetween('t.date', [startDate, endDate])
-      .orderBy(['t.date', 't.txn_at']);
+      .andWhereBetween('t.transaction_date', [startDate, endDate])
+      .orderBy(['t.transaction_date', 't.transaction_at']);
 
     return rows.map((r) => ({
       ...r,
@@ -877,33 +863,14 @@ class BankBalanceService {
    * Update the current balance record for a bank account
    * Uses upsert to handle conflicts
    */
-  async updateCurrentBalance({
-    companyId,
-    bankAccountId,
-    balance,
-    asOf,
-    client = db,
-  }: {
+  async updateCurrentBalance(params: {
     companyId: string;
     bankAccountId: string;
     balance: number;
     asOf?: Date;
-    client: Queryable;
+    client?: Queryable;
   }): Promise<void> {
-    const now = asOf ?? new Date();
-
-    await client('bank_account_current_native_balances')
-      .insert({
-        company_id: companyId,
-        bank_account_id: bankAccountId,
-        native_balance: this.toNumber(balance).toFixed(10),
-        as_of_time: now,
-      })
-      .onConflict(['company_id', 'bank_account_id'])
-      .merge({
-        native_balance: this.toNumber(balance).toFixed(10),
-        as_of_time: now,
-      });
+    await updateBankCurrentBalance(params);
   }
 
   /**
@@ -977,8 +944,8 @@ class BankBalanceService {
     const result = await knex('bank_transactions')
       .where('bank_account_id', bankAccountId)
       .andWhere('is_deleted', false)
-      .andWhere('date', '>', fromDayExclusive)
-      .andWhere('date', '<=', toDayInclusive)
+      .andWhere('transaction_date', '>', fromDayExclusive)
+      .andWhere('transaction_date', '<=', toDayInclusive)
       .sum<{ net: string | number }>('amount as net')
       .first();
 
@@ -1230,6 +1197,22 @@ export function formatDateToYMD(input: Date | string): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function previousYmd(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Instant at the end of `ymd` in `companyTz` (for derivation as-of closing). */
+function endOfCompanyDay(ymd: string, companyTz: string): Date {
+  try {
+    return fromZonedTime(`${ymd}T23:59:59.999`, companyTz);
+  } catch {
+    return new Date(`${ymd}T23:59:59.999Z`);
+  }
 }
 
 function daysDiff(a: Date | string, b: Date | string): number {

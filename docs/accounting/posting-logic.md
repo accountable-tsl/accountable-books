@@ -1,4 +1,8 @@
-We post transacctions in three steps:
+> **Status:** Design note (rough)
+> **Purpose:** FX and monetary posting rules for bank → P&L, accruals, and settlement.
+> Verify against ledger/FX code before treating as source of truth. See [docs index](../README.md).
+
+We post transactions in three steps:
 
 **Core rules**
 

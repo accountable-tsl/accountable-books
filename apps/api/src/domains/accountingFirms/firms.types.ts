@@ -1,6 +1,6 @@
+import { isValidFirmSlug } from '@accountable-books/utils/firm-slugs';
 import { z } from 'zod';
 
-import { dbBaseFields } from '../../core/types/core.js';
 import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
 export const firmType = z.enum([
@@ -10,18 +10,31 @@ export const firmType = z.enum([
   'international',
 ]);
 
+export const firmSlug = z
+  .string()
+  .trim()
+  .refine(
+    isValidFirmSlug,
+    'Slug must be 3-20 lowercase letters, optionally separated by single hyphens',
+  );
+
 export const newAccFirmInput = z.object({
   company_id: z.uuid().nullish(),
-  slug: z.string().max(20).optional(),
+  slug: firmSlug.optional(),
   firm_type: firmType.nullish(),
 });
 
 export const newAccFirm = newAccFirmInput.extend({
   company_id: z.uuid(),
-  slug: z.string().max(20),
+  slug: firmSlug,
+  created_by_id: z.uuid(),
+  updated_by_id: z.uuid().nullish(),
 });
 
-export const accFirm = newAccFirm.merge(dbBaseFields).omit({ id: true });
+export const accFirm = newAccFirm.extend({
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+});
 
 export type NewAccFirmInput = z.infer<typeof newAccFirmInput>;
 export type NewAccFirm = z.infer<typeof newAccFirm>;

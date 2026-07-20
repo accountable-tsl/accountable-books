@@ -1,5 +1,0 @@
-from enum import Enum
-
-class JournalSource(str, Enum):
-    ONE_OFF = "one_off"
-    GENERATED_FROM_TEMPLATE = "generated_from_template"

@@ -1,9 +1,11 @@
 import type {
+  CandidateDecisionIntent,
   CategorizationStatsResponse,
   CategorizationTransaction,
   GetCategorizationStatsParams,
   LedgerIntent,
   LedgerIntentEntry,
+  LedgerPostingIntent,
 } from '@accountable-books/contracts/schema';
 import type { Knex } from 'knex';
 import {
@@ -28,11 +30,29 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../activity/index.js';
 import { getBankTransactionsByIds } from '../bankTransactions/bankTransactions.model.js';
 import {
   getLedgerTransactionsWithEntries,
   updateOrCreateLedger,
 } from '../ledgers/ledgers.model.js';
+import {
+  fastMaterializeBankAccountScopes,
+  writeBankAccountWorkMaterializationIntent,
+} from '../work/work-materialization-intent.js';
+import { getActiveWorkItemBankTransactionIds } from '../work/work-queue.read.js';
+import {
+  WORK_TYPE_CATEGORIZE_TRANSACTIONS,
+  WORK_TYPE_REVIEW_SUGGESTIONS,
+} from '../work/work.types.js';
+import {
+  closePendingCandidatesAsPosted,
+  recordCandidateOutcomesForBankTransaction,
+  rejectPendingCandidate,
+} from './candidates/candidate-lifecycle.service.js';
 import { getCategorizationCandidatesWithLines } from './candidates/candidates.service.js';
 import { getCategorizationTransactionsParams } from './categorization.types.js';
 import {
@@ -54,6 +74,7 @@ import type {
   LedgerEntryInput,
   NewLedgerTransactionData,
 } from '../ledgers/ledgers.types.js';
+import type { FastMaterializationScopeResult } from '../work/work-materialization-intent.js';
 import type {
   GetCategorizationTransactionsParams,
   GetCategorizationTransactionsResponse,
@@ -152,6 +173,7 @@ export async function getCategorizationTransactions(
     status,
     bankTransactionIds,
     bankAccountIds,
+    workItemId,
     searchQuery,
     limit = 100,
     offset = 0,
@@ -171,8 +193,10 @@ export async function getCategorizationTransactions(
     effectiveDateTo = today < dateFromPlus365 ? today : dateFromPlus365;
   }
 
-  // Validate date range if dateFrom is provided
-  if (dateFrom && effectiveDateTo) {
+  // Validate date range if dateFrom is provided. Skipped when deep-linking by
+  // workItemId, since the date range is ignored in favour of the work item's
+  // active subjects.
+  if (!workItemId && dateFrom && effectiveDateTo) {
     if (dateFrom > effectiveDateTo) {
       const message = 'dateFrom must be <= dateTo';
       if (trx) {
@@ -207,37 +231,52 @@ export async function getCategorizationTransactions(
 
       throw new AppError('Something went wrong');
     }
+    // Deep-link exact mode: when a work item id is given, constrain to its
+    // active bank-transaction subjects and ignore normal list filters, so a
+    // queue row opens exactly the transactions that still need action.
+    let deepLinkBankTransactionIds: string[] | undefined;
+    if (workItemId) {
+      deepLinkBankTransactionIds = await getActiveWorkItemBankTransactionIds({
+        workItemId,
+        clientCompanyId: companyUUID,
+        trx: txn,
+      });
+    }
+
     // Build query
     let query = txn('categorization_engine_view').where(
       'company_id',
       companyUUID,
     );
 
-    // Apply date filters if dateFrom is provided
-    if (dateFrom && effectiveDateTo) {
+    // Apply date filters only when not deep-linking by work item.
+    if (!workItemId && dateFrom && effectiveDateTo) {
       // Convert dates to YYYY-MM-DD strings for PostgreSQL date comparison
       query = query
         .where('date', '>=', toYMD(dateFrom))
         .where('date', '<=', toYMD(effectiveDateTo));
     }
 
-    // Apply status filter if provided
-    if (status && status.length > 0) {
+    // Apply normal list filters only outside exact work-item deep-link mode.
+    if (!workItemId && status && status.length > 0) {
       query = query.whereIn('categorization_status', status);
     }
 
-    // Apply bank transaction IDs filter if provided
-    if (bankTransactionIds && bankTransactionIds.length > 0) {
+    // Apply bank transaction IDs filter.
+    if (workItemId) {
+      // Always constrain to the resolved subjects (empty => no rows).
+      query = query.whereIn('id', deepLinkBankTransactionIds ?? []);
+    } else if (bankTransactionIds && bankTransactionIds.length > 0) {
       query = query.whereIn('id', bankTransactionIds);
     }
 
     // Apply bank account IDs filter if provided
-    if (bankAccountIds && bankAccountIds.length > 0) {
+    if (!workItemId && bankAccountIds && bankAccountIds.length > 0) {
       query = query.whereIn('bank_account_id', bankAccountIds);
     }
 
     // Apply search filter if provided (use base-table search_text with indexes)
-    if (searchQuery && searchQuery.trim().length > 0) {
+    if (!workItemId && searchQuery && searchQuery.trim().length > 0) {
       const normalizedQuery = searchQuery.trim().toLowerCase();
       const likePattern = `%${normalizedQuery}%`;
 
@@ -271,19 +310,21 @@ export async function getCategorizationTransactions(
               });
           })
           .orWhere((sub) => {
-            sub
-              .where('categorization_status', 'posted')
-              .whereExists(function () {
-                this.select(txn.raw('1'))
-                  .from('ledger_entries as le')
-                  .whereRaw(
-                    'le.id = categorization_engine_view.ledger_entry_id',
-                  )
-                  .whereRaw(
-                    '(CASE WHEN le.is_deleted = false THEN le.search_text END) LIKE ?',
-                    [likePattern],
-                  );
-              });
+            sub.where('categorization_status', 'posted').whereRaw(
+              `lower(concat_ws(' ',
+                  description,
+                  reference,
+                  contact_name,
+                  coa_name,
+                  coa_code,
+                  project_name,
+                  bank_account_display_name,
+                  bank_display_name,
+                  bank_account_coa_name,
+                  bank_account_coa_code
+                )) LIKE ?`,
+              [likePattern],
+            );
           });
       });
     }
@@ -293,17 +334,20 @@ export async function getCategorizationTransactions(
     const countResult = await countQuery.first();
     const total = Number(countResult?.total || 0);
 
-    // Apply pagination and ordering
-    const transactions = await query
+    // Apply ordering. Work-item deep-links intentionally skip pagination so the
+    // workspace receives the exact active subject set, not the first page of it.
+    const orderedQuery = query
       .orderBy('bank_display_name', 'asc') // Order by bank name first
       .orderBy('bank_account_id', 'asc') // Then by bank account
       .orderBy('date', 'desc')
       .orderByRaw('coa_name ASC NULLS LAST')
       .orderByRaw('contact_name ASC NULLS LAST')
       .orderByRaw('confidence DESC NULLS LAST')
-      .orderBy('id') // Final tie-breaker
-      .limit(actualLimit)
-      .offset(offset);
+      .orderBy('id'); // Final tie-breaker
+
+    const transactions = workItemId
+      ? await orderedQuery
+      : await orderedQuery.limit(actualLimit).offset(offset);
 
     // Transform results to match TypeScript interface
     // Note: is_editable is computed directly in the VIEW using fiscal_calendar
@@ -376,8 +420,8 @@ export async function getCategorizationTransactions(
     return {
       transactions: transformedTransactions,
       total,
-      limit: actualLimit,
-      offset,
+      limit: workItemId ? total : actualLimit,
+      offset: workItemId ? 0 : offset,
     };
   };
 
@@ -414,6 +458,12 @@ export async function getCategorizationTransactions(
   }
 }
 
+function isCandidateDecisionIntent(
+  intent: LedgerIntent,
+): intent is CandidateDecisionIntent {
+  return 'action' in intent && intent.action === 'reject_suggestion';
+}
+
 export async function processCategorizationIntent({
   intents,
   companyId,
@@ -428,9 +478,14 @@ export async function processCategorizationIntent({
   ApiResponse<{
     results: Array<{
       bank_transaction_id: string;
-      operation: 'created' | 'updated_metadata' | 'superseded';
-      ledger_transaction_id: string;
+      operation:
+        | 'created'
+        | 'updated_metadata'
+        | 'superseded'
+        | 'candidate_rejected';
+      ledger_transaction_id?: string;
       old_ledger_transaction_id?: string;
+      candidate_id?: string;
       warnings?: Record<string, string>;
       transaction?: CategorizationTransaction[];
     }>;
@@ -443,9 +498,17 @@ export async function processCategorizationIntent({
       created: number;
       updated: number;
       superseded: number;
+      rejected: number;
       skipped: number;
       has_warnings: boolean;
     };
+    /**
+     * Result of best-effort inline queue materialization run after commit
+     * (UX accelerator). Present only on the model-owned-commit path. Any
+     * `refetch: true` scope means the durable outbox worker will finish
+     * reconciling; the client should refetch the queue.
+     */
+    workMaterialization?: { scopes: FastMaterializationScopeResult[] };
   }>
 > {
   // Validate intents against ledgerIntentSchema
@@ -458,6 +521,13 @@ export async function processCategorizationIntent({
 
   const validatedIntents = validation.data;
 
+  // Bank-account scopes touched by a successful post. Populated inside `exec`
+  // and consumed after commit to run fast inline materialization.
+  const affectedScopes: Array<{
+    clientCompanyId: string;
+    bankAccountId: string;
+  }> = [];
+
   const exec = async (txn: Knex.Transaction) => {
     const companyUUID = await getCompanyUUID(companyId, txn);
     if (!companyUUID) {
@@ -465,19 +535,48 @@ export async function processCategorizationIntent({
       throw new Error('Something went wrong');
     }
 
-    // Group intents by bank_transaction_id
-    const intentsByBankTxn = new Map<string, LedgerIntent[]>();
+    const postingIntentsByBankTxn = new Map<string, LedgerPostingIntent[]>();
+    const decisionIntentsByBankTxn = new Map<
+      string,
+      CandidateDecisionIntent[]
+    >();
 
     for (const intent of validatedIntents) {
-      const existing = intentsByBankTxn.get(intent.bank_transaction_id);
-      if (existing) {
-        existing.push(intent);
+      if (isCandidateDecisionIntent(intent)) {
+        const existing = decisionIntentsByBankTxn.get(
+          intent.bank_transaction_id,
+        );
+        if (existing) {
+          existing.push(intent);
+        } else {
+          decisionIntentsByBankTxn.set(intent.bank_transaction_id, [intent]);
+        }
       } else {
-        intentsByBankTxn.set(intent.bank_transaction_id, [intent]);
+        const existing = postingIntentsByBankTxn.get(
+          intent.bank_transaction_id,
+        );
+        if (existing) {
+          existing.push(intent);
+        } else {
+          postingIntentsByBankTxn.set(intent.bank_transaction_id, [intent]);
+        }
       }
     }
 
-    const bankTransactionIds = Array.from(intentsByBankTxn.keys());
+    for (const bankTransactionId of postingIntentsByBankTxn.keys()) {
+      if (decisionIntentsByBankTxn.has(bankTransactionId)) {
+        throw new Error(
+          `Cannot mix posting and candidate decision intents for bank transaction ${bankTransactionId}`,
+        );
+      }
+    }
+
+    const bankTransactionIds = [
+      ...new Set([
+        ...postingIntentsByBankTxn.keys(),
+        ...decisionIntentsByBankTxn.keys(),
+      ]),
+    ];
 
     // Acquire per-bank-transaction advisory locks to serialize concurrent
     // intent processing for the same transactions. Sorted to prevent deadlocks
@@ -517,7 +616,7 @@ export async function processCategorizationIntent({
     const dataByBankTxnId = new Map<
       string,
       {
-        intent: LedgerIntent;
+        intent: LedgerPostingIntent;
         entries: CategorizationTransaction[];
         bankTransaction: BankTransactionWithFilteredFields;
       }
@@ -535,6 +634,75 @@ export async function processCategorizationIntent({
 
     // Track which bank transaction IDs from intents were found in categorization view
     const foundBankTxnIds = new Set<string>();
+
+    const candidateDecisionResults: Array<{
+      bank_transaction_id: string;
+      operation: 'candidate_rejected';
+      candidate_id: string;
+    }> = [];
+    for (const [bankTransactionId, intents] of decisionIntentsByBankTxn) {
+      if (intents.length !== 1) {
+        throw new Error(
+          `Expected one candidate decision intent for bank transaction ${bankTransactionId}`,
+        );
+      }
+
+      const intent = intents[0];
+      const rejectResult = await rejectPendingCandidate(txn, {
+        candidateId: intent.candidate_id,
+        bankTransactionId,
+        companyId: companyUUID,
+        actorUserId: userId,
+        reason: intent.reason ?? null,
+      });
+
+      if (!rejectResult.rejected) {
+        skippedTransactions.push({
+          bank_transaction_id: bankTransactionId,
+          reason: rejectResult.reason,
+        });
+        skippedTxnIdsSet.add(bankTransactionId);
+        continue;
+      }
+
+      await writeBankAccountWorkMaterializationIntent(txn, {
+        clientCompanyId: companyUUID,
+        bankAccountId: rejectResult.bankAccountId,
+        change: {
+          type: 'categorization_candidate_rejected',
+          companyId: companyUUID,
+          bankAccountId: rejectResult.bankAccountId,
+          bankTransactionId,
+          candidateId: intent.candidate_id,
+        },
+      });
+      await writeActivityEventIntent(txn, {
+        clientCompanyId: companyUUID,
+        actor: { type: 'user', userId },
+        sourceEntity: {
+          type: 'categorization_candidate',
+          id: intent.candidate_id,
+        },
+        eventType: ACTIVITY_EVENT_TYPE.CATEGORIZATION_CANDIDATE_REJECTED,
+        itemCount: 1,
+        workType: WORK_TYPE_REVIEW_SUGGESTIONS,
+        idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.CATEGORIZATION_CANDIDATE_REJECTED}:${intent.candidate_id}`,
+        metadata: {
+          bankTransactionId,
+          bankAccountId: rejectResult.bankAccountId,
+          reason: intent.reason ?? null,
+        },
+      });
+      affectedScopes.push({
+        clientCompanyId: companyUUID,
+        bankAccountId: rejectResult.bankAccountId,
+      });
+      candidateDecisionResults.push({
+        bank_transaction_id: bankTransactionId,
+        operation: 'candidate_rejected',
+        candidate_id: intent.candidate_id,
+      });
+    }
 
     for (const catTxn of categorizationTxns) {
       const bankTransactionId = catTxn.id;
@@ -556,7 +724,7 @@ export async function processCategorizationIntent({
         continue;
       }
 
-      const intents = intentsByBankTxn.get(bankTransactionId) ?? [];
+      const intents = postingIntentsByBankTxn.get(bankTransactionId) ?? [];
       const intent = mergeIntents(intents);
       if (!intent) {
         // Transaction found but no valid intent after merging
@@ -592,6 +760,7 @@ export async function processCategorizationIntent({
 
     // Track warnings for skipped transactions
     const warningsByBankTxnId = new Map<string, Record<string, string>>();
+    const candidateIdByPostedBankTxnId = new Map<string, string>();
 
     for (const [
       bankTxnId,
@@ -653,27 +822,6 @@ export async function processCategorizationIntent({
       const intentEntries = intent.desired_state?.entries ?? [];
 
       if (currentState === 'bank_transaction') {
-        // const bankLeg: LedgerEntryInput[] = [
-        //   {
-        //     // id - not needed
-        //     is_bank_leg: true,
-        //     fs_date: toYMD(bankTransaction.date),
-        //     coa_id: bankTransaction.bank_account_coa_id,
-
-        //     source_currency_id: bankTransaction.bank_account_currency_id,
-        //     source_amount: bankTransaction.amount,
-
-        //     custom_exchange_rate:
-        //       intent.desired_state?.custom_exchange_rate ??
-        //       bankTransaction.system_exchange_rate,
-
-        //     contact_id: bankTransaction.contact_id,
-        //     contact_type: bankTransaction.contact_type_snapshot,
-
-        //     description: bankTransaction.description ?? null,
-        //   },
-        // ];
-
         const bankLeg = buildBankLeg(bankTransaction, intent);
         const ledgerTxn = buildLedgerTransactionMetadata(
           bankTransaction,
@@ -681,27 +829,6 @@ export async function processCategorizationIntent({
           'manual',
         );
 
-        // const ledgerTxn: Omit<NewLedgerTransactionData, 'transactions'> = {
-        //   date: bankTransaction.date,
-        //   transaction_source: 'bank_transaction',
-        //   categorization_source: 'manual',
-
-        //   description: bankTransaction.description ?? null,
-        //   reference: bankTransaction.reference ?? null,
-
-        //   note: bankTransaction.additional_notes ?? null,
-
-        //   contact_id: bankTransaction.contact_id,
-        //   contact_type: bankTransaction.contact_type_snapshot,
-
-        //   source_transaction_id: bankTransaction.id,
-        //   source_transaction_date: toDate(bankTransaction.date, 'start'),
-        //   source_transaction_amount: bankTransaction.amount,
-        //   source_transaction_currency_id:
-        //     bankTransaction.bank_account_currency_id,
-
-        //   // metadata: bankTransaction.raw_data,
-        // };
         // Skip if no intent entries (can't post without COA assignments)
         if (!intentEntries.length) {
           logger.warn({
@@ -722,46 +849,6 @@ export async function processCategorizationIntent({
           if (!e.coa_id) {
             continue;
           }
-
-          // nonBankLegs.push({
-          //   // id - no need for id, new ledger transaction will be created
-          //   is_bank_leg: false,
-          //   coa_id: e.coa_id,
-
-          //   fs_date: e.fs_date || toYMD(bankTransaction.date),
-
-          //   source_currency_id: bankTransaction.bank_account_currency_id,
-          //   source_amount:
-          //     e.source_amount ??
-          //     (intentEntries.length === 1 ? bankTransaction.amount : 0), // updateOrCreate will handle verification of sum
-
-          //   custom_exchange_rate:
-          //     intent.desired_state?.custom_exchange_rate ??
-          //     bankTransaction.system_exchange_rate,
-
-          //   // If contact_id and contact id is null, then mark as null, if contact_id was not provided then use whatever we have from the bank transaction
-          //   contact_id:
-          //     e.contact_id === null
-          //       ? null
-          //       : (e.contact_id ?? bankTransaction.contact_id),
-
-          //   contact_type:
-          //     e.contact_type === null
-          //       ? null
-          //       : (e.contact_type ?? bankTransaction.contact_type_snapshot),
-
-          //   description:
-          //     e.description === null
-          //       ? null
-          //       : (bankTransaction.description ?? null),
-
-          //   project_id: e.project_id === null ? null : e.project_id,
-
-          //   human_reviewed: true,
-          //   review_notes: e.review_notes,
-
-          //   ...(e.metadata ? { metadata: e.metadata } : {}),
-          // });
 
           nonBankLegs.push(
             buildNonBankLegFromBankTransaction(
@@ -829,53 +916,6 @@ export async function processCategorizationIntent({
           const candidateLine =
             candidateNonBankLegs.length === 1 ? candidateNonBankLegs[0] : null;
 
-          // mergedNonBankLegs.push({
-          //   is_bank_leg: false,
-          //   coa_id: intentEntry.coa_id ?? candidateLine?.coa_id,
-          //   fs_date:
-          //     intentEntry.fs_date ??
-          //     candidateLine?.fs_date ??
-          //     toYMD(bankTransaction.date),
-          //   source_currency_id: bankTransaction.bank_account_currency_id,
-          //   source_amount: bankTransaction.amount,
-          //   custom_exchange_rate:
-          //     intent.desired_state?.custom_exchange_rate ??
-          //     candidateBankLeg.custom_exchange_rate ??
-          //     bankTransaction.system_exchange_rate,
-          //   contact_id:
-          //     intentEntry.contact_id === null
-          //       ? null
-          //       : (intentEntry.contact_id ??
-          //         candidateLine?.contact_id ??
-          //         bankTransaction.contact_id ??
-          //         null),
-          //   contact_type:
-          //     intentEntry.contact_type === null
-          //       ? null
-          //       : (intentEntry.contact_type ??
-          //         candidateLine?.contact_type ??
-          //         bankTransaction.contact_type_snapshot ??
-          //         null),
-          //   description:
-          //     intentEntry.description === null
-          //       ? null
-          //       : (intentEntry.description ??
-          //         candidateLine?.description ??
-          //         bankTransaction.description ??
-          //         null),
-
-          //   project_id:
-          //     intentEntry.project_id === null
-          //       ? null
-          //       : (intentEntry.project_id ?? candidateLine?.project_id ?? null),
-          //   human_reviewed: intentEntry.human_reviewed ?? true,
-          //   review_notes:
-          //     intentEntry.review_notes === null
-          //       ? null
-          //       : (intentEntry.review_notes ?? null),
-          //   ...(intentEntry.metadata ? { metadata: intentEntry.metadata } : {}),
-          // });
-
           mergedNonBankLegs.push(
             buildNonBankLegFromCandidateSingle(
               intentEntry,
@@ -888,52 +928,6 @@ export async function processCategorizationIntent({
         } else {
           // MULTIPLE ENTRIES: Split/replace
           for (const intentEntry of intentEntries) {
-            // mergedNonBankLegs.push({
-            //   is_bank_leg: false,
-            //   coa_id: intentEntry.coa_id, // Required in intent
-            //   fs_date:
-            //     intentEntry.fs_date ??
-            //     candidateBankLeg.fs_date ??
-            //     toYMD(bankTransaction.date),
-            //   source_currency_id: bankTransaction.bank_account_currency_id,
-            //   source_amount: intentEntry.source_amount ?? 0,
-            //   custom_exchange_rate:
-            //     intent.desired_state?.custom_exchange_rate ??
-            //     candidateBankLeg.custom_exchange_rate ??
-            //     bankTransaction.system_exchange_rate,
-            //   contact_id:
-            //     intentEntry.contact_id === null
-            //       ? null
-            //       : (intentEntry.contact_id ??
-            //         candidateBankLeg.contact_id ??
-            //         bankTransaction.contact_id ??
-            //         null),
-            //   contact_type:
-            //     intentEntry.contact_type === null
-            //       ? null
-            //       : (intentEntry.contact_type ??
-            //         candidateBankLeg.contact_type ??
-            //         bankTransaction.contact_type_snapshot ??
-            //         null),
-            //   description:
-            //     intentEntry.description === null
-            //       ? null
-            //       : (intentEntry.description ??
-            //         candidateBankLeg.description ??
-            //         bankTransaction.description ??
-            //         null),
-            //   project_id: intentEntry.project_id ?? null,
-            //   human_reviewed: intentEntry.human_reviewed ?? true,
-
-            //   review_notes:
-            //     intentEntry.review_notes === null
-            //       ? null
-            //       : (intentEntry.review_notes ?? null),
-            //   ...(intentEntry.metadata
-            //     ? { metadata: intentEntry.metadata }
-            //     : {}),
-            // });
-
             mergedNonBankLegs.push(
               buildNonBankLegFromCandidateSplit(
                 intentEntry,
@@ -945,45 +939,13 @@ export async function processCategorizationIntent({
           }
         }
 
-        // // Build bank leg from candidate
-        // const bankLeg: LedgerEntryInput = {
-        //   is_bank_leg: true,
-        //   fs_date: toYMD(bankTransaction.date),
-        //   coa_id: bankTransaction.bank_account_coa_id,
-        //   source_currency_id: bankTransaction.bank_account_currency_id,
-        //   source_amount: bankTransaction.amount,
-        //   custom_exchange_rate:
-        //     intent.desired_state?.custom_exchange_rate ??
-        //     candidateBankLeg.custom_exchange_rate ??
-        //     bankTransaction.system_exchange_rate,
-        //   contact_id: bankTransaction.contact_id ?? null,
-        //   contact_type: bankTransaction.contact_type_snapshot ?? null,
-        //   description: bankTransaction.description ?? null,
-        // };
-
-        // // Build ledger transaction data
-        // const ledgerTxn: Omit<NewLedgerTransactionData, 'transactions'> = {
-        //   date: toDate(bankTransaction.date, 'start'),
-        //   transaction_source: 'bank_transaction',
-        //   categorization_source: candidate.source,
-        //   description: candidate.description ?? null,
-        //   reference: candidate.reference ?? null,
-        //   contact_id: candidate.contact_id,
-        //   contact_type: candidate.contact_type,
-        //   source_transaction_id: candidate.bank_transaction_id,
-        //   source_transaction_date: toDate(bankTransaction.date, 'start'),
-        //   source_transaction_amount: bankTransaction.amount,
-        //   source_transaction_currency_id:
-        //     bankTransaction.bank_account_currency_id,
-        //   categorization_candidate_id: candidate.id,
-        // };
-
         const bankLeg = buildBankLeg(bankTransaction, intent, candidateBankLeg);
         const ledgerTxn = buildLedgerTransactionMetadataFromCandidate(
           candidate,
           bankTransaction,
         );
 
+        candidateIdByPostedBankTxnId.set(bankTxnId, candidate.id);
         allLedgerInputs.push({
           ...ledgerTxn,
           transactions: [bankLeg, ...mergedNonBankLegs],
@@ -1178,11 +1140,11 @@ export async function processCategorizationIntent({
         // Add new entries (splits) - intent entries without entry_id
         const templateEntry = ledgerTxn.entries.find((e) => !e.is_bank_leg);
         const ledgerTxnDate =
-          typeof ledgerTxn.date === 'string'
-            ? new Date(ledgerTxn.date)
-            : ledgerTxn.date;
+          typeof ledgerTxn.transaction_date === 'string'
+            ? new Date(ledgerTxn.transaction_date)
+            : ledgerTxn.transaction_date;
         const ledgerTxnWithDate = {
-          date: ledgerTxnDate,
+          transaction_date: ledgerTxnDate,
           source_transaction_currency_id:
             ledgerTxn.source_transaction_currency_id,
           contact_id: ledgerTxn.contact_id ?? null,
@@ -1212,7 +1174,7 @@ export async function processCategorizationIntent({
           //     intentEntry.fs_date ??
           //     (templateEntry
           //       ? toYMD(templateEntry.fs_date)
-          //       : toYMD(ledgerTxn.date)),
+          //       : toYMD(ledgerTxn.transaction_date)),
           //   source_currency_id:
           //     templateEntry?.source_currency_id ??
           //     ledgerTxn.source_transaction_currency_id,
@@ -1274,7 +1236,7 @@ export async function processCategorizationIntent({
     }
 
     // Validate that all requested bank transaction IDs from intents were either processed or explicitly skipped
-    const requestedBankTxnIds = new Set(bankTransactionIds);
+    const requestedBankTxnIds = new Set(postingIntentsByBankTxn.keys());
     for (const requestedId of requestedBankTxnIds) {
       if (
         !foundBankTxnIds.has(requestedId) &&
@@ -1298,14 +1260,19 @@ export async function processCategorizationIntent({
       // throw new Error('No ledger inputs to process');
 
       const summary = {
-        total_processed: 0,
+        total_processed: candidateDecisionResults.length,
         created: 0,
         updated: 0,
         superseded: 0,
+        rejected: candidateDecisionResults.length,
         skipped: skippedTransactions.length,
         has_warnings: false,
       };
-      return { results: [], skipped: skippedTransactions, summary };
+      return {
+        results: candidateDecisionResults,
+        skipped: skippedTransactions,
+        summary,
+      };
     }
 
     // Defensive check: ensure array lengths match before mapping
@@ -1321,6 +1288,7 @@ export async function processCategorizationIntent({
       companyId: companyUUID,
       userId,
       trx: txn,
+      requestContext: { source: 'web' },
     });
 
     if (!ledgerResult.success) {
@@ -1333,12 +1301,17 @@ export async function processCategorizationIntent({
     const ledgerResults = ledgerResult.data ?? [];
     const results: Array<{
       bank_transaction_id: string;
-      operation: 'created' | 'updated_metadata' | 'superseded';
-      ledger_transaction_id: string;
+      operation:
+        | 'created'
+        | 'updated_metadata'
+        | 'superseded'
+        | 'candidate_rejected';
+      ledger_transaction_id?: string;
       old_ledger_transaction_id?: string;
+      candidate_id?: string;
       warnings?: Record<string, string>;
       transaction?: CategorizationTransaction[];
-    }> = [];
+    }> = [...candidateDecisionResults];
 
     // Ensure we don't exceed array bounds when mapping
     const maxLength = Math.min(
@@ -1376,6 +1349,9 @@ export async function processCategorizationIntent({
         bank_transaction_id: bankTxnId,
         operation: ledgerResultItem.operation,
         ledger_transaction_id: ledgerResultItem.ledgerTransactionId,
+        ...(candidateIdByPostedBankTxnId.has(bankTxnId)
+          ? { candidate_id: candidateIdByPostedBankTxnId.get(bankTxnId) }
+          : {}),
         ...(ledgerResultItem.oldLedgerTransactionId
           ? {
               old_ledger_transaction_id:
@@ -1384,6 +1360,54 @@ export async function processCategorizationIntent({
           : {}),
         ...(mergedWarnings ? { warnings: mergedWarnings } : {}),
       });
+
+      if (ledgerResultItem.operation === 'created') {
+        const sourceRow = dataByBankTxnId.get(bankTxnId)?.entries[0];
+        const sourceAmount = sourceRow?.bank_amount;
+        const sourceCurrencyId = sourceRow?.bank_currency_id;
+        const hasActivityAmount =
+          sourceAmount != null && sourceCurrencyId != null;
+        const candidateId = candidateIdByPostedBankTxnId.get(bankTxnId) ?? null;
+        await writeActivityEventIntent(txn, {
+          clientCompanyId: companyUUID,
+          actor: { type: 'user', userId },
+          sourceEntity: { type: 'bank_transaction', id: bankTxnId },
+          ledgerTransactionId: ledgerResultItem.ledgerTransactionId,
+          eventType: ACTIVITY_EVENT_TYPE.MANUAL_CATEGORIZATION_POSTED,
+          itemCount: 1,
+          amount: hasActivityAmount ? sourceAmount : null,
+          currencyId: hasActivityAmount ? sourceCurrencyId : null,
+          workType: candidateId
+            ? WORK_TYPE_REVIEW_SUGGESTIONS
+            : WORK_TYPE_CATEGORIZE_TRANSACTIONS,
+          idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.MANUAL_CATEGORIZATION_POSTED}:${ledgerResultItem.ledgerTransactionId}`,
+          metadata: {
+            bankTransactionId: bankTxnId,
+            bankAccountId:
+              bankTransactionMap.get(bankTxnId)?.bank_account_id ?? null,
+            candidateId,
+          },
+        });
+        await closePendingCandidatesAsPosted(txn, {
+          companyId: companyUUID,
+          bankTransactionId: bankTxnId,
+          ledgerTransactionId: ledgerResultItem.ledgerTransactionId,
+          actorUserId: userId,
+        });
+        await recordCandidateOutcomesForBankTransaction(txn, {
+          companyId: companyUUID,
+          bankTransactionId: bankTxnId,
+          ledgerTransactionId: ledgerResultItem.ledgerTransactionId,
+          comparisonBasis: 'manual_post',
+        });
+      } else if (ledgerResultItem.operation === 'superseded') {
+        await recordCandidateOutcomesForBankTransaction(txn, {
+          companyId: companyUUID,
+          bankTransactionId: bankTxnId,
+          ledgerTransactionId: ledgerResultItem.ledgerTransactionId,
+          comparisonBasis: 'manual_post_supersede',
+        });
+      }
     }
 
     // Fetch updated transactions for all processed bank transactions
@@ -1418,12 +1442,37 @@ export async function processCategorizationIntent({
       }
     }
 
-    // Build summary
+    if (results.length > 0) {
+      const affectedBankAccounts = new Set<string>();
+      for (const result of results) {
+        if (result.operation !== 'created') {
+          continue;
+        }
+        const bankAccountId = bankTransactionMap.get(
+          result.bank_transaction_id,
+        )?.bank_account_id;
+        if (!bankAccountId) {
+          logger.warn(
+            { bankTransactionId: result.bank_transaction_id },
+            'Posted bank transaction missing bank_account_id; skipping work materialization scope',
+          );
+          continue;
+        }
+        affectedBankAccounts.add(bankAccountId);
+      }
+
+      for (const bankAccountId of affectedBankAccounts) {
+        affectedScopes.push({ clientCompanyId: companyUUID, bankAccountId });
+      }
+    }
+
     const summary = {
       total_processed: results.length,
       created: results.filter((r) => r.operation === 'created').length,
       updated: results.filter((r) => r.operation === 'updated_metadata').length,
       superseded: results.filter((r) => r.operation === 'superseded').length,
+      rejected: results.filter((r) => r.operation === 'candidate_rejected')
+        .length,
       skipped: skippedTransactions.length,
       has_warnings: results.some(
         (r) => r.warnings && Object.keys(r.warnings).length > 0,
@@ -1444,13 +1493,23 @@ export async function processCategorizationIntent({
         'Categorization intents processed successfully',
         res,
       );
-    } else {
-      const res = await knexClient.transaction(exec);
-      return successResponse(
-        'Categorization intents processed successfully',
-        res,
-      );
     }
+
+    const res = await knexClient.transaction(exec);
+
+    // Fast inline materialization runs AFTER commit (UX accelerator) so solved
+    // work leaves the queue immediately. It never throws and never rolls back
+    // posted facts; deferred/failed scopes are surfaced as refetch metadata and
+    // reconciled by the durable outbox worker.
+    const workMaterialization =
+      affectedScopes.length > 0
+        ? { scopes: await fastMaterializeBankAccountScopes(affectedScopes) }
+        : undefined;
+
+    return successResponse('Categorization intents processed successfully', {
+      ...res,
+      ...(workMaterialization ? { workMaterialization } : {}),
+    });
   } catch (error) {
     logger.error(
       {

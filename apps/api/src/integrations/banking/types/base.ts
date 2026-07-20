@@ -9,23 +9,16 @@ export interface ProviderError {
 }
 
 /**
- * Transaction sync strategies for different provider types
+ * Where the provider stands on preparing the full requested transaction
+ * history for a connection.
  *
- * CURSOR_BASED: Provider offers stable cursors for incremental sync (Plaid, Teller, Stripe)
- * - Store cursor between syncs
- * - Cursor remains valid across pagination
- * - No date range needed for incremental syncs
+ * - collecting: more history is still being prepared; sync again later.
+ * - complete: everything the provider will ever supply has been returned.
+ * - unavailable: this provider cannot supply historical transactions.
  *
- * DATE_RANGE_OVERLAP: Provider uses page-based pagination without stable cursors (Mono, Okra)
- * - Use date ranges for queries
- * - Add 1-day overlap to catch backdated transactions
- * - Don't store page numbers (they're unstable)
- * - Rely on database deduplication via UNIQUE constraint
+ * Failures are thrown, not reported through this status.
  */
-export enum TransactionSyncStrategy {
-  CURSOR_BASED = 'cursor',
-  DATE_RANGE_OVERLAP = 'date',
-}
+export type ProviderHistoryStatus = 'collecting' | 'complete' | 'unavailable';
 
 // Flexible base interfaces that work across providers
 export interface ProviderItemDetails {
@@ -70,6 +63,11 @@ export interface ProviderAccount {
 
   balance: number;
   balanceDate: Date;
+  /**
+   * Provider-reported current balance at connect time. Not an accounting
+   * anchor — only stored as the statement/native balance snapshot.
+   */
+  reportedCurrentBalance?: { amount: number; asOf: Date };
 }
 
 export interface AccountDiscoveryResult {
@@ -124,29 +122,57 @@ export interface ConnectionDetails {
   bankAccounts: ProviderAccount[];
 }
 
-export interface TransactionSyncResult {
-  transactions: {
-    added: ProviderTransaction[];
-    modified: ProviderTransaction[];
-    removed: string[]; // transaction IDs
-  };
+/**
+ * The complete update an adapter fetched for one account. Adapters own their
+ * pagination entirely (cursor loops, page numbers, restart-on-mutation);
+ * shared code never branches on provider strategy. Providers also never
+ * classify added-vs-modified — they report what they observed, and shared
+ * code classifies each observation against what is already stored.
+ */
+export interface ProviderTransactionUpdate {
+  observedTransactions: ProviderTransaction[];
+  removedTransactionIds: string[];
+  /**
+   * Opaque provider checkpoint. Shared code stores it verbatim
+   * (bank_account_feeds.sync_cursor) and passes it back on the next fetch;
+   * it never interprets the value. Null when the provider has no checkpoint
+   * concept (e.g. Mono) or nothing to resume from yet.
+   */
+  nextCheckpoint: string | null;
+  historyStatus: ProviderHistoryStatus;
+  pageCount: number;
+  approximatePayloadBytes: number;
+  /**
+   * Latest provider-reported current balance for this account, when supplied.
+   * Persisted as provider_reported_* only — never as the recalc cache.
+   */
+  reportedCurrentBalance?: { amount: number; asOf: Date };
+}
 
-  nextCursor?: string;
-  hasMore: boolean;
+export interface FetchTransactionUpdateInput {
+  accessToken: string;
+  providerBankAccountId: string;
+  /** The checkpoint stored after the last successful sync, verbatim. */
+  checkpoint: string | null;
+  lastSuccessfulSyncAt: Date | null;
+  isInitialSync: boolean;
 }
 
 export abstract class BankingProvider {
   abstract readonly key: BankProviderKey;
   abstract readonly name: string;
-  abstract readonly transactionSyncStrategy: TransactionSyncStrategy;
+  /** Provider-configured history expected from a new connection. */
+  abstract readonly initialTransactionHistoryDays: number;
 
   // Initialize a link session and get a temporary token
   abstract createLinkToken({
     userId,
     companyId,
+    accessToken,
   }: {
     userId: string;
     companyId: string;
+    accessToken?: string;
   }): Promise<string>;
 
   // Exchange public token for a long-lived access token
@@ -172,17 +198,20 @@ export abstract class BankingProvider {
     accessToken: string;
     countryCode: string;
     userId: string;
+    knownBankId?: string;
   }): Promise<ConnectionDetails>;
 
   // Transaction sync support
   abstract supportsTransactionSync(): boolean;
 
-  // Sync transactions (initial or incremental)
-  abstract syncTransactions(params: {
-    accessToken: string;
-    cursor?: string;
-    fromDate?: Date; // For initial sync only
-  }): Promise<TransactionSyncResult>;
+  /**
+   * Fetch the complete transaction update for one account. The adapter
+   * handles every provider-specific pagination detail internally and returns
+   * only once the full update is buffered (or throws).
+   */
+  abstract fetchTransactionUpdate(
+    input: FetchTransactionUpdateInput,
+  ): Promise<ProviderTransactionUpdate>;
 
   // Error handling
   abstract handleError(error: any): ProviderError;

@@ -59,10 +59,16 @@ export const currenciesSchemas = {
   Currency: {
     type: 'object',
     properties: {
-      id: { type: 'integer' },
+      id: { type: 'string', format: 'uuid' },
       code: { type: 'string', description: 'ISO 4217 currency code' },
       name: { type: 'string', description: 'Currency name' },
       symbol: { type: 'string', description: 'Currency symbol' },
+      minorUnit: {
+        type: 'integer',
+        minimum: 0,
+        maximum: 4,
+        description: 'Number of decimal places used by the currency',
+      },
     },
   },
 };

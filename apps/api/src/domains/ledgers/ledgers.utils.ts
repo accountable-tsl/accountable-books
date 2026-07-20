@@ -1,6 +1,6 @@
 import type { Knex } from 'knex';
 
-import { AppError, logger, toDate, toYMD } from '../../shared/index.js';
+import { AppError, logger, toYMD } from '../../shared/index.js';
 import { getCurrencyById } from '../currencies/currencies.utils.js';
 import { determineExchangeRate } from '../exchangeRates/exchangeRates.utils.js';
 
@@ -8,8 +8,18 @@ import type {
   LedgerEntry,
   LedgerEntryInput,
   LedgerTransaction,
+  LedgerTransactionInput,
   NewLedgerTransactionData,
 } from './ledgers.types.js';
+
+type GLBalanceRecalcTrigger = 'ledger_entry' | 'supersession';
+
+export type OpenEndedGLBalanceRecalcRequest = {
+  companyId: string;
+  coaId: string;
+  recalcFrom: string;
+  triggeredBy: GLBalanceRecalcTrigger;
+};
 
 /**
  * Helper: Validate bank leg amount matches bank transaction native amount
@@ -69,10 +79,17 @@ export async function validateIds(
     return new Set<string>();
   }
 
-  const valid = await txn(table)
-    .whereIn('id', ids)
-    .where({ company_id: companyId, is_deleted: false })
-    .pluck('id');
+  const query = txn(table).whereIn('id', ids).where({ company_id: companyId });
+
+  if (table === 'contacts') {
+    query.andWhere({ is_deleted: false, status: 'active' });
+  } else if (table === 'projects') {
+    query.andWhere({ is_deleted: false });
+  } else {
+    query.andWhere({ is_deleted: false });
+  }
+
+  const valid = await query.pluck('id');
 
   const validIds = new Set(valid);
   const invalidIds = ids.filter((id) => !validIds.has(id));
@@ -101,10 +118,14 @@ export async function fetchLookupMap({
 
   const labelColumn = table === 'contacts' ? 'display_name' : 'name';
 
-  const rows = await txn(table)
-    .whereIn('id', ids)
-    .where({ company_id: companyId, is_deleted: false })
-    .select('id', labelColumn);
+  const query = txn(table).whereIn('id', ids).where({ company_id: companyId });
+  if (table === 'contacts') {
+    query.andWhere({ is_deleted: false, status: 'active' });
+  } else if (table === 'projects') {
+    query.andWhere({ is_deleted: false });
+  }
+
+  const rows = await query.select('id', labelColumn);
 
   const map = new Map(
     rows.map((row) => [String(row.id), row[labelColumn] as string]),
@@ -195,10 +216,18 @@ export async function resolveFx({
     // All identical
     finalCustomRate = [...uniqueRates][0]!;
   } else if (uniqueRates.size > 1) {
-    warnings.push(
-      `Conflicting custom FX rates detected for ${sourceCurr.code} → ${reportingCurr.code} on ${toYMD(ledgerTxDate)}. Using system rate.`,
+    throw new AppError(
+      `Conflicting custom FX rates for ${sourceCurr.code} → ${reportingCurr.code} on ${toYMD(ledgerTxDate)}: ${[...uniqueRates].join(', ')}`,
+      {
+        sourceCurrencyId,
+        sourceCurrencyCode: sourceCurr.code,
+        reportingCurrencyId,
+        reportingCurrencyCode: reportingCurr.code,
+        date: toYMD(ledgerTxDate),
+        customRates: [...uniqueRates],
+      },
+      true,
     );
-    finalCustomRate = systemRate;
   }
 
   // Validate Rates
@@ -274,23 +303,16 @@ export async function resolveFx({
  * @return {{ transactionDates: Date[], bounds: Map<string, { min: string; max: string }>, minYMD: string | null, maxYMD: string | null }}
  */
 export function processEntriesDates(entries: LedgerEntryInput[]) {
-  // 1. Initialize for the overall date range (minYMD, maxYMD) and the COA-specific bounds map
   const bounds = new Map<string, { min: string; max: string }>();
   let minYMD: string | null = null;
   let maxYMD: string | null = null;
 
-  // 2. Initialize for the list of transaction dates
-  const transactionDates = [];
-
-  // --- Start Single Loop ---
   for (const entry of entries) {
     const d = toYMD(entry.fs_date);
 
-    // Part A: Calculate overall min/max YMD
     if (!minYMD || d < minYMD) minYMD = d;
     if (!maxYMD || d > maxYMD) maxYMD = d;
 
-    // Part B: Calculate COA-specific bounds
     const b = bounds.get(entry.coa_id);
     if (!b) {
       bounds.set(entry.coa_id, { min: d, max: d });
@@ -298,15 +320,28 @@ export function processEntriesDates(entries: LedgerEntryInput[]) {
       if (d < b.min) b.min = d;
       if (d > b.max) b.max = d;
     }
-
-    // Part C: Collect the transaction date (equivalent to your initial .map() call)
-    transactionDates.push(toDate(entry.fs_date, 'start'));
   }
-  // --- End Single Loop ---
 
-  // Now all variables (transactionDates, bounds, minYMD, maxYMD) are populated.
-  // ... continue with the rest of your function logic ...
-  return { transactionDates, bounds, minYMD, maxYMD };
+  return { bounds, minYMD, maxYMD };
+}
+
+export function buildOpenEndedGLBalanceRecalcRequests({
+  companyId,
+  bounds,
+  triggeredBy,
+}: {
+  companyId: string;
+  bounds: Map<string, { min: string }>;
+  triggeredBy: GLBalanceRecalcTrigger;
+}): OpenEndedGLBalanceRecalcRequest[] {
+  return Array.from(bounds.entries())
+    .map(([coaId, range]) => ({
+      companyId,
+      coaId,
+      recalcFrom: range.min,
+      triggeredBy,
+    }))
+    .sort((a, b) => a.coaId.localeCompare(b.coaId));
 }
 
 /**
@@ -325,7 +360,7 @@ export const TRANSACTION_METADATA_FIELDS = new Set([
 
 // Transaction-level fields that are immutable (cannot be changed)
 export const TRANSACTION_IMMUTABLE_FIELDS = new Set([
-  'date',
+  'transaction_date',
   'transaction_source',
   'categorization_source',
   'source_transaction_id',
@@ -338,6 +373,7 @@ export const TRANSACTION_IMMUTABLE_FIELDS = new Set([
 // Entry-level metadata fields (can be updated in-place)
 export const ENTRY_METADATA_FIELDS = new Set([
   'description',
+  'reference',
   'metadata',
   'human_reviewed',
   'review_notes',
@@ -383,8 +419,8 @@ export function normalizeDateForComparison(value: unknown): string | null {
  * 3. Whether changes are metadata-only or accounting changes
  * 4. Whether bank leg immutability rules are violated (if isBankTransaction = true)
  *
- * Transaction-level fields like date, contact_id are IMMUTABLE and should never appear
- * in proposed changes.
+ * Transaction-level fields like transaction_date and contact_id are IMMUTABLE
+ * and should never appear in proposed changes.
  *
  * Bank Leg Immutability: For bank transactions, the bank leg (is_bank_leg = true) must have
  * immutable coa_id, source_currency_id, and source_amount. Any attempt to change these
@@ -709,5 +745,16 @@ export function detectChangedFields({
     isMetadataOnly,
     isAccountingChange,
     ...(bankLegViolation && { bankLegViolation }),
+  };
+}
+
+/** Map legacy create payload (`transactions`) to batch post input (`entries`). */
+export function toLedgerTransactionInput(
+  data: NewLedgerTransactionData,
+): LedgerTransactionInput {
+  const { transactions, ...header } = data;
+  return {
+    ...header,
+    entries: transactions,
   };
 }

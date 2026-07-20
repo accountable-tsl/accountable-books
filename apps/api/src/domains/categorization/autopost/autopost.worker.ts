@@ -70,7 +70,11 @@ async function processAutopostJob(job: Job<AutopostJobData>) {
 
     // Fetch candidate with its lines
     const candidate = await knexClient('categorization_candidates')
-      .where({ id: candidateId, is_deleted: false })
+      .where({
+        id: candidateId,
+        review_state: 'pending_review',
+        is_deleted: false,
+      })
       .first(
         'id',
         'categorization_task_id',
@@ -93,7 +97,7 @@ async function processAutopostJob(job: Job<AutopostJobData>) {
     if (!candidate) {
       logger.warn(
         { candidateId, jobId: job.id },
-        'Candidate not found or deleted, skipping autopost',
+        'Candidate not found, deleted, or no longer pending review; skipping autopost',
       );
       return; // Don't throw - candidate might have been deleted
     }
@@ -138,7 +142,12 @@ async function processAutopostJob(job: Job<AutopostJobData>) {
     // Race condition check: Check if already posted
     const bankTransaction = await knexClient('bank_transactions')
       .where({ id: candidate.bank_transaction_id })
-      .first('ledger_transaction_id', 'amount', 'bank_account_id', 'date');
+      .first(
+        'ledger_transaction_id',
+        'amount',
+        'bank_account_id',
+        'transaction_date as date',
+      );
 
     if (!bankTransaction) {
       logger.warn(
@@ -150,20 +159,6 @@ async function processAutopostJob(job: Job<AutopostJobData>) {
         'Bank transaction not found, skipping autopost',
       );
       return; // Don't throw
-    }
-
-    // Check if already posted
-    if (bankTransaction.ledger_transaction_id) {
-      logger.info(
-        {
-          candidateId,
-          bankTransactionId: candidate.bank_transaction_id,
-          ledgerTransactionId: bankTransaction.ledger_transaction_id,
-          jobId: job.id,
-        },
-        'Candidate already posted to ledger, skipping autopost',
-      );
-      return; // Already posted - this is expected and not an error
     }
 
     // Get bank account currency ID

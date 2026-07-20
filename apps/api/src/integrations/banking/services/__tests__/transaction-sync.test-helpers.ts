@@ -1,0 +1,403 @@
+import { randomUUID } from 'node:crypto';
+import type { Knex } from 'knex';
+import { vi } from 'vitest';
+
+import {
+  getCurrencyId,
+  getTestCompanyId,
+  getTestUserId,
+  US_USER_EMAIL,
+} from '../../../../../test/helpers.js';
+import { encrypt } from '../../../../shared/utils/crypto.utils.js';
+import { TransactionUpdateBuffer } from '../../providers/provider-sync.utils.js';
+
+import type {
+  BankingProvider,
+  FetchTransactionUpdateInput,
+  ProviderError,
+  ProviderHistoryStatus,
+  ProviderTransaction,
+} from '../../types/base.js';
+
+export async function createSyncFailureFixture(db: Knex): Promise<{
+  bankAccountId: string;
+  providerBankAccountId: string;
+  connectionId: string;
+  feedId: string;
+  companyId: string;
+  userId: string;
+  restoreRole: () => Promise<void>;
+}> {
+  const setup = await db.transaction();
+  let companyId: string;
+  let userId: string;
+  let currencyId: string;
+  try {
+    companyId = await getTestCompanyId(setup, 'indDemoUS');
+    userId = await getTestUserId(setup, US_USER_EMAIL);
+    currencyId = await getCurrencyId(setup, 'USD');
+    await setup.commit();
+  } catch (error) {
+    await setup.rollback();
+    throw error;
+  }
+
+  const [bank, provider, coa] = await Promise.all([
+    db('banks').select('id').first<{ id: string }>(),
+    db('bank_feed_providers')
+      .where({ key: 'plaid' })
+      .select('id')
+      .first<{ id: string }>(),
+    db('coa')
+      .where({ company_id: companyId, is_deleted: false })
+      .select('id')
+      .first<{ id: string }>(),
+  ]);
+  if (!bank || !provider || !coa) {
+    throw new Error('Expected bank, Plaid provider, and company COA fixtures');
+  }
+
+  const restoreRole = await ensureClientOwnerRole(db, {
+    companyId,
+    userId,
+    actorUserId: userId,
+  });
+
+  const [connection] = await db('bank_connections')
+    .insert({
+      company_id: companyId,
+      provider_id: provider.id,
+      provider_item_id: `item-${randomUUID()}`,
+      authorization_status: 'active',
+      connected_by_id: userId,
+    })
+    .returning('id');
+
+  await db('bank_connection_secrets').insert({
+    bank_connection_id: connection.id,
+    encrypted_access_token: encrypt(
+      `access-${randomUUID()}`,
+      `${connection.id}:${companyId}`,
+    ),
+    encryption_key_version: 1,
+  });
+
+  const [bankAccount] = await db('bank_accounts')
+    .insert({
+      display_name: `Auth failure bank ${randomUUID()}`,
+      account_number_mask: '1234',
+      account_type: 'checkings_current',
+      business_or_personal: 'business',
+      bank_id: bank.id,
+      currency_id: currencyId,
+      company_id: companyId,
+      coa_id: coa.id,
+      created_by_id: userId,
+      updated_by_id: userId,
+    })
+    .returning('id');
+
+  const providerBankAccountId = `provider-account-${randomUUID()}`;
+  const [feed] = await db('bank_account_feeds')
+    .insert({
+      company_id: companyId,
+      bank_account_id: bankAccount.id,
+      bank_connection_id: connection.id,
+      provider_account_id: providerBankAccountId,
+      sync_from_timezone: 'Etc/UTC',
+      connected_by_id: userId,
+    })
+    .returning('id');
+
+  return {
+    bankAccountId: bankAccount.id,
+    providerBankAccountId,
+    connectionId: connection.id,
+    feedId: feed.id,
+    companyId,
+    userId,
+    restoreRole,
+  };
+}
+
+/**
+ * One page of a fake provider's paginated stream, in the shape most tests
+ * find convenient. added/modified both flatten into observed transactions —
+ * the split only exists so tests read naturally.
+ */
+export interface FakeProviderPage {
+  transactions: {
+    added: ProviderTransaction[];
+    modified: ProviderTransaction[];
+    removed: string[];
+  };
+  nextCursor?: string;
+  hasMore: boolean;
+  /** Defaults to 'collecting' so not-ready semantics are opt-out. */
+  historyStatus?: ProviderHistoryStatus;
+}
+
+export type FakeProviderPageFn = (params: {
+  cursor?: string;
+  fetchInput: FetchTransactionUpdateInput;
+}) => Promise<FakeProviderPage>;
+
+/**
+ * Builds a BankingProvider whose fetchTransactionUpdate paginates the given
+ * page function exactly like a real adapter would: it loops until hasMore is
+ * false, enforces account scoping via the shared buffer, and reports the
+ * final page's cursor as the opaque checkpoint.
+ */
+export function fakeProvider(
+  pageFn: FakeProviderPageFn,
+  key: 'plaid' | 'mono' = 'plaid',
+): BankingProvider {
+  const fetchTransactionUpdate = async (input: FetchTransactionUpdateInput) => {
+    const buffer = new TransactionUpdateBuffer({
+      providerKey: key,
+      providerBankAccountId: input.providerBankAccountId,
+    });
+    let cursor = input.checkpoint ?? undefined;
+    let historyStatus: ProviderHistoryStatus = 'collecting';
+
+    while (true) {
+      const page = await pageFn({ cursor, fetchInput: input });
+      buffer.addPage({
+        observedTransactions: [
+          ...page.transactions.added,
+          ...page.transactions.modified,
+        ],
+        removedTransactionIds: page.transactions.removed,
+      });
+      if (page.historyStatus) historyStatus = page.historyStatus;
+      if (!page.hasMore) {
+        return {
+          observedTransactions: buffer.observedTransactions,
+          removedTransactionIds: buffer.removedTransactionIds,
+          nextCheckpoint: key === 'mono' ? null : (page.nextCursor ?? null),
+          historyStatus,
+          pageCount: buffer.pageCount,
+          approximatePayloadBytes: buffer.approximatePayloadBytes,
+        };
+      }
+      if (!page.nextCursor) {
+        throw new Error('Fake provider reported more pages without a cursor');
+      }
+      cursor = page.nextCursor;
+    }
+  };
+
+  return {
+    key,
+    name: 'Fake provider',
+    initialTransactionHistoryDays: 730,
+    createLinkToken: vi.fn(),
+    exchangeToken: vi.fn(),
+    getConnectionDetails: vi.fn(),
+    supportsTransactionSync: vi.fn(() => true),
+    fetchTransactionUpdate,
+    handleError: vi.fn((error) => error as ProviderError),
+  } as unknown as BankingProvider;
+}
+
+export function emptyPage(
+  nextCursor: string,
+  hasMore: boolean,
+): FakeProviderPage {
+  return {
+    transactions: { added: [], modified: [], removed: [] },
+    nextCursor,
+    hasMore,
+  };
+}
+
+export function providerTransaction(
+  providerBankAccountId: string,
+  transactionId: string,
+): ProviderTransaction {
+  return {
+    transactionId,
+    providerBankAccountId,
+    date: '2026-01-15',
+    amount: 42,
+    description: 'Test transaction',
+    currencyCode: 'USD',
+    pending: false,
+    rawData: { transactionId },
+  };
+}
+
+export async function createSiblingBankAccount(
+  db: Knex,
+  fixture: {
+    bankAccountId: string;
+    connectionId: string;
+    userId: string;
+  },
+): Promise<string> {
+  const source = await db('bank_accounts')
+    .where({ id: fixture.bankAccountId })
+    .first('bank_id', 'currency_id', 'company_id', 'coa_id');
+  const [account] = await db('bank_accounts')
+    .insert({
+      display_name: `Sibling sync account ${randomUUID()}`,
+      account_number_mask: '5678',
+      account_type: 'checkings_current',
+      business_or_personal: 'business',
+      bank_id: source.bank_id,
+      currency_id: source.currency_id,
+      company_id: source.company_id,
+      coa_id: source.coa_id,
+      created_by_id: fixture.userId,
+      updated_by_id: fixture.userId,
+    })
+    .returning('id');
+
+  await db('bank_account_feeds').insert({
+    company_id: source.company_id,
+    bank_account_id: account.id,
+    bank_connection_id: fixture.connectionId,
+    provider_account_id: `provider-sibling-${randomUUID()}`,
+    connected_by_id: fixture.userId,
+  });
+
+  return account.id;
+}
+
+/** Delete a bank account and everything scoped to its feed, in FK order. */
+export async function cleanupBankAccountAndFeed(
+  db: Knex,
+  bankAccountId: string,
+): Promise<void> {
+  await db('app.outbox')
+    .whereRaw(`payload::text LIKE ?`, [`%${bankAccountId}%`])
+    .delete();
+  await db.transaction(async (trx) => {
+    await trx.raw("SELECT set_config('app.demo_seed_teardown', 'on', true)");
+    const feeds = await trx('bank_account_feeds')
+      .where({ bank_account_id: bankAccountId })
+      .select<{ id: string }[]>('id');
+    const feedIds = feeds.map((feed) => feed.id);
+    if (feedIds.length > 0) {
+      // Clear adoption links before deleting either side of the FK.
+      await trx('bank_transaction_feed_entries')
+        .whereIn('bank_account_feed_id', feedIds)
+        .update({ adopted_from_feed_entry_id: null });
+      await trx('bank_transaction_feed_entries')
+        .whereIn('bank_account_feed_id', feedIds)
+        .delete();
+      await trx('bank_transaction_history_candidates')
+        .whereIn('bank_account_feed_id', feedIds)
+        .delete();
+      await trx('bank_transaction_history_imports')
+        .whereIn('bank_account_feed_id', feedIds)
+        .delete();
+    }
+    await trx('bank_transactions')
+      .where({ bank_account_id: bankAccountId })
+      .delete();
+    await trx('bank_transaction_batches')
+      .where({ bank_account_id: bankAccountId })
+      .delete();
+    if (feedIds.length > 0) {
+      await trx('bank_transaction_sync_runs')
+        .whereIn('bank_account_feed_id', feedIds)
+        .delete();
+    }
+    await trx('bank_account_feeds')
+      .where({ bank_account_id: bankAccountId })
+      .delete();
+    await trx('bank_accounts').where({ id: bankAccountId }).delete();
+  });
+}
+
+export async function cleanupSyncFailureFixture(
+  db: Knex,
+  fixture: {
+    bankAccountId: string;
+    connectionId: string;
+    restoreRole: () => Promise<void>;
+  },
+  extraConnectionIds: string[] = [],
+): Promise<void> {
+  await db('app.comms_deliveries')
+    .whereRaw(`payload_data->>'bankAccountId' = ?`, [fixture.bankAccountId])
+    .delete();
+  // The failure handler writes real (non-transactional) outbox intents for
+  // this connection/account; delete them so repeated test runs don't leave
+  // orphaned rows that unrelated tests' broad outbox queries can pick up.
+  await db('app.outbox')
+    .where({ scope_key: `bank_account:${fixture.bankAccountId}` })
+    .orWhereRaw(`payload->'event'->>'attentionKey' = ?`, [
+      `bank_account:${fixture.bankAccountId}:reconnect`,
+    ])
+    .orWhereRaw(`payload->'event'->>'attentionKey' = ?`, [
+      `bank_account:${fixture.bankAccountId}:sync_failure`,
+    ])
+    .orWhereRaw(`payload->>'attentionKey' = ?`, [
+      `bank_account:${fixture.bankAccountId}:reconnect`,
+    ])
+    .orWhereRaw(`payload->'event'->>'attentionKey' LIKE ?`, [
+      `bank_account_feed:%:replacement_unmatched`,
+    ])
+    .delete();
+  await cleanupBankAccountAndFeed(db, fixture.bankAccountId);
+  const connectionIds = [fixture.connectionId, ...extraConnectionIds];
+  await db('bank_connection_secrets')
+    .whereIn('bank_connection_id', connectionIds)
+    .delete();
+  await db('bank_connections').whereIn('id', connectionIds).delete();
+  await fixture.restoreRole();
+}
+
+async function ensureClientOwnerRole(
+  db: Knex,
+  input: { companyId: string; userId: string; actorUserId: string },
+): Promise<() => Promise<void>> {
+  const role = await db('roles')
+    .where({ key: 'client_owner' })
+    .first<{ id: string }>('id');
+  if (!role) {
+    throw new Error('client_owner role fixture not found');
+  }
+
+  const existing = await db('user_company_roles')
+    .where({
+      company_id: input.companyId,
+      user_id: input.userId,
+      is_deleted: false,
+    })
+    .first<{
+      id: string;
+      role_id: string;
+      updated_by_id: string | null;
+      updated_at: Date | string;
+    }>('id', 'role_id', 'updated_by_id', 'updated_at');
+
+  if (existing) {
+    await db('user_company_roles').where({ id: existing.id }).update({
+      role_id: role.id,
+      updated_by_id: input.actorUserId,
+      updated_at: db.fn.now(),
+    });
+    return async () => {
+      await db('user_company_roles').where({ id: existing.id }).update({
+        role_id: existing.role_id,
+        updated_by_id: existing.updated_by_id,
+        updated_at: existing.updated_at,
+      });
+    };
+  }
+
+  const [inserted] = await db('user_company_roles')
+    .insert({
+      company_id: input.companyId,
+      user_id: input.userId,
+      role_id: role.id,
+      created_by_id: input.actorUserId,
+    })
+    .returning('id');
+  return async () => {
+    await db('user_company_roles').where({ id: inserted.id }).delete();
+  };
+}

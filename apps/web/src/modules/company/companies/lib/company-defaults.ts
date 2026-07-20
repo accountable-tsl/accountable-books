@@ -40,6 +40,11 @@ export function getDefaultCompanyData(): CompanyData {
 
     displayName: null,
     address: null,
+    addressLine1: null,
+    addressLine2: null,
+    city: null,
+    stateRegion: null,
+    postalCode: null,
     companyLogo: null,
     companyLogoKey: null,
     description: null,

@@ -72,7 +72,7 @@ export const createDemoCompaniesAndUsers = async (
         country_id: c.country.id,
         reporting_currency_id: c.currency.id,
         created_by_id: getUserId(c.createdBy.email),
-        last_updated_by_id: getUserId(c.createdBy.email),
+        updated_by_id: getUserId(c.createdBy.email),
         default_timezone:
           c.country.code === 'NG'
             ? 'Africa/Lagos'

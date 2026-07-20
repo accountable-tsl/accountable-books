@@ -28,7 +28,7 @@ ml-only: guard-nonprod ## Start only ML Engine in development (not via Turbo)
 	@echo "$(GREEN)🎯 Starting ML Engine only...$(RESET)"
 	@echo "$(YELLOW)🔨 Ensuring contracts are built...$(RESET)"
 	@pnpm -F @accountable-books/contracts run build || true
-	@cd apps/ml-engine && uv run uvicorn ml_engine.main:app --reload --host 0.0.0.0 --port 8002
+	@pnpm -F @accountable-books/ml-engine run dev
 
 ml-install: ## Install ML Engine Python dependencies
 	@echo "$(GREEN)🐍 Installing ML Engine Python dependencies...$(RESET)"

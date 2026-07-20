@@ -536,27 +536,16 @@ async function computeRunItem(
   }
 
   // Compute recurring deductions from payProfileSnapshot
-  let recurringDeductionsTotal = 0;
-  if (
-    runItem.payProfileSnapshot.recurringDeductions &&
-    runItem.payProfileSnapshot.recurringDeductions.length > 0
-  ) {
-    recurringDeductionsTotal =
-      runItem.payProfileSnapshot.recurringDeductions.reduce(
-        (sum, deduction) => {
-          const fromMonth = deduction.fromMonth;
-          const toMonth = deduction.toMonth;
-          if (
-            monthKey >= fromMonth &&
-            (toMonth == null || monthKey <= toMonth)
-          ) {
-            return sum + moneyToNumber(deduction.amount);
-          }
-          return sum;
-        },
-        0,
-      );
-  }
+  const activeRecurringDeductions =
+    runItem.payProfileSnapshot.recurringDeductions?.filter(
+      (deduction) =>
+        monthKey >= deduction.fromMonth &&
+        (deduction.toMonth == null || monthKey <= deduction.toMonth),
+    ) ?? [];
+  const recurringDeductionsTotal = activeRecurringDeductions.reduce(
+    (sum, deduction) => sum + moneyToNumber(deduction.amount),
+    0,
+  );
 
   const totalDeductions =
     statutory.employeePension +
@@ -852,6 +841,14 @@ async function computeRunItem(
       applied: enableRentRelief && annualRent > 0,
     },
     taxCalculation: {
+      annualTaxableGross:
+        payeResult != null
+          ? numberToMoney(payeResult.annualTaxableGross)
+          : undefined,
+      annualAllowableDeductions:
+        payeResult != null
+          ? numberToMoney(payeResult.annualAllowableDeductions)
+          : undefined,
       annualTaxableIncome: numberToMoney(payeResult?.annualTaxableIncome ?? 0),
       annualTax: numberToMoney(payeResult?.annualTax ?? 0),
       taxDueYtd:
@@ -897,6 +894,7 @@ async function computeRunItem(
     employeeNhf: numberToMoney(finalEmployeeNhf),
     employeeNhis: numberToMoney(finalEmployeeNhis),
     employerNhis: numberToMoney(finalEmployerNhis),
+    recurringDeductions: numberToMoney(recurringDeductionsTotal),
     totalDeductions: numberToMoney(
       finalEmployeePension +
         finalEmployeeNhf +
@@ -912,6 +910,22 @@ async function computeRunItem(
       transport: numberToMoney(monthlyTransport),
     },
     taxBreakdown,
+    settingsResolution: {
+      state: {
+        value: settings.state,
+        source: settings.sources.state,
+        companyDefault: settings.companyDefaultState,
+      },
+      pension: {
+        config: settings.pension,
+        source: settings.sources.pension,
+        companyEnabled: settings.companyPensionEnabled,
+      },
+      nhf: { config: settings.nhf, source: settings.sources.nhf },
+      nhis: { config: settings.nhis, source: settings.sources.nhis },
+      bhtBreakdown: { source: settings.sources.bhtBreakdown },
+      appliedRecurringDeductions: activeRecurringDeductions.length,
+    },
   };
 }
 

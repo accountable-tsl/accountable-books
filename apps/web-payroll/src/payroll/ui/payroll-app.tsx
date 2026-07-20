@@ -1,6 +1,7 @@
 import type {
   EmployeeRecord,
   PayrollCompanyDefaults,
+  PayrollComputedItem,
   PayrollComputedRun,
   PayrollRun,
   PayrollRunIndexEntry,
@@ -8,6 +9,7 @@ import type {
 } from '@/payroll/domain';
 import type { SummaryCardKey, SummaryCardProps } from '@/payroll/summary-card';
 import type { CompanyDefaultsUpdate } from '@/payroll/utils';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,6 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Popover,
@@ -80,6 +88,7 @@ import {
   Eye,
   EyeClosed,
   FileDown,
+  FileSpreadsheet,
   Grid2x2Plus,
   Plus,
   Save,
@@ -97,15 +106,18 @@ import {
   COMPANY_DEFAULTS,
   DEMO_COMPANY_DEFAULTS,
 } from '../data/company-defaults';
-import { NIGERIAN_STATES } from '../data/states';
 import { SimpleSelect } from '../simple-select';
+import { downloadBlob } from '../utils/download';
+import { exportPayrollExcel } from '../utils/export-excel';
 import { logger } from '../utils/logger';
+import { CompanySettingsTab } from './company-settings-tab';
 import { CsvImportDialog } from './csv-import-dialog';
 import { FinalizeDialog } from './finalize-dialog';
 import { PayrollTable } from './payroll-table';
 import { getTableRowData } from './payroll-table-utils';
 
 import type { StatutoryDeduction } from '../domain/payroll.schemas';
+import type { BhtSplitKey, PercentSplitField } from './company-settings-tab';
 
 // App Load → Check runs → If empty:
 //  1. Create sample run in memory (not saved)
@@ -186,12 +198,12 @@ function StatutoryDeductionToggle({
   onChange,
   label,
   className,
-}: {
+}: Readonly<{
   value: boolean;
   onChange: (value: boolean) => void;
   label: string;
   className?: string;
-}) {
+}>) {
   return (
     <label
       htmlFor={label}
@@ -219,14 +231,14 @@ function RunsList({
   onDeleteRunClick,
   onNewRun,
   variant = 'sidebar',
-}: {
+}: Readonly<{
   runs: PayrollRunIndexEntry[];
   currentRunId?: string;
   onSelectRun: (run: PayrollRunIndexEntry) => void;
   onDeleteRunClick: (run: PayrollRunIndexEntry) => void;
   onNewRun: () => void;
   variant?: RunsListVariant;
-}) {
+}>) {
   const containerClasses =
     variant === 'sidebar'
       ? 'flex max-h-[160px] min-h-[100px] flex-col overflow-y-auto rounded border text-sm xl:h-full xl:max-h-none xl:flex-1'
@@ -257,7 +269,8 @@ function RunsList({
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div
+                      <button
+                        type="button"
                         className={cn(
                           'flex flex-1 cursor-pointer items-center overflow-hidden',
                           isCurrentRun ? 'font-medium text-blue-500' : '',
@@ -281,7 +294,7 @@ function RunsList({
                             </span>
                           )}
                         </span>
-                      </div>
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="text-xs whitespace-pre-line">
@@ -373,13 +386,16 @@ function RunsList({
                 <div
                   key={run.id}
                   className={cn(
-                    'group bg-card hover:border-primary/50 relative cursor-pointer rounded-lg border p-4 transition-all hover:shadow-md',
+                    'group bg-card hover:border-primary/50 relative rounded-lg border transition-all hover:shadow-md',
                     isCurrentRun && 'border-primary ring-primary/20 ring-2',
                   )}
-                  onClick={() => onSelectRun(run)}
                 >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
+                  <div className="mb-3 flex items-start justify-between gap-2 p-4 pb-0">
+                    <button
+                      type="button"
+                      onClick={() => onSelectRun(run)}
+                      className="min-w-0 flex-1 cursor-pointer text-left"
+                    >
                       <div className="mb-1 flex items-center gap-2">
                         <h4 className="truncate text-sm font-semibold">
                           {run.companyName}
@@ -403,7 +419,7 @@ function RunsList({
                       <p className="text-muted-foreground text-xs">
                         {periodLabel}
                       </p>
-                    </div>
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -415,18 +431,24 @@ function RunsList({
                       <Trash2 className="size-4" />
                     </button>
                   </div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="text-muted-foreground text-xs">
-                        {tooltipText}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs whitespace-pre-line">
-                        {tooltipText}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <div className="px-4 pb-4">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => onSelectRun(run)}
+                          className="text-muted-foreground w-full cursor-pointer text-left text-xs"
+                        >
+                          {tooltipText}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs whitespace-pre-line">
+                          {tooltipText}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
               );
             })}
@@ -451,6 +473,419 @@ function rateToPercent(rate: number | undefined): number {
 // Convert percentage (0-100) to rate (0-1) for storage
 function percentToRate(percent: number): number {
   return clampPercent(percent) / 100;
+}
+
+function moneyToNumber(money: string | undefined): number {
+  return money ? Number.parseFloat(money) : 0;
+}
+
+function getOtherDeductionsTotal(computed: PayrollComputedRun | null) {
+  return (
+    computed?.items?.reduce((sum: number, item: PayrollComputedItem) => {
+      if (!item.totalDeductions) {
+        return sum;
+      }
+
+      const totalDeductions = moneyToNumber(item.totalDeductions);
+      const employeePension = item.employeePension
+        ? moneyToNumber(item.employeePension)
+        : 0;
+      const employeeNhf = item.employeeNhf
+        ? moneyToNumber(item.employeeNhf)
+        : 0;
+      const employeeNhis = item.employeeNhis
+        ? moneyToNumber(item.employeeNhis)
+        : 0;
+
+      return (
+        sum + totalDeductions - (employeePension + employeeNhf + employeeNhis)
+      );
+    }, 0) ?? 0
+  );
+}
+
+function buildSummaryCards(
+  computed: PayrollComputedRun | null,
+  currentRun: PayrollRun | null,
+): SummaryCardProps[] {
+  const totals = computed?.periodTotals;
+  const otherDeductionsTotal = getOtherDeductionsTotal(computed);
+
+  const summaryValues: Partial<Record<SummaryCardKey, number>> = {
+    gross: totals ? moneyToNumber(totals.grossTotal) : 0,
+    paye: totals ? moneyToNumber(totals.payeTotal) : undefined,
+    total_pension: totals
+      ? moneyToNumber(totals.employeePensionTotal) +
+        moneyToNumber(totals.employerPensionTotal)
+      : 0,
+    nhis: totals
+      ? moneyToNumber(totals.employeeNhisTotal) +
+        moneyToNumber(totals.employerNhisTotal)
+      : undefined,
+    nhf: totals ? moneyToNumber(totals.nhfTotal) : undefined,
+    net: totals ? moneyToNumber(totals.netTotal) : 0,
+    ee_pension: totals ? moneyToNumber(totals.employeePensionTotal) : 0,
+    er_pension: totals ? moneyToNumber(totals.employerPensionTotal) : 0,
+    other: otherDeductionsTotal,
+    employees: currentRun ? currentRun.items.length : 0,
+  };
+
+  const hasNhis = summaryValues.nhis != null;
+  const hasNhf = summaryValues.nhf != null;
+
+  const summaryKeys: SummaryCardKey[] = [
+    'gross',
+    'paye',
+    'total_pension',
+    'net',
+    ...(hasNhis || hasNhf
+      ? (['nhis', 'nhf'] as const)
+      : (['ee_pension', 'er_pension'] as const)),
+    'other',
+    'employees',
+  ];
+
+  return summaryKeys.reduce<SummaryCardProps[]>((acc, summaryKey) => {
+    const value = summaryValues[summaryKey];
+    if (value !== undefined) {
+      acc.push({ summaryKey, value });
+    }
+    return acc;
+  }, []);
+}
+
+function getMobileVisibleSummaryCount(summaryCards: SummaryCardProps[]) {
+  return summaryCards.reduce((count, item) => {
+    return count + (MOBILE_VISIBLE_KEYS.has(item.summaryKey) ? 1 : 0);
+  }, 0);
+}
+
+function getSummaryCardClassName(
+  item: SummaryCardProps,
+  index: number,
+  showAllOnLg: boolean,
+) {
+  const isMobileHidden = !MOBILE_VISIBLE_KEYS.has(item.summaryKey);
+  const isExtraOnLg = index >= LG_VISIBLE_COUNT;
+
+  return (
+    [
+      isMobileHidden && 'hidden sm:block',
+      !showAllOnLg && isExtraOnLg && 'lg:hidden',
+      showAllOnLg &&
+        isExtraOnLg &&
+        'lg:animate-in lg:fade-in-0 lg:zoom-in-95 lg:duration-200 motion-reduce:lg:animate-none',
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined
+  );
+}
+
+function SummaryCardsPanel({
+  summaryCards,
+  showAllOnLg,
+  onToggleShowAllOnLg,
+  isMobileClamped,
+  shouldClampOnMobile,
+  showAllOnMobile,
+  onShowAllOnMobile,
+  onHideAllOnMobile,
+}: Readonly<{
+  summaryCards: SummaryCardProps[];
+  showAllOnLg: boolean;
+  onToggleShowAllOnLg: () => void;
+  isMobileClamped: boolean;
+  shouldClampOnMobile: boolean;
+  showAllOnMobile: boolean;
+  onShowAllOnMobile: () => void;
+  onHideAllOnMobile: () => void;
+}>) {
+  return (
+    <div className="relative">
+      {summaryCards.length > LG_VISIBLE_COUNT && (
+        <div className="absolute -top-2 right-0 z-50 hidden justify-end lg:flex">
+          <button
+            type="button"
+            className="text-muted-foreground/50 hover:text-muted-foreground cursor-pointer text-xs underline underline-offset-2"
+            onClick={onToggleShowAllOnLg}
+          >
+            {showAllOnLg ? 'Show less' : 'Show more'}
+          </button>
+        </div>
+      )}
+      <div
+        className={[
+          'grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4 lg:pt-2',
+          isMobileClamped && 'max-h-[240px] overflow-hidden',
+          'lg:max-h-none lg:overflow-visible',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {summaryCards.map((item, index) => (
+          <SummaryCard
+            key={item.summaryKey}
+            summaryKey={item.summaryKey}
+            value={item.value}
+            className={getSummaryCardClassName(item, index, showAllOnLg)}
+          />
+        ))}
+      </div>
+
+      {isMobileClamped && (
+        <>
+          <div className="to-background pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent lg:hidden" />
+          <div className="absolute inset-x-0 bottom-2 flex justify-center lg:hidden">
+            <button
+              type="button"
+              className="bg-background/80 text-foreground border-border/30 hover:bg-background cursor-pointer rounded-md border border-t-0 px-3 py-1 text-xs shadow-xs backdrop-blur"
+              onClick={onShowAllOnMobile}
+            >
+              Show more
+            </button>
+          </div>
+        </>
+      )}
+
+      {shouldClampOnMobile && showAllOnMobile && (
+        <div className="mt-2 flex justify-center lg:hidden">
+          <button
+            type="button"
+            className="text-muted-foreground/70 hover:text-muted-foreground text-xs underline underline-offset-2"
+            onClick={onHideAllOnMobile}
+          >
+            Show less
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PolicyAndRunsSection({
+  showPolicyAndRuns,
+  isMdScreen,
+  isXlScreen,
+  isCompanyPolicyOpen,
+  percentSplitFields,
+  otherAllowancesPct,
+  runList,
+  currentRunId,
+  onTogglePolicyAndRuns,
+  onCompanyPolicyHeaderClick,
+  onPolicySplitChange,
+  renderStatutoryToggles,
+  onSelectRun,
+  onDeleteRunClick,
+  onNewRun,
+}: Readonly<{
+  showPolicyAndRuns: boolean;
+  isMdScreen: boolean;
+  isXlScreen: boolean;
+  isCompanyPolicyOpen: boolean;
+  percentSplitFields: readonly PercentSplitField[];
+  otherAllowancesPct: number;
+  runList: PayrollRunIndexEntry[];
+  currentRunId?: string;
+  onTogglePolicyAndRuns: () => void;
+  onCompanyPolicyHeaderClick: () => void;
+  onPolicySplitChange: (key: BhtSplitKey, nextValue: number) => void;
+  renderStatutoryToggles: () => ReactNode;
+  onSelectRun: (run: PayrollRunIndexEntry) => void;
+  onDeleteRunClick: (run: PayrollRunIndexEntry) => void;
+  onNewRun: () => void;
+}>) {
+  return (
+    <div
+      className={cn(
+        'relative space-y-3 xl:flex xl:flex-row xl:gap-4 xl:space-y-0',
+        showPolicyAndRuns ? 'xl:h-[170px]' : '',
+      )}
+    >
+      <button
+        type="button"
+        className="absolute top-0 -left-5 z-10 hidden cursor-pointer transition-opacity hover:opacity-70 md:block"
+        onClick={onTogglePolicyAndRuns}
+        aria-label={
+          showPolicyAndRuns
+            ? 'Hide company policy and runs'
+            : 'Show company policy and runs'
+        }
+      >
+        {showPolicyAndRuns ? (
+          <Eye className="text-muted-foreground size-4" />
+        ) : (
+          <EyeClosed className="text-muted-foreground size-4" />
+        )}
+      </button>
+
+      {(!isMdScreen || showPolicyAndRuns) && (
+        <div className="hidden overflow-hidden rounded-sm border text-sm md:block xl:flex-1">
+          <button
+            type="button"
+            className="hover:bg-muted/30 flex w-full items-center justify-between gap-3 rounded p-4 py-3 text-left xl:cursor-default xl:hover:bg-transparent"
+            aria-expanded={isCompanyPolicyOpen || isXlScreen}
+            onClick={onCompanyPolicyHeaderClick}
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Settings2 className="size-4" />
+                Company Policy
+              </div>
+              <div className="text-muted-foreground mt-0.5 truncate text-xs">
+                Defaults applied when creating employees.
+              </div>
+            </div>
+            <ChevronDown
+              className={[
+                'text-muted-foreground size-4 shrink-0 transition-transform xl:hidden',
+                isCompanyPolicyOpen ? 'rotate-180' : 'rotate-0',
+              ].join(' ')}
+            />
+          </button>
+          {(isCompanyPolicyOpen || isXlScreen) && (
+            <div className="border-t p-4 sm:p-5">
+              <div className="grid gap-2 sm:grid-cols-3">
+                {percentSplitFields.map((field) => (
+                  <div key={field.id} className="space-y-1">
+                    <div className="flex h-7.5 w-full items-center overflow-hidden rounded border bg-transparent shadow-xs">
+                      <div className="bg-muted text-muted-foreground flex h-full w-24 shrink-0 items-center border-r px-2 text-xs font-medium sm:w-20 md:w-24 md:uppercase">
+                        {field.label}
+                      </div>
+                      <div className="relative h-full flex-1">
+                        <Input
+                          id={field.id}
+                          inputMode="numeric"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          placeholder="0"
+                          className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
+                          onKeyDown={(event) => {
+                            if (event.key === '-') event.preventDefault();
+                          }}
+                          value={field.value}
+                          onChange={(event) => {
+                            const raw = event.currentTarget.value;
+                            onPolicySplitChange(
+                              field.key,
+                              raw ? Number(raw) : 0,
+                            );
+                          }}
+                        />
+                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <div className="contents xl:col-span-3 xl:flex xl:w-full xl:items-center xl:gap-2">
+                  <div className="flex h-7.5 gap-3 space-y-1 divide-x sm:col-span-3 sm:justify-between lg:col-span-2 xl:flex-1">
+                    <div className="bg-muted flex h-7.5 w-full items-center overflow-hidden rounded border shadow-xs">
+                      <div className="text-muted-foreground flex h-full shrink-0 items-center px-2 text-xs font-medium md:uppercase">
+                        Other Allowances
+                      </div>
+                      <div className="relative h-full flex-1">
+                        <Input
+                          inputMode="numeric"
+                          type="number"
+                          value={otherAllowancesPct}
+                          readOnly
+                          tabIndex={-1}
+                          aria-label="Other allowances percent (calculated)"
+                          className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
+                        />
+                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
+                          %
+                        </span>
+                      </div>
+                    </div>
+                    <div className="hidden justify-between gap-2 sm:flex sm:flex-shrink-0 lg:hidden">
+                      {renderStatutoryToggles()}
+                    </div>
+                  </div>
+                  <div className="hidden justify-between gap-2 lg:flex xl:flex-1">
+                    {renderStatutoryToggles()}
+                  </div>
+                </div>
+              </div>
+              <fieldset className="space-y-2 sm:hidden">
+                <legend className="text-muted-foreground text-xs">
+                  Default statutory deductions
+                </legend>
+                <div className="flex justify-between gap-2">
+                  {renderStatutoryToggles()}
+                </div>
+              </fieldset>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(!isMdScreen || showPolicyAndRuns) && (
+        <RunsList
+          runs={runList}
+          currentRunId={currentRunId}
+          onSelectRun={onSelectRun}
+          onDeleteRunClick={onDeleteRunClick}
+          onNewRun={onNewRun}
+          variant="sidebar"
+        />
+      )}
+    </div>
+  );
+}
+
+function EmployeesTabContent({
+  currentRun,
+  computed,
+  onEditEmployee,
+  onDeleteEmployee,
+  onAddEmployee,
+  effectiveViewMode,
+  finalizedPeriodKeys,
+}: Readonly<{
+  currentRun: PayrollRun | null;
+  computed: PayrollComputedRun | null;
+  onEditEmployee: (runItem: PayrollRunItem) => void;
+  onDeleteEmployee: (runItemId: string) => void;
+  onAddEmployee: () => void;
+  effectiveViewMode: 'standard' | 'detailed';
+  finalizedPeriodKeys: string[];
+}>) {
+  if (!currentRun) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-muted-foreground text-center">
+          <p className="mb-2 text-lg font-medium">No payroll run selected</p>
+          <p className="text-sm">
+            Create a new run or load an existing one to get started
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <PayrollTable
+      runItems={currentRun.items}
+      computedItems={computed?.items}
+      onEdit={onEditEmployee}
+      onDelete={onDeleteEmployee}
+      onAdd={onAddEmployee}
+      viewMode={effectiveViewMode}
+      runStatus={currentRun.status}
+      runPeriod={{
+        month: currentRun.periodMonth,
+        year: currentRun.periodYear,
+        endMonth: currentRun.periodEndMonth,
+        endYear: currentRun.periodEndYear,
+      }}
+      finalizedPeriodKeys={finalizedPeriodKeys}
+    />
+  );
 }
 
 export function Payroll() {
@@ -489,6 +924,7 @@ export function Payroll() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [csvImportDialogOpen, setCsvImportDialogOpen] = useState(false);
   const isInitialMount = useRef(true);
+  const hasLoadedInitialRuns = useRef(false);
   const currentRunRef = useRef<PayrollRun | null>(null);
 
   // Initialize company settings with default values
@@ -498,6 +934,7 @@ export function Payroll() {
   const companySettings = companyDefaults.settings;
   const companyName = companyDefaults.companyName ?? '';
   const runCompanyName = companyDefaults.companyName?.trim() || 'Company';
+  const companyId = companyDefaults.companyId;
   const currentYear = new Date().getFullYear();
   const yearOptions = [String(currentYear), String(currentYear + 1)];
   const finalizedPeriodKeys = useMemo(() => {
@@ -525,7 +962,7 @@ export function Payroll() {
       }
     }
 
-    return Array.from(keySet).sort();
+    return Array.from(keySet).sort((a, b) => a.localeCompare(b));
   }, [runList, currentRun]);
 
   // Default to detailed view on screens >= 1280px, standard otherwise
@@ -649,9 +1086,7 @@ export function Payroll() {
           ? deepMerge(baseSettings, updates.settings)
           : baseSettings;
         const nextRunCompanyName =
-          updates.companyName === undefined
-            ? currentRun.companyName
-            : updates.companyName;
+          updates.companyName ?? currentRun.companyName;
         const updatedRun: PayrollRun = {
           ...currentRun,
           companyName: nextRunCompanyName,
@@ -771,77 +1206,93 @@ export function Payroll() {
     })();
   }, []);
 
+  const showSampleRunPreview = useCallback(() => {
+    const { periodYear, periodMonth } = parsePeriod(year, month);
+    const { run } = createSamplePayrollRunPreview(periodMonth, periodYear);
+
+    setCurrentRun(run);
+    setIsSampleRun(true);
+    setCompanyDefaults((prev: PayrollCompanyDefaults) => ({
+      ...prev,
+      companyName: run.companyName,
+      settings: run.settings ?? prev.settings,
+    }));
+  }, [year, month]);
+
+  const handleNoSavedRunsOnInitialLoad = useCallback(() => {
+    setRunList([]);
+    showSampleRunPreview();
+    setWelcomeOpen(true);
+  }, [showSampleRunPreview]);
+
+  const handleSavedRunsOnInitialLoad = useCallback(
+    async (runs: PayrollRunIndexEntry[]) => {
+      setRunList(runs);
+
+      const { run: loadedRun, index: loadedRunIndex } =
+        await findFirstLoadableRun(runs);
+
+      if (!loadedRun) {
+        toast.error('Could not load any payroll runs', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+        applyLoadedRun(null);
+        setWelcomeOpen(true);
+        return;
+      }
+
+      applyLoadedRun(loadedRun);
+
+      if (loadedRunIndex > 0) {
+        toast.warning('Some runs could not be loaded', {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        });
+      }
+    },
+    [findFirstLoadableRun, applyLoadedRun, isMdScreen],
+  );
+
+  const handleInitialRunsLoadFailure = useCallback(
+    (error: unknown) => {
+      logger.error('Failed to load payroll runs', error);
+      toast.warning('Could not load saved runs', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+      setRunList([]);
+      showSampleRunPreview();
+      setWelcomeOpen(true);
+    },
+    [showSampleRunPreview, isMdScreen],
+  );
+
   // Check for runs on load and load the most recent one, or pre-load sample data if none exist
   useEffect(() => {
+    if (hasLoadedInitialRuns.current) return;
+    hasLoadedInitialRuns.current = true;
+
     (async () => {
       try {
         setIsLoadingRuns(true);
-        const runsIndexData = await loadRunsIndex();
+        const { runs } = await loadRunsIndex();
 
-        if (runsIndexData.runs.length === 0) {
-          // No runs exist - pre-load sample data for visual preview
-          setRunList([]);
-          const { periodYear, periodMonth } = parsePeriod(year, month);
-          const { run } = createSamplePayrollRunPreview(
-            periodMonth,
-            periodYear,
-          );
-          setCurrentRun(run);
-          setIsSampleRun(true);
-          setCompanyDefaults((prev) => ({
-            ...prev,
-            companyName: run.companyName,
-            settings: run.settings ?? prev.settings,
-          }));
-          setWelcomeOpen(true);
-        } else {
-          // Update runs index for display
-          setRunList(runsIndexData.runs);
-
-          const { run: loadedRun, index: loadedRunIndex } =
-            await findFirstLoadableRun(runsIndexData.runs);
-
-          if (loadedRun) {
-            applyLoadedRun(loadedRun);
-
-            // Warn if we had to skip some runs
-            if (loadedRunIndex > 0) {
-              toast.warning('Some runs could not be loaded', {
-                position: isMdScreen ? 'bottom-right' : 'top-center',
-              });
-            }
-          } else {
-            // All runs failed to load - show blank state (no sample data)
-            toast.error('Could not load any payroll runs', {
-              position: isMdScreen ? 'bottom-right' : 'top-center',
-            });
-            applyLoadedRun(null);
-            setWelcomeOpen(true);
-          }
+        if (runs.length === 0) {
+          handleNoSavedRunsOnInitialLoad();
+          return;
         }
-      } catch (e) {
-        // If there's an error loading runs, assume no runs exist
-        // Still pre-load sample data
-        toast.warning('Could not load saved runs', {
-          position: isMdScreen ? 'bottom-right' : 'top-center',
-        });
-        setRunList([]);
-        const { periodYear, periodMonth } = parsePeriod(year, month);
-        const { run } = createSamplePayrollRunPreview(periodMonth, periodYear);
-        setCurrentRun(run);
-        setIsSampleRun(true);
-        setCompanyDefaults((prev) => ({
-          ...prev,
-          companyName: run.companyName,
-          settings: run.settings ?? prev.settings,
-        }));
-        setWelcomeOpen(true);
+
+        await handleSavedRunsOnInitialLoad(runs);
+      } catch (error) {
+        handleInitialRunsLoadFailure(error);
       } finally {
         setIsLoadingRuns(false);
       }
     })();
     // Only run on mount - month/year changes don't trigger reload
-  }, []);
+  }, [
+    handleNoSavedRunsOnInitialLoad,
+    handleSavedRunsOnInitialLoad,
+    handleInitialRunsLoadFailure,
+  ]);
 
   // Handle month/year changes - update currentRun period or load existing run
   // Debounced to avoid excessive async operations when user changes month/year rapidly
@@ -956,7 +1407,7 @@ export function Payroll() {
         nowIso: getCurrentTimestamp(),
         // rulesetKey defaults to NG-2026-v1 defined in schema
         companyName: runCompanyName,
-        companyId: companyDefaults?.companyId,
+        companyId,
         periodMonth,
         periodYear,
       });
@@ -994,6 +1445,8 @@ export function Payroll() {
     companySettings,
     refreshRunList,
     runCompanyName,
+    companyId,
+    isMdScreen,
   ]);
 
   const handleDuplicateRun = useCallback(async () => {
@@ -1039,12 +1492,14 @@ export function Payroll() {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     } catch (error) {
-      console.error('Error duplicating run:', error);
+      logger.error('Error duplicating run', error, {
+        runId: currentRun.id,
+      });
       toast.error('Could not duplicate payroll run', {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     }
-  }, [currentRun, refreshRunList]);
+  }, [currentRun, refreshRunList, isMdScreen]);
 
   const handleFinalizeRunClick = useCallback(async () => {
     if (!currentRun) return;
@@ -1059,7 +1514,7 @@ export function Payroll() {
 
     // Compute payroll to check if gross is zero
     const computedData = await computeRun(currentRun);
-    const totalGross = parseFloat(computedData.periodTotals.grossTotal);
+    const totalGross = Number.parseFloat(computedData.periodTotals.grossTotal);
     if (totalGross === 0) {
       toast.error('Cannot finalize payroll with zero gross', {
         position: isMdScreen ? 'bottom-right' : 'top-center',
@@ -1122,7 +1577,7 @@ export function Payroll() {
   );
 
   const handleFinalizeRun = useCallback(
-    async (_name: string, sync: 'local' | 'cloud') => {
+    async (sync: 'local' | 'cloud') => {
       if (!currentRun) return;
 
       try {
@@ -1137,8 +1592,7 @@ export function Payroll() {
           finalizedAt: getCurrentTimestamp(),
           updatedAt: getCurrentTimestamp(),
           computed: computedData, // Store computed data
-          // Note: finalizedByName and sync option are for future use
-          // For now, both options save locally
+          // Note: sync option is for future use. For now, both options save locally.
         };
 
         // Save the finalized run
@@ -1255,7 +1709,7 @@ export function Payroll() {
       return;
     }
 
-    if (!currentRun.items || currentRun.items.length === 0) {
+    if (currentRun.items.length === 0) {
       toast.error(
         'Cannot export an empty payroll. Add at least one employee.',
         {
@@ -1289,34 +1743,36 @@ export function Payroll() {
       const escapeCsv = (value: string | number | undefined | null): string => {
         const str = value == null ? '' : String(value);
         if (str.includes('"') || str.includes(',') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
+          return `"${str.replaceAll('"', '""')}"`;
         }
         return str;
       };
 
       const moneyToNumber = (money: string | undefined): number => {
-        return money ? parseFloat(money) : 0;
+        return money ? Number.parseFloat(money) : 0;
       };
 
-      const rows = currentRun.items.map((item) => {
+      const rows = currentRun.items.map((item: PayrollRunItem) => {
         const computedItem = computed.items.find(
-          (ci) => ci.runItemId === item.id,
+          (ci: PayrollComputedItem) => ci.runItemId === item.id,
         );
         const rowData = getTableRowData(item, computedItem);
 
         // Calculate one-off allowances total
         const oneOffAllowancesTotal =
-          computedItem?.taxBreakdown?.oneOffAllowances?.total != null
-            ? moneyToNumber(computedItem.taxBreakdown.oneOffAllowances.total)
-            : (item.edits?.oneOffAllowances?.reduce(
-                (sum, allowance) => sum + moneyToNumber(allowance.amount),
+          computedItem?.taxBreakdown?.oneOffAllowances?.total == null
+            ? (item.edits?.oneOffAllowances?.reduce(
+                (sum: number, allowance: { amount: string }) =>
+                  sum + moneyToNumber(allowance.amount),
                 0,
-              ) ?? 0);
+              ) ?? 0)
+            : moneyToNumber(computedItem.taxBreakdown.oneOffAllowances.total);
 
         // Calculate one-off deductions total
         const oneOffDeductionsTotal =
           item.edits?.oneOffDeductions?.reduce(
-            (sum, deduction) => sum + moneyToNumber(deduction.amount),
+            (sum: number, deduction: { amount: string }) =>
+              sum + moneyToNumber(deduction.amount),
             0,
           ) ?? 0;
 
@@ -1328,44 +1784,35 @@ export function Payroll() {
           rowData.monthlyHousing.toFixed(2),
           rowData.monthlyTransport.toFixed(2),
           oneOffAllowancesTotal > 0 ? oneOffAllowancesTotal.toFixed(2) : '',
-          rowData.paye != null ? rowData.paye.toFixed(2) : '',
+          rowData.paye == null ? '' : rowData.paye.toFixed(2),
           rowData.employeePension.toFixed(2),
           rowData.employerPension.toFixed(2),
-          rowData.employeeNhf != null ? rowData.employeeNhf.toFixed(2) : '',
-          rowData.employeeNhis != null ? rowData.employeeNhis.toFixed(2) : '',
-          rowData.employerNhis != null ? rowData.employerNhis.toFixed(2) : '',
+          rowData.employeeNhf == null ? '' : rowData.employeeNhf.toFixed(2),
+          rowData.employeeNhis == null ? '' : rowData.employeeNhis.toFixed(2),
+          rowData.employerNhis == null ? '' : rowData.employerNhis.toFixed(2),
           oneOffDeductionsTotal > 0 ? oneOffDeductionsTotal.toFixed(2) : '',
-          rowData.totalDeductions != null
-            ? rowData.totalDeductions.toFixed(2)
-            : '',
+          rowData.totalDeductions == null
+            ? ''
+            : rowData.totalDeductions.toFixed(2),
           rowData.netPay.toFixed(2),
-          rowData.employerCost != null ? rowData.employerCost.toFixed(2) : '',
+          rowData.employerCost == null ? '' : rowData.employerCost.toFixed(2),
         ].map(escapeCsv);
       });
 
       const csv = [
         header.map(escapeCsv).join(','),
-        ...rows.map((r) => r.join(',')),
+        ...rows.map((r: string[]) => r.join(',')),
       ].join('\n');
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
       const periodKey = `${currentRun.periodYear}-${String(
         currentRun.periodMonth,
       ).padStart(2, '0')}`;
       const company =
         currentRun.companyName?.trim().replace(/\s+/g, '-') || 'company';
-      a.href = url;
-      a.download = `${company}-payroll-${periodKey}.csv`;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `${company}-payroll-${periodKey}.csv`);
 
-      toast.success('Payroll exported', {
+      toast.success('CSV downloaded', {
         position: isMdScreen ? 'bottom-right' : 'top-center',
       });
     } catch (error) {
@@ -1378,11 +1825,46 @@ export function Payroll() {
     }
   }, [currentRun, computed, isMdScreen]);
 
+  const handleExportExcel = useCallback(async () => {
+    if (!currentRun || !computed) {
+      toast.error('No computed payroll to export', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+      return;
+    }
+
+    if (currentRun.items.length === 0) {
+      toast.error(
+        'Cannot export an empty payroll. Add at least one employee.',
+        {
+          position: isMdScreen ? 'bottom-right' : 'top-center',
+        },
+      );
+      return;
+    }
+
+    try {
+      await exportPayrollExcel(currentRun, computed);
+      toast.success('Excel workbook downloaded', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    } catch (error) {
+      logger.error('Failed to export payroll Excel', error, {
+        runId: currentRun?.id,
+      });
+      toast.error('Could not export payroll', {
+        position: isMdScreen ? 'bottom-right' : 'top-center',
+      });
+    }
+  }, [currentRun, computed, isMdScreen]);
+
   const handleResetClick = useCallback(async () => {
     try {
       // Check for finalized runs
       const runsIndex = await loadRunsIndex();
-      const finalizedRuns = runsIndex.runs.filter((r) => r.status === 'final');
+      const finalizedRuns = runsIndex.runs.filter(
+        (r: PayrollRunIndexEntry) => r.status === 'final',
+      );
       const hasFinalized = finalizedRuns.length > 0;
 
       setHasFinalizedRuns(hasFinalized);
@@ -1423,7 +1905,7 @@ export function Payroll() {
       setResetConfirmOpen(false);
 
       // Refresh the page to reset the app
-      window.location.reload();
+      globalThis.location.reload();
     } catch (error) {
       logger.error('Error resetting payroll data', error);
       toast.error('Could not reset data', {
@@ -1436,10 +1918,7 @@ export function Payroll() {
     if (!currentRun) return;
 
     try {
-      const { run, runItem: _runItem } = await addEmployeeToRun(
-        currentRun,
-        companyDefaults,
-      );
+      const { run } = await addEmployeeToRun(currentRun, companyDefaults);
       // Update state with the new run (which contains the new item)
       // Note: This will trigger computation, but the loading indicator is now delayed
       setCurrentRun(run);
@@ -1474,7 +1953,7 @@ export function Payroll() {
         setCurrentRun(run);
 
         toast.success(
-          `Imported ${employees.length} employee${employees.length !== 1 ? 's' : ''}`,
+          `Imported ${employees.length} employee${employees.length === 1 ? '' : 's'}`,
           {
             position: isMdScreen ? 'bottom-right' : 'top-center',
           },
@@ -1519,7 +1998,7 @@ export function Payroll() {
       if (isDraft) {
         const updatedRun = {
           ...currentRun,
-          items: currentRun.items.map((item) =>
+          items: currentRun.items.map((item: PayrollRunItem) =>
             item.id === nextRunItem.id ? nextRunItem : item,
           ),
           updatedAt: getCurrentTimestamp(),
@@ -1555,12 +2034,16 @@ export function Payroll() {
         return;
       }
 
-      const runItem = currentRun.items.find((item) => item.id === runItemId);
+      const runItem = currentRun.items.find(
+        (item: PayrollRunItem) => item.id === runItemId,
+      );
 
       // Remove item from current run and save
       const updatedRun = {
         ...currentRun,
-        items: currentRun.items.filter((item) => item.id !== runItemId),
+        items: currentRun.items.filter(
+          (item: PayrollRunItem) => item.id !== runItemId,
+        ),
         updatedAt: getCurrentTimestamp(),
       };
       setCurrentRun(updatedRun);
@@ -1584,34 +2067,16 @@ export function Payroll() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'employees':
-        return currentRun ? (
-          <PayrollTable
-            runItems={currentRun.items}
-            computedItems={computed?.items}
-            onEdit={handleEditEmployee}
-            onDelete={handleDeleteEmployee}
-            onAdd={handleAddEmployee}
-            viewMode={effectiveViewMode}
-            runStatus={currentRun.status}
-            runPeriod={{
-              month: currentRun.periodMonth,
-              year: currentRun.periodYear,
-              endMonth: currentRun.periodEndMonth,
-              endYear: currentRun.periodEndYear,
-            }}
+        return (
+          <EmployeesTabContent
+            currentRun={currentRun}
+            computed={computed}
+            onEditEmployee={handleEditEmployee}
+            onDeleteEmployee={handleDeleteEmployee}
+            onAddEmployee={handleAddEmployee}
+            effectiveViewMode={effectiveViewMode}
             finalizedPeriodKeys={finalizedPeriodKeys}
           />
-        ) : (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-muted-foreground text-center">
-              <p className="mb-2 text-lg font-medium">
-                No payroll run selected
-              </p>
-              <p className="text-sm">
-                Create a new run or load an existing one to get started
-              </p>
-            </div>
-          </div>
         );
       // case 'paye-by-state':
       //   return (
@@ -1692,534 +2157,15 @@ export function Payroll() {
           </div>
         );
       case 'company-settings':
-        const defaultState = companySettings?.defaultState ?? 'Lagos';
-        const prorationMethod =
-          companySettings?.employmentProrationMethod ?? 'calendar_days';
-        const enableRentRelief = companySettings?.enableRentRelief ?? true;
-        const enableYtd = companySettings?.enableYtd ?? true;
-
-        const stateOptions = NIGERIAN_STATES.map((state) => ({
-          label: state,
-          value: state,
-        }));
-
-        const prorationOptions = [
-          {
-            label: 'Calendar Days',
-            value: 'calendar_days',
-            description: 'Uses actual days in month',
-          },
-          {
-            label: '30/360',
-            value: 'thirty_360',
-            description: 'Assumes 30 days per month',
-          },
-          {
-            label: 'Business Days',
-            value: 'business_days',
-            description: 'Mon-Fri only',
-          },
-          {
-            label: 'Full Month',
-            value: 'full_month',
-            description: 'Any employment = full month',
-          },
-        ];
-
-        const pensionConfig = companySettings?.statutoryDeductions?.pension;
-        const nhfConfig = companySettings?.statutoryDeductions?.nhf;
-        const nhisConfig = companySettings?.statutoryDeductions?.nhis;
-
         return (
-          <div className="scrollbar-thin-2px flex h-full flex-col overflow-y-auto px-3 py-3 sm:px-5 sm:py-5">
-            <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-              <div className="space-y-1">
-                <h2 className="text-base font-semibold sm:text-lg">
-                  Company settings
-                </h2>
-                <p className="text-muted-foreground text-xs sm:text-sm">
-                  These defaults apply when you create employees and payroll
-                  runs.
-                </p>
-              </div>
-
-              {/* Basic Info */}
-              <div className="bg-card space-y-3 rounded border p-3 sm:p-4">
-                <div>
-                  <p className="text-sm font-medium">Basic information</p>
-                  <p className="text-muted-foreground text-xs">
-                    Company name and default state for tax calculations.
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-muted-foreground text-xs font-medium">
-                      Company name
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Acme Inc."
-                      value={companyName}
-                      onChange={(e) =>
-                        updateCompanyDefaults({ companyName: e.target.value })
-                      }
-                      className="h-9 rounded"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-muted-foreground text-xs font-medium">
-                      Default state
-                    </label>
-                    <SimpleSelect
-                      value={defaultState}
-                      onChange={(value) =>
-                        updateCompanyDefaults({
-                          settings: {
-                            defaultState: value as typeof defaultState,
-                          },
-                        })
-                      }
-                      options={stateOptions}
-                      placeholder="Select state"
-                      className="h-9 rounded"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BHT Breakdown */}
-              <div className="space-y-3 rounded border p-3 sm:p-4">
-                <div>
-                  <p className="text-sm font-medium">BHT breakdown</p>
-                  <p className="text-muted-foreground text-xs">
-                    How basic, housing and transport are split from gross
-                    salary.
-                  </p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {percentSplitFields.map((field) => (
-                    <div key={field.id} className="space-y-1">
-                      <div className="flex h-7.5 w-full items-center overflow-hidden rounded border bg-transparent shadow-xs">
-                        <div className="bg-muted text-muted-foreground flex h-full w-24 shrink-0 items-center border-r px-2 text-xs font-medium sm:w-20 md:w-24 md:uppercase">
-                          {field.label}
-                        </div>
-                        <div className="relative h-full flex-1">
-                          <Input
-                            id={field.id}
-                            inputMode="numeric"
-                            type="number"
-                            min={0}
-                            max={100}
-                            step="0.01"
-                            placeholder="0"
-                            className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
-                            onKeyDown={(e) => {
-                              if (e.key === '-') e.preventDefault();
-                            }}
-                            value={field.value}
-                            onChange={(e) => {
-                              const raw = e.currentTarget.value;
-                              setPolicySplit(field.key, raw ? Number(raw) : 0);
-                            }}
-                          />
-                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                            %
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <div className="contents md:col-span-3">
-                    <div className="flex h-7.5 gap-3 space-y-1 divide-x sm:col-span-3 sm:justify-between lg:col-span-2">
-                      <div className="bg-muted flex h-7.5 w-full items-center overflow-hidden rounded border shadow-xs">
-                        <div className="text-muted-foreground flex h-full shrink-0 items-center px-2 text-xs font-medium md:uppercase">
-                          Other Allowances
-                        </div>
-                        <div className="relative h-full flex-1">
-                          <Input
-                            inputMode="numeric"
-                            type="number"
-                            value={otherAllowancesPct}
-                            readOnly
-                            tabIndex={-1}
-                            aria-label="Other allowances percent (calculated)"
-                            className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
-                          />
-                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                            %
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Statutory Deductions */}
-              <div className="space-y-3 rounded border p-3 sm:p-4">
-                <div>
-                  <p className="text-sm font-medium">Statutory deductions</p>
-                  <p className="text-muted-foreground text-xs">
-                    Configure which deductions apply and their rates. You can
-                    still override settings per employee later.
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  {/* Pension */}
-                  <div className="space-y-2 rounded border p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={pensionConfig?.enabled ?? true}
-                          onCheckedChange={(checked) =>
-                            updateCompanyDefaults({
-                              settings: {
-                                statutoryDeductions: {
-                                  pension: {
-                                    enabled: checked === true,
-                                    employeeRate:
-                                      pensionConfig?.employeeRate ?? 0.08,
-                                    employerRate:
-                                      pensionConfig?.employerRate ?? 0.1,
-                                  },
-                                },
-                              },
-                            })
-                          }
-                        />
-                        <label className="text-sm font-medium">Pension</label>
-                      </div>
-                    </div>
-                    {pensionConfig?.enabled !== false && (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="space-y-1">
-                          <label className="text-muted-foreground text-xs">
-                            Employee rate
-                          </label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={1}
-                              step="0.001"
-                              value={
-                                pensionConfig?.employeeRate != null
-                                  ? (pensionConfig.employeeRate * 100).toFixed(
-                                      1,
-                                    )
-                                  : '8.0'
-                              }
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                updateCompanyDefaults({
-                                  settings: {
-                                    statutoryDeductions: {
-                                      pension: {
-                                        enabled: true,
-                                        employeeRate: value / 100,
-                                        employerRate:
-                                          pensionConfig?.employerRate ?? 0.1,
-                                      },
-                                    },
-                                  },
-                                });
-                              }}
-                              className="h-8 pr-8 text-sm"
-                            />
-                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-muted-foreground text-xs">
-                            Employer rate
-                          </label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={1}
-                              step="0.001"
-                              value={
-                                pensionConfig?.employerRate != null
-                                  ? (pensionConfig.employerRate * 100).toFixed(
-                                      1,
-                                    )
-                                  : '10.0'
-                              }
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                updateCompanyDefaults({
-                                  settings: {
-                                    statutoryDeductions: {
-                                      pension: {
-                                        enabled: true,
-                                        employeeRate:
-                                          pensionConfig?.employeeRate ?? 0.08,
-                                        employerRate: value / 100,
-                                      },
-                                    },
-                                  },
-                                });
-                              }}
-                              className="h-8 pr-8 text-sm"
-                            />
-                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* NHF */}
-                  <div className="space-y-2 rounded border p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={nhfConfig?.enabled ?? false}
-                          onCheckedChange={(checked) =>
-                            updateCompanyDefaults({
-                              settings: {
-                                statutoryDeductions: {
-                                  nhf: {
-                                    enabled: checked === true,
-                                    employeeRate:
-                                      nhfConfig?.employeeRate ?? 0.025,
-                                  },
-                                },
-                              },
-                            })
-                          }
-                        />
-                        <label className="text-sm font-medium">NHF</label>
-                      </div>
-                    </div>
-                    {nhfConfig?.enabled !== false && (
-                      <div className="space-y-1">
-                        <label className="text-muted-foreground text-xs">
-                          Employee rate (of Basic)
-                        </label>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={1}
-                            step="0.001"
-                            value={
-                              nhfConfig?.employeeRate != null
-                                ? (nhfConfig.employeeRate * 100).toFixed(2)
-                                : '2.5'
-                            }
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value) || 0;
-                              updateCompanyDefaults({
-                                settings: {
-                                  statutoryDeductions: {
-                                    nhf: {
-                                      enabled: true,
-                                      employeeRate: value / 100,
-                                    },
-                                  },
-                                },
-                              });
-                            }}
-                            className="h-8 pr-8 text-sm"
-                          />
-                          <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                            %
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* NHIS */}
-                  <div className="space-y-2 rounded border p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={nhisConfig?.enabled ?? false}
-                          onCheckedChange={(checked) =>
-                            updateCompanyDefaults({
-                              settings: {
-                                statutoryDeductions: {
-                                  nhis: {
-                                    enabled: checked === true,
-                                    employeeRate:
-                                      nhisConfig?.employeeRate ?? 0.05,
-                                    employerRate:
-                                      nhisConfig?.employerRate ?? 0.1,
-                                  },
-                                },
-                              },
-                            })
-                          }
-                        />
-                        <label className="text-sm font-medium">NHIS</label>
-                      </div>
-                    </div>
-                    {nhisConfig?.enabled !== false && (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="space-y-1">
-                          <label className="text-muted-foreground text-xs">
-                            Employee rate (of Basic)
-                          </label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={1}
-                              step="0.001"
-                              value={
-                                nhisConfig?.employeeRate != null
-                                  ? (nhisConfig.employeeRate * 100).toFixed(1)
-                                  : '5.0'
-                              }
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                updateCompanyDefaults({
-                                  settings: {
-                                    statutoryDeductions: {
-                                      nhis: {
-                                        enabled: true,
-                                        employeeRate: value / 100,
-                                        employerRate:
-                                          nhisConfig?.employerRate ?? 0.1,
-                                      },
-                                    },
-                                  },
-                                });
-                              }}
-                              className="h-8 pr-8 text-sm"
-                            />
-                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-muted-foreground text-xs">
-                            Employer rate (of Basic)
-                          </label>
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={1}
-                              step="0.001"
-                              value={
-                                nhisConfig?.employerRate != null
-                                  ? (nhisConfig.employerRate * 100).toFixed(1)
-                                  : '10.0'
-                              }
-                              onChange={(e) => {
-                                const value = parseFloat(e.target.value) || 0;
-                                updateCompanyDefaults({
-                                  settings: {
-                                    statutoryDeductions: {
-                                      nhis: {
-                                        enabled: true,
-                                        employeeRate:
-                                          nhisConfig?.employeeRate ?? 0.05,
-                                        employerRate: value / 100,
-                                      },
-                                    },
-                                  },
-                                });
-                              }}
-                              className="h-8 pr-8 text-sm"
-                            />
-                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                              %
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Proration & Tax Settings */}
-              <div className="space-y-3 rounded border p-3 sm:p-4">
-                <div>
-                  <p className="text-sm font-medium">
-                    Proration & tax settings
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    How to calculate partial months and tax relief options.
-                  </p>
-                </div>
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-muted-foreground text-xs font-medium">
-                      Employment proration method
-                    </label>
-                    <SimpleSelect
-                      value={prorationMethod}
-                      onChange={(value) =>
-                        updateCompanyDefaults({
-                          settings: {
-                            employmentProrationMethod:
-                              value as typeof prorationMethod,
-                          },
-                        })
-                      }
-                      options={prorationOptions.map((opt) => ({
-                        label: `${opt.label} - ${opt.description}`,
-                        value: opt.value,
-                      }))}
-                      placeholder="Select method"
-                      className="h-9 rounded"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded border p-3">
-                    <div className="space-y-0.5">
-                      <label className="text-sm font-medium">
-                        Enable rent relief
-                      </label>
-                      <p className="text-muted-foreground text-xs">
-                        20% of annual rent, capped at ₦500k
-                      </p>
-                    </div>
-                    <Checkbox
-                      checked={enableRentRelief}
-                      onCheckedChange={(checked) =>
-                        updateCompanyDefaults({
-                          settings: {
-                            enableRentRelief: checked === true,
-                          },
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded border p-3">
-                    <div className="space-y-0.5">
-                      <label className="text-sm font-medium">
-                        Enable YTD computation
-                      </label>
-                      <p className="text-muted-foreground text-xs">
-                        Cumulative PAYE from all finalized runs in tax year
-                      </p>
-                    </div>
-                    <Checkbox
-                      checked={enableYtd}
-                      onCheckedChange={(checked) =>
-                        updateCompanyDefaults({
-                          settings: {
-                            enableYtd: checked === true,
-                          },
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CompanySettingsTab
+            companyName={companyName}
+            companySettings={companySettings}
+            onUpdateCompanyDefaults={updateCompanyDefaults}
+            percentSplitFields={percentSplitFields}
+            otherAllowancesPct={otherAllowancesPct}
+            onPolicySplitChange={setPolicySplit}
+          />
         );
       default:
         return null;
@@ -2246,21 +2192,17 @@ export function Payroll() {
       if (event.key === 'e' || event.key === 'E') {
         event.preventDefault();
         handleAddEmployee();
-        return;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      globalThis.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleNewRun, handleAddEmployee]);
 
-  function setPolicySplit(
-    key: 'basic' | 'housing' | 'transport',
-    nextValue: number,
-  ) {
+  function setPolicySplit(key: BhtSplitKey, nextValue: number) {
     const current = companySettings?.bhtBreakdown || {};
     const values = {
       basic: current.basic ?? 1,
@@ -2304,7 +2246,7 @@ export function Payroll() {
         },
       });
     },
-    [companySettings, updateCompanyDefaults],
+    [updateCompanyDefaults],
   );
 
   const renderStatutoryToggles = () =>
@@ -2343,89 +2285,8 @@ export function Payroll() {
     },
   ] as const;
 
-  // Extract totals from computed payroll data
-  const totals = computed?.periodTotals;
-  const moneyToNumber = (money: string | undefined): number => {
-    return money ? parseFloat(money) : 0;
-  };
-
-  // Compute total "other deductions" (non-statutory) across all employees.
-  // This is: totalDeductions - (employee pension + employee NHF + employee NHIS),
-  // summed over all items. It lets users reconcile statutory vs other deductions.
-  const otherDeductionsTotal =
-    computed?.items?.reduce((sum, item) => {
-      if (!item.totalDeductions) {
-        return sum;
-      }
-
-      const totalDeductions = moneyToNumber(item.totalDeductions);
-      const employeePension = item.employeePension
-        ? moneyToNumber(item.employeePension)
-        : 0;
-      const employeeNhf = item.employeeNhf
-        ? moneyToNumber(item.employeeNhf)
-        : 0;
-      const employeeNhis = item.employeeNhis
-        ? moneyToNumber(item.employeeNhis)
-        : 0;
-
-      // "Other" = recurring + one-off non-statutory deductions
-      const otherForItem =
-        totalDeductions - (employeePension + employeeNhf + employeeNhis);
-
-      return sum + otherForItem;
-    }, 0) ?? 0;
-
-  const summaryValues: Partial<Record<SummaryCardKey, number>> = {
-    gross: totals ? moneyToNumber(totals.grossTotal) : 0,
-    paye: totals ? moneyToNumber(totals.payeTotal) : undefined,
-    total_pension: totals
-      ? moneyToNumber(totals.employeePensionTotal) +
-        moneyToNumber(totals.employerPensionTotal)
-      : 0,
-    nhis: totals
-      ? moneyToNumber(totals.employeeNhisTotal) +
-        moneyToNumber(totals.employerNhisTotal)
-      : undefined,
-    nhf: totals ? moneyToNumber(totals.nhfTotal) : undefined,
-    net: totals ? moneyToNumber(totals.netTotal) : 0,
-    ee_pension: totals ? moneyToNumber(totals.employeePensionTotal) : 0,
-    er_pension: totals ? moneyToNumber(totals.employerPensionTotal) : 0,
-    other: otherDeductionsTotal,
-    employees: currentRun ? currentRun.items.length : 0,
-  };
-
-  const hasNhis = summaryValues.nhis != null;
-  const hasNhf = summaryValues.nhf != null;
-
-  // Always keep this display order.
-  const summaryKeys: SummaryCardKey[] = [
-    'gross',
-    'paye',
-    'total_pension',
-    'net',
-    ...(hasNhis || hasNhf
-      ? (['nhis', 'nhf'] as const)
-      : (['ee_pension', 'er_pension'] as const)),
-    'other',
-    'employees',
-  ];
-
-  const summaryCards = summaryKeys.reduce<SummaryCardProps[]>(
-    (acc, summaryKey) => {
-      const value = summaryValues[summaryKey];
-      // Only include cards with defined values (undefined means not applicable)
-      if (value != null && value !== undefined) {
-        acc.push({ summaryKey, value });
-      }
-      return acc;
-    },
-    [],
-  );
-
-  const mobileVisibleSummaryCount = summaryCards.reduce((count, item) => {
-    return count + (MOBILE_VISIBLE_KEYS.has(item.summaryKey) ? 1 : 0);
-  }, 0);
+  const summaryCards = buildSummaryCards(computed, currentRun);
+  const mobileVisibleSummaryCount = getMobileVisibleSummaryCount(summaryCards);
 
   // Mobile UX: clamp the grid height and fade the bottom so the screen
   // has more room; tap to expand/collapse.
@@ -2472,249 +2333,48 @@ export function Payroll() {
             'md:overflow-hidden',
           )}
         >
-          <div className="relative">
-            {summaryCards.length > LG_VISIBLE_COUNT && (
-              <div className="absolute -top-2 right-0 z-50 hidden justify-end lg:flex">
-                <button
-                  type="button"
-                  className="text-muted-foreground/50 hover:text-muted-foreground cursor-pointer text-xs underline underline-offset-2"
-                  onClick={() => setShowAllOnLg((v) => !v)}
-                >
-                  {showAllOnLg ? 'Show less' : 'Show more'}
-                </button>
-              </div>
-            )}
-            <div
-              className={[
-                'grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4 lg:pt-2',
-                isMobileClamped && 'max-h-[240px] overflow-hidden',
-                'lg:max-h-none lg:overflow-visible',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {summaryCards.map((item, index) => {
-                const isMobileHidden = !MOBILE_VISIBLE_KEYS.has(
-                  item.summaryKey,
-                );
-                const isExtraOnLg = index >= LG_VISIBLE_COUNT;
+          <SummaryCardsPanel
+            summaryCards={summaryCards}
+            showAllOnLg={showAllOnLg}
+            onToggleShowAllOnLg={() => setShowAllOnLg((value) => !value)}
+            isMobileClamped={isMobileClamped}
+            shouldClampOnMobile={shouldClampOnMobile}
+            showAllOnMobile={showAllOnMobile}
+            onShowAllOnMobile={() => setShowAllOnMobile(true)}
+            onHideAllOnMobile={() => setShowAllOnMobile(false)}
+          />
 
-                const className =
-                  [
-                    // Mobile: only show the core keys.
-                    isMobileHidden && 'hidden sm:block',
-
-                    // Large screens: default to only the first N cards.
-                    !showAllOnLg && isExtraOnLg && 'lg:hidden',
-
-                    // Large screens: animate in the extra cards when expanding.
-                    showAllOnLg &&
-                      isExtraOnLg &&
-                      'lg:animate-in lg:fade-in-0 lg:zoom-in-95 lg:duration-200 motion-reduce:lg:animate-none',
-                  ]
-                    .filter(Boolean)
-                    .join(' ') || undefined;
-
-                return (
-                  <SummaryCard
-                    key={item.summaryKey}
-                    summaryKey={item.summaryKey}
-                    value={item.value}
-                    className={className}
-                  />
-                );
-              })}
-            </div>
-
-            {isMobileClamped && (
-              <>
-                <div className="to-background pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent lg:hidden" />
-                <div className="absolute inset-x-0 bottom-2 flex justify-center lg:hidden">
-                  <button
-                    type="button"
-                    className="bg-background/80 text-foreground border-border/30 hover:bg-background cursor-pointer rounded-md border border-t-0 px-3 py-1 text-xs shadow-xs backdrop-blur"
-                    onClick={() => setShowAllOnMobile(true)}
-                  >
-                    Show more
-                  </button>
-                </div>
-              </>
-            )}
-
-            {shouldClampOnMobile && showAllOnMobile && (
-              <div className="mt-2 flex justify-center lg:hidden">
-                <button
-                  type="button"
-                  className="text-muted-foreground/70 hover:text-muted-foreground text-xs underline underline-offset-2"
-                  onClick={() => setShowAllOnMobile(false)}
-                >
-                  Show less
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div
-            className={cn(
-              'relative space-y-3 xl:flex xl:flex-row xl:gap-4 xl:space-y-0',
-              showPolicyAndRuns ? 'xl:h-[170px]' : '',
-            )}
-          >
-            {/* Show/hide the company policy and payroll run container */}
-            <button
-              type="button"
-              className="absolute top-0 -left-5 z-10 hidden cursor-pointer transition-opacity hover:opacity-70 md:block"
-              onClick={() => setShowPolicyAndRuns((v) => !v)}
-              aria-label={
-                showPolicyAndRuns
-                  ? 'Hide company policy and runs'
-                  : 'Show company policy and runs'
-              }
-            >
-              {showPolicyAndRuns ? (
-                <Eye className="text-muted-foreground size-4" />
-              ) : (
-                <EyeClosed className="text-muted-foreground size-4" />
-              )}
-            </button>
-            {/* Company Policy */}
-            {(!isMdScreen || showPolicyAndRuns) && (
-              <div className="hidden overflow-hidden rounded-sm border text-sm md:block xl:flex-1">
-                <button
-                  type="button"
-                  className="hover:bg-muted/30 flex w-full items-center justify-between gap-3 rounded p-4 py-3 text-left xl:cursor-default xl:hover:bg-transparent"
-                  aria-expanded={isCompanyPolicyOpen || isXlScreen}
-                  onClick={() =>
-                    !isXlScreen && setIsCompanyPolicyOpen((v) => !v)
-                  }
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-sm font-medium">
-                      <Settings2 className="size-4" />
-                      Company Policy
-                    </div>
-                    <div className="text-muted-foreground mt-0.5 truncate text-xs">
-                      Defaults applied when creating employees.
-                    </div>
-                  </div>
-                  <ChevronDown
-                    className={[
-                      'text-muted-foreground size-4 shrink-0 transition-transform xl:hidden',
-                      isCompanyPolicyOpen ? 'rotate-180' : 'rotate-0',
-                    ].join(' ')}
-                  />
-                </button>
-                {(isCompanyPolicyOpen || isXlScreen) && (
-                  <div className="border-t p-4 sm:p-5">
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      {percentSplitFields.map((field) => (
-                        <div key={field.id} className="space-y-1">
-                          <div className="flex h-7.5 w-full items-center overflow-hidden rounded border bg-transparent shadow-xs">
-                            <div className="bg-muted text-muted-foreground flex h-full w-24 shrink-0 items-center border-r px-2 text-xs font-medium sm:w-20 md:w-24 md:uppercase">
-                              {field.label}
-                            </div>
-                            <div className="relative h-full flex-1">
-                              <Input
-                                id={field.id}
-                                inputMode="numeric"
-                                type="number"
-                                min={0}
-                                max={100}
-                                step="0.01"
-                                placeholder="0"
-                                className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
-                                onKeyDown={(e) => {
-                                  if (e.key === '-') e.preventDefault();
-                                }}
-                                value={field.value}
-                                onChange={(e) => {
-                                  const raw = e.currentTarget.value;
-                                  setPolicySplit(
-                                    field.key,
-                                    raw ? Number(raw) : 0,
-                                  );
-                                }}
-                              />
-                              <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                                %
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {/* Auto-calculated: 100% - Basic - Housing - Transport */}
-                      <div className="contents xl:col-span-3 xl:flex xl:w-full xl:items-center xl:gap-2">
-                        <div className="flex h-7.5 gap-3 space-y-1 divide-x sm:col-span-3 sm:justify-between lg:col-span-2 xl:flex-1">
-                          <div className="bg-muted flex h-7.5 w-full items-center overflow-hidden rounded border shadow-xs">
-                            <div className="text-muted-foreground flex h-full shrink-0 items-center px-2 text-xs font-medium md:uppercase">
-                              Other Allowances
-                            </div>
-                            <div className="relative h-full flex-1">
-                              <Input
-                                inputMode="numeric"
-                                type="number"
-                                value={otherAllowancesPct}
-                                readOnly
-                                tabIndex={-1}
-                                aria-label="Other allowances percent (calculated)"
-                                className="h-full rounded-none border-0 pr-7 text-right text-sm shadow-none focus-visible:ring-0"
-                              />
-                              <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs">
-                                %
-                              </span>
-                            </div>
-                          </div>
-                          <div className="hidden justify-between gap-2 sm:flex sm:flex-shrink-0 lg:hidden">
-                            {/* <StatutoryDeductionToggles
-                              pension={pensionEnabled}
-                              nhf={nhfEnabled}
-                              nhis={nhisEnabled}
-                              onPensionChange={handlePensionChange}
-                              onNhfChange={handleNhfChange}
-                              onNhisChange={handleNhisChange}
-                            /> */}
-                            {renderStatutoryToggles()}
-                          </div>
-                        </div>
-                        <div className="hidden justify-between gap-2 lg:flex xl:flex-1">
-                          {renderStatutoryToggles()}
-                        </div>
-                      </div>
-                    </div>
-                    <fieldset className="space-y-2 sm:hidden">
-                      <legend className="text-muted-foreground text-xs">
-                        Apply statutory deductions company-wide
-                      </legend>
-                      <div className="flex justify-between gap-2">
-                        {renderStatutoryToggles()}
-                      </div>
-                    </fieldset>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Runs */}
-            {(!isMdScreen || showPolicyAndRuns) && (
-              <RunsList
-                runs={runList}
-                currentRunId={currentRun?.id}
-                onSelectRun={handleSelectRun}
-                onDeleteRunClick={(run) => {
-                  setRunToDelete(run);
-                  setDeleteConfirmOpen(true);
-                }}
-                onNewRun={handleNewRun}
-                variant="sidebar"
-              />
-            )}
-          </div>
+          <PolicyAndRunsSection
+            showPolicyAndRuns={showPolicyAndRuns}
+            isMdScreen={isMdScreen}
+            isXlScreen={isXlScreen}
+            isCompanyPolicyOpen={isCompanyPolicyOpen}
+            percentSplitFields={percentSplitFields}
+            otherAllowancesPct={otherAllowancesPct}
+            runList={runList}
+            currentRunId={currentRun?.id}
+            onTogglePolicyAndRuns={() =>
+              setShowPolicyAndRuns((value) => !value)
+            }
+            onCompanyPolicyHeaderClick={() => {
+              if (!isXlScreen) setIsCompanyPolicyOpen((value) => !value);
+            }}
+            onPolicySplitChange={setPolicySplit}
+            renderStatutoryToggles={renderStatutoryToggles}
+            onSelectRun={handleSelectRun}
+            onDeleteRunClick={(run) => {
+              setRunToDelete(run);
+              setDeleteConfirmOpen(true);
+            }}
+            onNewRun={handleNewRun}
+          />
 
           {/* Tabs Navigation */}
           <div className="hidden items-center justify-between md:flex">
             <div className="*:hover:bg-muted/50 *:text-muted-foreground flex items-center gap-1 rounded border p-1 text-sm *:cursor-pointer *:rounded *:px-3 *:py-1">
               {tabs.map((tab) => (
-                <div
+                <button
+                  type="button"
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
@@ -2723,7 +2383,7 @@ export function Payroll() {
                   )}
                 >
                   {tab.label}
-                </div>
+                </button>
               ))}
             </div>
             <div className="flex items-center gap-2 *:cursor-pointer *:rounded">
@@ -2739,10 +2399,25 @@ export function Payroll() {
                   <Save className="size-4" /> <span>Finalize</span>
                 </Button>
               )}
-              <Button variant="outline" onClick={handleExportCsv}>
-                <Download className="size-4" />
-                <span className="">Export</span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Download className="size-4" />
+                    <span>Export</span>
+                    <ChevronDown className="size-3.5 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportExcel}>
+                    <FileSpreadsheet className="size-4" />
+                    <span>Excel workbook (.xlsx)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportCsv}>
+                    <FileDown className="size-4" />
+                    <span>CSV</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -2789,7 +2464,6 @@ export function Payroll() {
             >
               Temi
             </a>
-            <a />
           </p>
         </div>
       </div>
@@ -2800,25 +2474,14 @@ export function Payroll() {
           'flex flex-shrink-0 items-center justify-between gap-2 border-t px-6 py-2 md:hidden',
         )}
       >
-        <div
+        <button
+          type="button"
           className="flex cursor-pointer flex-col items-center justify-center"
           onClick={
             currentRun?.status === 'final'
               ? handleDuplicateRun
               : handleFinalizeRunClick
           }
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              if (currentRun?.status === 'final') {
-                handleDuplicateRun();
-              } else {
-                handleFinalizeRunClick();
-              }
-            }
-          }}
         >
           {currentRun?.status === 'final' ? (
             <>
@@ -2831,22 +2494,15 @@ export function Payroll() {
               <span className="text-[11px]">Finalize</span>
             </>
           )}
-        </div>
-        <div
+        </button>
+        <button
+          type="button"
           className="flex cursor-pointer flex-col items-center justify-center"
           onClick={handleAddEmployee}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              handleAddEmployee();
-            }
-          }}
         >
           <UserRoundPlus className="bg-muted size-5 rounded-full" />
           <span className="text-[11px]">Add Employee</span>
-        </div>
+        </button>
         <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
           <PopoverTrigger asChild>
             <div className="flex cursor-pointer flex-col items-center justify-center">
@@ -2876,7 +2532,14 @@ export function Payroll() {
               //   },
               // },
               {
-                label: 'Export Payroll (CSV)',
+                label: 'Excel workbook (.xlsx)',
+                icon: FileSpreadsheet,
+                onClick: () => {
+                  handleExportExcel();
+                },
+              },
+              {
+                label: 'CSV',
                 icon: FileDown,
                 onClick: () => {
                   handleExportCsv();
@@ -3077,19 +2740,21 @@ export function Payroll() {
   );
 }
 
+interface WelcomeDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isLoading: boolean;
+  onNewRun: () => void;
+  onStartWithSampleData: () => void;
+}
+
 function WelcomeDialog({
   open,
   onOpenChange,
   isLoading,
   onNewRun,
   onStartWithSampleData,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  isLoading: boolean;
-  onNewRun: () => void;
-  onStartWithSampleData: () => void;
-}) {
+}: Readonly<WelcomeDialogProps>) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent

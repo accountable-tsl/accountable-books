@@ -11,6 +11,10 @@ import { formatInTimeZone } from 'date-fns-tz';
 import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../shared/services/advisoryLocks.service.js';
 import { addDaysToYMD, isValidYMD } from '../../shared/utils/date.utils.js';
 import {
   getCompanyUUID,
@@ -26,6 +30,12 @@ import { getSystemUser } from '../users/users.model.js';
 import { postJournalRecord } from './journals.command.js';
 import { validateDebitCreditBalance } from './journals.utils.js';
 import {
+  writeRecurringTemplateCreateAudit,
+  writeRecurringTemplateDeleteAudit,
+  writeRecurringTemplateStatusAudit,
+  writeRecurringTemplateUpdateAudit,
+} from './recurring-templates.audit.js';
+import {
   renderPlaceholders,
   validatePlaceholdersInFields,
 } from './recurring-templates.placeholders.js';
@@ -38,6 +48,7 @@ import {
 } from './recurring-templates.schedule.js';
 import {
   listRecurringTemplatesQuery,
+  recurringTemplateDeleteInput,
   recurringTemplateInput,
   recurringTemplatePreviewInput,
   recurringTemplateStatusInput,
@@ -46,6 +57,7 @@ import {
 
 import type { ApiResponse } from '../../core/types/api.types.js';
 import type { JournalBatchData } from './journals.types.js';
+import type { RecurringTemplateSnapshot } from './recurring-templates.audit.js';
 import type { RecurrenceFrequency } from './recurring-templates.schedule.js';
 import type {
   RecurringTemplateInput,
@@ -111,8 +123,7 @@ function mapTemplateRow(row: any): RecurringTemplateDetail {
     startDateYMD,
     endDateYMD,
     nextRunDateYMD,
-    placeholderVars: row.placeholder_vars ?? null,
-    currencyId: row.currency_id ?? null,
+    currencyId: row.currency_id,
     currencyCode: row.currency_code ?? null,
     currencyName: row.currency_name ?? null,
     currencySymbol: row.currency_symbol ?? null,
@@ -124,7 +135,12 @@ function mapTemplateRow(row: any): RecurringTemplateDetail {
     lastError: row.last_error ?? null,
     failureCount: row.failure_count ?? 0,
     createdAt: row.created_at,
+    createdById: row.created_by_id,
     updatedAt: row.updated_at,
+    updatedById: row.updated_by_id ?? null,
+    isDeleted: row.is_deleted ?? false,
+    deletedAt: row.deleted_at ?? null,
+    deletedById: row.deleted_by_id ?? null,
   };
 }
 
@@ -138,30 +154,50 @@ function mapEntryRow(row: any): RecurringTemplateDetailEntry {
     coaCode: row.coa_code ?? null,
     coaName: row.coa_name ?? null,
     templateId: row.template_id,
+    lineNumber: row.line_number,
   };
 }
 
-function templateEntriesDetailQuery(trx: Knex.Transaction, templateId: string) {
+function templateEntriesDetailQuery({
+  trx,
+  templateId,
+  companyUUID,
+}: {
+  trx: Knex.Transaction;
+  templateId: string;
+  companyUUID: string;
+}) {
   return trx(`${ENTRIES_TABLE} as rjte`)
-    .leftJoin('coa as c', 'c.id', 'rjte.coa_id')
+    .leftJoin('coa as c', function () {
+      this.on('c.id', '=', 'rjte.coa_id').andOn(
+        'c.company_id',
+        '=',
+        'rjte.company_id',
+      );
+    })
     .where('rjte.template_id', templateId)
+    .where('rjte.company_id', companyUUID)
     .select('rjte.*', 'c.code as coa_code', 'c.name as coa_name')
-    .orderBy('rjte.id', 'asc');
+    .orderBy('rjte.line_number', 'asc');
 }
 
 function buildTemplateEntriesInsert({
+  companyId,
   templateId,
   entries,
 }: {
+  companyId: string;
   templateId: string;
   entries: RecurringTemplateInput['entries'];
 }) {
-  return entries.map((entry) => ({
+  return entries.map((entry, index) => ({
+    company_id: companyId,
     description: entry.description,
     amount: entry.amount,
     transaction_side: entry.side,
     coa_id: entry.coa_id,
     template_id: templateId,
+    line_number: index + 1,
   }));
 }
 
@@ -185,7 +221,7 @@ async function validateContactId({
     .first('id');
 
   if (!contact) {
-    throw new Error(`Invalid or inactive contact ID: ${contactId}`);
+    throw new Error(`Invalid, archived, or deleted contact ID: ${contactId}`);
   }
 }
 
@@ -197,10 +233,7 @@ async function validateCurrencyId({
   currencyId: string | null | undefined;
 }) {
   if (!currencyId) return;
-  const currency = await trx('currencies')
-    .where('id', currencyId)
-    .where('is_deleted', false)
-    .first('id');
+  const currency = await trx('currencies').where('id', currencyId).first('id');
 
   if (!currency) {
     throw new Error(`Invalid currency ID: ${currencyId}`);
@@ -314,6 +347,59 @@ function getStartEndYMD(row: {
     : null;
 
   return { startDateYMD, endDateYMD };
+}
+
+function buildTemplateAuditSnapshot({
+  template,
+  entries,
+}: {
+  template: any;
+  entries: any[];
+}): RecurringTemplateSnapshot {
+  const { startDateYMD, endDateYMD } = getStartEndYMD(template);
+  const nextRunDateYMD = template.next_run_date
+    ? ymdFromDateInTz(template.next_run_date, template.template_timezone)
+    : null;
+
+  return {
+    description: template.description,
+    title: template.title ?? null,
+    note: template.note ?? null,
+    status: template.status,
+    frequency: template.frequency,
+    startDateYMD,
+    endDateYMD,
+    nextRunDateYMD,
+    autoPost: template.auto_post,
+    autoReversalDays: template.auto_reversal_days ?? null,
+    currencyId: template.currency_id,
+    contactId: template.contact_id ?? null,
+    entries: entries.map((entry, index) => ({
+      lineNumber: Number(entry.line_number ?? index + 1),
+      description: entry.description,
+      side: entry.transaction_side ?? entry.side,
+      amount: Number(entry.amount),
+      coaId: entry.coa_id,
+    })),
+  };
+}
+
+async function countGeneratedJournalsForTemplate({
+  trx,
+  companyUUID,
+  templateId,
+}: {
+  trx: Knex.Transaction;
+  companyUUID: string;
+  templateId: string;
+}) {
+  const row = await trx('journal_batches')
+    .where('company_id', companyUUID)
+    .where('recurring_template_id', templateId)
+    .count('* as count')
+    .first();
+
+  return Number(row?.count ?? 0);
 }
 
 async function generateOccurrenceFromTemplate({
@@ -546,7 +632,11 @@ export async function getRecurringTemplate({
         });
       }
 
-      const entries = await templateEntriesDetailQuery(trx, templateId);
+      const entries = await templateEntriesDetailQuery({
+        trx,
+        templateId,
+        companyUUID: context.companyUUID,
+      });
 
       return successResponse('Recurring template retrieved successfully', {
         template: mapTemplateRow(template),
@@ -589,6 +679,9 @@ export async function createRecurringTemplate({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const currencyId = data.currency_id ?? context.reportingCurrencyId;
       await validateContactId({
@@ -625,20 +718,35 @@ export async function createRecurringTemplate({
           start_date: startDate,
           end_date: endDate,
           next_run_date: null,
-          placeholder_vars: null,
           auto_reversal_days: data.auto_reversal_days ?? null,
           created_by_id: userId,
         })
         .returning('*');
 
       const entriesInsert = buildTemplateEntriesInsert({
+        companyId: context.companyUUID,
         templateId: template.id,
         entries: data.entries,
       });
 
       await trx(ENTRIES_TABLE).insert(entriesInsert);
 
-      const entries = await templateEntriesDetailQuery(trx, template.id);
+      const entries = await templateEntriesDetailQuery({
+        trx,
+        templateId: template.id,
+        companyUUID: context.companyUUID,
+      });
+
+      await writeRecurringTemplateCreateAudit({
+        companyId: context.companyUUID,
+        entityId: template.id,
+        actor: { type: 'user', userId },
+        trx,
+        context: { source: 'web' },
+        payload: {
+          template: buildTemplateAuditSnapshot({ template, entries }),
+        },
+      });
 
       return successResponse('Recurring template created successfully', {
         template: mapTemplateRow(template),
@@ -683,11 +791,15 @@ export async function updateRecurringTemplate({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const existing = await trx(TEMPLATES_TABLE)
         .where('id', templateId)
         .where('company_id', context.companyUUID)
         .where('is_deleted', false)
+        .forUpdate()
         .first();
 
       if (!existing) {
@@ -695,6 +807,16 @@ export async function updateRecurringTemplate({
           code: ErrorCode.NOT_FOUND,
         });
       }
+
+      const existingEntries = await trx(ENTRIES_TABLE)
+        .where('template_id', templateId)
+        .where('company_id', context.companyUUID)
+        .select('*')
+        .orderBy('line_number', 'asc');
+      const previousSnapshot = buildTemplateAuditSnapshot({
+        template: existing,
+        entries: existingEntries,
+      });
 
       const currencyId = data.currency_id ?? context.reportingCurrencyId;
       await validateContactId({
@@ -752,18 +874,39 @@ export async function updateRecurringTemplate({
           next_run_date: nextRunDate,
           auto_reversal_days: data.auto_reversal_days ?? null,
           status: nextStatus ?? existing.status,
+          updated_by_id: userId,
         })
         .returning('*');
 
-      await trx(ENTRIES_TABLE).where('template_id', templateId).del();
+      await trx(ENTRIES_TABLE)
+        .where('template_id', templateId)
+        .where('company_id', context.companyUUID)
+        .del();
       await trx(ENTRIES_TABLE).insert(
         buildTemplateEntriesInsert({
+          companyId: context.companyUUID,
           templateId,
           entries: data.entries,
         }),
       );
 
-      const entries = await templateEntriesDetailQuery(trx, templateId);
+      const entries = await templateEntriesDetailQuery({
+        trx,
+        templateId,
+        companyUUID: context.companyUUID,
+      });
+
+      await writeRecurringTemplateUpdateAudit({
+        companyId: context.companyUUID,
+        entityId: templateId,
+        actor: { type: 'user', userId },
+        trx,
+        context: { source: 'web' },
+        payload: {
+          previous: previousSnapshot,
+          next: buildTemplateAuditSnapshot({ template: updated, entries }),
+        },
+      });
 
       return successResponse('Recurring template updated successfully', {
         template: mapTemplateRow(updated),
@@ -779,10 +922,12 @@ export async function updateRecurringTemplate({
 
 export async function updateRecurringTemplateStatus({
   companyId,
+  userId,
   templateId,
   input,
 }: {
   companyId: string;
+  userId: string;
   templateId: string;
   input: RecurringTemplateStatusInput;
 }): Promise<ApiResponse<UpdateRecurringTemplateStatusResponse>> {
@@ -798,11 +943,15 @@ export async function updateRecurringTemplateStatus({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const template = await trx(TEMPLATES_TABLE)
         .where('id', templateId)
         .where('company_id', context.companyUUID)
         .where('is_deleted', false)
+        .forUpdate()
         .first();
 
       if (!template) {
@@ -813,11 +962,46 @@ export async function updateRecurringTemplateStatus({
 
       const nextStatus = parsed.data.status;
 
+      if (template.status === 'closed' && nextStatus !== 'closed') {
+        return errorResponse(
+          'Closed recurring templates cannot be reopened. Copy the template to start a new schedule.',
+          null,
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+
+      if (nextStatus === 'draft') {
+        const generatedCount = await countGeneratedJournalsForTemplate({
+          trx,
+          companyUUID: context.companyUUID,
+          templateId,
+        });
+
+        if (generatedCount > 0) {
+          return errorResponse(
+            'Recurring templates that have generated journals cannot be moved back to draft. Close the template instead.',
+            { generatedJournalCount: generatedCount },
+            { code: ErrorCode.OPERATION_NOT_ALLOWED },
+          );
+        }
+      }
+
       const updateData: Record<string, any> = {
         status: nextStatus,
+        updated_by_id: userId,
       };
 
       if (nextStatus === 'active') {
+        const entries = await trx(ENTRIES_TABLE)
+          .where('template_id', template.id)
+          .where('company_id', context.companyUUID)
+          .select('coa_id');
+        await validateCoaIds({
+          trx,
+          companyUUID: context.companyUUID,
+          entries,
+        });
+
         if (template.status === 'paused' && template.next_run_date) {
           // Resume: keep existing next_run_date to retry the same due date.
           updateData.next_run_date = template.next_run_date;
@@ -859,6 +1043,27 @@ export async function updateRecurringTemplateStatus({
         .update(updateData)
         .returning('*');
 
+      await writeRecurringTemplateStatusAudit({
+        companyId: context.companyUUID,
+        entityId: templateId,
+        actor: { type: 'user', userId },
+        trx,
+        context: { source: 'web' },
+        payload: {
+          previousStatus: template.status,
+          nextStatus: updated.status,
+          previousNextRunDateYMD: template.next_run_date
+            ? ymdFromDateInTz(
+                template.next_run_date,
+                template.template_timezone,
+              )
+            : null,
+          nextRunDateYMD: updated.next_run_date
+            ? ymdFromDateInTz(updated.next_run_date, updated.template_timezone)
+            : null,
+        },
+      });
+
       return successResponse('Recurring template status updated', {
         template: mapTemplateRow(updated),
       });
@@ -867,6 +1072,104 @@ export async function updateRecurringTemplateStatus({
     return result as ApiResponse<UpdateRecurringTemplateStatusResponse>;
   } catch (error) {
     return errorResponse('Failed to update template status', error);
+  }
+}
+
+export async function deleteRecurringTemplate({
+  companyId,
+  userId,
+  templateId,
+}: {
+  companyId: string;
+  userId: string;
+  templateId: string;
+}): Promise<ApiResponse<{ templateId: string }>> {
+  const parsed = recurringTemplateDeleteInput.safeParse({ id: templateId });
+  if (!parsed.success) {
+    return errorResponse('Invalid input', z.treeifyError(parsed.error), {
+      code: ErrorCode.INVALID_INPUT,
+    });
+  }
+
+  try {
+    const result = await knexClient.transaction(async (trx) => {
+      const context = await getCompanyContext(companyId, trx);
+      if (!context)
+        return errorResponse('Company not found', null, {
+          code: ErrorCode.NOT_FOUND,
+        });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
+
+      const template = await trx(TEMPLATES_TABLE)
+        .where('id', parsed.data.id)
+        .where('company_id', context.companyUUID)
+        .where('is_deleted', false)
+        .forUpdate()
+        .first();
+
+      if (!template) {
+        return errorResponse('Template not found', null, {
+          code: ErrorCode.NOT_FOUND,
+        });
+      }
+
+      if (template.status !== 'draft') {
+        return errorResponse(
+          'Only draft recurring templates can be deleted. Close used or active templates instead.',
+          { status: template.status },
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+
+      const generatedCount = await countGeneratedJournalsForTemplate({
+        trx,
+        companyUUID: context.companyUUID,
+        templateId: parsed.data.id,
+      });
+
+      if (generatedCount > 0) {
+        return errorResponse(
+          'Recurring templates that have generated journals cannot be deleted. Close the template instead.',
+          { generatedJournalCount: generatedCount },
+          { code: ErrorCode.OPERATION_NOT_ALLOWED },
+        );
+      }
+
+      await trx(TEMPLATES_TABLE)
+        .where('id', parsed.data.id)
+        .where('company_id', context.companyUUID)
+        .update({
+          is_deleted: true,
+          deleted_at: trx.fn.now(),
+          deleted_by_id: userId,
+          updated_by_id: userId,
+          next_run_date: null,
+        });
+
+      await writeRecurringTemplateDeleteAudit({
+        companyId: context.companyUUID,
+        entityId: parsed.data.id,
+        actor: { type: 'user', userId },
+        trx,
+        context: { source: 'web' },
+        payload: {
+          previousStatus: 'draft',
+          generatedJournalCount: 0,
+          title: template.title ?? null,
+          description: template.description,
+        },
+      });
+
+      return successResponse('Recurring template deleted successfully', {
+        templateId: parsed.data.id,
+      });
+    });
+
+    return result as ApiResponse<{ templateId: string }>;
+  } catch (error) {
+    return errorResponse('Failed to delete recurring template', error);
   }
 }
 
@@ -976,6 +1279,9 @@ export async function runRecurringTemplateNow({
         return errorResponse('Company not found', null, {
           code: ErrorCode.NOT_FOUND,
         });
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(context.companyUUID),
+      ]);
 
       const template = await trx(TEMPLATES_TABLE)
         .where('id', templateId)
@@ -997,8 +1303,9 @@ export async function runRecurringTemplateNow({
 
       const entries = await trx(ENTRIES_TABLE)
         .where('template_id', template.id)
+        .where('company_id', context.companyUUID)
         .select('*')
-        .orderBy('id', 'asc');
+        .orderBy('line_number', 'asc');
 
       let runDateYMD = template.next_run_date
         ? ymdFromDateInTz(template.next_run_date, template.template_timezone)
@@ -1049,6 +1356,7 @@ export async function runRecurringTemplateNow({
         last_run_at: new Date(),
         last_error: null,
         last_failed_at: null,
+        updated_by_id: userId,
       };
 
       if (endDateYMD && nextRunYMD > endDateYMD) {
@@ -1065,6 +1373,32 @@ export async function runRecurringTemplateNow({
         .where('id', template.id)
         .update(updateData)
         .returning('*');
+
+      if (updated.status !== template.status) {
+        await writeRecurringTemplateStatusAudit({
+          companyId: context.companyUUID,
+          entityId: template.id,
+          actor: { type: 'user', userId },
+          trx,
+          context: { source: 'web' },
+          payload: {
+            previousStatus: template.status,
+            nextStatus: updated.status,
+            previousNextRunDateYMD: template.next_run_date
+              ? ymdFromDateInTz(
+                  template.next_run_date,
+                  template.template_timezone,
+                )
+              : null,
+            nextRunDateYMD: updated.next_run_date
+              ? ymdFromDateInTz(
+                  updated.next_run_date,
+                  updated.template_timezone,
+                )
+              : null,
+          },
+        });
+      }
 
       return successResponse('Recurring template run completed', {
         template: mapTemplateRow(updated),
@@ -1089,25 +1423,42 @@ export async function processDueRecurringTemplates({
 
   while (processed < maxRuns) {
     const result = await knexClient.transaction(async (trx) => {
-      const template = await trx(TEMPLATES_TABLE)
+      const candidate = await trx(TEMPLATES_TABLE)
         .where('status', 'active')
         .where('is_deleted', false)
         .whereNotNull('next_run_date')
         .andWhere('next_run_date', '<=', trx.fn.now())
         .orderBy('next_run_date', 'asc')
         .limit(1)
+        .first<{ id: string; company_id: string }>('id', 'company_id');
+
+      if (!candidate) {
+        return { done: true } as const;
+      }
+
+      await acquireAdvisoryXactLocks(trx, [
+        lockKeyCompany(candidate.company_id),
+      ]);
+
+      const template = await trx(TEMPLATES_TABLE)
+        .where('id', candidate.id)
+        .where('status', 'active')
+        .where('is_deleted', false)
+        .whereNotNull('next_run_date')
+        .andWhere('next_run_date', '<=', trx.fn.now())
         .forUpdate()
         .skipLocked()
         .first();
 
       if (!template) {
-        return { done: true } as const;
+        return { done: false } as const;
       }
 
       const entries = await trx(ENTRIES_TABLE)
         .where('template_id', template.id)
+        .where('company_id', template.company_id)
         .select('*')
-        .orderBy('id', 'asc');
+        .orderBy('line_number', 'asc');
 
       const runDateYMD = ymdFromDateInTz(
         template.next_run_date,
@@ -1119,9 +1470,34 @@ export async function processDueRecurringTemplates({
         : null;
 
       if (endDateYMD && runDateYMD > endDateYMD) {
-        await trx(TEMPLATES_TABLE)
+        const [updated] = await trx(TEMPLATES_TABLE)
           .where('id', template.id)
-          .update({ status: 'closed', next_run_date: null });
+          .update({
+            status: 'closed',
+            next_run_date: null,
+            updated_by_id: systemUser.id,
+          })
+          .returning('*');
+
+        await writeRecurringTemplateStatusAudit({
+          companyId: template.company_id,
+          entityId: template.id,
+          actor: { type: 'system' },
+          trx,
+          context: { source: 'worker' },
+          payload: {
+            previousStatus: template.status,
+            nextStatus: updated.status,
+            previousNextRunDateYMD: template.next_run_date
+              ? ymdFromDateInTz(
+                  template.next_run_date,
+                  template.template_timezone,
+                )
+              : null,
+            nextRunDateYMD: null,
+          },
+        });
+
         return { done: false } as const;
       }
 
@@ -1141,14 +1517,41 @@ export async function processDueRecurringTemplates({
         } else {
           const message =
             error instanceof Error ? error.message : String(error);
-          await trx(TEMPLATES_TABLE)
+          const [updated] = await trx(TEMPLATES_TABLE)
             .where('id', template.id)
             .update({
               status: 'paused',
               last_failed_at: new Date(),
               last_error: message,
               failure_count: trx.raw('failure_count + 1'),
-            });
+              updated_by_id: systemUser.id,
+            })
+            .returning('*');
+
+          await writeRecurringTemplateStatusAudit({
+            companyId: template.company_id,
+            entityId: template.id,
+            actor: { type: 'system' },
+            trx,
+            context: { source: 'worker' },
+            payload: {
+              previousStatus: template.status,
+              nextStatus: updated.status,
+              previousNextRunDateYMD: template.next_run_date
+                ? ymdFromDateInTz(
+                    template.next_run_date,
+                    template.template_timezone,
+                  )
+                : null,
+              nextRunDateYMD: updated.next_run_date
+                ? ymdFromDateInTz(
+                    updated.next_run_date,
+                    updated.template_timezone,
+                  )
+                : null,
+            },
+          });
+
           return { done: false } as const;
         }
       }
@@ -1162,6 +1565,7 @@ export async function processDueRecurringTemplates({
         last_run_at: new Date(),
         last_error: null,
         last_failed_at: null,
+        updated_by_id: systemUser.id,
       };
 
       if (endDateYMD && nextRunYMD > endDateYMD) {
@@ -1174,7 +1578,36 @@ export async function processDueRecurringTemplates({
         );
       }
 
-      await trx(TEMPLATES_TABLE).where('id', template.id).update(updateData);
+      const [updated] = await trx(TEMPLATES_TABLE)
+        .where('id', template.id)
+        .update(updateData)
+        .returning('*');
+
+      if (updated.status !== template.status) {
+        await writeRecurringTemplateStatusAudit({
+          companyId: template.company_id,
+          entityId: template.id,
+          actor: { type: 'system' },
+          trx,
+          context: { source: 'worker' },
+          payload: {
+            previousStatus: template.status,
+            nextStatus: updated.status,
+            previousNextRunDateYMD: template.next_run_date
+              ? ymdFromDateInTz(
+                  template.next_run_date,
+                  template.template_timezone,
+                )
+              : null,
+            nextRunDateYMD: updated.next_run_date
+              ? ymdFromDateInTz(
+                  updated.next_run_date,
+                  updated.template_timezone,
+                )
+              : null,
+          },
+        });
+      }
 
       return { done: false } as const;
     });

@@ -106,15 +106,15 @@ export const API_ENV_SCHEMA: EnvSchema = {
   },
 
   DATABASE_URL: {
-    description: 'Complete PostgreSQL connection string',
+    description: 'Runtime PostgreSQL connection string',
     type: 'secret',
     local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
-  DATABASE_URL_NOPOOL: {
-    description: 'Complete PostgreSQL connection string',
+  DATABASE_MIGRATION_URL: {
+    description: 'Direct PostgreSQL connection string for migrations',
     type: 'secret',
-    local: '',
+    local: 'postgresql://user:password@localhost:5433/accountable_books',
   },
 
   // ============================================================================
@@ -170,13 +170,36 @@ export const API_ENV_SCHEMA: EnvSchema = {
     minLength: 32,
   },
 
+  /**
+   * HMAC key for bank account-number blind indexes (fingerprints).
+   * This is a durable identity secret — rotating it requires a deliberate
+   * identity migration because plaintext account numbers are not retained.
+   * Min 32 chars; use a dedicated secret distinct from APP_ENC_KEYS.
+   */
+  ACCOUNT_NUMBER_HMAC_KEY: {
+    description:
+      'HMAC key for bank account-number blind indexes (durable; non-routine rotation)',
+    type: 'secret',
+    minLength: 32,
+    local: 'dev-account-number-hmac-key-do-not-use-in-prod',
+  },
+
+  ACCOUNT_NUMBER_FINGERPRINT_VERSION: {
+    description: 'Account-number fingerprint algorithm version',
+    type: 'number',
+    local: '1',
+    staging: '1',
+    production: '1',
+  },
+
   // ============================================================================
   // EMAIL CONFIGURATION
   // ============================================================================
   EMAIL_PROVIDER: {
-    description: 'Email service provider',
+    description:
+      'App email service provider. Use dev for local/test no-op comms email, or postmark/ses for real delivery.',
     type: 'string',
-    local: 'ethereal',
+    local: 'dev',
     staging: 'postmark',
   },
 
@@ -189,6 +212,22 @@ export const API_ENV_SCHEMA: EnvSchema = {
     description: 'Default sender email address',
     type: 'string',
     default: 'support@getaccountable.com',
+  },
+
+  ADMIN_ALERT_EMAILS: {
+    description:
+      'Comma-separated admin email recipients for internal operational alerts',
+    type: 'string',
+    required: false,
+  },
+
+  COMMS_DELIVERY_RETENTION_DAYS: {
+    description:
+      'Days to retain terminal comms delivery audit rows before purge',
+    type: 'number',
+    local: '90',
+    staging: '90',
+    production: '90',
   },
 
   ETHEREAL_EMAIL: {
@@ -328,33 +367,6 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
     required: false,
     default: 'transaction-files',
-  },
-
-  // ============================================================================
-  // PLATFORM COMPANY CONFIGURATION
-  // ============================================================================
-  PLATFORM_COMPANY_ID: {
-    description: 'Main platform company UUID',
-    type: 'string',
-    local: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-    staging: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-    production: 'a494b675-fedd-455c-ab6d-00ffdff9a047',
-  },
-
-  PLATFORM_COMPANY_NAME: {
-    description: 'Platform company legal name',
-    type: 'string',
-    local: 'Accountable Techserve Ltd',
-    staging: 'Accountable Techserve Ltd',
-    production: 'Accountable Techserve Ltd',
-  },
-
-  PLATFORM_COMPANY_SHORT_CODE: {
-    description: 'Platform company short identifier',
-    type: 'string',
-    local: 'accX',
-    staging: 'accX',
-    production: 'accX',
   },
 
   PLATFORM_ACCOUNTING_FIRM_ID: {
@@ -511,6 +523,61 @@ export const API_ENV_SCHEMA: EnvSchema = {
   },
 
   // ============================================================================
+  // FX RATE PROVIDERS
+  // ============================================================================
+  FX_PROVIDER_ORDER: {
+    description:
+      'Comma-separated FX provider chain order. Allowed: openexchangerates, exchangerate_api, fixer',
+    type: 'string',
+    required: false,
+    local: 'openexchangerates,exchangerate_api,fixer',
+    staging: 'openexchangerates,exchangerate_api,fixer',
+    production: 'openexchangerates,exchangerate_api,fixer',
+    default: 'openexchangerates,exchangerate_api,fixer',
+  },
+
+  FX_LOOKBACK_DAYS: {
+    description: 'Maximum fallback days to look back for exchange rates',
+    type: 'number',
+    required: false,
+    local: '5',
+    staging: '5',
+    production: '5',
+    default: '5',
+  },
+
+  FX_HTTP_TIMEOUT_MS: {
+    description: 'HTTP timeout in milliseconds for provider FX requests',
+    type: 'number',
+    required: false,
+    local: '5000',
+    staging: '5000',
+    production: '5000',
+    default: '5000',
+  },
+
+  OPENEXCHANGERATES_APP_ID: {
+    description: 'Open Exchange Rates App ID',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  EXCHANGERATE_API_KEY: {
+    description: 'ExchangeRate-API key',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  FIXER_API_KEY: {
+    description: 'Fixer API access key',
+    type: 'secret',
+    required: false,
+    local: '',
+  },
+
+  // ============================================================================
   // BANK FEED PROVIDERS
   // ============================================================================
   FEED_DISPLAY_NAME: {
@@ -570,15 +637,8 @@ export const API_ENV_SCHEMA: EnvSchema = {
     type: 'string',
   },
 
-  PLAID_WEBHOOK_SECRET: {
-    description:
-      'Plaid webhook verification secret (optional - enables webhook signature verification)',
-    type: 'secret',
-    required: false,
-  },
-
   ENABLE_WEBHOOK_VERIFICATION: {
-    description: 'Force webhook verification even in development mode',
+    description: 'Verify Plaid webhooks during local development',
     type: 'boolean',
     required: false,
     local: 'false',

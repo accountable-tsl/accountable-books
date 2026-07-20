@@ -79,3 +79,10 @@ count.txt
 .tanstack
 .wrangler
 .claude
+.fallow/
+
+# Contracts generated artifacts — run: pnpm -F @accountable-books/contracts build
+packages/contracts/accountable_contracts/data/generated/
+packages/contracts/accountable_contracts/data/index.ts
+packages/contracts/accountable_contracts/data/__init__.py
+packages/contracts/accountable_contracts/schema/py/

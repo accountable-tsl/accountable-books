@@ -6,10 +6,14 @@ import { logger, toYMD } from '../../../shared/index.js';
 import {
   acquireAdvisoryXactLocks,
   lockKeyCategorizationTask,
+  lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../../activity/index.js';
 import { runConstraints } from '../../constraints/constraint-runner.js';
-import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
-import { getSystemUser } from '../../users/users.model.js';
+import { writeBankAccountWorkMaterializationIntent } from '../../work/work-materialization-intent.js';
 import {
   checkAutopostEligibility,
   enqueueDelayedAutopost,
@@ -117,6 +121,7 @@ async function handleRulePrediction(
   const { event, ruleResult, runId, error, rulesLatencyMs, trx } = params;
 
   // Serialize candidate/prediction writes per task
+  await acquireAdvisoryXactLocks(trx, [lockKeyCompany(event.company_uuid)]);
   await acquireAdvisoryXactLocks(trx, [
     lockKeyCategorizationTask(event.categorization_task_id),
   ]);
@@ -657,6 +662,8 @@ async function processPredictionToCandidate({
   const bankTxnDate = enrichedTransaction.raw.date;
 
   const exec = async (txn: Knex.Transaction) => {
+    await acquireAdvisoryXactLocks(txn, [lockKeyCompany(companyUUID)]);
+
     // Serialize candidate writes per task to prevent race conditions
     // This ensures only one candidate is processed at a time for a given task
     // Critical for ML path where multiple jobs might be enqueued concurrently
@@ -675,10 +682,10 @@ async function processPredictionToCandidate({
         'ba.currency_id as bank_account_currency_id',
       ])
       .where({
-        id: bankTxnId,
-        date: bankTxnDate,
-        company_id: companyUUID,
-        is_deleted: false,
+        'bt.id': bankTxnId,
+        'bt.transaction_date': bankTxnDate,
+        'bt.company_id': companyUUID,
+        'bt.is_deleted': false,
       })
       .join('bank_accounts as ba', 'ba.id', 'bt.bank_account_id')
       .first();
@@ -762,6 +769,7 @@ async function processPredictionToCandidate({
       ? await txn('projects')
           .whereIn('id', projectIds)
           .where('company_id', companyUUID)
+          .where('is_deleted', false)
           .select('id', 'name')
       : [];
     const projectNameById = new Map(
@@ -769,16 +777,14 @@ async function processPredictionToCandidate({
     );
 
     const contactIds = Array.from(
-      new Set(
-        [p.contact_id, bankTxn.contact_id].filter((id): id is string =>
-          Boolean(id),
-        ),
-      ),
+      new Set([p.contact_id].filter((id): id is string => Boolean(id))),
     );
     const contacts = contactIds.length
       ? await txn('contacts')
           .whereIn('id', contactIds)
           .where('company_id', companyUUID)
+          .where('status', 'active')
+          .where('is_deleted', false)
           .select('id', 'display_name')
       : [];
     const contactNameById = new Map(
@@ -796,20 +802,20 @@ async function processPredictionToCandidate({
       },
       'Building bank leg for candidate',
     );
-    const bankLegContactId = p.contact_id ?? bankTxn.contact_id ?? null;
+    const bankLegContactId = p.contact_id ?? null;
     const bankLeg: CandidateLineDraft = {
-      fs_date: p.ledger_date ?? bankTxn.date,
+      fs_date: p.ledger_date ?? bankTxn.transaction_date,
       transaction_side: bankTxn.amount > 0 ? 'debit' : 'credit',
       coa_id: bankAccountCoaId,
       coa_name: coaNameById.get(bankAccountCoaId) ?? null,
       contact_id: bankLegContactId,
-      contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
+      contact_type: p.contact_type ?? null,
       contact_name: bankLegContactId
         ? (contactNameById.get(bankLegContactId) ?? null)
         : null,
       source_currency_id: bankAccountCurrencyId,
       system_exchange_rate: bankTxn.system_exchange_rate,
-      custom_exchange_rate: bankTxn.custom_exchange_rate,
+      custom_exchange_rate: bankTxn.system_exchange_rate,
       signed_native_amount: bankTxn.amount,
       description: p.description ?? bankTxn.description,
       is_bank_leg: true,
@@ -825,7 +831,7 @@ async function processPredictionToCandidate({
       .map((l) => {
         const lineContactId = l.contact_id ?? null;
         return {
-          fs_date: p.ledger_date ?? bankTxn.date,
+          fs_date: p.ledger_date ?? bankTxn.transaction_date,
           status: 'proposed',
           transaction_side: l.signed_native_amount > 0 ? 'debit' : 'credit',
           coa_id: l.coa_id,
@@ -840,7 +846,7 @@ async function processPredictionToCandidate({
             : null,
           source_currency_id: bankAccountCurrencyId,
           system_exchange_rate: bankTxn.system_exchange_rate,
-          custom_exchange_rate: bankTxn.custom_exchange_rate,
+          custom_exchange_rate: bankTxn.system_exchange_rate,
           signed_native_amount: l.signed_native_amount,
           description: l.description ?? p.description ?? bankTxn.description,
           is_bank_leg: false,
@@ -881,7 +887,7 @@ async function processPredictionToCandidate({
       {
         companyUUID,
         entries: constraintEntries,
-        transaction_date: p.ledger_date ?? bankTxn.date,
+        transaction_date: p.ledger_date ?? bankTxn.transaction_date,
       },
       txn, // Pass the transaction to avoid deadlocks and ensure consistency
     );
@@ -948,10 +954,10 @@ async function processPredictionToCandidate({
       categorization_task_id: event.categorization_task_id,
       prediction_id: predictionId, // Persisted prediction must have ID
       bank_transaction_id: bankTxnId,
-      bank_transaction_date: bankTxn.date,
+      bank_transaction_date: bankTxn.transaction_date,
       company_id: companyUUID,
-      contact_id: p.contact_id ?? bankTxn.contact_id ?? null,
-      contact_type: p.contact_type ?? bankTxn.contact_type ?? null,
+      contact_id: p.contact_id ?? null,
+      contact_type: p.contact_type ?? null,
       reference: p.reference ?? bankTxn.reference ?? null,
       description: p.description ?? bankTxn.description,
       confidence: p.confidence,
@@ -965,11 +971,12 @@ async function processPredictionToCandidate({
     // - Compare sources and confidence
     // - Replace if new candidate is better (rule > ml > ml_heuristic, or higher confidence)
     // - Log events for candidate_created, candidate_replaced, or candidate_ignored
-    const { candidateId } = await persistCategorizationCandidate({
+    const candidateResult = await persistCategorizationCandidate({
       candidate: candidateObj,
       runId,
-      trx,
+      trx: txn,
     });
+    const candidateId = candidateResult.candidateId;
 
     if (!candidateId) {
       throw new Error('Failed to persist candidate');
@@ -988,6 +995,7 @@ async function processPredictionToCandidate({
     // Rules: Post immediately if autopost_rules is true
     // ML: Post immediately if delay is 0, otherwise enqueue delayed job
 
+    let immediateAutopostSucceeded = false;
     const eligibility = await checkAutopostEligibility({
       source,
       confidence: p.confidence,
@@ -995,7 +1003,10 @@ async function processPredictionToCandidate({
       trx: txn,
     });
 
-    if (eligibility.shouldAutopost) {
+    if (
+      candidateResult.reviewState === 'pending_review' &&
+      eligibility.shouldAutopost
+    ) {
       if (eligibility.isImmediate) {
         // Post immediately within the same transaction
         try {
@@ -1013,6 +1024,7 @@ async function processPredictionToCandidate({
           });
 
           if (result.success) {
+            immediateAutopostSucceeded = true;
             logger.info(
               {
                 candidateId,
@@ -1081,6 +1093,57 @@ async function processPredictionToCandidate({
           }
         });
       }
+    }
+
+    if (!immediateAutopostSucceeded) {
+      if (
+        candidateResult.reviewState === 'pending_review' &&
+        (candidateResult.outcome === 'created' ||
+          candidateResult.outcome === 'replaced')
+      ) {
+        const eventType =
+          candidateResult.outcome === 'replaced'
+            ? ACTIVITY_EVENT_TYPE.CATEGORIZATION_SUGGESTION_REPLACED
+            : ACTIVITY_EVENT_TYPE.CATEGORIZATION_SUGGESTION_CREATED;
+        await writeActivityEventIntent(txn, {
+          clientCompanyId: companyUUID,
+          actor: { type: 'system' },
+          sourceEntity: { type: 'categorization_candidate', id: candidateId },
+          eventType,
+          itemCount: 1,
+          amount: bankTxn.amount,
+          currencyId: bankAccountCurrencyId,
+          idempotencyKey: `activity:${eventType}:${candidateId}`,
+          metadata: {
+            bankTransactionId: bankTxnId,
+            bankAccountId: bankTxn.bank_account_id,
+            predictionId,
+            source,
+            confidence: p.confidence,
+            outcome: candidateResult.outcome,
+            previousCandidateId:
+              candidateResult.outcome === 'created'
+                ? candidateResult.previousCandidateId
+                : null,
+            replacedCandidateId:
+              candidateResult.outcome === 'replaced'
+                ? candidateResult.replacedCandidateId
+                : null,
+          },
+        });
+      }
+
+      await writeBankAccountWorkMaterializationIntent(txn, {
+        clientCompanyId: companyUUID,
+        bankAccountId: bankTxn.bank_account_id,
+        change: {
+          type: `categorization_candidate_${candidateResult.outcome}`,
+          companyId: companyUUID,
+          bankAccountId: bankTxn.bank_account_id,
+          bankTransactionId: bankTxnId,
+          candidateId,
+        },
+      });
     }
   };
 

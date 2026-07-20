@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as currencyUtils from '../../currencies/currencies.utils.js';
 import * as exchangeRateUtils from '../../exchangeRates/exchangeRates.utils.js';
 import {
+  buildOpenEndedGLBalanceRecalcRequests,
   processEntriesDates,
   resolveFx,
   validateBankLegAmount,
@@ -116,6 +117,7 @@ describe('validateIds', () => {
     // Create a mock query builder that chains methods
     mockQueryBuilder = {
       where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
       whereIn: vi.fn().mockReturnThis(),
       pluck: vi.fn(),
     };
@@ -143,7 +145,10 @@ describe('validateIds', () => {
     expect(mockQueryBuilder.whereIn).toHaveBeenCalledWith('id', validIds);
     expect(mockQueryBuilder.where).toHaveBeenCalledWith({
       company_id: 'company-123',
+    });
+    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith({
       is_deleted: false,
+      status: 'active',
     });
   });
 
@@ -165,6 +170,9 @@ describe('validateIds', () => {
     await expect(
       validateIds('projects', requestedIds, 'company-123', mockTxn as any),
     ).rejects.toThrow('Invalid projects IDs: id-2, id-4');
+    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith({
+      is_deleted: false,
+    });
   });
 
   it('should not throw when empty array is provided', async () => {
@@ -351,37 +359,34 @@ describe('resolveFx', () => {
     expect(result.customExRate).toBe(1.18);
   });
 
-  it('should warn and use system rate when conflicting custom rates', async () => {
+  it('should throw when conflicting custom rates are provided', async () => {
     mockDetermineExchangeRate.mockResolvedValue(1.15);
 
-    const result = await resolveFx({
-      entries: [
-        {
-          fs_date: '2025-01-15',
-          coa_id: 'coa-1',
-          source_currency_id: 'eur-id',
-          source_amount: -1000,
-          description: 'Test',
-          custom_exchange_rate: 1.18,
-        },
-        {
-          fs_date: '2025-01-15',
-          coa_id: 'coa-2',
-          source_currency_id: 'eur-id',
-          source_amount: 1000,
-          description: 'Test',
-          custom_exchange_rate: 1.22,
-        },
-      ],
-      ledgerTxDate: new Date('2025-01-15'),
-      sourceCurrencyId: 'eur-id',
-      reportingCurrencyId: 'usd-id',
-    });
-
-    expect(result.customExRate).toBe(1.15);
-    expect(result.warnings).toContain(
-      'Conflicting custom FX rates detected for EUR → USD on 2025-01-15. Using system rate.',
-    );
+    await expect(
+      resolveFx({
+        entries: [
+          {
+            fs_date: '2025-01-15',
+            coa_id: 'coa-1',
+            source_currency_id: 'eur-id',
+            source_amount: -1000,
+            description: 'Test',
+            custom_exchange_rate: 1.18,
+          },
+          {
+            fs_date: '2025-01-15',
+            coa_id: 'coa-2',
+            source_currency_id: 'eur-id',
+            source_amount: 1000,
+            description: 'Test',
+            custom_exchange_rate: 1.22,
+          },
+        ],
+        ledgerTxDate: new Date('2025-01-15'),
+        sourceCurrencyId: 'eur-id',
+        reportingCurrencyId: 'usd-id',
+      }),
+    ).rejects.toThrow('Conflicting custom FX rates');
   });
 
   it('should warn for suspiciously large FX rate', async () => {
@@ -537,7 +542,6 @@ describe('processEntriesDates', () => {
       min: '2025-01-15',
       max: '2025-01-15',
     });
-    expect(result.transactionDates).toHaveLength(1);
   });
 
   it('should process multiple entries with same date and COA', () => {
@@ -567,7 +571,6 @@ describe('processEntriesDates', () => {
       min: '2025-01-15',
       max: '2025-01-15',
     });
-    expect(result.transactionDates).toHaveLength(2);
   });
 
   it('should calculate correct date range across multiple dates', () => {
@@ -702,6 +705,36 @@ describe('processEntriesDates', () => {
     expect(result.minYMD).toBeNull();
     expect(result.maxYMD).toBeNull();
     expect(result.bounds.size).toBe(0);
-    expect(result.transactionDates).toHaveLength(0);
+  });
+});
+
+describe('buildOpenEndedGLBalanceRecalcRequests', () => {
+  it('builds one open-ended recalculation request per affected COA', () => {
+    const bounds = new Map([
+      ['coa-b', { min: '2025-02-10', max: '2025-02-15' }],
+      ['coa-a', { min: '2025-01-05', max: '2025-03-20' }],
+    ]);
+
+    const requests = buildOpenEndedGLBalanceRecalcRequests({
+      companyId: 'company-1',
+      bounds,
+      triggeredBy: 'ledger_entry',
+    });
+
+    expect(requests).toEqual([
+      {
+        companyId: 'company-1',
+        coaId: 'coa-a',
+        recalcFrom: '2025-01-05',
+        triggeredBy: 'ledger_entry',
+      },
+      {
+        companyId: 'company-1',
+        coaId: 'coa-b',
+        recalcFrom: '2025-02-10',
+        triggeredBy: 'ledger_entry',
+      },
+    ]);
+    expect(requests).not.toHaveProperty('0.recalcTo');
   });
 });

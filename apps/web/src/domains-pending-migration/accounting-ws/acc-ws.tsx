@@ -30,7 +30,7 @@ interface Group {
   bankName: string;
   bankId: string;
   logo: string;
-  lastSync?: Date;
+  lastSync?: string | null;
   accounts: BankAccountWithMeta[];
   // balance: number;
 }
@@ -56,14 +56,15 @@ export function AccountingWorkspace() {
     return <ErrorPage showHeader type="default" />;
   }
 
-  const handleTxnRefresh = async (credentialId: string) => {
-    if (!credentialId) return;
-    try {
-      syncTransactions.mutate({ credentialId });
-      toast.success('Transactions synced successfully');
-    } catch (error) {
-      toast.error('Failed to sync transactions');
-    }
+  const handleTxnRefresh = (bankAccountId: string) => {
+    if (!bankAccountId || !companyId) return;
+    syncTransactions.mutate(
+      { companyId, bankAccountId },
+      {
+        onSuccess: () => toast.success('Transaction sync queued'),
+        onError: () => toast.error('Failed to sync transactions'),
+      },
+    );
   };
 
   const grouped = bankAccounts.reduce((map, acc) => {
@@ -105,13 +106,13 @@ export function AccountingWorkspace() {
       const review = acc.needsReviewTxCount;
       const ledger = parseFloat(acc.ledgerBalance);
       const rate = parseFloat(acc.latestExchangeRate ?? '1');
-      const statement = parseFloat(acc.statementBalance) * rate;
+      const recordedRep = parseFloat(acc.recordedBankBalance) * rate;
 
       return {
         totalUncategorizedCount: totals.totalUncategorizedCount + uncat,
         totalNeedsReviewCount: totals.totalNeedsReviewCount + review,
         totalLedgerBalance: totals.totalLedgerBalance + ledger,
-        totalBankBalanceRep: totals.totalBankBalanceRep + statement,
+        totalBankBalanceRep: totals.totalBankBalanceRep + recordedRep,
         anyBankAccountWithoutExchangeRate:
           totals.anyBankAccountWithoutExchangeRate || !acc.latestExchangeRate,
       };
@@ -195,23 +196,24 @@ export function AccountingWorkspace() {
           <Separator className="mb-4" />
           <div className="grid min-h-[5rem] grid-cols-3 gap-4">
             <div className="flex h-full flex-col justify-between gap-2 divide-y overflow-clip rounded-md border p-4">
-              {!anyBankAccountWithoutExchangeRate && (
-                <SimpleTooltip
-                  content="Total native balances from bank feeds converted into reporting currency with today’s rate. Use it to see what the bank statements translate to right now"
-                  contentClassName="text-center"
-                >
-                  <div className="grid grid-cols-2 gap-2 truncate">
-                    <div className="truncate text-sm">Cash in Bank</div>
-                    <div className="truncate text-right">
-                      <FormattedAmount
-                        amount={totalBankBalanceRep}
-                        currency={reportingCurrencyCode}
-                        showSymbol
-                      />
+              {!anyBankAccountWithoutExchangeRate &&
+                bankAccounts.length > 0 && (
+                  <SimpleTooltip
+                    content="Bank balance per our records (provider statement, opening balance, or imported bank transactions), converted to reporting currency. Compare with ledger to see the gap."
+                    contentClassName="text-center"
+                  >
+                    <div className="grid grid-cols-2 gap-2 truncate">
+                      <div className="truncate text-sm">Cash in Bank</div>
+                      <div className="truncate text-right">
+                        <FormattedAmount
+                          amount={totalBankBalanceRep}
+                          currency={reportingCurrencyCode}
+                          showSymbol
+                        />
+                      </div>
                     </div>
-                  </div>
-                </SimpleTooltip>
-              )}
+                  </SimpleTooltip>
+                )}
               <SimpleTooltip
                 content="Current balances from the GL, stored in your reporting currency. This is the amount that will flow into financial statements"
                 contentClassName="text-center"
@@ -287,13 +289,13 @@ export function AccountingWorkspace() {
                     <div>
                       <div className="truncate text-[0.9rem] font-medium">
                         <FormattedAmount
-                          amount={acc.statementBalance ?? 0}
+                          amount={acc.recordedBankBalance}
                           currency={acc.currencyCode}
                           showSymbol={true}
                         />
                       </div>
                       <div className="text-muted-foreground text-[0.80rem] font-light">
-                        Statement Balance
+                        Bank (our records)
                       </div>
                     </div>
                     <div>
@@ -479,7 +481,7 @@ function ActionCard({ icon, title, actions, classNames }: ActionCardProps) {
 
 interface MiniBankAccountCardProps {
   account: BankAccountWithMeta;
-  onRefreshClick?: (credentialId: string) => void;
+  onRefreshClick?: (bankAccountId: string) => void;
 }
 
 function MiniBankAccountCard({
@@ -488,7 +490,7 @@ function MiniBankAccountCard({
 }: MiniBankAccountCardProps) {
   const needsReview = account.needsReviewTxCount ?? 0;
   const Uncategorized = account.uncategorizedTxCount ?? 0;
-  const balance = formatAmount(account?.statementBalance ?? 0, {});
+  const balance = formatAmount(account.recordedBankBalance, {});
   const syncAt = account.lastSyncAt
     ? formatDistanceToNowStrict(new Date(account.lastSyncAt))
     : undefined;
@@ -501,13 +503,13 @@ function MiniBankAccountCard({
     items.push({ key: 'unrec', node: `${Uncategorized} Uncategorized` });
   if (syncAt)
     items.push({ key: 'updated', node: `Last updated ${syncAt} ago` });
-  if (account?.connectionCredentialId && onRefreshClick) {
+  if (account?.bankConnectionId && onRefreshClick) {
     items.push({
       key: 'refresh',
       node: (
         <span
           className="cursor-pointer hover:underline active:cursor-progress"
-          onClick={() => onRefreshClick(account.connectionCredentialId!)}
+          onClick={() => onRefreshClick(account.id)}
         >
           Refresh feed
         </span>
@@ -531,7 +533,7 @@ function MiniBankAccountCard({
           trigger={
             <>
               <span className="truncate">{account.displayName} </span>
-              <span className="text-muted-foreground flex-1">
+              <span className="text-muted-foreground shrink-0">
                 **{account.mask}
               </span>
             </>

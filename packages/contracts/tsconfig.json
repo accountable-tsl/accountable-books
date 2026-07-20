@@ -9,5 +9,5 @@
     "declarationMap": true
   },
   "include": ["accountable_contracts/**/*.ts"],
-  "exclude": ["node_modules", "scripts"]
+  "exclude": ["node_modules", "scripts", "accountable_contracts/data/source"]
 }

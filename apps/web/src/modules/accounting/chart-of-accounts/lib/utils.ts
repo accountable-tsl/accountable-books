@@ -94,6 +94,7 @@ export function analyzeSelectedAccounts(
   const canDelete = summary.total > 0 && summary.undeletable === 0;
   const canArchive =
     summary.total > 0 &&
+    accounts.every((account) => account.canArchive) &&
     summary.locked === 0 &&
     summary.archived === 0 &&
     summary.deleted === 0;

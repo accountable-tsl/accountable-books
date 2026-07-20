@@ -1,7 +1,0 @@
-from enum import Enum
-
-class CategorizationTaskStatus(str, Enum):
-    ENRICHED = "enriched"
-    PARTIAL = "partial"
-    FAILED = "failed"
-    PENDING = "pending"

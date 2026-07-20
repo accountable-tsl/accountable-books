@@ -6,8 +6,14 @@ import type { SnakeToCamelCaseObject } from '../../shared/index.js';
 
 export const auditEventEntityType = z.enum([
   'company',
+  'chart_of_account',
   'bank_transaction',
+  'bank_transaction_contact_resolution',
+  'contact',
+  'contact_alias',
+  'ledger',
   'journal',
+  'recurring_journal_template',
   'ai',
   'task_evaluation',
   'support_access',
@@ -153,6 +159,7 @@ export type WriteAuditEventInputCamel<T> = SnakeToCamelCaseObject<
  * Canonical actor input shape used across domains when writing audit events.
  * Domains should not redefine their own actor/source/context types.
  */
+
 export type AuditActorInput =
   | { type: 'user'; userId: string; impersonatedByUserId?: string | null }
   | { type: 'system' }

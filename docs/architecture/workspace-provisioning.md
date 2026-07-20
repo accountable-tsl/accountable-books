@@ -1,5 +1,8 @@
 # Workspace Provisioning
 
+> **Status:** Implemented
+> **Purpose:** How workspaces are created and repaired.
+
 This document explains how the app creates and repairs workspaces.
 
 It is written for someone new to the codebase and is organized around the system's mental model first, then the code.
@@ -18,9 +21,9 @@ In the database, the main anchor row is in `companies`, but a usable workspace i
 6. company settings
 7. at least one workspace role grant
 
-The main orchestration function that creates those pieces for a new company is [`provisionCompanyWorkspace`](/apps/api/src/domains/companies/company-provisioning.service.ts#L1059).
+The main orchestration function that creates those pieces for a new company is [`provisionCompanyWorkspace`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L1059).
 
-There is also a second function, [`reconcileCompanyWorkspace`](/apps/api/src/domains/companies/company-provisioning.service.ts#L1089), which is used when the company row already exists and we want to bring the rest of the workspace back into the expected state. This matters later for rerunnable bootstrap and demo flows, but the main creation path to understand first is `provisionCompanyWorkspace`.
+There is also a second function, [`reconcileCompanyWorkspace`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L1089), which is used when the company row already exists and we want to bring the rest of the workspace back into the expected state. This matters later for rerunnable bootstrap and demo flows, but the main creation path to understand first is `provisionCompanyWorkspace`.
 
 ## Two Important Classifications
 
@@ -29,7 +32,7 @@ The `companies` table stores two separate concepts:
 1. `type`
 2. `workspace_class`
 
-The schema lives in [`20250403194332_companies.ts`](/apps/api/migrations/20250403194332_companies.ts#L9) and the runtime schema/types live in [`companies.types.ts`](/apps/api/src/domains/companies/companies.types.ts#L79).
+The schema lives in [`20250403194332_companies.ts`](../../apps/api/migrations/20250403194332_companies.ts#L9) and the runtime schema/types live in [`companies.types.ts`](../../apps/api/src/domains/companies/companies.types.ts#L79).
 
 ### Company Type
 
@@ -57,11 +60,11 @@ So `type` is not trying to be a universal business taxonomy. It is a product beh
 - `platform`
 - `partner`
 
-Helper functions live in [`workspace-class.ts`](/apps/api/src/domains/companies/workspace-class.ts#L1):
+Helper functions live in [`workspace-class.ts`](../../apps/api/src/domains/companies/workspace-class.ts#L1):
 
-- [`isDemoWorkspace`](/apps/api/src/domains/companies/workspace-class.ts#L3)
-- [`isPlatformWorkspace`](/apps/api/src/domains/companies/workspace-class.ts#L9)
-- [`isPartnerWorkspace`](/apps/api/src/domains/companies/workspace-class.ts#L15)
+- [`isDemoWorkspace`](../../apps/api/src/domains/companies/workspace-class.ts#L3)
+- [`isPlatformWorkspace`](../../apps/api/src/domains/companies/workspace-class.ts#L9)
+- [`isPartnerWorkspace`](../../apps/api/src/domains/companies/workspace-class.ts#L15)
 
 What the classes mean:
 
@@ -88,7 +91,7 @@ Examples:
 
 Before walking through the pipeline steps, it helps to understand how policy shapes them.
 
-Every call to `provisionCompanyWorkspace` includes a [`WorkspaceProvisioningPolicy`](/apps/api/src/domains/companies/company-provisioning.service.ts#L52). The policy describes the caller's intent, and [`resolveProvisioningPlan`](/apps/api/src/domains/companies/company-provisioning.service.ts#L444) translates it into concrete pipeline configuration: which workspace class to assign, which assignment strategy to use, which role to grant, which COA template to load, and what constraints apply.
+Every call to `provisionCompanyWorkspace` includes a [`WorkspaceProvisioningPolicy`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L52). The policy describes the caller's intent, and [`resolveProvisioningPlan`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L444) translates it into concrete pipeline configuration: which workspace class to assign, which assignment strategy to use, which role to grant, which COA template to load, and what constraints apply.
 
 Current policy kinds:
 
@@ -111,13 +114,13 @@ Current policy kinds:
 
 ## The Main Provisioning Flow
 
-The main provisioning logic lives in [`company-provisioning.service.ts`](/apps/api/src/domains/companies/company-provisioning.service.ts#L1).
+The main provisioning logic lives in [`company-provisioning.service.ts`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L1).
 
 The easiest way to understand it is to walk through the steps a new workspace goes through.
 
 ### 1. Insert The Company Record
 
-Functions: [`insertCompanyRecord`](/apps/api/src/domains/companies/company-provisioning.service.ts#L527) and [`resolveCompanyInsertInput`](/apps/api/src/domains/companies/company-provisioning.service.ts#L231)
+Functions: [`insertCompanyRecord`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L527) and [`resolveCompanyInsertInput`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L231)
 
 Before the insert happens, input is normalized by `resolveCompanyInsertInput`. This step is responsible for:
 
@@ -130,9 +133,9 @@ Before the insert happens, input is normalized by `resolveCompanyInsertInput`. T
 - generating or validating the short code
 - setting the initial onboarding state
 
-**Short codes:** if the caller provides one it is used as-is and fails if already taken. If not, [`generateUniqueShortCode`](/apps/api/src/domains/companies/company-provisioning.service.ts#L188) generates and retries until it finds a unique value that does not look obviously wrong. Signup, demo seeding, and bootstrap code should not each invent their own short-code rules.
+**Short codes:** if the caller provides one it is used as-is and fails if already taken. If not, [`generateUniqueShortCode`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L188) generates and retries until it finds a unique value that does not look obviously wrong. Signup, demo seeding, and bootstrap code should not each invent their own short-code rules.
 
-**Onboarding state:** normal workspaces get the standard initial state via `createInitialCompanyOnboardingState`. Seeded, demo, and internal workspaces may intentionally start further along — platform and partner firms use explicit completed state in [`workspace-bootstrap.config.ts`](/apps/api/src/domains/companies/workspace-bootstrap.config.ts#L62).
+**Onboarding state:** normal workspaces get the standard initial state via `createInitialCompanyOnboardingState`. Seeded, demo, and internal workspaces may intentionally start further along — platform and partner firms use explicit completed state in [`workspace-bootstrap.config.ts`](../../apps/api/src/domains/companies/workspace-bootstrap.config.ts#L62).
 
 This creates the row in the `companies` table and nothing more.
 
@@ -140,7 +143,7 @@ This creates the row in the `companies` table and nothing more.
 
 Function:
 
-- [`ensureAccountingFirmMeta`](/apps/api/src/domains/companies/company-provisioning.service.ts#L549)
+- [`ensureAccountingFirmMeta`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L549)
 
 This step matters only for accounting-firm workspaces.
 
@@ -150,7 +153,7 @@ It creates or reconciles the row in `accounting_firms_meta`, including the firm'
 
 Function:
 
-- [`ensureCompanyFirmAssignment`](/apps/api/src/domains/companies/company-provisioning.service.ts#L653)
+- [`ensureCompanyFirmAssignment`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L653)
 
 This step keeps two things in sync:
 
@@ -166,8 +169,8 @@ Assignment strategies are:
 
 Partner/platform resolution is centralized in:
 
-- [`resolvePartnerFirmForCompany`](/apps/api/src/domains/accountingFirms/partner-firm.service.ts#L64)
-- [`resolvePlatformFirmId`](/apps/api/src/domains/companies/company-provisioning.service.ts#L327)
+- [`resolvePartnerFirmForCompany`](../../apps/api/src/domains/accountingFirms/partner-firm.service.ts#L64)
+- [`resolvePlatformFirmId`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L327)
 
 #### Why accounting firms assign to themselves
 
@@ -204,7 +207,7 @@ In the future, that routing decision should also consider jurisdiction, partner 
 
 Function:
 
-- [`ensureCompanyBilling`](/apps/api/src/domains/companies/company-provisioning.service.ts#L765)
+- [`ensureCompanyBilling`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L765)
 
 This step assumes assignment is already correct.
 
@@ -217,18 +220,18 @@ Important behavior:
 
 Function:
 
-- [`ensureCompanyChartOfAccounts`](/apps/api/src/domains/companies/company-provisioning.service.ts#L798)
+- [`ensureCompanyChartOfAccounts`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L798)
 
 There are two modes:
 
 - `default`
-  - uses [`createDefaultAccounts`](/apps/api/src/domains/companies/company-provisioning.service.ts#L823)
+  - uses [`createDefaultAccounts`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L823)
 - `template`
-  - uses [`loadCoaTemplateForCompany`](/apps/api/src/domains/companies/company-provisioning.service.ts#L840)
+  - uses [`loadCoaTemplateForCompany`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L840)
 
 Template selection is decided in:
 
-- [`resolveCoaTemplateName`](/apps/api/src/domains/companies/company-provisioning.service.ts#L421)
+- [`resolveCoaTemplateName`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L421)
 
 Current behavior:
 
@@ -246,7 +249,7 @@ Also important:
 
 Function:
 
-- [`ensureCompanySettings`](/apps/api/src/domains/companies/company-provisioning.service.ts#L857)
+- [`ensureCompanySettings`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L857)
 
 This creates the settings baseline a workspace needs.
 
@@ -254,7 +257,7 @@ This creates the settings baseline a workspace needs.
 
 Function:
 
-- [`ensureWorkspaceRoleGrant`](/apps/api/src/domains/companies/company-provisioning.service.ts#L882)
+- [`ensureWorkspaceRoleGrant`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L882)
 
 Typical defaults:
 
@@ -266,7 +269,7 @@ Typical defaults:
 
 Function:
 
-- [`runWorkspaceProvisioningSideEffects`](/apps/api/src/domains/companies/company-provisioning.service.ts#L914)
+- [`runWorkspaceProvisioningSideEffects`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L914)
 
 This is intentionally separated from the main DB transaction.
 
@@ -278,15 +281,15 @@ Signup is one entrypoint into the provisioning system. It is not a separate prov
 
 Main function:
 
-- [`registerNewAccount`](/apps/api/src/features/signup/signup.service.ts#L46)
+- [`registerNewAccount`](../../apps/api/src/features/signup/signup.service.ts#L46)
 
 User creation:
 
-- [`createUserDirect`](/apps/api/src/domains/users/users.model.ts#L58)
+- [`createUserDirect`](../../apps/api/src/domains/users/users.model.ts#L58)
 
 The transaction boundary lives in:
 
-- [`createUserAndCompany`](/apps/api/src/features/signup/signup.service.ts#L190)
+- [`createUserAndCompany`](../../apps/api/src/features/signup/signup.service.ts#L190)
 
 The flow is:
 
@@ -315,16 +318,16 @@ If `load_coa_template = false`, signup keeps COA mode as `default` rather than f
 
 Demo company creation lives in:
 
-- [`createDemoCompaniesAndUsers`](/apps/api/seeds/demo/config/002_companies/companies.fn.ts#L28)
+- [`createDemoCompaniesAndUsers`](../../apps/api/seeds/demo/config/002_companies/companies.fn.ts#L28)
 
 Behavior:
 
-- new demo companies call [`provisionCompanyWorkspace`](/apps/api/seeds/demo/config/002_companies/companies.fn.ts#L134)
-- existing demo companies call [`reconcileCompanyWorkspace`](/apps/api/seeds/demo/config/002_companies/companies.fn.ts#L127)
+- new demo companies call [`provisionCompanyWorkspace`](../../apps/api/seeds/demo/config/002_companies/companies.fn.ts#L134)
+- existing demo companies call [`reconcileCompanyWorkspace`](../../apps/api/seeds/demo/config/002_companies/companies.fn.ts#L127)
 
 The old separate demo COA step is intentionally a no-op in:
 
-- [`003_coa/coa.fn.ts`](/apps/api/seeds/demo/config/003_coa/coa.fn.ts#L1)
+- [`003_coa/coa.fn.ts`](../../apps/api/seeds/demo/config/003_coa/coa.fn.ts#L1)
 
 because demo company provisioning now ensures COA during the main pipeline.
 
@@ -334,7 +337,7 @@ At this point the reason for `reconcileCompanyWorkspace` should make sense.
 
 Use:
 
-- [`reconcileCompanyWorkspace`](/apps/api/src/domains/companies/company-provisioning.service.ts#L1089)
+- [`reconcileCompanyWorkspace`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L1089)
 
 when the company row already exists and you want to make sure the rest of the workspace is still complete and correct.
 
@@ -352,32 +355,24 @@ Rule of thumb:
 
 ## Platform And Partner Bootstrap
 
-Bootstrap logic lives in:
+Canonical workspace bootstrap lives in the app bootstrap pipeline:
 
-- [`workspace-bootstrap.service.ts`](/apps/api/src/domains/companies/workspace-bootstrap.service.ts#L1)
-- [`workspace-bootstrap.config.ts`](/apps/api/src/domains/companies/workspace-bootstrap.config.ts#L1)
+- [`canonical-workspaces.bootstrap.ts`](../../apps/api/src/bootstrap/phases/canonical-workspaces.bootstrap.ts)
+- [`canonical-workspaces.ts`](../../apps/api/src/bootstrap/catalogs/workspaces/canonical-workspaces.ts) (seed catalog)
+- [`workspace-bootstrap.config.ts`](../../apps/api/src/domains/companies/workspace-bootstrap.config.ts) (re-exports IDs/slugs used by provisioning)
 
 ### Platform Workspace
 
-Main function:
+Main entry:
 
-- [`bootstrapPlatformWorkspace`](/apps/api/src/domains/companies/workspace-bootstrap.service.ts#L145)
+- [`bootstrapCanonicalWorkspaces`](../../apps/api/src/bootstrap/phases/canonical-workspaces.bootstrap.ts) (phase in `runBootstrap`)
 
-What it does:
+What it does for the platform workspace:
 
 1. resolve the configured admin user and system user
 2. check whether the platform workspace already exists
 3. provision or reconcile the platform workspace through the unified pipeline
-4. grant special platform roles
-
-Special platform roles are granted in:
-
-- [`grantSpecialPlatformRoles`](/apps/api/src/domains/companies/workspace-bootstrap.service.ts#L198)
-
-That currently means:
-
-- admin user gets `super_admin`
-- system user gets `system_user`
+4. grant special platform roles (`super_admin` / `system_user`)
 
 This is important because support-access and break-glass flows rely on the platform admin having `super_admin`.
 
@@ -387,36 +382,34 @@ Partner firms are the accounting firm workspaces that manage directly-signed-up 
 
 Their seed definitions live in:
 
-- [`BOOTSTRAP_SYSTEM_FIRMS`](/apps/api/src/domains/companies/workspace-bootstrap.config.ts#L37)
+- [`CANONICAL_WORKSPACES`](../../apps/api/src/bootstrap/catalogs/workspaces/canonical-workspaces.ts)
 
-They are provisioned through:
-
-- [`seedSystemFirms`](/apps/api/src/domains/companies/workspace-bootstrap.service.ts#L221)
+They are provisioned through the same `bootstrapCanonicalWorkspaces` phase (partner entries in the catalog).
 
 Both use the `system_seed` policy: `workspace_class = partner`, self-assigned, firm meta required.
 
-As more partner firms are onboarded, new entries are added to `BOOTSTRAP_SYSTEM_FIRMS` and the command is rerun. The jurisdiction-based assignment logic that decides which partner firm a new client goes to will be extended separately as that system matures.
+As more partner firms are onboarded, new entries are added to `CANONICAL_WORKSPACES` and the bootstrap command is rerun. The jurisdiction-based assignment logic that decides which partner firm a new client goes to will be extended separately as that system matures.
 
 ## Commands And Startup Flow
 
 The simple operational flow is:
 
-1. `pnpm run migrate`
-2. `pnpm run bootstrap`
-3. optionally `pnpm run demo:apply`
+1. `pnpm run migrate:local`
+2. `pnpm run bootstrap:local`
+3. optionally `pnpm run demo apply`
 
 Relevant commands live in:
 
-- [`package.json`](/apps/api/package.json#L24)
+- [`package.json`](../../apps/api/package.json#L24)
 
 The main bootstrap command entrypoint is:
 
-- [`bootstrap-workspaces.ts`](/apps/api/scripts/bootstrap-workspaces.ts#L1)
+- [`bootstrap-workspaces.ts`](../../apps/api/scripts/bootstrap-workspaces.ts#L1)
 
 There are also narrower commands when needed:
 
-- [`bootstrap-platform-workspace.ts`](/apps/api/scripts/bootstrap-platform-workspace.ts#L1)
-- [`seed-system-firms.ts`](/apps/api/scripts/seed-system-firms.ts#L1)
+- [`bootstrap-platform-workspace.ts`](../../apps/api/scripts/bootstrap-platform-workspace.ts#L1)
+- [`seed-system-firms.ts`](../../apps/api/scripts/seed-system-firms.ts#L1)
 
 ## Why Migrations Are Not The Business Bootstrap Layer
 
@@ -427,18 +420,18 @@ The intended boundary is:
 
 That is why these later migrations are intentionally no-ops:
 
-- [`20260522120000_veyra_advisory_firms.ts`](/apps/api/migrations/20260522120000_veyra_advisory_firms.ts#L1)
-- [`20260522130000_platform_workspace_bootstrap.ts`](/apps/api/migrations/20260522130000_platform_workspace_bootstrap.ts#L1)
+- [`20260522120000_veyra_advisory_firms.ts`](../../apps/api/migrations/20260522120000_veyra_advisory_firms.ts#L1)
+- [`20260522130000_platform_workspace_bootstrap.ts`](../../apps/api/migrations/20260522130000_platform_workspace_bootstrap.ts#L1)
 
 ## Test Database Setup
 
 Test DB setup lives in:
 
-- [`config/test-db.ts`](/apps/api/config/test-db.ts#L33)
+- [`config/test-db.ts`](../../apps/api/config/test-db.ts#L33)
 
 After migrations run, test setup also runs:
 
-- [`bootstrapApplicationWorkspaces`](/apps/api/config/test-db.ts#L82)
+- [`runBootstrap`](../../apps/api/config/test-db.ts) (includes the `canonical-workspaces` phase)
 
 That means tests see the same platform/partner workspace baseline that the application expects in real environments.
 
@@ -459,12 +452,12 @@ If you are tracing workspace creation, these are the main tables to inspect:
 
 If you want to walk the code in order:
 
-1. [`companies.types.ts`](/apps/api/src/domains/companies/companies.types.ts#L79)
-2. [`company-provisioning.service.ts`](/apps/api/src/domains/companies/company-provisioning.service.ts#L231)
-3. [`signup.service.ts`](/apps/api/src/features/signup/signup.service.ts#L46)
-4. [`companies.fn.ts`](/apps/api/seeds/demo/config/002_companies/companies.fn.ts#L28)
-5. [`workspace-bootstrap.service.ts`](/apps/api/src/domains/companies/workspace-bootstrap.service.ts#L145)
-6. [`package.json`](/apps/api/package.json#L24)
+1. [`companies.types.ts`](../../apps/api/src/domains/companies/companies.types.ts#L79)
+2. [`company-provisioning.service.ts`](../../apps/api/src/domains/companies/company-provisioning.service.ts#L231)
+3. [`signup.service.ts`](../../apps/api/src/features/signup/signup.service.ts#L46)
+4. [`companies.fn.ts`](../../apps/api/seeds/demo/config/002_companies/companies.fn.ts#L28)
+5. [`canonical-workspaces.bootstrap.ts`](../../apps/api/src/bootstrap/phases/canonical-workspaces.bootstrap.ts)
+6. [`package.json`](../../apps/api/package.json)
 
 ## The Main Rule
 

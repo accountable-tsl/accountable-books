@@ -1,6 +1,9 @@
 import type { Knex } from 'knex';
 
+import { createChildLogger } from '../../shared/utils/logger.js';
 import { fetchExchangeRate } from './exchangeRates.model.js';
+
+const fxLogger = createChildLogger({ domain: 'exchange_rates' });
 
 export async function determineExchangeRate({
   date,
@@ -28,15 +31,26 @@ export async function determineExchangeRate({
     if (exr.success && exr.data?.rate) {
       return Number(exr.data.rate);
     } else {
-      console.error(
-        `Failed to determine exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${new Date(date).toLocaleDateString()}`,
+      fxLogger.warn(
+        {
+          fromCurrencyId,
+          toCurrencyId,
+          date: new Date(date).toISOString(),
+          error: exr.error,
+        },
+        'Failed to determine exchange rate',
       );
       return null;
     }
   } catch (error: unknown) {
-    console.error(
-      `Error determining exchange rate for ${fromCurrencyId} to ${toCurrencyId} on ${date}:`,
-      error,
+    fxLogger.error(
+      {
+        fromCurrencyId,
+        toCurrencyId,
+        date: new Date(date).toISOString(),
+        error,
+      },
+      'Unexpected error determining exchange rate',
     );
     return null;
   }

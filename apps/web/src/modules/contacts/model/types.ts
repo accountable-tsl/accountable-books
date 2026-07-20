@@ -1,7 +1,7 @@
 import type { Pagination } from '@/shared/types/core';
-import z from 'zod';
+import { z } from 'zod';
 
-export const contactStatus = z.enum(['active', 'inactive']);
+export const contactStatus = z.enum(['active', 'archived']);
 export type ContactStatus = z.infer<typeof contactStatus>;
 
 export const newContact = z.object({

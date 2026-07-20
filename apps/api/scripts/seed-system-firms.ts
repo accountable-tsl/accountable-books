@@ -1,25 +1,33 @@
 import '../config/env-loader.js';
 
+import { resolveBootstrapPlan, runBootstrap } from '../src/bootstrap/index.js';
 import { knexClient } from '../src/db/knexClient.js';
-import { seedSystemFirms } from '../src/domains/companies/workspace-bootstrap.service.js';
+
+import type { BootstrapPhase } from '../src/bootstrap/index.js';
 
 const dryRun = process.argv.includes('--dry-run');
+const phases: BootstrapPhase[] = ['canonical-workspaces'];
 
 async function run(): Promise<void> {
   if (dryRun) {
     console.log(
-      'System firm bootstrap dry-run is not yet implemented. Run without --dry-run to reconcile firms.',
+      `System firm bootstrap plan: ${resolveBootstrapPlan({ phases }).join(', ')}`,
     );
     return;
   }
 
-  const result = await seedSystemFirms(knexClient, {
-    sideEffectMode: 'skip_jobs',
-  });
+  const result = await runBootstrap(knexClient, { phases });
+  const workspaces = Object.values(
+    result.context.canonicalWorkspacesByKey ?? {},
+  ).filter((workspace) => workspace.workspace_class === 'partner');
 
-  console.log(`System firm bootstrap complete (admin: ${result.adminUserId})`);
-  for (const entry of result.results) {
-    console.log(`  ${entry.shortCode}: ${entry.action} (${entry.companyId})`);
+  console.log(
+    `System firm bootstrap complete (admin: ${result.context.canonicalWorkspaceAdminUserId})`,
+  );
+  for (const workspace of workspaces) {
+    console.log(
+      `  ${workspace.key}: ${workspace.action} (${workspace.id}, ${workspace.short_code})`,
+    );
   }
 }
 

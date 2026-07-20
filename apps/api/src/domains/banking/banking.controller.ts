@@ -1,33 +1,61 @@
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 
-import {
-  connectAccountsService,
-  scheduleTransactionSync,
-  transactionSyncService,
-} from '../../integrations/banking/index.js';
+import { knexClient } from '../../db/knexClient.js';
+import { connectAccountsService } from '../../integrations/banking/index.js';
 import { providerRegistry } from '../../integrations/banking/providers/registry.js';
+import { requestBankAccountSync } from '../../integrations/banking/transaction-sync.outbox.js';
+import { getLogger } from '../../shared/utils/logger.js';
 import {
+  ErrorCode,
   errorResponse,
+  getHttpStatusFromErrorCode,
   successResponse,
 } from '../../shared/utils/response.utils.js';
+import { loadSecretForConnectionReauthorization } from './bank-connection-secrets/bank-connection-secrets.model.js';
+import { getBankAccountSyncEligibility } from './bankAccounts/bankAccounts.model.js';
 import { bankProviderKey } from './bankFeedProviders/bankFeedProviders.types.js';
+import {
+  revokeConnectionAndDestroySecret,
+  stopFeedAndCancelSync,
+} from './connection-lifecycle/lifecycle.commands.js';
 
 import type { AuthRequest } from '../../features/auth/auth.types.js';
+
+const bankAccountSyncBody = z.object({ bankAccountId: z.uuid() });
+const createLinkTokenBody = z.object({
+  provider: bankProviderKey,
+  connectionId: z.uuid().optional(),
+});
+const logger = getLogger({ component: 'banking-controller' });
+
+/** Requires `checkCompanyId` middleware (sets `req.companyContext.uuid`). */
+function requireBankingActor(req: AuthRequest) {
+  const userId = req.user?.id;
+  const companyId = req.companyContext?.uuid;
+  if (!userId || !companyId) return null;
+  return { userId, companyId };
+}
 
 export class BankingController {
   async connectBankAccounts(req: AuthRequest, res: Response) {
     try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.body.companyId);
+      const actor = requireBankingActor(req);
 
-      if (!userId || !companyId) {
+      if (!actor) {
         return res
           .status(400)
           .json(errorResponse('Missing user or company ID'));
       }
+      const { userId, companyId } = actor;
 
-      console.log('req.body', req.body);
-      const { providerKey, publicToken, metadata, countryCode } = req.body;
+      const {
+        providerKey,
+        publicToken,
+        metadata,
+        countryCode,
+        confirmReplacement,
+      } = req.body;
 
       if (!providerKey || !publicToken || !countryCode) {
         return res
@@ -46,34 +74,94 @@ export class BankingController {
         metadata,
         companyId,
         userId,
+        confirmReplacement: Boolean(confirmReplacement),
       });
-
-      console.log('Result:', result);
 
       if (result.success) {
         res.json(result);
       } else {
         res.status(400).json(result);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error connecting bank accounts:', error);
       res.status(500).json(errorResponse('Internal server error'));
     }
   }
 
-  // TODO: Remove this... add update bank account function to banks.model.ts, then we can build a think wrapper round that for this if needed
+  async stopBankAccountFeed(req: AuthRequest, res: Response) {
+    try {
+      const actor = requireBankingActor(req);
+      const feedId = String(req.params.feedId || '');
+      if (!actor || !feedId) {
+        return res
+          .status(400)
+          .json(errorResponse('Missing user, company, or feed id'));
+      }
+      const { userId, companyId } = actor;
+
+      const result = await knexClient.transaction(async (trx) =>
+        stopFeedAndCancelSync({
+          feedId,
+          companyId,
+          revokedById: userId,
+          revocationOrigin: 'client',
+          revocationReason: 'Stopped by user',
+          trx,
+        }),
+      );
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (error: unknown) {
+      console.error('Error stopping bank account feed:', error);
+      return res.status(500).json(errorResponse('Failed to stop feed'));
+    }
+  }
+
+  async revokeBankConnection(req: AuthRequest, res: Response) {
+    try {
+      const actor = requireBankingActor(req);
+      const connectionId = String(req.params.connectionId || '');
+      if (!actor || !connectionId) {
+        return res
+          .status(400)
+          .json(errorResponse('Missing user, company, or connection id'));
+      }
+      const { userId, companyId } = actor;
+
+      const result = await knexClient.transaction(async (trx) =>
+        revokeConnectionAndDestroySecret({
+          connectionId,
+          companyId,
+          revokedById: userId,
+          revocationOrigin: 'client',
+          revocationReason: 'Revoked by user',
+          trx,
+        }),
+      );
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      return res.json(result);
+    } catch (error: unknown) {
+      console.error('Error revoking bank connection:', error);
+      return res.status(500).json(errorResponse('Failed to revoke connection'));
+    }
+  }
 
   /**
    * Classify a bank account as business or personal
    */
   async classifyBankAccount(req: AuthRequest, res: Response) {
     try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
+      const actor = requireBankingActor(req);
       const { accountId } = req.params;
       const { businessOrPersonal } = req.body;
 
-      if (!userId || !companyId || !accountId) {
+      if (!actor || !accountId) {
         return res
           .status(400)
           .json(errorResponse('Missing required parameters'));
@@ -92,12 +180,6 @@ export class BankingController {
           );
       }
 
-      // const result = await bankingService.classifyBankAccount({
-      //   accountId,
-      //   companyId,
-      //   userId,
-      //   businessOrPersonal,
-      // });
       const result = { success: false, note: '' };
 
       if (result.success) {
@@ -105,27 +187,30 @@ export class BankingController {
       } else {
         res.status(400).json(result);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error classifying bank account:', error);
       res.status(500).json(errorResponse('Internal server error'));
     }
   }
 
-  async createLinkToken(req: Request, res: Response) {
+  async createLinkToken(req: AuthRequest, res: Response) {
     try {
-      const { provider, userId, companyId } = req.body;
+      const actor = requireBankingActor(req);
+      const parsedBody = createLinkTokenBody.safeParse(req.body);
 
-      if (
-        !provider ||
-        !bankProviderKey.options.includes(provider) ||
-        !userId ||
-        !companyId
-      ) {
+      if (!actor) {
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields: provider, userId, companyId',
+          error: 'Missing authenticated user or company',
         });
       }
+      const { userId, companyId } = actor;
+      if (!parsedBody.success) {
+        return res
+          .status(400)
+          .json(errorResponse('Invalid link token request'));
+      }
+      const { provider, connectionId } = parsedBody.data;
 
       const providerInstance = await providerRegistry.get(provider);
       if (!providerInstance) {
@@ -134,14 +219,31 @@ export class BankingController {
           .json(errorResponse(`Unsupported provider: ${provider}`));
       }
 
+      let accessToken: string | undefined;
+      if (connectionId) {
+        const secret = await loadSecretForConnectionReauthorization({
+          connectionId,
+          companyId,
+          providerKey: provider,
+        });
+        if (!secret.success || !secret.data) {
+          return res
+            .status(409)
+            .json(errorResponse('Bank connection cannot be reauthorized'));
+        }
+        accessToken = secret.data.access_token;
+      }
+
       const token = await providerInstance.createLinkToken({
         userId,
         companyId,
+        ...(accessToken ? { accessToken } : {}),
       });
 
-      console.log({ token });
-
-      const result = successResponse('Link token created', { token });
+      const result = successResponse('Link token created', {
+        token,
+        mode: accessToken ? 'reauthorization' : 'connect',
+      });
 
       if (result.success) {
         res.json(result);
@@ -150,6 +252,49 @@ export class BankingController {
       }
     } catch (error: any) {
       res.status(500).json(errorResponse('Internal server error'));
+    }
+  }
+
+  async completeConnectionReauthorization(req: AuthRequest, res: Response) {
+    try {
+      const actor = requireBankingActor(req);
+      const parsedConnectionId = z.uuid().safeParse(req.params.connectionId);
+      if (!actor || !parsedConnectionId.success) {
+        return res
+          .status(400)
+          .json(errorResponse('Missing user, company, or connection id'));
+      }
+      const { userId, companyId } = actor;
+      const connectionId = parsedConnectionId.data;
+
+      const result = await connectAccountsService.completeReauthorization({
+        connectionId,
+        companyId,
+        userId,
+      });
+      if (!result.success) {
+        const status = getHttpStatusFromErrorCode(result.code);
+        logger.warn(
+          { companyId, connectionId, userId, status, code: result.code },
+          'Bank connection reauthorization failed',
+        );
+        return res.status(status).json(result);
+      }
+      logger.info(
+        {
+          companyId,
+          connectionId,
+          userId,
+          selectedAccountCount: result.data?.accounts.length ?? 0,
+        },
+        'Bank connection reauthorization completed',
+      );
+      return res.json(result);
+    } catch (error: unknown) {
+      console.error('Error completing bank connection reauthorization:', error);
+      return res
+        .status(500)
+        .json(errorResponse('Failed to complete reauthorization'));
     }
   }
 
@@ -165,9 +310,9 @@ export class BankingController {
   async testConnection(req: AuthRequest, res: Response) {
     try {
       const { provider } = req.params;
-      const companyId = String(req.user?.currentCompanyId);
+      const actor = requireBankingActor(req);
 
-      if (!provider || !companyId) {
+      if (!provider || !actor) {
         return res
           .status(400)
           .json(errorResponse('Missing provider or company ID'));
@@ -191,41 +336,54 @@ export class BankingController {
    */
   async syncTransactions(req: AuthRequest, res: Response) {
     try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
-      const { credentialId } = req.body;
+      const actor = requireBankingActor(req);
+      const parsedBody = bankAccountSyncBody.safeParse(req.body);
 
-      if (!userId || !companyId) {
+      if (!actor) {
         return res
           .status(400)
           .json(errorResponse('Missing user or company ID'));
       }
+      const { userId, companyId } = actor;
 
-      if (!credentialId) {
-        return res.status(400).json(errorResponse('Missing credentialId'));
+      if (!parsedBody.success) {
+        return res.status(400).json(errorResponse('Invalid bankAccountId'));
+      }
+      const { bankAccountId } = parsedBody.data;
+
+      const account = await getBankAccountSyncEligibility({
+        bankAccountId,
+        companyId,
+      });
+      if (!account) {
+        return res.status(404).json(
+          errorResponse('Bank account not found', undefined, {
+            code: ErrorCode.NOT_FOUND,
+          }),
+        );
+      }
+      if (!account.eligible) {
+        const message =
+          account.reason === 'reconnect_required'
+            ? 'Bank account requires reconnection'
+            : 'Bank account is not eligible for transaction sync';
+        return res.status(409).json(
+          errorResponse(message, undefined, {
+            code: ErrorCode.OPERATION_NOT_ALLOWED,
+            metadata: { reason: account.reason },
+          }),
+        );
       }
 
-      // Queue sync job
-      const job = await scheduleTransactionSync(
-        {
-          credentialId,
-          syncType: 'manual',
-          companyId,
-          userId,
-        },
-        {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-          priority: 0,
-        },
-      );
+      const { id: outboxId } = await requestBankAccountSync({
+        bankAccountId: account.id,
+        trigger: 'manual',
+        actorUserId: userId,
+      });
 
       res.json(
         successResponse('Transaction sync queued successfully', {
-          jobId: job?.id ?? 'disabled-job-id',
+          outboxId,
         }),
       );
     } catch (error: any) {
@@ -233,128 +391,4 @@ export class BankingController {
       res.status(500).json(errorResponse('Failed to queue transaction sync'));
     }
   }
-
-  /**
-   * Set transaction sync start date
-   * POST /api/banking/set-sync-date
-   */
-  async setTransactionSyncDate(req: AuthRequest, res: Response) {
-    try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
-      const { credentialId, fromDate } = req.body;
-
-      if (!userId || !companyId) {
-        return res
-          .status(400)
-          .json(errorResponse('Missing user or company ID'));
-      }
-
-      if (!credentialId) {
-        return res.status(400).json(errorResponse('Missing credentialId'));
-      }
-
-      if (!fromDate) {
-        return res.status(400).json(errorResponse('Missing fromDate'));
-      }
-
-      // Validate date format
-      const date = new Date(fromDate);
-      if (isNaN(date.getTime())) {
-        return res.status(400).json(errorResponse('Invalid date format'));
-      }
-
-      // Check if date is not too far in the past (limit to 2 years)
-      const twoYearsAgo = new Date();
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-
-      if (date < twoYearsAgo) {
-        return res
-          .status(400)
-          .json(errorResponse('Date cannot be more than 2 years in the past'));
-      }
-
-      // Set the sync date
-      await transactionSyncService.setTransactionSyncDate(credentialId, date);
-
-      res.json(
-        successResponse('Transaction sync date updated successfully', {
-          credentialId,
-          fromDate: date.toISOString(),
-        }),
-      );
-    } catch (error: any) {
-      console.error('Error setting transaction sync date:', error);
-      res
-        .status(500)
-        .json(errorResponse('Failed to set transaction sync date'));
-    }
-  }
-
-  /**
-   * Get transaction sync status for a credential
-   * GET /api/banking/sync-status/:credentialId
-   */
-  async getTransactionSyncStatus(req: AuthRequest, res: Response) {
-    try {
-      const userId = String(req.user?.id);
-      const companyId = String(req.user?.currentCompanyId);
-      const credentialId = String(req.params.credentialId);
-
-      if (!userId || !companyId) {
-        return res
-          .status(400)
-          .json(errorResponse('Missing user or company ID'));
-      }
-
-      if (!credentialId) {
-        return res.status(400).json(errorResponse('Missing credentialId'));
-      }
-
-      // Get credential details (this method would need to be added to TransactionSyncService)
-      const credential =
-        await transactionSyncService['getCredential'](credentialId);
-
-      if (!credential) {
-        return res.status(404).json(errorResponse('Credential not found'));
-      }
-
-      if (credential.company_id !== companyId) {
-        return res.status(403).json(errorResponse('Access denied'));
-      }
-
-      res.json(
-        successResponse('Transaction sync status retrieved', {
-          credentialId,
-          initialSyncCompleted: credential.initial_sync_completed,
-          lastSyncAt: credential.last_transactions_sync_at,
-          transactionsFromDate: credential.transactions_from_date,
-          status: credential.status,
-        }),
-      );
-    } catch (error: any) {
-      console.error('Error getting transaction sync status:', error);
-      res
-        .status(500)
-        .json(errorResponse('Failed to get transaction sync status'));
-    }
-  }
 }
-
-export const createCredential = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  try {
-    // TODO: Update this to use new bankAccountCredentials.model.ts structure
-    res
-      .status(501)
-      .json(
-        errorResponse(
-          'createCredential endpoint needs updating for new architecture',
-        ),
-      );
-  } catch (error) {
-    res.status(500).json(errorResponse('Internal server error', error));
-  }
-};

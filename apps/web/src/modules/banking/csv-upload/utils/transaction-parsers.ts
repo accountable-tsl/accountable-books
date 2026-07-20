@@ -9,7 +9,7 @@ import {
   parseDateString,
   safeFormatDate,
 } from '@/shared/utils/formatting-utils';
-import z from 'zod';
+import { z } from 'zod';
 
 export function transformParsedData({
   data,
@@ -64,18 +64,16 @@ export function transformParsedData({
       amount > 0 ? debitCredit.enum.credit : debitCredit.enum.debit;
 
     const y = {
-      date: fDate,
+      transaction_date: fDate,
       amount,
       bank_account_id: bankAccountId,
       // transactionSide,
       description,
       payee,
       reference,
-      additional_comments: additionalComments,
-      raw_data: row,
+      additional_notes: additionalComments,
+      source_payload: row,
     };
-
-    // const { raw_data, ...rest } = y;
 
     const x = {
       date: fDate,

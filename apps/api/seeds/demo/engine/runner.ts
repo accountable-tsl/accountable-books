@@ -65,7 +65,7 @@ export class DemoSeedRunner {
     if (!this.canAutoMigrate()) {
       throw new Error(
         `Database schema not found. Please run migrations first:\n` +
-          `  pnpm -F @accountable-books/api run migrate\n` +
+          `  pnpm -F @accountable-books/api run migrate:local\n` +
           `  or: make db-migrate\n` +
           `\n` +
           `Note: Auto-migration is only available in local/test environments for safety.`,
@@ -129,7 +129,7 @@ export class DemoSeedRunner {
       const message = error instanceof Error ? error.message : 'unknown error';
       throw new Error(
         `Failed to run migrations automatically: ${message}\n` +
-          `Please run migrations manually: pnpm -F @accountable-books/api run migrate`,
+          `Please run migrations manually: pnpm -F @accountable-books/api run migrate:local`,
       );
     }
   }
@@ -207,7 +207,7 @@ export class DemoSeedRunner {
     if (!schemaExists) {
       throw new Error(
         `Database schema not found. Cannot reverse demo seeds.\n` +
-          `Please run migrations first: pnpm -F @accountable-books/api run migrate`,
+          `Please run migrations first: pnpm -F @accountable-books/api run migrate:local`,
       );
     }
 
@@ -215,6 +215,9 @@ export class DemoSeedRunner {
       async (trx) => {
         // Set statement timeout for delete operations (3 minutes)
         await trx.raw("SET LOCAL statement_timeout = '180s'");
+        await trx.raw(
+          "SELECT set_config('app.demo_seed_teardown', 'on', true)",
+        );
 
         // Always run deletions sequentially to respect dependencies
         await this.runSequential(reversedSteps, 'delete', trx, filters);

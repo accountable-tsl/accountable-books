@@ -9,7 +9,7 @@ Common issues and solutions for Accountable Books development.
 If things are completely broken, try a full reset:
 
 ```bash
-make clean-all  # Nuclear cleanup: removes everything and reinstalls
+make clean-all  # Nuclear cleanup: removes deps/caches and reinstalls from lockfile
 ```
 
 ### 🧹 Partial Reset
@@ -130,7 +130,8 @@ make setup      # Re-setup environment
    docker volume rm accountable-books_postgres_data
    make db-up
    sleep 10
-   make db-migrate
+   make db-ready
+   make db-seed
    ```
 
 ### ❌ Database connection works but queries fail
@@ -139,10 +140,10 @@ make setup      # Re-setup environment
 
 **Solutions**:
 
-1. Ensure migrations ran successfully:
+1. Ensure migrate + bootstrap ran successfully:
 
    ```bash
-   make db-migrate
+   make db-ready
    ```
 
 2. Check database has required extensions:
@@ -276,34 +277,46 @@ make setup      # Re-setup environment
 
 **Solutions**:
 
-1. Install Node.js using a version manager:
+1. Install via **mise** (required by `make setup` / `check-prerequisites`):
 
    ```bash
-   # Using nvm (recommended)
-   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-   nvm install 24.16.0
-   nvm use 24.16.0
+   curl https://mise.run | sh
+   mise install   # from repo root
+   ```
 
-   # Or using Homebrew (macOS)
+2. Alternatives if needed:
+
+   ```bash
+   # nvm
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+   nvm install 24.16.0 && nvm use 24.16.0
+
+   # Homebrew (macOS)
    brew install node@24
    ```
 
 ### ❌ `pnpm: command not found`
 
-**Problem**: pnpm not installed
+**Problem**: pnpm not installed (need **pnpm >= 11**)
 
 **Solutions**:
 
 ```bash
-# Install pnpm
-npm install -g pnpm
+# Preferred: mise (from repo root)
+mise install
 
-# Or using Homebrew
-brew install pnpm
+# Or install pnpm directly
+npm install -g pnpm@11
+# Or: brew install pnpm
 
-# Verify installation
 pnpm --version
 ```
+
+### ❌ `uv: command not found`
+
+**Problem**: uv is required for the ML engine
+
+**Solution**: Install from https://docs.astral.sh/uv/getting-started/installation/ then `cd apps/ml-engine && uv sync --frozen`.
 
 ### ❌ Node version conflicts
 

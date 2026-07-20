@@ -15,11 +15,13 @@ export enum QueueName {
   RULE_RUNNER = 'rule-runner',
   ML_PREDICTION = 'ml-prediction',
   FISCAL_CALENDAR = 'fiscal-calendar',
-  PARTITION_MAINTENANCE = 'partition-maintenance',
   AUTOPOST = 'categorization-autopost',
   JOURNAL_AUTO_REVERSAL = 'journal-auto-reversal',
   RECURRING_JOURNAL = 'recurring-journal-templates',
   TASK_EVALUATION = 'task-evaluation',
+  CLOSE_SIGNAL_EVAL = 'close-signal-eval',
+  OUTBOX_DISPATCH = 'outbox-dispatch',
+  COMMS_DISPATCH = 'comms-dispatch',
 }
 
 /**

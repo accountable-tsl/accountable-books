@@ -5,15 +5,15 @@ import {
   createMockEntry,
   createMockFiscalPeriod,
 } from '../__test-helpers__.js';
-import { getFiscalCalendar } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import { ensureAndFetchFiscalCalendar } from '../../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import { periodNotLocked } from './period-not-locked.js';
 
-// Mock the getFiscalCalendar function
 vi.mock('../../reporting/fiscal-calendar/fiscal-calendar.service.js', () => ({
-  getFiscalCalendar: vi.fn(),
+  ensureAndFetchFiscalCalendar: vi.fn(),
 }));
 
-const mockedGetFiscalCalendar = getFiscalCalendar as ReturnType<typeof vi.fn>;
+const mockedEnsureAndFetchFiscalCalendar =
+  ensureAndFetchFiscalCalendar as ReturnType<typeof vi.fn>;
 
 describe('periodNotLocked constraint', () => {
   beforeEach(() => {
@@ -22,7 +22,9 @@ describe('periodNotLocked constraint', () => {
 
   describe('valid cases', () => {
     it('should pass when transaction date is in open period', async () => {
-      mockedGetFiscalCalendar.mockResolvedValue([]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [createMockFiscalPeriod()],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -39,7 +41,9 @@ describe('periodNotLocked constraint', () => {
     });
 
     it('should use transaction_date when entry dates are missing', async () => {
-      mockedGetFiscalCalendar.mockResolvedValue([]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [createMockFiscalPeriod()],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -53,13 +57,15 @@ describe('periodNotLocked constraint', () => {
 
       const result = await periodNotLocked.validate(ctx);
       expect(result).toEqual([]);
-      expect(mockedGetFiscalCalendar).toHaveBeenCalledWith({
-        companyId: ctx.companyUUID,
-        startYMD: '2024-01-15',
-        endYMD: '2024-01-15',
-        periodTypes: ['monthly'],
-        statuses: ['closed', 'locked'],
-      });
+      expect(mockedEnsureAndFetchFiscalCalendar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: ctx.companyUUID,
+          startYMD: '2024-01-15',
+          endYMD: '2024-01-15',
+          fetchTypes: ['monthly'],
+          requireMonthlyOpen: false,
+        }),
+      );
     });
   });
 
@@ -73,7 +79,9 @@ describe('periodNotLocked constraint', () => {
         status: 'closed',
       });
 
-      mockedGetFiscalCalendar.mockResolvedValue([closedPeriod]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [closedPeriod],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -101,7 +109,9 @@ describe('periodNotLocked constraint', () => {
         status: 'locked',
       });
 
-      mockedGetFiscalCalendar.mockResolvedValue([lockedPeriod]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [lockedPeriod],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -133,7 +143,9 @@ describe('periodNotLocked constraint', () => {
         status: 'closed',
       });
 
-      mockedGetFiscalCalendar.mockResolvedValue([period1, period2]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [period1, period2],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -169,7 +181,7 @@ describe('periodNotLocked constraint', () => {
 
       const result = await periodNotLocked.validate(ctx);
       expect(result).toEqual([]);
-      expect(mockedGetFiscalCalendar).not.toHaveBeenCalled();
+      expect(mockedEnsureAndFetchFiscalCalendar).not.toHaveBeenCalled();
     });
 
     it('should handle multiple entry dates, one in closed period', async () => {
@@ -181,7 +193,9 @@ describe('periodNotLocked constraint', () => {
         status: 'closed',
       });
 
-      mockedGetFiscalCalendar.mockResolvedValue([closedPeriod]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [closedPeriod],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -209,7 +223,9 @@ describe('periodNotLocked constraint', () => {
         status: 'closed',
       });
 
-      mockedGetFiscalCalendar.mockResolvedValue([closedPeriod]);
+      mockedEnsureAndFetchFiscalCalendar.mockResolvedValue({
+        rows: [closedPeriod],
+      });
 
       const ctx = createMockConstraintContext({
         entries: [
@@ -227,19 +243,21 @@ describe('periodNotLocked constraint', () => {
       const result = await periodNotLocked.validate(ctx);
       expect(result).toHaveLength(1);
       // Should query with min and max dates
-      expect(mockedGetFiscalCalendar).toHaveBeenCalledWith({
-        companyId: ctx.companyUUID,
-        startYMD: '2024-01-10',
-        endYMD: '2024-01-20',
-        periodTypes: ['monthly'],
-        statuses: ['closed', 'locked'],
-      });
+      expect(mockedEnsureAndFetchFiscalCalendar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: ctx.companyUUID,
+          startYMD: '2024-01-10',
+          endYMD: '2024-01-20',
+          fetchTypes: ['monthly'],
+          requireMonthlyOpen: false,
+        }),
+      );
     });
   });
 
   describe('error handling', () => {
     it('should handle database error during fiscal calendar query', async () => {
-      mockedGetFiscalCalendar.mockRejectedValue(
+      mockedEnsureAndFetchFiscalCalendar.mockRejectedValue(
         new Error('Database connection failed'),
       );
 

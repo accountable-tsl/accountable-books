@@ -1,5 +1,5 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://v2-10-4.turborepo.dev/schema.json",
   "ui": "tui",
   "globalDependencies": ["**/.env.*local"],
   "tasks": {
@@ -11,7 +11,21 @@
 
     "build": {
       "dependsOn": ["^build", "generate-env"],
-      "outputs": ["dist/**", "build/**", ".vite/**", "generated/**"]
+      "outputs": [
+        "dist/**",
+        "build/**",
+        ".vite/**",
+        "generated/**",
+        "accountable_contracts/**/*.js",
+        "accountable_contracts/**/*.js.map",
+        "accountable_contracts/**/*.d.ts",
+        "accountable_contracts/**/*.d.ts.map",
+        "accountable_contracts/data/index.ts",
+        "accountable_contracts/data/__init__.py",
+        "accountable_contracts/data/generated/**",
+        "accountable_contracts/schema/py/**",
+        "!accountable_contracts/**/__pycache__/**"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]

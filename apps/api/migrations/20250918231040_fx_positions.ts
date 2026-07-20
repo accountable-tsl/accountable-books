@@ -6,44 +6,48 @@ import {
 } from './utils/db.js';
 
 /**
- * Foreign exchange positions
- * Tracks foreign currency exposure lots. One position per fx transaction per company
- *
+ * FX positions are the current-state register for tracked foreign-currency
+ * monetary exposure. Positions are updated as ledger activity changes exposure;
+ * append-only lifecycle history lives in fx_position_movements.
  */
+const schemaName = 'app';
 const tableName = 'fx_positions';
+const qualifiedTable = `"${schemaName}"."${tableName}"`;
+const FX_POSITION_STATES = ['open', 'closed'] as const;
 
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema.createTable(tableName, (table) => {
+  await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
+    table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v7()'));
+
     table
       .uuid('company_id')
       .notNullable()
       .references('id')
-      .inTable('companies')
-      .onDelete('CASCADE');
+      .inTable(`${schemaName}.companies`)
+      .onDelete('RESTRICT');
 
-    table.string('fx_transaction_id').notNullable();
+    table.string('fx_transaction_id', 128).notNullable();
 
-    // Not sure if we need account id since the transaction already carries it
     table
       .uuid('account_id')
       .notNullable()
       .references('id')
-      .inTable('coa')
-      .onDelete('CASCADE');
+      .inTable(`${schemaName}.coa`)
+      .onDelete('RESTRICT');
 
     table
       .uuid('foreign_currency_id')
       .notNullable()
       .references('id')
-      .inTable('currencies')
-      .onDelete('CASCADE');
+      .inTable(`${schemaName}.currencies`)
+      .onDelete('RESTRICT');
 
     table.decimal('open_fx_amount', 18, 3).notNullable();
 
     table
       .decimal('carrying_rate', 32, 10)
       .notNullable()
-      .comment('Last rate use to set carrying value');
+      .comment('Last rate used to set carrying value');
 
     table
       .decimal('carrying_base_amount', 18, 3)
@@ -51,17 +55,16 @@ export async function up(knex: Knex): Promise<void> {
       .comment('Base carrying value after last revaluation');
 
     table
-      .enu('state', ['open', 'closed'], {
-        enumName: 'fx_position_state',
-        useNative: false,
-      })
+      .string('state', 16)
       .notNullable()
-      .defaultTo('open');
+      .defaultTo('open')
+      .checkIn([...FX_POSITION_STATES], 'fx_positions_state_chk');
 
     table
       .jsonb('metadata')
-      .nullable()
-      .comment('To track additional data, and history of changes');
+      .notNullable()
+      .defaultTo(knex.raw(`'{}'::jsonb`))
+      .comment('Additional position metadata and derived context');
 
     table
       .timestamp('created_at', { useTz: true })
@@ -72,25 +75,48 @@ export async function up(knex: Knex): Promise<void> {
       .notNullable()
       .defaultTo(knex.fn.now());
 
-    table.primary(['company_id', 'fx_transaction_id']);
+    // Enables tenant-scoped composite FKs from fx_position_movements.
+    table.unique(['id', 'company_id'], {
+      indexName: 'fx_positions_id_company_id_unique',
+    });
   });
 
   await knex.raw(`
-    CREATE INDEX fxpos_open_idx
-      ON fx_positions (company_id, state, foreign_currency_id);
-  `);
-  await knex.raw(`
-    CREATE INDEX fxpos_account_idx
-      ON fx_positions (company_id, account_id, state);
+    COMMENT ON TABLE ${qualifiedTable} IS
+    'Current-state register for foreign-currency monetary exposure positions derived from posted ledger entries.';
   `);
 
-  await createUpdateTimestampTrigger(knex, tableName);
+  await knex.raw(`
+    ALTER TABLE ${qualifiedTable}
+      ADD CONSTRAINT fx_positions_identity_unique
+        UNIQUE (company_id, fx_transaction_id, account_id, foreign_currency_id),
+      ADD CONSTRAINT fx_positions_transaction_id_trimmed_chk
+        CHECK (
+          fx_transaction_id = btrim(fx_transaction_id)
+          AND char_length(fx_transaction_id) >= 1
+        ),
+      ADD CONSTRAINT fx_positions_carrying_rate_positive_chk
+        CHECK (carrying_rate > 0),
+      ADD CONSTRAINT fx_positions_state_amount_chk
+        CHECK (
+          (state = 'open' AND open_fx_amount <> 0)
+          OR (state = 'closed' AND open_fx_amount = 0)
+        );
+  `);
+
+  await knex.raw(`
+    CREATE INDEX fx_positions_open_currency_idx
+      ON ${qualifiedTable} (company_id, foreign_currency_id, account_id)
+      WHERE state = 'open';
+
+    CREATE INDEX fx_positions_account_state_idx
+      ON ${qualifiedTable} (company_id, account_id, state);
+  `);
+
+  await createUpdateTimestampTrigger(knex, tableName, schemaName);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.raw(`DROP INDEX IF EXISTS fxpos_account_idx;`);
-  await knex.raw(`DROP INDEX IF EXISTS fxpos_open_idx;`);
-  await dropUpdateTimestampTrigger(knex, tableName);
-  await knex.schema.dropTableIfExists(tableName);
-  await knex.raw(`DROP TYPE IF EXISTS fx_position_state`);
+  await dropUpdateTimestampTrigger(knex, tableName, schemaName);
+  await knex.schema.withSchema(schemaName).dropTableIfExists(tableName);
 }

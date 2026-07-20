@@ -6,9 +6,9 @@ export type JobScheduleKey =
   | 'fiscalAutoExtend'
   | 'journalAutoReversal'
   | 'recurringJournalScan'
-  | 'partitionMaintenance'
-  | 'partitionDrain'
   | 'transactionSyncDailyScan'
+  | 'historyImportExpiry'
+  | 'bankingRetention'
   | 'taskEvaluationSweep';
 
 export type JobSchedule = {
@@ -37,22 +37,22 @@ const SCHEDULES: Record<JobScheduleKey, JobSchedule> = {
     description: 'Hourly recurring journal template scan',
     tz: 'UTC',
   },
-  partitionMaintenance: {
-    cron: '0 2 * * *',
-    envVar: 'PARTITION_MAINTENANCE_CRON',
-    description: 'Daily partition maintenance',
-    tz: 'UTC',
-  },
-  partitionDrain: {
-    cron: '0 */4 * * *',
-    envVar: 'PARTITION_DRAIN_CRON',
-    description: 'Drain default partitions every 4 hours',
-    tz: 'UTC',
-  },
   transactionSyncDailyScan: {
     cron: '0 2 * * *',
     envVar: 'TRANSACTION_SYNC_CRON',
     description: 'Daily transaction sync scan',
+    tz: 'UTC',
+  },
+  historyImportExpiry: {
+    cron: '15 2 * * *',
+    envVar: 'HISTORY_IMPORT_EXPIRY_CRON',
+    description: 'Daily history import expiry and reminder sweep',
+    tz: 'UTC',
+  },
+  bankingRetention: {
+    cron: '30 2 * * *',
+    envVar: 'BANKING_RETENTION_CRON',
+    description: 'Daily banking retention purge (webhook payloads, sync runs)',
     tz: 'UTC',
   },
   taskEvaluationSweep: {

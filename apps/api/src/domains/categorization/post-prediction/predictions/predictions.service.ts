@@ -3,6 +3,10 @@ import z from 'zod';
 
 import { knexClient } from '../../../../db/knexClient.js';
 import { logger } from '../../../../shared/index.js';
+import {
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../../../shared/services/advisoryLocks.service.js';
 import { logTaskEventSafe } from '../../tasks/task-events.service.js';
 import {
   persistPredictionParams,
@@ -48,6 +52,24 @@ export async function persistPrediction(
   const { prediction: predictionHead, predictionLines } = validationResult.data;
 
   const exec = async (trx: Knex.Transaction) => {
+    await acquireAdvisoryXactLocks(trx, [
+      lockKeyCompany(predictionHead.company_id),
+    ]);
+    const referencedCoaIds = [
+      ...new Set(predictionLines.map((line) => line.coa_id)),
+    ];
+    const activeCoas = await trx('coa')
+      .where({
+        company_id: predictionHead.company_id,
+        is_active: true,
+        is_deleted: false,
+      })
+      .whereIn('id', referencedCoaIds)
+      .select('id');
+    if (activeCoas.length !== referencedCoaIds.length) {
+      throw new Error('Prediction references invalid or inactive COA IDs');
+    }
+
     const [prediction] = await trx(PREDICTIONS_TABLE)
       .insert(predictionHead)
       .returning(['id']);

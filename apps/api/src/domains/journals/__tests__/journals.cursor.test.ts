@@ -54,14 +54,18 @@ describe('getJournalsByCursor', () => {
     await trx.rollback();
   });
 
-  async function createDraftJournal(reference: string, date: string) {
+  async function createJournal(
+    userReference: string,
+    date: string,
+    status: 'draft' | 'posted' = 'draft',
+  ) {
     const result = await postJournalRecord({
       data: {
         date,
-        title: `Cursor Test ${reference}`,
+        title: `Cursor Test ${userReference}`,
         description: 'Cursor pagination test',
-        status: 'draft',
-        reference,
+        status,
+        userReference,
         currencyId: usdCurrencyId,
         entries: [
           {
@@ -95,6 +99,7 @@ describe('getJournalsByCursor', () => {
         status: 'draft',
         company_id: testCompanyId,
         auto_post: false,
+        currency_id: usdCurrencyId,
         template_timezone: 'America/New_York',
         frequency: 'monthly',
         start_date: new Date(`${startDate}T00:00:00Z`),
@@ -106,8 +111,8 @@ describe('getJournalsByCursor', () => {
   }
 
   it('paginates deterministically by created_at', async () => {
-    await createDraftJournal(`REF-${randomUUID()}`, '2099-01-10');
-    await createDraftJournal(`REF-${randomUUID()}`, '2099-01-11');
+    await createJournal(`REF-${randomUUID()}`, '2099-01-10');
+    await createJournal(`REF-${randomUUID()}`, '2099-01-11');
 
     const first = await getJournalsByCursor({
       userId: testUserId,
@@ -157,9 +162,9 @@ describe('getJournalsByCursor', () => {
     expect(second.data?.rows[0].id).not.toBe(first.data?.rows[0].id);
   });
 
-  it('paginates across reference nulls with isNull cursor', async () => {
+  it('paginates across system reference nulls with isNull cursor', async () => {
     const token = randomUUID();
-    await createDraftJournal(`REF-${token}`, '2099-02-10');
+    await createJournal(`REF-${token}`, '2099-02-10', 'posted');
     await createTemplate(`Template ${token} A`, '2099-02-01');
     await createTemplate(`Template ${token} B`, '2099-02-02');
 
@@ -169,7 +174,7 @@ describe('getJournalsByCursor', () => {
       trx,
       queryData: {
         limit: 2,
-        sortBy: 'reference',
+        sortBy: 'system_reference',
         sortDir: 'asc',
         dateFrom: '2099-01-01',
         dateTo: '2099-12-31',
@@ -190,7 +195,7 @@ describe('getJournalsByCursor', () => {
     const payload = JSON.parse(
       Buffer.from(cursor!, 'base64url').toString('utf8'),
     );
-    expect(payload.sortBy).toBe('reference');
+    expect(payload.sortBy).toBe('system_reference');
     expect(payload.isNull).toBe(true);
     expect(payload.value).toBe('');
 
@@ -200,7 +205,7 @@ describe('getJournalsByCursor', () => {
       trx,
       queryData: {
         limit: 2,
-        sortBy: 'reference',
+        sortBy: 'system_reference',
         sortDir: 'asc',
         dateFrom: '2099-01-01',
         dateTo: '2099-12-31',

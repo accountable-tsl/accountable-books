@@ -70,6 +70,15 @@ const ALG = 'aes-256-gcm';
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
+/** Read the key id from an encryption envelope without decrypting its payload. */
+export function getCiphertextKeyId(token: string): number {
+  const data = Buffer.from(token, 'base64');
+  if (data.length < 1 + IV_LEN + TAG_LEN) {
+    throw new Error('Ciphertext too short');
+  }
+  return data.readUInt8(0);
+}
+
 /**
  * Encrypt plaintext with the current key.
  * Optional `aad` binds the ciphertext to context (e.g. `${providerId}:${companyId}`).

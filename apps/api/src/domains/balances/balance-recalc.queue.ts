@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import type { Job, JobsOptions } from 'bullmq';
+import type { Knex } from 'knex';
 import { z } from 'zod';
 
 import {
@@ -8,8 +9,10 @@ import {
   QueueName,
 } from '../../jobs/queues/queue-broker.js';
 import { createQueue } from '../../jobs/queues/queue-factory.js';
+import { runAfterTransactionCommit } from '../../shared/db/after-transaction-commit.js';
 import { withJobTelemetry } from '../../shared/telemetry/request-context.js';
 import { isValidYMD } from '../../shared/utils/date.utils.js';
+import { getLogger } from '../../shared/utils/logger.js';
 
 /**
  * Queue for balance recalculation jobs
@@ -19,15 +22,24 @@ import { isValidYMD } from '../../shared/utils/date.utils.js';
  */
 const YMD = z.string().trim().refine(isValidYMD, 'Invalid YMD YYYY-MM-DD');
 
-export const glBalanceJobDataSchema = z
-  .object({
+export const enqueueGLBalanceInput = z.object({
+  companyId: z.string().trim().min(1),
+  coaId: z.string().trim().min(1),
+  recalcFrom: YMD,
+  recalcTo: YMD.optional(),
+  triggeredBy: z.enum([
+    'ledger_entry',
+    'backfill',
+    'soft_delete',
+    'supersession',
+    'manual',
+  ]),
+  userId: z.string().optional(),
+});
+
+export const glBalanceJobDataSchema = enqueueGLBalanceInput
+  .extend({
     type: z.literal('gl-balance'),
-    companyId: z.string().trim().min(1),
-    coaId: z.string().trim().min(1),
-    recalcFrom: YMD,
-    recalcTo: YMD.optional(),
-    triggeredBy: z.enum(['ledger_entry', 'backfill', 'soft_delete', 'manual']),
-    userId: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.recalcTo && val.recalcFrom > val.recalcTo) {
@@ -38,6 +50,7 @@ export const glBalanceJobDataSchema = z
       });
     }
   });
+export type EnqueueGLBalanceInput = z.infer<typeof enqueueGLBalanceInput>;
 export type GLBalanceJobData = z.infer<typeof glBalanceJobDataSchema>;
 
 export const bankBalanceJobDataSchema = z
@@ -69,6 +82,7 @@ export const bankBalanceJobDataSchema = z
   });
 
 export type BankBalanceJobData = z.infer<typeof bankBalanceJobDataSchema>;
+export type EnqueueBankBalanceInput = Omit<BankBalanceJobData, 'type'>;
 
 export const BalanceJobDataSchema = z.discriminatedUnion('type', [
   glBalanceJobDataSchema,
@@ -92,6 +106,8 @@ export const balanceRecalcQueue = createQueue<BalanceJobData>(
   },
 );
 
+const logger = getLogger({ component: 'balance-recalc-queue' });
+
 function rangeHash(from: string, to?: string): string {
   return createHash('sha1')
     .update(`${from}|${to ?? ''}`)
@@ -99,22 +115,25 @@ function rangeHash(from: string, to?: string): string {
     .slice(0, 10);
 }
 
-function mergeRanges(
+export function mergeBalanceRecalcRanges(
   aFrom: string,
   aTo?: string,
   bFrom?: string,
   bTo?: string,
 ): { from: string; to?: string } {
   if (!bFrom) {
-    throw new Error('mergeRanges requires bFrom to be defined');
+    throw new Error('mergeBalanceRecalcRanges requires bFrom to be defined');
   }
 
   const from = aFrom < bFrom ? aFrom : bFrom;
-  const to = aTo && bTo ? (aTo > bTo ? aTo : bTo) : (aTo ?? bTo);
+  const to =
+    aTo === undefined || bTo === undefined ? undefined : aTo > bTo ? aTo : bTo;
 
   // Safety check: ensure we didn't produce an invalid range
   if (to && from > to) {
-    throw new Error(`mergeRanges produced invalid range: ${from}..${to}`);
+    throw new Error(
+      `mergeBalanceRecalcRanges produced invalid range: ${from}..${to}`,
+    );
   }
 
   return { from, to };
@@ -125,6 +144,7 @@ function priorityForGL(trigger: GLBalanceJobData['triggeredBy']): number {
     case 'manual':
       return 10;
     case 'soft_delete':
+    case 'supersession':
       return 7;
     case 'ledger_entry':
       return 5;
@@ -171,7 +191,7 @@ const isMergeableState = (s: string) => MERGEABLE_STATES.has(s);
  * Returns null if queues are disabled
  */
 export async function enqueueGLBalance(
-  data: Omit<GLBalanceJobData, 'type'>,
+  data: EnqueueGLBalanceInput,
 ): Promise<Job<GLBalanceJobData> | null> {
   // In test/disabled-queue mode, skip Redis lookups entirely.
   if (!queueBroker.shouldExecute()) {
@@ -198,7 +218,7 @@ export async function enqueueGLBalance(
     const state = await existing.getState();
 
     if (isMergeableState(state)) {
-      const merged = mergeRanges(
+      const merged = mergeBalanceRecalcRanges(
         ex.recalcFrom,
         ex.recalcTo,
         recalcFrom,
@@ -221,11 +241,12 @@ export async function enqueueGLBalance(
       // If new range extends earlier/later than the running job, enqueue a follow-up job
       const extendsEarlier = recalcFrom < ex.recalcFrom;
       const extendsLater =
-        (recalcTo ?? recalcFrom) > (ex.recalcTo ?? ex.recalcFrom);
+        ex.recalcTo !== undefined &&
+        (recalcTo === undefined || recalcTo > ex.recalcTo);
 
       if (extendsEarlier || extendsLater) {
         // Compute the extended range that needs to be covered
-        const merged = mergeRanges(
+        const merged = mergeBalanceRecalcRanges(
           ex.recalcFrom,
           ex.recalcTo,
           recalcFrom,
@@ -266,13 +287,40 @@ export async function enqueueGLBalance(
   return job as Job<GLBalanceJobData> | null;
 }
 
+export async function scheduleGLBalanceAfterCommit(
+  data: EnqueueGLBalanceInput,
+  trx?: Knex.Transaction,
+): Promise<Job<GLBalanceJobData> | null> {
+  if (!trx) {
+    return await enqueueGLBalance(data);
+  }
+
+  runAfterTransactionCommit(trx, () => {
+    enqueueGLBalance(data).catch((error) => {
+      logger.error(
+        {
+          companyId: data.companyId,
+          coaId: data.coaId,
+          recalcFrom: data.recalcFrom,
+          recalcTo: data.recalcTo,
+          triggeredBy: data.triggeredBy,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to enqueue GL balance recalculation after transaction commit',
+      );
+    });
+  });
+
+  return null;
+}
+
 /**
  * Enqueue bank balance recalculation with deduplication
  * Uses jobId to ensure only one job per (company, bank_account) pair
  * Returns null if queues are disabled
  */
 export async function enqueueBankBalance(
-  data: Omit<BankBalanceJobData, 'type'>,
+  data: EnqueueBankBalanceInput,
 ): Promise<Job<BankBalanceJobData> | null> {
   // In test/disabled-queue mode, skip Redis lookups entirely.
   if (!queueBroker.shouldExecute()) {
@@ -297,7 +345,7 @@ export async function enqueueBankBalance(
     const state = await existing.getState();
 
     if (isMergeableState(state)) {
-      const merged = mergeRanges(
+      const merged = mergeBalanceRecalcRanges(
         ex.recalcFrom,
         ex.recalcTo,
         recalcFrom,
@@ -320,11 +368,12 @@ export async function enqueueBankBalance(
       // If new range extends earlier/later than the running job, enqueue a follow-up job
       const extendsEarlier = recalcFrom < ex.recalcFrom;
       const extendsLater =
-        (recalcTo ?? recalcFrom) > (ex.recalcTo ?? ex.recalcFrom);
+        ex.recalcTo !== undefined &&
+        (recalcTo === undefined || recalcTo > ex.recalcTo);
 
       if (extendsEarlier || extendsLater) {
         // Compute the extended range that needs to be covered
-        const merged = mergeRanges(
+        const merged = mergeBalanceRecalcRanges(
           ex.recalcFrom,
           ex.recalcTo,
           recalcFrom,
@@ -371,6 +420,33 @@ export async function enqueueBankBalance(
     ),
   );
   return job as Job<BankBalanceJobData> | null;
+}
+
+export async function scheduleBankBalanceAfterCommit(
+  data: EnqueueBankBalanceInput,
+  trx?: Knex.Transaction,
+): Promise<Job<BankBalanceJobData> | null> {
+  if (!trx) {
+    return await enqueueBankBalance(data);
+  }
+
+  runAfterTransactionCommit(trx, () => {
+    enqueueBankBalance(data).catch((error) => {
+      logger.error(
+        {
+          companyId: data.companyId,
+          bankAccountId: data.bankAccountId,
+          recalcFrom: data.recalcFrom,
+          recalcTo: data.recalcTo,
+          triggeredBy: data.triggeredBy,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to enqueue bank balance recalculation after transaction commit',
+      );
+    });
+  });
+
+  return null;
 }
 
 /**

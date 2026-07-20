@@ -1,7 +1,0 @@
-from enum import Enum
-
-class WorkspaceClass(str, Enum):
-    CUSTOMER = "customer"
-    DEMO = "demo"
-    PLATFORM = "platform"
-    PARTNER = "partner"

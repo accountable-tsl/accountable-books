@@ -1,5 +1,0 @@
-from enum import Enum
-
-class BillingCommercialModeSchema(str, Enum):
-    FIRM_CUSTOMER = "firm_customer"
-    CLIENT_CUSTOMER = "client_customer"

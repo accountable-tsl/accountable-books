@@ -17,17 +17,21 @@ import {
 } from '@accountable-books/contracts/schema';
 import { z } from 'zod';
 
-import {
-  dbStandardFields,
-  debitCredit,
-  zDateYMD,
-} from '../../core/types/core.js';
+import { dbStandardFields, debitCredit } from '../../core/types/core.js';
 import { createCamelCaseSchemaWithExclusions } from '../../shared/utils/formatting.utils.js';
 
 import type { SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils.js';
 
+const journalEntryStatus = z.enum(['active', 'superseded', 'voided']);
+
+const journalEntryDescription = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.string().max(512).nullable().optional());
+
 export const journalEntryInput = z.object({
-  description: z.string(),
+  description: journalEntryDescription,
   side: debitCredit,
   amount: z.number().refine(
     (n) => {
@@ -44,9 +48,11 @@ export type JournalEntriesBase = z.infer<typeof journalEntryInput>;
 const newJournalEntry = z.object({
   ...journalEntryInput.shape,
   ...dbStandardFields.shape,
+  company_id: z.uuid(),
   journal_batch_id: z.uuid(),
+  line_number: z.int().positive(),
+  entry_status: journalEntryStatus,
   ledger_entry_id: z.uuid().nullish(),
-  ledger_entry_fs_date: zDateYMD.nullish(),
 });
 export type NewJournalEntry = z.infer<typeof newJournalEntry>;
 
@@ -60,7 +66,8 @@ export type JournalBatchStatus = ContractJournalBatchStatus;
 
 const baseJournalBatch = z.object({
   id: z.uuid().optional(),
-  reference: z.string().nullish(),
+  system_reference: z.string().nullish(),
+  user_reference: z.string().max(256).nullish(),
 
   date: z.iso.date(),
 
@@ -85,14 +92,13 @@ const baseJournalBatch = z.object({
 
   created_by_id: z.uuid().nullish(),
   updated_by_id: z.uuid().nullish(),
+  deleted_by_id: z.uuid().nullish(),
   reversed_by_id: z.uuid().nullish(),
   reversed_at: z.iso.date().nullish(),
   reversal_reason: z.string().max(2048).nullish(),
 
   reversal_journal_id: z.uuid().nullish(),
   original_journal_id: z.uuid().nullish(),
-
-  voided_at: z.iso.date().nullish(),
 
   note: z.string().max(2048).nullish(),
 
@@ -103,7 +109,9 @@ export type BaseJournalBatch = z.infer<typeof baseJournalBatch>;
 
 const journalBatchData = z.object({
   ...baseJournalBatch.shape,
-  status: journalBatchStatus.exclude(['voided']),
+  reference: z.never().optional(),
+  system_reference: z.never().optional(),
+  status: journalBatchStatus.extract(['draft', 'posted']).default('draft'),
   entries: z.array(journalEntryInput).min(2),
   files: z.array(txnFileBase).optional(),
 });
@@ -119,7 +127,7 @@ export type JournalBatchData = SnakeToCamelCaseObject<
 // Update Draft Journal Input (draft only)
 const updateDraftJournalData = z.object({
   ...journalBatchData.shape,
-  status: journalBatchStatus.extract(['draft']),
+  status: journalBatchStatus.extract(['draft']).default('draft'),
 });
 
 export const updateDraftJournalDataCamel = createCamelCaseSchemaWithExclusions(
@@ -176,7 +184,7 @@ export const listJournalsFilters = z
     ...listJournalsCursorQueryContract.omit({ limit: true, cursor: true })
       .shape,
     includeDeleted: z.coerce.boolean(),
-    sortBy: z.enum(['created_at', 'date', 'reference']).default('date'),
+    sortBy: z.enum(['created_at', 'date', 'system_reference']).default('date'),
     sortDir: z.enum(['asc', 'desc']).default('desc'),
   })
   .superRefine((v, ctx) => {
@@ -218,23 +226,23 @@ export type JournalListPageResponse = {
 
 /**
  * Cursor payload (opaque to clients)
- * - value: last row's primary sort value (empty string when reference is null)
+ * - value: last row's primary sort value (empty string when system reference is null)
  * - id: last row's id (tie-breaker)
- * - isNull: whether the primary sort value is NULL (used for reference ordering)
+ * - isNull: whether the primary sort value is NULL (used for system reference ordering)
  * - sortBy/sortDir: prevents misuse of cursor across different sorts
  * - v: cursor version for future compatibility
  */
 export const journalsCursor = z
   .object({
     v: z.literal(1),
-    sortBy: z.enum(['created_at', 'date', 'reference']),
+    sortBy: z.enum(['created_at', 'date', 'system_reference']),
     sortDir: z.enum(['asc', 'desc']),
     value: z.string(),
     isNull: z.boolean().optional().default(false),
     id: z.uuid(),
   })
   .superRefine((v, ctx) => {
-    if (v.sortBy !== 'reference' && v.value.length === 0) {
+    if (v.sortBy !== 'system_reference' && v.value.length === 0) {
       ctx.addIssue({
         code: 'custom',
         path: ['value'],
@@ -242,11 +250,15 @@ export const journalsCursor = z
       });
     }
 
-    if (v.sortBy === 'reference' && v.isNull !== true && v.value.length === 0) {
+    if (
+      v.sortBy === 'system_reference' &&
+      v.isNull !== true &&
+      v.value.length === 0
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['value'],
-        message: 'value must be non-empty when reference is not null',
+        message: 'value must be non-empty when system reference is not null',
       });
     }
   });
@@ -268,7 +280,7 @@ export type GenJournalReferenceInput = z.infer<typeof genJournalRefInput>;
 export type GenJournalReferenceResult = {
   sequenceMonth: string; // "YYYY-MM-01"
   sequenceNumber: number; // 1..N
-  reference: string; // "JE-YYYYMM-NNNN"
+  systemReference: string; // "JE-YYYYMM-NNNN"
 };
 
 // =============================================================================
@@ -351,7 +363,7 @@ export type JournalImportAction = z.infer<typeof journalImportAction>;
 
 const journalImportDataSnake = z
   .object({
-    reference: z.string().nullish(),
+    user_reference: z.string().max(256).nullish(),
     date: z.iso.date(),
     title: z.string().min(1).max(512),
     description: z.string().max(2048).optional(),

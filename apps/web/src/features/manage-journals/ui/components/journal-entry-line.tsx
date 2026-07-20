@@ -229,11 +229,7 @@ function JournalEntryLineInner(props: JournalEntryLineProps) {
     const cardValue = isEditingAmount ? amountText : formatAmount(line.amount);
     return (
       <div
-        ref={
-          isLastLine && lastEntryRef
-            ? (lastEntryRef as RefObject<HTMLDivElement>)
-            : undefined
-        }
+        ref={isLastLine ? lastEntryRef : undefined}
         className="bg-card border-border relative flex flex-col gap-3 rounded-xl border p-5 shadow-sm"
       >
         <div className="absolute top-2 right-2">
@@ -248,7 +244,6 @@ function JournalEntryLineInner(props: JournalEntryLineProps) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-
         <div className="w-full min-w-0 pr-8">
           <AutocompleteDropdown
             value={line.coaId}
@@ -258,7 +253,6 @@ function JournalEntryLineInner(props: JournalEntryLineProps) {
             className="border-input focus:border-primary h-auto w-full rounded-none border-0 border-b bg-transparent !px-0 py-1.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent [&>span]:text-sm [&>span]:font-normal"
           />
         </div>
-
         <div>
           <Input
             className="placeholder:text-muted-foreground/50 border-input focus:border-primary h-auto rounded-none border-0 border-b px-0 py-1 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
@@ -270,7 +264,6 @@ function JournalEntryLineInner(props: JournalEntryLineProps) {
             maxLength={500}
           />
         </div>
-
         {hasProjectsUi && (
           <div className="w-full min-w-0">
             <AutocompleteDropdown
@@ -298,7 +291,6 @@ function JournalEntryLineInner(props: JournalEntryLineProps) {
             />
           </div>
         )}
-
         <div className="mt-2 grid grid-cols-[120px_1fr] items-end gap-4">
           <div>
             <Label className="text-muted-foreground mb-1.5 block text-[10px] font-medium uppercase">

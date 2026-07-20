@@ -8,6 +8,10 @@ pnpm-debug.log*
 # pnpm
 .pnpm-store
 
+# Lockfiles
+pnpm-lock.yaml
+uv.lock
+
 # Turbo
 .turbo
 
@@ -40,6 +44,9 @@ Thumbs.db
 .cursor*
 .cursorrules
 .vscode
+
+# Local notes (gitignored via .git/info/exclude)
+my-notes/
 
 # Hosting
 .vercel

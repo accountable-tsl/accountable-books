@@ -1,24 +1,26 @@
 import axios from 'axios';
+import { startOfDay, startOfMonth, subDays } from 'date-fns';
 
 import { ENV } from '../../../config/env.js';
 import { logger } from '../../../shared/utils/logger.js';
-import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
+import { BankingProvider } from '../types/base.js';
 import { mapMonoAccountType } from '../utils/mappings.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
+import { TransactionUpdateBuffer } from './provider-sync.utils.js';
 
 import type {
   ConnectionDetails,
+  FetchTransactionUpdateInput,
   ProviderAccount,
   ProviderError,
   ProviderTransaction,
-  TransactionSyncResult,
+  ProviderTransactionUpdate,
 } from '../types/base.js';
-import type { FindOrCreateBankMappingResponse } from '../utils/resolveBank.js';
 
 export class MonoProvider extends BankingProvider {
   readonly key = 'mono';
   readonly name = 'Mono';
-  readonly transactionSyncStrategy = TransactionSyncStrategy.DATE_RANGE_OVERLAP;
+  readonly initialTransactionHistoryDays = 730;
 
   private readonly secretKey = ENV.MONO_SECRET_KEY || '';
   private readonly baseUrl = 'https://api.withmono.com/v2';
@@ -29,6 +31,7 @@ export class MonoProvider extends BankingProvider {
   }: {
     userId: string;
     companyId: string;
+    accessToken?: string;
   }): Promise<string> {
     // Mono uses a widget-based approach with public key on frontend
     // We only return metadata for tracking - no secret key!
@@ -75,13 +78,13 @@ export class MonoProvider extends BankingProvider {
   async getConnectionDetails({
     accessToken,
     countryCode,
-    options,
     userId,
+    knownBankId,
   }: {
     accessToken: string;
-    options?: Record<string, any>;
     countryCode: string;
     userId: string;
+    knownBankId?: string;
   }): Promise<ConnectionDetails> {
     try {
       // For Mono, the access token is the account ID
@@ -112,9 +115,6 @@ export class MonoProvider extends BankingProvider {
         type?: string;
       } = accountData.institution;
 
-      // Determine institution ID
-      // Check db for this institution, if not found, check mono api and create bank + bank provider mapping , mono api not available, use other financial institutions for the specified country.
-      // This way, we can then use institution id directly in connect accounts service. get item details is almost useless for mono, we should find a way to conditionally skip it in connect accounts service in a way that is scalable, efficient, sustainable and extensible.
       const institutionResponse = await axios.get(
         `https://api.withmono.com/v3/institutions?country=${countryCode.toLowerCase()}${institutionData.type ? `&type=${institutionData.type.toLowerCase()}` : ''}`,
         {
@@ -155,38 +155,30 @@ export class MonoProvider extends BankingProvider {
           institution.institution === institutionData.name,
       );
 
-      let bankResult: FindOrCreateBankMappingResponse;
-      if (matchedInstitution) {
-        bankResult = await findOrCreateBankMapping({
-          providerKey: this.key,
-          institution: {
+      const providerInstitution = matchedInstitution
+        ? {
             providerInstitutionId: matchedInstitution.id,
             name: matchedInstitution.institution,
-            countryCode: countryCode,
-            bankCodes: {
-              local: institutionData.bank_code,
-            },
+            countryCode,
+            bankCodes: { local: institutionData.bank_code },
             rawData: matchedInstitution,
-          },
-          userId,
-        });
-      } else {
-        bankResult = await findOrCreateBankMapping({
-          providerKey: this.key,
-          institution: {
+          }
+        : {
             providerInstitutionId: institutionData.bank_code,
             name: institutionData.name,
-            countryCode: countryCode,
-            bankCodes: {
-              local: institutionData.bank_code,
-            },
+            countryCode,
+            bankCodes: { local: institutionData.bank_code },
             rawData: institutionData,
-          },
-          userId,
-        });
-      }
-
-      const { bankId, bankLogoUrl, providerBankName } = bankResult;
+          };
+      const bankId = knownBankId
+        ? knownBankId
+        : (
+            await findOrCreateBankMapping({
+              providerKey: this.key,
+              institution: providerInstitution,
+              userId,
+            })
+          ).bankId;
 
       const accounts: ProviderAccount[] = [
         {
@@ -200,6 +192,10 @@ export class MonoProvider extends BankingProvider {
           rawData: accountData,
           balance: accountData.balance,
           balanceDate: new Date(timestamp),
+          reportedCurrentBalance: {
+            amount: accountData.balance,
+            asOf: new Date(timestamp),
+          },
         },
       ];
 
@@ -234,34 +230,108 @@ export class MonoProvider extends BankingProvider {
     return true; // Enabled!
   }
 
-  async syncTransactions(params: {
-    accessToken: string;
-    cursor?: string;
-    fromDate?: Date;
-  }): Promise<TransactionSyncResult> {
+  async fetchTransactionUpdate(
+    input: FetchTransactionUpdateInput,
+  ): Promise<ProviderTransactionUpdate> {
+    if (input.providerBankAccountId !== input.accessToken) {
+      throw this.handleError(
+        new Error(
+          'Mono provider account does not match the connected account token',
+        ),
+      );
+    }
+
+    // Mono has no stable cursor: refetch an overlapping date range and rely
+    // on provider-id dedupe downstream. Page numbers live and die inside
+    // this one fetch; nothing is checkpointed.
+    const fromDate = this.getFetchWindowStart(input);
+    const buffer = new TransactionUpdateBuffer({
+      providerKey: this.key,
+      providerBankAccountId: input.providerBankAccountId,
+    });
+
+    let page = 1;
+    while (true) {
+      const { transactions, currentPage, totalPages } = await this.fetchPage({
+        accessToken: input.accessToken,
+        page,
+        fromDate,
+      });
+      buffer.addPage({
+        observedTransactions: transactions,
+        removedTransactionIds: [], // Mono doesn't track deletions
+      });
+      if (currentPage >= totalPages) {
+        const reportedCurrentBalance = await this.fetchReportedCurrentBalance(
+          input.accessToken,
+        );
+        return {
+          observedTransactions: buffer.observedTransactions,
+          removedTransactionIds: [],
+          nextCheckpoint: null,
+          // A completed full fetch is all the history Mono will ever supply.
+          historyStatus: 'complete',
+          pageCount: buffer.pageCount,
+          approximatePayloadBytes: buffer.approximatePayloadBytes,
+          ...(reportedCurrentBalance ? { reportedCurrentBalance } : {}),
+        };
+      }
+      page = currentPage + 1;
+    }
+  }
+
+  private async fetchReportedCurrentBalance(
+    accessToken: string,
+  ): Promise<{ amount: number; asOf: Date } | undefined> {
     try {
-      const { accessToken, cursor, fromDate } = params;
+      const response = await axios.get(
+        `${this.baseUrl}/accounts/${accessToken}`,
+        {
+          headers: {
+            'mono-sec-key': this.secretKey,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const balance = response.data?.data?.account?.balance;
+      if (typeof balance !== 'number') return undefined;
+      return { amount: balance, asOf: new Date() };
+    } catch {
+      return undefined;
+    }
+  }
 
-      // Mono uses page-based pagination, not stable cursors
-      const page = cursor ? parseInt(cursor, 10) : 1;
+  private getFetchWindowStart(input: FetchTransactionUpdateInput): Date {
+    if (input.isInitialSync) {
+      return startOfDay(
+        subDays(new Date(), this.initialTransactionHistoryDays),
+      );
+    }
+    if (!input.lastSuccessfulSyncAt) return startOfMonth(new Date());
+    // One-day overlap to catch backdated transactions.
+    return subDays(new Date(input.lastSuccessfulSyncAt), 1);
+  }
 
-      // Build query parameters
+  private async fetchPage(params: {
+    accessToken: string;
+    page: number;
+    fromDate: Date;
+  }): Promise<{
+    transactions: ProviderTransaction[];
+    currentPage: number;
+    totalPages: number;
+  }> {
+    try {
+      // Mono expects DD-MM-YYYY dates
       const queryParams = new URLSearchParams({
-        page: page.toString(),
+        page: params.page.toString(),
         paginate: 'true',
+        start: this.formatDateForMono(params.fromDate),
+        end: this.formatDateForMono(new Date()),
       });
 
-      // Add date range if provided
-      // Mono expects DD-MM-YYYY format for dates
-      if (fromDate) {
-        const startDate = this.formatDateForMono(fromDate);
-        const endDate = this.formatDateForMono(new Date());
-        queryParams.append('start', startDate);
-        queryParams.append('end', endDate);
-      }
-
       const response = await axios.get(
-        `${this.baseUrl}/accounts/${accessToken}/transactions?${queryParams}`,
+        `${this.baseUrl}/accounts/${params.accessToken}/transactions?${queryParams}`,
         {
           headers: {
             'mono-sec-key': this.secretKey,
@@ -284,11 +354,10 @@ export class MonoProvider extends BankingProvider {
           new Date(a.date).getTime() - new Date(b.date).getTime(),
       );
 
-      // Map Mono transactions to our format
       const transactions = sortedData.map(
         (txn: any): ProviderTransaction => ({
           transactionId: txn._id,
-          providerBankAccountId: accessToken,
+          providerBankAccountId: params.accessToken,
           date: txn.date,
           txnAt: new Date(txn.date),
           amount: txn.type === 'credit' ? txn.amount : -txn.amount,
@@ -304,22 +373,10 @@ export class MonoProvider extends BankingProvider {
         }),
       );
 
-      const earliestBalance = sortedData[0]?.balance;
-      const latestBalance = sortedData[sortedData.length - 1]?.balance;
-
-      // Mono uses page-based pagination (pages are NOT stable cursors!)
-      const currentPage = meta.page || page;
-      const totalPages = meta.pages || 1;
-      const hasMore = currentPage < totalPages;
-
       return {
-        transactions: {
-          added: transactions,
-          modified: [], // Mono doesn't support incremental updates
-          removed: [], // Mono doesn't track deletions
-        },
-        nextCursor: hasMore ? (currentPage + 1).toString() : undefined,
-        hasMore,
+        transactions,
+        currentPage: meta.page || params.page,
+        totalPages: meta.pages || 1,
       };
     } catch (error) {
       throw this.handleError(error);

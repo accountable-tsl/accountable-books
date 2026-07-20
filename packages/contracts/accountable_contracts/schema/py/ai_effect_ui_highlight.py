@@ -1,7 +1,0 @@
-from pydantic import BaseModel, constr
-from typing import Literal, Optional
-
-class AiEffectUiHighlight(BaseModel):
-    type: Literal["ui.highlight"]
-    selector: constr(min_length=1)
-    label: Optional[constr(min_length=1)] = None

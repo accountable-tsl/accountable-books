@@ -27,6 +27,26 @@ import {
   NewBankFeedProviderCountry,
 } from '../domains/bankFeedProviders/bankFeedProviders.types.js';
 import {
+  BankAccountFeed,
+  NewBankAccountFeed,
+} from '../domains/banking/bank-account-feeds/bank-account-feeds.types.js';
+import {
+  BankConnectionSecret,
+  NewBankConnectionSecret,
+} from '../domains/banking/bank-connection-secrets/bank-connection-secrets.types.js';
+import {
+  BankConnection,
+  NewBankConnection,
+} from '../domains/banking/bank-connections/bank-connections.types.js';
+import {
+  BankTransactionFeedEntry,
+  NewBankTransactionFeedEntry,
+} from '../domains/banking/bank-transaction-feed-entries/bank-transaction-feed-entries.types.js';
+import {
+  BankTransactionSyncRun,
+  NewBankTransactionSyncRun,
+} from '../domains/banking/bank-transaction-sync-runs/bank-transaction-sync-runs.types.js';
+import {
   BankAccount,
   NewBankAccount,
 } from '../domains/banking/bankAccounts/bankAccounts.types.js';
@@ -90,21 +110,25 @@ import {
 import type {
   BankCurrentBalance,
   BankDailyBalanceSnapshot,
-  FiscalCalendar,
   GLCurrentBalance,
   GLDailyBalanceSnapshot,
   GLPeriodBalance,
   NewBankCurrentBalance,
   NewBankDailyBalanceSnapshot,
-  NewFiscalCalendar,
   NewGLCurrentBalance,
   NewGLDailyBalanceSnapshot,
   NewGLPeriodBalance,
 } from '../domains/balances/balances.types.js';
 import type {
-  BankAccountCredential,
-  NewBankAccountCredential,
-} from '../domains/banking/bankAccountCredentials/bankAccountCredentials.types.js';
+  BankProviderWebhookEvent,
+  NewBankProviderWebhookEvent,
+} from '../domains/banking/bank-provider-webhook-events/bank-provider-webhook-events.types.js';
+import type {
+  BankTransactionHistoryCandidate,
+  BankTransactionHistoryImport,
+  NewBankTransactionHistoryCandidate,
+  NewBankTransactionHistoryImport,
+} from '../domains/banking/bank-transaction-history/bank-transaction-history.types.js';
 import type {
   JournalBatch,
   JournalEntry,
@@ -142,7 +166,7 @@ declare module 'knex/types/tables' {
       Partial<Omit<Country, 'id'>>
     >;
 
-    exchange_rate: Knex.CompositeTableType<
+    exchange_rates: Knex.CompositeTableType<
       ExchangeRate,
       NewExchangeRateInput,
       Partial<Omit<ExchangeRate, 'id'>>
@@ -214,7 +238,7 @@ declare module 'knex/types/tables' {
       Partial<Omit<Fuca, 'id'>>
     >;
 
-    roles_permissions: Knex.CompositeTableType<
+    role_permissions: Knex.CompositeTableType<
       RolePermission,
       RolePermission,
       Partial<RolePermission>
@@ -230,10 +254,52 @@ declare module 'knex/types/tables' {
       Partial<Omit<BankAccount, 'id'>>
     >;
 
-    bank_account_credentials: Knex.CompositeTableType<
-      BankAccountCredential,
-      NewBankAccountCredential,
-      Partial<Omit<BankAccountCredential, 'id'>>
+    bank_connections: Knex.CompositeTableType<
+      BankConnection,
+      NewBankConnection,
+      Partial<Omit<BankConnection, 'id'>>
+    >;
+
+    bank_connection_secrets: Knex.CompositeTableType<
+      BankConnectionSecret,
+      NewBankConnectionSecret,
+      Partial<Omit<BankConnectionSecret, 'id'>>
+    >;
+
+    bank_account_feeds: Knex.CompositeTableType<
+      BankAccountFeed,
+      NewBankAccountFeed,
+      Partial<Omit<BankAccountFeed, 'id'>>
+    >;
+
+    bank_transaction_sync_runs: Knex.CompositeTableType<
+      BankTransactionSyncRun,
+      NewBankTransactionSyncRun,
+      Partial<Omit<BankTransactionSyncRun, 'id'>>
+    >;
+
+    bank_transaction_feed_entries: Knex.CompositeTableType<
+      BankTransactionFeedEntry,
+      NewBankTransactionFeedEntry,
+      Partial<Omit<BankTransactionFeedEntry, 'id'>>
+    >;
+
+    bank_transaction_history_imports: Knex.CompositeTableType<
+      BankTransactionHistoryImport,
+      NewBankTransactionHistoryImport,
+      Partial<Omit<BankTransactionHistoryImport, 'id'>>
+    >;
+
+    bank_transaction_history_candidates: Knex.CompositeTableType<
+      BankTransactionHistoryCandidate,
+      NewBankTransactionHistoryCandidate,
+      Partial<Omit<BankTransactionHistoryCandidate, 'id'>>
+    >;
+
+    bank_provider_webhook_events: Knex.CompositeTableType<
+      BankProviderWebhookEvent,
+      NewBankProviderWebhookEvent,
+      Partial<Omit<BankProviderWebhookEvent, 'id'>>
     >;
 
     bank_transactions: Knex.CompositeTableType<
@@ -345,12 +411,7 @@ declare module 'knex/types/tables' {
     fiscal_calendar: Knex.CompositeTableType<
       FiscalCalendar,
       NewFiscalCalendar,
-      Partial<
-        Omit<
-          FiscalCalendar,
-          'company_id' | 'fiscal_year' | 'period_number' | 'period_type'
-        >
-      >
+      Partial<Omit<FiscalCalendar, 'id'>>
     >;
 
     gl_daily_balance_snapshots: Knex.CompositeTableType<
@@ -371,14 +432,7 @@ declare module 'knex/types/tables' {
       GLPeriodBalance,
       NewGLPeriodBalance,
       Partial<
-        Omit<
-          GLPeriodBalance,
-          | 'company_id'
-          | 'coa_id'
-          | 'fiscal_year'
-          | 'fiscal_period'
-          | 'period_type'
-        >
+        Omit<GLPeriodBalance, 'company_id' | 'coa_id' | 'fiscal_calendar_id'>
       >
     >;
 

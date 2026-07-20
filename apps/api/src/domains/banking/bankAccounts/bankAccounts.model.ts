@@ -1,12 +1,12 @@
 import type { Knex } from 'knex';
+import { format } from 'date-fns';
 import z from 'zod';
 
 import { knexClient } from '../../../db/knexClient.js';
 import {
-  getCurrency,
-  getCurrencyById,
-} from '../../../domains/currencies/currencies.utils.js';
-import { toYMD } from '../../../shared/utils/date.utils.js';
+  acquireAdvisoryXactLocks,
+  lockKeyCompany,
+} from '../../../shared/services/advisoryLocks.service.js';
 import { isValidUUID } from '../../../shared/utils/formatting.utils.js';
 import logger from '../../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../../shared/utils/random.utils.js';
@@ -14,9 +14,17 @@ import {
   errorResponse,
   successResponse,
 } from '../../../shared/utils/response.utils.js';
-import { getAccountTypeByKey } from '../../account/account.registry.js';
+import { getCurrentRecordedBankBalances } from '../../balances/bank-balance-derivation.js';
 import { setBankOpeningBalance } from '../../balances/opening-balance/opening-balance.service.js';
-import { determineExchangeRate } from '../../exchangeRates/exchangeRates.utils.js';
+import { createCoaAccount } from '../../chart-of-accounts/coa.model.js';
+import {
+  deriveAccountNumberIdentity,
+  findAccountByFingerprint,
+} from '../account-identity.js';
+import {
+  projectConnectionStatus,
+  projectSyncHealth,
+} from '../bank-account-projections.js';
 import {
   bankAccountWithConnectionInput,
   manualBankAccountInputCamel,
@@ -25,6 +33,7 @@ import {
 } from './bankAccounts.types.js';
 
 import type { ApiResponse } from '../../../core/types/api.types.js';
+import type { BankConnectionAuthorizationStatus } from '../bank-connections/bank-connections.types.js';
 import type {
   BankAccountWithConnectionInput,
   BankAccountWithMeta,
@@ -34,168 +43,166 @@ import type {
   UpdateBankAccount,
 } from './bankAccounts.types.js';
 
-const BANK_ACCOUNT_FIELDS = [
-  // Bank Account Core Fields
-  'ba.id as id',
-  'ba.display_name as displayName',
-  'ba.account_type as accountType',
-  'ba.coa_id as coaId',
-  'ba.currency_id as currencyId',
-  'ba.bank_id as bankId',
-  'ba.company_id as companyId',
-  'ba.business_or_personal as businessOrPersonal',
+export interface SyncableBankAccount {
+  id: string;
+  company_id: string;
+  bank_account_feed_id: string;
+  bank_connection_id: string;
+  last_sync_at: Date | null;
+}
 
-  // Bank Details
-  'b.display_name as bankName',
-  'b.logo_url as bankLogo',
+export type BankAccountSyncIneligibilityReason =
+  | 'reconnect_required'
+  | 'not_connected';
 
-  // Bank Account Currency
-  'cur.name as currencyName',
-  'cur.symbol as currencySymbol',
-  'cur.code as currencyCode',
+export interface BankAccountSyncEligibility {
+  id: string;
+  eligible: boolean;
+  reason: BankAccountSyncIneligibilityReason | null;
+}
 
-  // Reporting Currency
-  'rc.id as reportingCurrencyId',
-  'rc.name as reportingCurrencyName',
-  'rc.symbol as reportingCurrencySymbol',
-  'rc.code as reportingCurrencyCode',
+export async function getBankAccountSyncEligibility(
+  input: { bankAccountId: string; companyId: string },
+  trx?: Knex.Transaction,
+): Promise<BankAccountSyncEligibility | null> {
+  const db = trx ?? knexClient;
+  const account = await db('bank_accounts as ba')
+    .where({
+      'ba.id': input.bankAccountId,
+      'ba.company_id': input.companyId,
+      'ba.is_deleted': false,
+    })
+    .first<{ id: string }>('ba.id as id');
 
-  // Chart of accounts
-  'coa.name as coaName',
-  'coa.code as coaCode',
+  if (!account) return null;
 
-  // Account Type
-  'at.label as coaTypeLabel',
-  'at.key as coaTypeKey',
+  // Prefer active feed, else latest revoked — same order as metrics view.
+  const feedRow = await db('bank_account_feeds as baf')
+    .leftJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
+    .where({
+      'baf.bank_account_id': input.bankAccountId,
+      'baf.company_id': input.companyId,
+    })
+    .orderByRaw('(baf.revoked_at IS NULL) DESC, baf.connected_at DESC')
+    .first<{
+      revoked_at: Date | null;
+      initial_sync_completed_at: Date | null;
+      last_successful_sync_at: Date | null;
+      connected_at: Date | null;
+      authorization_status: BankConnectionAuthorizationStatus | null;
+    }>([
+      'baf.revoked_at',
+      'baf.initial_sync_completed_at',
+      'baf.last_successful_sync_at',
+      'baf.connected_at',
+      'bc.authorization_status',
+    ]);
 
-  'ba.connection_status as bankConnectionStatus',
-  'ba.provider_bank_account_id as providerBankAccountId',
-  'p.key as providerKey',
-  'p.name as providerName',
-  'p.logo_url as providerLogo',
-  'ba.connection_credential_id as connectionCredentialId',
-];
-// export const getBankAccountsWithDetails = async (
-//   companyId: string,
-//   trx?: Knex.Transaction,
-// ): Promise<ApiResponse<BankAccountWithMeta[]>> => {
-//   if (!companyId) return errorResponse('Company ID is required');
-//   const db = trx ?? knexClient;
+  let activeFeed: {
+    initial_sync_completed_at: Date | null;
+    last_successful_sync_at: Date | null;
+    connected_at: Date | null;
+  } | null = null;
+  if (feedRow?.revoked_at === null) {
+    activeFeed = {
+      initial_sync_completed_at: feedRow.initial_sync_completed_at,
+      last_successful_sync_at: feedRow.last_successful_sync_at,
+      connected_at: feedRow.connected_at ?? null,
+    };
+  }
 
-//   try {
-//     const companyUUID = await getCompanyUUID(companyId);
-//     if (!companyUUID) {
-//       return errorResponse('Invalid company ID');
-//     }
+  const projected = projectConnectionStatus({
+    hasEverHadFeed: !!feedRow,
+    activeFeed,
+    latestFeedRevoked: !!feedRow && activeFeed === null,
+    connectionAuthorizationStatus: feedRow?.authorization_status ?? null,
+  });
 
-//     const txStatusSubquery = db('bank_transactions as bt')
-//       .select('bt.bank_account_id')
-//       .sum({
-//         uncategorized_count: db.raw(
-//           "CASE WHEN bt.categorization_status = 'uncategorized' THEN 1 ELSE 0 END",
-//         ),
-//         suggested_count: db.raw(
-//           "CASE WHEN bt.categorization_status = 'suggested' THEN 1 ELSE 0 END",
-//         ),
-//       })
-//       .where({
-//         'bt.is_deleted': false,
-//       })
-//       .groupBy('bt.bank_account_id')
-//       .as('tx_stats');
+  let reason: BankAccountSyncIneligibilityReason | null = null;
+  if (projected === 'not_connected' || projected === 'revoked') {
+    reason = 'not_connected';
+  } else if (projected === 'error') {
+    reason = 'reconnect_required';
+  }
 
-//     const query = db('bank_accounts as ba')
-//       .select(BANK_ACCOUNT_FIELDS)
-//       .select({
-//         lastSyncAt: db.raw('COALESCE(??, ??)', [
-//           'ba.last_sync_at',
-//           'ba.updated_at',
-//         ]),
-//         mask: db.raw('RIGHT(COALESCE(??, ??), 4)', [
-//           'ba.account_number_mask',
-//           'ba.account_number',
-//         ]),
-//         statementBalance: db.raw('COALESCE(bab.native_balance, 0)'),
-//         ledgerBalance: db.raw('COALESCE(glb.reporting_currency_balance, 0)'),
-//         uncategorizedTxCount: db.raw(
-//           'COALESCE(tx_stats.uncategorized_count, 0)::int',
-//         ),
-//         needsReviewTxCount: db.raw(
-//           'COALESCE(tx_stats.suggested_count, 0)::int',
-//         ),
-//         latestExchangeRate: db.raw(
-//           `(SELECT er.rate FROM exchange_rates er
-//             WHERE er.from_currency_id = ba.currency_id
-//               AND er.to_currency_id = c.reporting_currency_id
-//             ORDER BY er.date DESC
-//             LIMIT 1)`,
-//         ),
-//       })
-//       .where('ba.company_id', companyUUID)
-//       .andWhere('ba.is_deleted', false)
-//       .join('banks as b', 'ba.bank_id', 'b.id')
-//       .join('currencies as cur', 'ba.currency_id', 'cur.id')
-//       .join('companies as c', 'ba.company_id', 'c.id')
-//       .join('currencies as rc', 'c.reporting_currency_id', 'rc.id')
-//       .join('coa', 'ba.coa_id', 'coa.id')
-//       .leftJoin('account_types as at', 'coa.account_type_id', 'at.id')
-//       .leftJoin('bank_feed_providers as p', 'ba.provider_id', 'p.id')
-//       .leftJoin('bank_account_current_native_balances as bab', function () {
-//         this.on('bab.bank_account_id', '=', 'ba.id').andOn(
-//           'bab.company_id',
-//           '=',
-//           'ba.company_id',
-//         );
-//       })
-//       .leftJoin('gl_current_balances as glb', function () {
-//         this.on('glb.coa_id', '=', 'ba.coa_id').andOn(
-//           'glb.company_id',
-//           '=',
-//           'ba.company_id',
-//         );
-//       })
-//       .leftJoin(txStatusSubquery, 'tx_stats.bank_account_id', 'ba.id');
+  return { id: account.id, eligible: reason === null, reason };
+}
 
-//     const result = await query;
-//     if (!result?.length) {
-//       return successResponse('No bank accounts found', []);
-//     }
+export async function getSyncableBankAccounts(
+  filters: {
+    connectionId?: string;
+    companyId?: string;
+    bankAccountId?: string;
+    requireInitialSyncComplete?: boolean;
+  } = {},
+  trx?: Knex.Transaction,
+): Promise<SyncableBankAccount[]> {
+  const db = trx ?? knexClient;
+  const query = db('bank_account_feeds as baf')
+    .innerJoin('bank_connections as bc', 'bc.id', 'baf.bank_connection_id')
+    .innerJoin('bank_accounts as ba', 'ba.id', 'baf.bank_account_id')
+    .select<SyncableBankAccount[]>([
+      'ba.id as id',
+      'baf.company_id as company_id',
+      'baf.id as bank_account_feed_id',
+      'baf.bank_connection_id as bank_connection_id',
+      'baf.last_successful_sync_at as last_sync_at',
+    ])
+    .where({
+      'ba.is_deleted': false,
+      'bc.authorization_status': 'active',
+    })
+    .whereNull('baf.revoked_at')
+    .orderByRaw('baf.last_successful_sync_at ASC NULLS FIRST, ba.id ASC');
 
-//     const today = new Date();
-//     const enriched = await Promise.all(
-//       result.map(async (row: any) => {
-//         const { currencyId, reportingCurrencyId } = row;
+  if (filters.connectionId) {
+    query.andWhere('baf.bank_connection_id', filters.connectionId);
+  }
+  if (filters.companyId) {
+    query.andWhere('baf.company_id', filters.companyId);
+  }
+  if (filters.bankAccountId) {
+    query.andWhere('ba.id', filters.bankAccountId);
+  }
+  if (filters.requireInitialSyncComplete) {
+    query.whereNotNull('baf.initial_sync_completed_at');
+  }
 
-//         let rateString: string | null = null;
-//         let rate;
-//         if (currencyId && reportingCurrencyId) {
-//           if (currencyId === reportingCurrencyId) {
-//             rate = 1;
-//           } else {
-//             rate = await determineExchangeRate({
-//               date: today,
-//               fromCurrencyId: currencyId,
-//               toCurrencyId: reportingCurrencyId,
-//             });
-//           }
+  return query;
+}
 
-//           if (typeof rate === 'number' && Number.isFinite(rate)) {
-//             rateString = rate.toString();
-//           }
-//         }
-
-//         return {
-//           ...row,
-//           latestExchangeRate: rateString,
-//         };
-//       }),
-//     );
-
-//     return successResponse('Bank accounts fetched successfully', enriched);
-//   } catch (error) {
-//     return errorResponse('Failed to fetch bank accounts', error);
-//   }
-// };
+function projectHistoricalImport(
+  row:
+    | {
+        status: string;
+        earliest_transaction_date: Date | null;
+        latest_transaction_date: Date | null;
+        transaction_count: number;
+        selected_from_date: Date | null;
+        available_at: Date | null;
+        expires_at: Date | null;
+      }
+    | undefined,
+) {
+  if (!row) return null;
+  return {
+    status: row.status,
+    earliestTransactionDate: row.earliest_transaction_date
+      ? format(row.earliest_transaction_date, 'yyyy-MM-dd')
+      : null,
+    latestTransactionDate: row.latest_transaction_date
+      ? format(row.latest_transaction_date, 'yyyy-MM-dd')
+      : null,
+    transactionCount: row.transaction_count,
+    selectedFromDate: row.selected_from_date
+      ? format(row.selected_from_date, 'yyyy-MM-dd')
+      : null,
+    availableAt: row.available_at
+      ? new Date(row.available_at).toISOString()
+      : null,
+    expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+  };
+}
 
 export const getBankAccountsWithDetails = async (
   companyId: string,
@@ -210,7 +217,6 @@ export const getBankAccountsWithDetails = async (
       return errorResponse('Invalid company ID');
     }
 
-    // Query the comprehensive view instead of complex joins
     const query = db('bank_accounts_metrics_view as bam')
       .select([
         'bam.id as id',
@@ -234,23 +240,99 @@ export const getBankAccountsWithDetails = async (
         'bam.coa_code as coaCode',
         'bam.coa_type_label as coaTypeLabel',
         'bam.coa_type_key as coaTypeKey',
-        'bam.bank_connection_status as bankConnectionStatus',
-        'bam.provider_bank_account_id as providerBankAccountId',
+        'bam.bank_connection_id as bankConnectionId',
+        'bam.bank_connection_id as connectionCredentialId',
+        'bam.provider_account_id as providerBankAccountId',
         'bam.provider_key as providerKey',
         'bam.provider_name as providerName',
         'bam.provider_logo as providerLogo',
-        'bam.connection_credential_id as connectionCredentialId',
+        'bam.bank_account_feed_id as bankAccountFeedId',
+        'bam.feed_revoked_at as feedRevokedAt',
+        'bam.authorization_status as authorizationStatus',
+        'bam.initial_sync_completed_at as initialSyncCompletedAt',
+        'bam.feed_connected_at as feedConnectedAt',
         'bam.last_sync_at as lastSyncAt',
         'bam.mask as mask',
         db.raw('bam.statement_balance_native::text as "statementBalance"'),
         db.raw('bam.ledger_balance_reporting::text as "ledgerBalance"'),
         'bam.uncategorized_count as uncategorizedTxCount',
         'bam.needs_review_count as needsReviewTxCount',
+        'bam.provider_removed_review_count as providerRemovedReviewCount',
+        'bam.total_transactions as totalTransactions',
         db.raw('bam.latest_exchange_rate::text as "latestExchangeRate"'),
       ])
       .where('bam.company_id', companyUUID);
 
-    const result = await query;
+    const rows = await query;
+    const feedIds = rows
+      .map((row) => row.bankAccountFeedId as string | null)
+      .filter((id): id is string => Boolean(id));
+    const historyImports =
+      feedIds.length > 0
+        ? await db('bank_transaction_history_imports')
+            .whereIn('bank_account_feed_id', feedIds)
+            .select('*')
+        : [];
+    const historyByFeedId = new Map(
+      historyImports.map((row) => [row.bank_account_feed_id, row]),
+    );
+
+    const recordedByAccountId = await getCurrentRecordedBankBalances({
+      companyId: companyUUID,
+      bankAccountIds: rows.map((row) => row.id as string),
+      ...(trx ? { trx } : {}),
+    });
+
+    const result = rows.map((row) => {
+      const activeFeed =
+        row.bankAccountFeedId && row.feedRevokedAt == null
+          ? {
+              initial_sync_completed_at: row.initialSyncCompletedAt
+                ? new Date(row.initialSyncCompletedAt as string | Date)
+                : null,
+              last_successful_sync_at: row.lastSyncAt
+                ? new Date(row.lastSyncAt as string | Date)
+                : null,
+              connected_at: row.feedConnectedAt
+                ? new Date(row.feedConnectedAt as string | Date)
+                : null,
+            }
+          : null;
+      const connectionFacts = {
+        hasEverHadFeed: Boolean(row.bankAccountFeedId),
+        activeFeed,
+        latestFeedRevoked: Boolean(
+          row.bankAccountFeedId && row.feedRevokedAt != null,
+        ),
+        connectionAuthorizationStatus: row.authorizationStatus,
+      };
+      const bankConnectionStatus = projectConnectionStatus(connectionFacts);
+      const syncHealth = projectSyncHealth(connectionFacts);
+      const {
+        authorizationStatus: _authorizationStatus,
+        feedRevokedAt: _feedRevokedAt,
+        initialSyncCompletedAt: _initialSyncCompletedAt,
+        feedConnectedAt: _feedConnectedAt,
+        totalTransactions: _totalTransactions,
+        ...account
+      } = row;
+      return {
+        ...account,
+        statementBalance: row.statementBalance ?? null,
+        recordedBankBalance:
+          recordedByAccountId.get(row.id as string) ?? '0.0000',
+        bankConnectionStatus,
+        syncHealth,
+        lastSyncAt: row.lastSyncAt
+          ? new Date(row.lastSyncAt).toISOString()
+          : null,
+        historicalImport: projectHistoricalImport(
+          row.bankAccountFeedId
+            ? historyByFeedId.get(row.bankAccountFeedId)
+            : undefined,
+        ),
+      };
+    });
 
     return result?.length
       ? successResponse('Bank accounts fetched successfully', result)
@@ -320,23 +402,6 @@ export const getMinimalBankAccountDetails = async ({
   }
 };
 
-/**
- * Builds a full banking snapshot for a company.
- *
- * This snapshot includes both:
- * - **Bank Account Balances** from raw bank transactions (native + reporting currency)
- * - **Bank Ledger Balances** from ledger entries (reporting currency + optional source)
- *
- * It also includes:
- * - Number of bank accounts
- * - Total balances (across all accounts)
- * - Transaction count breakdown: categorized, uncategorized, auto-categorized
- *
- * Useful for building dashboards, reports, or syncing financial summaries.
- *
- * @param companyId - UUID or shortCode of the company
- * @returns snapshot of banking health and categorization coverage
- */
 export async function getBankAccountsSnapshot(
   companyId: string,
 ): Promise<ApiResponse<CompanyBankingSnapshot>> {
@@ -347,13 +412,6 @@ export async function getBankAccountsSnapshot(
     if (!companyUUID) {
       return errorResponse('Invalid company ID');
     }
-    // We'll build out each part (1. metadata, 2. balances, 3. transaction stats) step-by-step below.
-    // TODO: Fetch all bank accounts with relevant metadata
-    // TODO: Fetch balances from bank_transactions and ledger_entries
-    // TODO: Fetch categorization stats per bank account
-    // TODO: Combine and summarize into the final response
-    // TODO; Include last synced at or last transaction field or something
-    // TODO: GROUP BY BANK, ORDER BY BALANCE, BY REPORTING CURRENCY
 
     const bankAccountRows = await getBankAccountsWithDetails(companyId);
     if (!bankAccountRows.success) {
@@ -401,6 +459,27 @@ interface CreateBankAccountRes {
   currencyCode: string;
   bankName: string;
 }
+
+export function defaultConnectCoaName(
+  displayName: string,
+  accountNumberMask: string | null | undefined,
+): string {
+  const mask = accountNumberMask?.trim();
+  return mask ? `${displayName} ••${mask}` : displayName;
+}
+
+function coaNameCandidates(
+  baseName: string,
+  { allowSuffixes }: { allowSuffixes: boolean },
+): string[] {
+  if (!allowSuffixes) return [baseName];
+  const names = [baseName];
+  for (let n = 2; n <= 10; n += 1) {
+    names.push(`${baseName} (${n})`);
+  }
+  return names;
+}
+
 async function createBankAccount({
   bankAccountData,
   userId,
@@ -432,29 +511,30 @@ async function createBankAccount({
 
   const exec = async (
     tx: Knex.Transaction,
-  ): Promise<
-    ApiResponse<{ coaId: string; bankAccountId: string; wasUpdated: boolean }>
-  > => {
-    // Get currencyId, validate bankId
-    const [company, currency, bank, accountType] = await Promise.all([
+  ): Promise<ApiResponse<CreateBankAccountRes>> => {
+    const [company, currency, bank] = await Promise.all([
       tx('companies')
-        .select(['id', 'reporting_currency_id'])
+        .select('id')
         .where(isValidUUID(companyId) ? 'id' : 'short_code', companyId)
         .first(),
 
       v.currency_id
-        ? getCurrencyById(v.currency_id)
+        ? tx('currencies')
+            .select('id', 'code')
+            .where({ id: v.currency_id })
+            .first<{ id: string; code: string }>()
         : v.currency_code
-          ? getCurrency(v.currency_code)
+          ? tx('currencies')
+              .select('id', 'code')
+              .where({ code: v.currency_code.toUpperCase() })
+              .first<{ id: string; code: string }>()
           : null,
 
       tx('banks').select('id').where('id', v.bank_id).first(),
-
-      getAccountTypeByKey('ca_bank'),
     ]);
 
-    if (!company || !company.id || !company.reporting_currency_id) {
-      throw new Error('Company or reporting currency not found');
+    if (!company?.id) {
+      throw new Error('Company not found');
     }
     if (!currency || !currency.id) {
       throw new Error('Currency not found');
@@ -462,229 +542,156 @@ async function createBankAccount({
     if (!bank) {
       throw new Error('Bank not found');
     }
-    if (!accountType || !accountType.id) {
-      throw new Error('Account type not found');
-    }
 
     const companyUUID = company.id;
-    const reportingCurrencyId = company.reporting_currency_id;
+    await acquireAdvisoryXactLocks(tx, [lockKeyCompany(companyUUID)]);
+
     const currencyId = currency.id;
     const bankId = bank.id || v.bank_id;
-    const coaAccountTypeId = accountType.id;
-    const coaName = v.coa_name || v.display_name || v.account_name;
-    const coaCode =
-      v.coa_code ||
-      `**${v.account_number_mask || v.account_number?.slice(-4)}` ||
-      null;
 
-    // Create COA (currency is reporting currency)
-    let coaId: string;
-    try {
-      const [coaRow] = await tx('coa')
-        .insert({
-          code: coaCode,
-          name: coaName,
-          description: v.coa_description,
-          account_type_id: coaAccountTypeId,
-          currency_id: reportingCurrencyId,
-          company_id: companyUUID,
-          created_by_id: userId,
-          updated_by_id: userId,
-          source: v.source || 'user',
+    // Mask alone cannot rematch an existing account later.
+    const identity = v.account_number
+      ? deriveAccountNumberIdentity(v.account_number)
+      : null;
+    const accountNumberMask =
+      identity?.account_number_mask ?? v.account_number_mask ?? null;
+
+    const explicitCoaName = v.coa_name?.trim() || null;
+    const coaCode = v.coa_code ?? null;
+    const baseCoaName =
+      explicitCoaName ??
+      defaultConnectCoaName(v.display_name, accountNumberMask);
+
+    const existingBankAccount = identity
+      ? await findAccountByFingerprint({
+          companyId: companyUUID,
+          bankId,
+          fingerprint: identity.account_number_fingerprint,
+          forUpdate: true,
+          trx: tx,
         })
-        .onConflict() // ['name', 'code', 'company_id'] Removed since db constraint is partial on code (i.e where code is not null), trying to pass a standard unique constraint might fail
-        .ignore()
-        .returning<{ id: string }[]>('id');
+      : null;
 
-      if (coaRow?.id) {
-        coaId = coaRow.id;
-      } else {
-        // COA already exists, fetch it
-        const existingCoa = await tx('coa')
-          .select('id')
+    let coaId: string;
+    if (existingBankAccount?.coa_id) {
+      coaId = existingBankAccount.coa_id;
+    } else {
+      // Catch-and-retry on 23505 aborts the surrounding Postgres transaction.
+      const nameAttempts = coaNameCandidates(baseCoaName, {
+        allowSuffixes: !explicitCoaName,
+      });
+      let chosenName: string | null = null;
+      for (const name of nameAttempts) {
+        const taken = await tx('coa')
           .where({
-            code: coaCode,
             company_id: companyUUID,
+            is_deleted: false,
           })
-          .first();
-
-        if (!existingCoa?.id) {
-          throw new Error('Failed to find or create COA account');
+          .whereRaw('lower(name) = lower(?)', [name])
+          .first('id');
+        if (!taken) {
+          chosenName = name;
+          break;
         }
-        coaId = existingCoa.id;
       }
-    } catch (e: any) {
-      if (e?.code !== '23505') throw e;
-      throw new Error(
-        'Chart of account with the same name or code already exists',
-      );
+
+      if (!chosenName) {
+        throw new Error(
+          'Chart of account with the same name or code already exists',
+        );
+      }
+
+      try {
+        const coa = await createCoaAccount({
+          trx: tx,
+          companyId: companyUUID,
+          userId,
+          input: {
+            code: coaCode,
+            name: chosenName,
+            description: v.coa_description,
+            account_type_key: 'ca_bank',
+            source: v.source || 'user',
+          },
+          versionNote: 'bank_account_coa_creation',
+        });
+        coaId = coa.id;
+      } catch (e: any) {
+        if (e?.code !== '23505') throw e;
+        throw new Error(
+          'Chart of account with the same name or code already exists',
+        );
+      }
     }
 
     let bankAccountId: string;
-    let oldConnectionCredentialId: string | null = null;
-
     try {
-      // Check if bank account already exists
-      const existingBankAccount = await tx('bank_accounts')
-        .select(['id', 'connection_credential_id'])
-        .where({
-          company_id: companyUUID,
-          account_number: v.account_number,
-        })
-        .forUpdate()
-        .first();
-
-      oldConnectionCredentialId =
-        existingBankAccount?.connection_credential_id ?? null;
-
-      // Create bank account entry
-      const [bankAccountRow] = await tx('bank_accounts')
-        .insert({
-          display_name: v.display_name,
-          account_name: v.account_name || v.display_name,
-          account_number: v.account_number,
-          account_number_mask: v.account_number_mask,
-          account_type: v.account_type,
-          business_or_personal: v.business_or_personal || 'business',
-          bank_id: bankId,
-          currency_id: currencyId,
-          company_id: companyUUID,
-          coa_id: coaId,
-          provider_id: v.provider_id,
-          provider_bank_account_id: v.provider_bank_account_id,
-          connection_status: v.connection_status,
-          account_metadata: v.account_metadata,
-          connection_credential_id: v.connection_credential_id,
-          last_sync_at: v.last_sync_at,
-          sync_error: v.sync_error,
-          notes: v.notes,
-          created_by_id: userId,
-          updated_by_id: userId,
-        })
-        .onConflict(['account_number', 'company_id'])
-        .merge({
-          bank_id: bankId,
-          business_or_personal: v.business_or_personal || 'business',
-          provider_id: v.provider_id,
-          connection_credential_id: v.connection_credential_id,
-          connection_status: v.connection_status,
-          updated_by_id: userId,
-          updated_at: tx.fn.now(),
-        })
-        .returning<{ id: string; connection_credential_id: string | null }[]>([
-          'id',
-          'connection_credential_id',
-        ]);
-      bankAccountId = bankAccountRow.id;
-      const newConnectionCredentialId = bankAccountRow.connection_credential_id;
-
-      if (
-        oldConnectionCredentialId &&
-        oldConnectionCredentialId !== newConnectionCredentialId
-      ) {
-        log.info(
-          {
-            oldCredentialId: oldConnectionCredentialId,
-            newCredentialId: newConnectionCredentialId,
-            bankAccountId,
-          },
-          'Checking if old credential can be revoked',
-        );
-
-        const result = await tx('bank_accounts')
-          .where('connection_credential_id', oldConnectionCredentialId)
-          .whereNot('id', bankAccountId)
-          .count()
-          .first();
-        const count = Number(result?.count ?? 0);
-
-        log.info(
-          {
-            oldCredentialId: oldConnectionCredentialId,
-            accountsUsingOldCredential: count,
-          },
-          'Credential usage check result',
-        );
-
-        if (count === 0) {
-          await tx('bank_account_credentials')
-            .where('id', oldConnectionCredentialId)
-            .update({
-              status: 'revoked',
-              updated_by: userId,
-              updated_at: tx.fn.now(),
-            });
-
-          log.info(
-            {
-              oldCredentialId: oldConnectionCredentialId,
-            },
-            'Old credential revoked successfully',
-          );
-        } else {
-          log.info(
-            {
-              oldCredentialId: oldConnectionCredentialId,
-              accountsStillUsing: count,
-            },
-            'Old credential still in use, not revoked',
-          );
+      if (existingBankAccount) {
+        const [updated] = await tx('bank_accounts')
+          .where({ id: existingBankAccount.id })
+          .update({
+            display_name: v.display_name,
+            official_name: v.official_name ?? null,
+            account_number_mask: accountNumberMask,
+            account_type: v.account_type,
+            business_or_personal: v.business_or_personal || 'business',
+            bank_id: bankId,
+            updated_by_id: userId,
+            updated_at: tx.fn.now(),
+          })
+          .returning<{ id: string }[]>(['id']);
+        if (!updated) {
+          throw new Error('Failed to update bank account');
         }
+        bankAccountId = updated.id;
+      } else {
+        const [inserted] = await tx('bank_accounts')
+          .insert({
+            display_name: v.display_name,
+            official_name: v.official_name ?? null,
+            account_number_mask: accountNumberMask,
+            account_number_fingerprint:
+              identity?.account_number_fingerprint ?? null,
+            account_number_fingerprint_version:
+              identity?.account_number_fingerprint_version ?? null,
+            account_type: v.account_type,
+            business_or_personal: v.business_or_personal || 'business',
+            bank_id: bankId,
+            currency_id: currencyId,
+            company_id: companyUUID,
+            coa_id: coaId,
+            created_by_id: userId,
+            updated_by_id: userId,
+          })
+          .returning<{ id: string }[]>(['id']);
+        if (!inserted) {
+          throw new Error('Failed to create bank account');
+        }
+        bankAccountId = inserted.id;
       }
     } catch (e: any) {
       if (e?.code !== '23505') throw e;
       throw new Error('Bank account with the same details already exist');
     }
 
-    // Handle opening balance if provided
     if (v.opening_balance) {
-      try {
-        const obDate = new Date(v.opening_balance.date);
-        const obResult = await setBankOpeningBalance({
-          params: {
-            bank_account_id: bankAccountId,
-            amount: Number(v.opening_balance.amount),
-            coverage_start: obDate,
-            coverage_end: obDate, // Same day for manual entry
-            origin: v.opening_balance.origin ?? 'system_calculated',
-            role: v.opening_balance.role ?? 'checkpoint',
-            metadata: v.opening_balance.metadata,
-          },
-          userId,
-          trx: tx,
-        });
+      const obDate = new Date(v.opening_balance.date);
+      const obResult = await setBankOpeningBalance({
+        params: {
+          bank_account_id: bankAccountId,
+          amount: Number(v.opening_balance.amount),
+          coverage_start: obDate,
+          coverage_end: obDate,
+          origin: v.opening_balance.origin ?? 'user_entered',
+          role: v.opening_balance.role ?? 'baseline',
+          metadata: v.opening_balance.metadata,
+        },
+        userId,
+        trx: tx,
+      });
 
-        if (!obResult.success) {
-          log.warn(
-            {
-              error: obResult.message,
-              bankAccountId,
-              openingBalance: v.opening_balance.amount,
-              openingBalanceDate: v.opening_balance.date,
-            },
-            'Failed to create opening balance - continuing without it',
-          );
-          // Don't fail the whole transaction - just log the warning
-        } else {
-          log.info(
-            {
-              bankAccountId,
-              openingBalanceId: obResult.data?.openingBalanceId,
-              journalBatchId: obResult.data?.journalBatchId,
-              amount: v.opening_balance,
-            },
-            'Opening balance created successfully',
-          );
-        }
-      } catch (error) {
-        log.error(
-          {
-            error: error instanceof Error ? error.message : 'Unknown error',
-            bankAccountId,
-          },
-          'Error creating opening balance',
-        );
-        // Don't fail the transaction - user can add opening balance later
+      if (!obResult.success) {
+        throw new Error(obResult.message || 'Failed to create opening balance');
       }
     }
 
@@ -693,8 +700,8 @@ async function createBankAccount({
       {
         coaId,
         bankAccountId,
-        wasUpdated: !!oldConnectionCredentialId,
-        bankAccountName: v.display_name || v.account_name || '',
+        wasUpdated: !!existingBankAccount,
+        bankAccountName: v.display_name,
         currencyCode: currency.code,
         bankName: bank.display_name,
       },
@@ -728,16 +735,14 @@ export async function createManualBankAccount({
   }
   const { data } = validatedInput;
   return createBankAccount({
-    bankAccountData: {
-      ...data,
-      connection_status: data.connection_status ?? 'not_connected',
-    },
+    bankAccountData: data,
     userId,
     companyId,
     trx,
   });
 }
 
+/** Durable bank_account only — caller owns connection/feed rows. */
 export async function createBankAccountWithConnection({
   params,
   userId,
@@ -751,11 +756,6 @@ export async function createBankAccountWithConnection({
 }) {
   const validatedInput = bankAccountWithConnectionInput.safeParse(params);
   if (!validatedInput.success) {
-    console.log('validatedInput banq', {
-      params,
-      err: z.treeifyError(validatedInput.error),
-      issues: validatedInput.error.issues,
-    });
     return errorResponse('Invalid input', z.treeifyError(validatedInput.error));
   }
   const { data } = validatedInput;
@@ -785,30 +785,33 @@ export async function updateBankAccounts({
     if (!companyUUID) {
       throw new Error('Company not found');
     }
-    const results = [];
+
+    let updatedCount = 0;
     for (const i of data) {
-      const result = await txn('bank_accounts')
-        .where('id', i.id)
-        .where('company_id', companyUUID)
-        .update({
-          display_name: i.displayName,
-          account_type: i.accountType,
-          business_or_personal: i.businessOrPersonal,
-          connection_status: i.connectionStatus,
-          notes: i.notes,
-          updated_by_id: userId,
-          updated_at: txn.fn.now(),
-        });
-      if (result === 0) {
-        throw new Error(`Unable to update bank account ${i.id}`);
+      if (!i.id) {
+        throw new Error('Bank account id is required');
       }
 
-      results.push(result);
+      const updates: Record<string, unknown> = {
+        updated_by_id: userId,
+        updated_at: txn.fn.now(),
+      };
+      if (i.displayName !== undefined) updates.display_name = i.displayName;
+      if (i.accountType !== undefined) updates.account_type = i.accountType;
+      if (i.businessOrPersonal !== undefined) {
+        updates.business_or_personal = i.businessOrPersonal;
+      }
+
+      const updated = await txn('bank_accounts')
+        .where({ id: i.id, company_id: companyUUID })
+        .update(updates);
+
+      if (!updated) {
+        throw new Error(`Unable to update bank account ${i.id}`);
+      }
+      updatedCount++;
     }
-    return successResponse(
-      'Bank accounts updated successfully',
-      results.length,
-    );
+    return successResponse('Bank accounts updated successfully', updatedCount);
   };
 
   try {

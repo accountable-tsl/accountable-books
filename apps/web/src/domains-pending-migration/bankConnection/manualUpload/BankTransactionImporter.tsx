@@ -250,11 +250,17 @@ export const BankTransactionImporter = ({
     }
 
     const batchData: BankTransactionBatchInput = {
-      startDate: stats.earliestDate,
-      endDate: stats.latestDate,
-      bankAccountId: bankAccount.id,
       source: bankTransactionSource.enum.file_import,
-      bankTransactions: txnsForDb.data,
+      bank_account_id: bankAccount.id,
+      bank_transactions: txnsForDb.data.map((transaction) => ({
+        transaction_date: transaction.date,
+        amount: transaction.amount,
+        bank_account_id: transaction.bankAccountId,
+        description: transaction.description,
+        payee: transaction.payee,
+        reference: transaction.reference,
+        additional_notes: transaction.additionalComments,
+      })),
     };
 
     setIsSubmitting(true);

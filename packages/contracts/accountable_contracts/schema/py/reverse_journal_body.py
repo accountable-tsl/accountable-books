@@ -1,6 +1,0 @@
-from pydantic import BaseModel, constr
-from typing import Optional
-
-class ReverseJournalBody(BaseModel):
-    reversalReason: Optional[constr(max_length=2048)] = None
-    reversalDate: Optional[str] = None

@@ -6,9 +6,20 @@ import {
   acquireAdvisoryXactLocks,
   lockKeyCompany,
 } from '../../../shared/services/advisoryLocks.service.js';
-import { createLedgerRecord } from '../../ledgers/ledgers.model.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../../activity/index.js';
+import { postLedgerTransactions } from '../../ledgers/ledger-mutation.service.js';
+import { toLedgerTransactionInput } from '../../ledgers/ledgers.utils.js';
 import { getCompanySetting } from '../../settings/settings.service.js';
-import { getSystemUser } from '../../users/users.model.js';
+import { writeBankAccountWorkMaterializationIntent } from '../../work/work-materialization-intent.js';
+import { WORK_TYPE_REVIEW_SUGGESTIONS } from '../../work/work.types.js';
+import {
+  appendCandidateDisposition,
+  closeCandidateReview,
+  recordCandidateOutcomeForLedger,
+} from '../candidates/candidate-lifecycle.service.js';
 import { logTaskEventSafe } from '../tasks/task-events.service.js';
 
 import type { NewLedgerTransactionData } from '../../ledgers/ledgers.types.js';
@@ -134,7 +145,7 @@ export async function postCandidateToLedger({
     // Race condition check: Check if already posted
     const bankTxn = await txn('bank_transactions')
       .where({ id: bankTransactionId })
-      .first('ledger_transaction_id', 'company_id');
+      .first('ledger_transaction_id', 'company_id', 'bank_account_id');
 
     if (!bankTxn) {
       logger.warn(
@@ -148,6 +159,33 @@ export async function postCandidateToLedger({
 
     // Check if already posted
     if (bankTxn.ledger_transaction_id) {
+      await closeCandidateReview(txn, candidateId);
+      await appendCandidateDisposition(txn, {
+        candidateId,
+        bankTransactionId,
+        companyId: companyUUID,
+        disposition: 'expired_source_posted',
+        runId,
+        ledgerTransactionId: bankTxn.ledger_transaction_id,
+        reason: 'Bank transaction was already posted before autopost ran',
+        idempotencyKey: `candidate:${candidateId}:expired_source_posted:${bankTxn.ledger_transaction_id}`,
+      });
+      await recordCandidateOutcomeForLedger(txn, {
+        candidateId,
+        ledgerTransactionId: bankTxn.ledger_transaction_id,
+        comparisonBasis: 'autopost_source_already_posted',
+      });
+      await writeBankAccountWorkMaterializationIntent(txn, {
+        clientCompanyId: companyUUID,
+        bankAccountId: bankTxn.bank_account_id,
+        change: {
+          type: 'categorization_candidate_expired_source_posted',
+          companyId: companyUUID,
+          bankAccountId: bankTxn.bank_account_id,
+          bankTransactionId,
+          candidateId,
+        },
+      });
       logger.info(
         {
           bankTransactionId,
@@ -167,9 +205,37 @@ export async function postCandidateToLedger({
     // Double-check after acquiring lock (someone might have posted while waiting)
     const bankTxnAfterLock = await txn('bank_transactions')
       .where({ id: bankTransactionId })
-      .first('ledger_transaction_id');
+      .first('ledger_transaction_id', 'bank_account_id');
 
     if (bankTxnAfterLock?.ledger_transaction_id) {
+      await closeCandidateReview(txn, candidateId);
+      await appendCandidateDisposition(txn, {
+        candidateId,
+        bankTransactionId,
+        companyId: companyUUID,
+        disposition: 'expired_source_posted',
+        runId,
+        ledgerTransactionId: bankTxnAfterLock.ledger_transaction_id,
+        reason:
+          'Bank transaction was posted while autopost was waiting for the company lock',
+        idempotencyKey: `candidate:${candidateId}:expired_source_posted:${bankTxnAfterLock.ledger_transaction_id}`,
+      });
+      await recordCandidateOutcomeForLedger(txn, {
+        candidateId,
+        ledgerTransactionId: bankTxnAfterLock.ledger_transaction_id,
+        comparisonBasis: 'autopost_source_posted_during_lock',
+      });
+      await writeBankAccountWorkMaterializationIntent(txn, {
+        clientCompanyId: companyUUID,
+        bankAccountId: bankTxnAfterLock.bank_account_id,
+        change: {
+          type: 'categorization_candidate_expired_source_posted',
+          companyId: companyUUID,
+          bankAccountId: bankTxnAfterLock.bank_account_id,
+          bankTransactionId,
+          candidateId,
+        },
+      });
       logger.info(
         {
           bankTransactionId,
@@ -183,56 +249,49 @@ export async function postCandidateToLedger({
       };
     }
 
-    // Get system user ID
-    const systemUser = await getSystemUser({ trx: txn });
-    if (!systemUser?.id) {
-      logger.error({ companyId }, 'System user not found');
-      return { success: false, error: 'System user not found' };
-    }
-
-    // Convert candidate to ledger format
     const ledgerData = buildLedgerTxnFromCandidate({
       candidateInput,
       bankTransaction,
       candidateId,
     });
 
-    // Create ledger transaction
-    const ledgerResult = await createLedgerRecord({
-      data: ledgerData,
-      autoPost: true, // This is an autopost operation
-      companyId,
-      userId: systemUser.id,
+    const postResult = await postLedgerTransactions({
+      companyId: companyUUID,
+      actor: { type: 'system' },
+      requestContext: { source: 'worker' },
+      transactions: [toLedgerTransactionInput(ledgerData)],
       trx: txn,
     });
 
-    if (!ledgerResult.success) {
+    if (!postResult.success) {
       logger.error(
         {
           candidateId,
           bankTransactionId,
-          error: ledgerResult.error,
+          error: postResult.error,
         },
-        'Failed to create ledger transaction for autopost',
+        'Failed to post ledger transaction for autopost',
       );
       const errorMessage =
-        typeof ledgerResult.error === 'string'
-          ? ledgerResult.error
-          : 'Failed to create ledger transaction';
+        typeof postResult.error === 'string'
+          ? postResult.error
+          : typeof postResult.error === 'object' &&
+              postResult.error !== null &&
+              'message' in postResult.error &&
+              typeof postResult.error.message === 'string'
+            ? postResult.error.message
+            : 'Failed to post ledger transaction';
       return {
         success: false,
         error: errorMessage,
       };
     }
 
-    if (
-      !ledgerResult.data ||
-      typeof ledgerResult.data !== 'object' ||
-      !('ledgerTransactionId' in ledgerResult.data)
-    ) {
+    const ledgerTransactionId = postResult.data?.ledgerTransactionIds?.[0];
+    if (!ledgerTransactionId) {
       logger.error(
-        { candidateId, bankTransactionId, ledgerResult },
-        'Ledger transaction ID not returned from createLedgerRecord',
+        { candidateId, bankTransactionId, postResult },
+        'Ledger transaction ID not returned from postLedgerTransactions',
       );
       return {
         success: false,
@@ -240,10 +299,51 @@ export async function postCandidateToLedger({
       };
     }
 
-    const ledgerTransactionId = (
-      ledgerResult.data as { ledgerTransactionId: string }
-    ).ledgerTransactionId;
-
+    await closeCandidateReview(txn, candidateId);
+    await appendCandidateDisposition(txn, {
+      candidateId,
+      bankTransactionId,
+      companyId: companyUUID,
+      disposition: 'posted',
+      runId,
+      ledgerTransactionId,
+      idempotencyKey: `candidate:${candidateId}:posted:${ledgerTransactionId}`,
+    });
+    await recordCandidateOutcomeForLedger(txn, {
+      candidateId,
+      ledgerTransactionId,
+      comparisonBasis: 'autopost',
+    });
+    await writeActivityEventIntent(txn, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'system' },
+      sourceEntity: { type: 'categorization_candidate', id: candidateId },
+      ledgerTransactionId,
+      eventType: ACTIVITY_EVENT_TYPE.CATEGORIZATION_CANDIDATE_AUTOPOSTED,
+      itemCount: 1,
+      amount: bankTransaction.transactionValue,
+      currencyId: bankTransaction.bankAccountCurrencyId,
+      workType: WORK_TYPE_REVIEW_SUGGESTIONS,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.CATEGORIZATION_CANDIDATE_AUTOPOSTED}:${ledgerTransactionId}`,
+      metadata: {
+        bankTransactionId,
+        bankAccountId: bankTxn.bank_account_id,
+        runId,
+        source: candidateInput.source,
+      },
+    });
+    await writeBankAccountWorkMaterializationIntent(txn, {
+      clientCompanyId: companyUUID,
+      bankAccountId: bankTxn.bank_account_id,
+      change: {
+        type: 'categorization_candidate_autoposted',
+        companyId: companyUUID,
+        bankAccountId: bankTxn.bank_account_id,
+        bankTransactionId,
+        candidateId,
+        ledgerTransactionId,
+      },
+    });
     // Log categorization task event
     await logTaskEventSafe({
       categorization_task_id: candidateInput.categorization_task_id,
@@ -313,7 +413,7 @@ export function buildLedgerTxnFromCandidate({
   }));
 
   return {
-    date: c.bank_transaction_date,
+    transaction_date: c.bank_transaction_date,
     transaction_source: 'bank_transaction',
     categorization_source: c.source,
     description: c.description,
@@ -323,7 +423,7 @@ export function buildLedgerTxnFromCandidate({
     contact_type: c.contact_type,
 
     source_transaction_id: c.bank_transaction_id,
-    source_transaction_date: new Date(c.bank_transaction_date),
+    source_transaction_date: c.bank_transaction_date,
     source_transaction_amount: bankTransaction.transactionValue,
     source_transaction_currency_id: bankTransaction.bankAccountCurrencyId,
 

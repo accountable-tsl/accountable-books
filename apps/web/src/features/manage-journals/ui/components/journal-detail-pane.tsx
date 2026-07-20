@@ -81,6 +81,10 @@ import { toast } from 'sonner';
 
 import { getAllowedActionsForJournal } from '../config/journal-actions';
 import { getErrorMessage, logError } from '../lib/error-utils';
+import {
+  mapJournalLinesToEntryInput,
+  resolveEntryDescription,
+} from '../lib/journal-entry-payload';
 import { getShortcutModifierLabel } from '../lib/shortcut-ui';
 import { EmptyState } from './empty-state';
 import { JournalDetailHeader } from './journal-detail-header';
@@ -132,7 +136,7 @@ type EditSnapshot = {
   title: string;
   date: string;
   description: string;
-  reference: string;
+  userReference: string;
   contactId: string | null;
   memo: string;
   lines: EditableLine[];
@@ -279,18 +283,6 @@ function normalizeYMD(input: string | null | undefined): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(prefix) ? prefix : '';
 }
 
-function resolveEntryDescription(p: {
-  lineDescription: string;
-  journalDescription: string;
-  journalTitle: string;
-}): string {
-  const line = p.lineDescription.trim();
-  if (line) return line;
-  const journalDesc = p.journalDescription.trim();
-  if (journalDesc) return journalDesc;
-  return p.journalTitle.trim();
-}
-
 export function JournalDetailPane({
   companyId,
   journalId,
@@ -429,7 +421,7 @@ export function JournalDetailPane({
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [contactId, setContactId] = useState<string | null>(null);
-  const [reference, setReference] = useState('');
+  const [userReference, setUserReference] = useState('');
   const [description, setDescription] = useState('');
   const [memo, setMemo] = useState('');
   const [showMoreDetails, setShowMoreDetails] = useState(false);
@@ -661,7 +653,7 @@ export function JournalDetailPane({
       setDate(normalizeYMD(j.date));
       setMemo(j.note ?? '');
       setDescription(j.description ?? '');
-      setShowMoreDetails(!!(j.reference ?? ''));
+      setShowMoreDetails(!!(j.userReference ?? ''));
       applyRecurringState(recurring);
       setLines(
         (entries ?? []).map((entry) => ({
@@ -679,7 +671,7 @@ export function JournalDetailPane({
       setUploadingFiles([]);
       setAttachedFiles(files);
       setContactId(j.contactId ?? null);
-      setReference(j.reference ?? '');
+      setUserReference(j.userReference ?? '');
     },
     [applyRecurringState],
   );
@@ -693,7 +685,7 @@ export function JournalDetailPane({
       // If we're currently editing with changes, defer and show discard dialog
       if (editing && !pendingNewRef.current) {
         // Use the same dirty detection we use elsewhere; otherwise we miss fields
-        // like memo/reference/contact/recurring.
+        // like memo/user reference/contact/recurring.
         if (isDirty) {
           pendingNewRef.current = true;
           previousJournalIdRef.current = lastJournalIdRef.current;
@@ -719,14 +711,14 @@ export function JournalDetailPane({
       setUploadingFiles([]);
       setAttachedFiles([]);
       setContactId(null);
-      setReference('');
+      setUserReference('');
       // Snapshot the "clean" state for create-new, so we can warn on discard for
-      // memo/reference/contact/recurring/etc (not only title/description/lines).
+      // memo/user reference/contact/recurring/etc (not only title/description/lines).
       initialSnapshotRef.current = {
         title: '',
         date: now,
         description: '',
-        reference: '',
+        userReference: '',
         contactId: null,
         memo: '',
         lines: newLines,
@@ -752,7 +744,7 @@ export function JournalDetailPane({
       title: journal.title,
       date: normalizeYMD(journal.date),
       description: journal.description ?? '',
-      reference: journal.reference ?? '',
+      userReference: journal.userReference ?? '',
       contactId: journal.contactId ?? null,
       memo: journal.note ?? '',
       lines: entries.map((entry) => ({
@@ -790,7 +782,7 @@ export function JournalDetailPane({
 
   const payload = useMemo<JournalBatchInput>(
     () => ({
-      reference: reference.trim() || journal?.reference || null,
+      userReference: userReference.trim() || journal?.userReference || null,
       date: normalizeYMD(date),
       title: title.trim(),
       description: description.trim() || undefined,
@@ -816,23 +808,17 @@ export function JournalDetailPane({
               enabled: false,
             },
       },
-      entries: lines.map((line) => ({
-        description: resolveEntryDescription({
-          lineDescription: line.description,
-          journalDescription: description,
-          journalTitle: title,
-        }),
-        side: line.side,
-        amount: line.amount,
-        coaId: line.coaId,
-        projectId: line.projectId,
-      })),
+      entries: mapJournalLinesToEntryInput({
+        lines,
+        journalDescription: description,
+        journalTitle: title,
+      }),
       files: attachedFiles,
     }),
     [
       date,
       description,
-      reference,
+      userReference,
       contactId,
       journal,
       lines,
@@ -1288,7 +1274,7 @@ export function JournalDetailPane({
       title !== snap.title ||
       date !== snap.date ||
       description !== snap.description ||
-      reference !== snap.reference ||
+      userReference !== snap.userReference ||
       (contactId ?? null) !== snap.contactId ||
       memo !== snap.memo ||
       !linesEqual(lines, snap.lines) ||
@@ -1300,7 +1286,7 @@ export function JournalDetailPane({
     title,
     date,
     description,
-    reference,
+    userReference,
     contactId,
     memo,
     lines,
@@ -1811,12 +1797,12 @@ export function JournalDetailPane({
                   setUploadingFiles([]);
                   setAttachedFiles([]);
                   setContactId(null);
-                  setReference('');
+                  setUserReference('');
                   initialSnapshotRef.current = {
                     title: '',
                     date: now,
                     description: '',
-                    reference: '',
+                    userReference: '',
                     contactId: null,
                     memo: '',
                     lines: newLines,
@@ -1834,7 +1820,7 @@ export function JournalDetailPane({
 
         {/* HEADER SECTION (Static at top) */}
         <JournalDetailHeader
-          reference={journal?.reference ?? null}
+          systemReference={journal?.systemReference ?? null}
           status={currentStatus}
           leftAddon={
             recurringInfo.enabled ? (
@@ -2197,11 +2183,13 @@ export function JournalDetailPane({
                   {!isMobile && (
                     <div className="min-w-0">
                       <Label className="text-muted-foreground mb-0.5 block text-[11px] font-medium uppercase">
-                        Reference
+                        User reference
                       </Label>
                       <Input
-                        value={reference}
-                        onChange={(event) => setReference(event.target.value)}
+                        value={userReference}
+                        onChange={(event) =>
+                          setUserReference(event.target.value)
+                        }
                         placeholder="e.g. JL-001"
                         className="h-9 bg-transparent text-sm dark:bg-transparent"
                       />
@@ -2209,7 +2197,7 @@ export function JournalDetailPane({
                   )}
                 </div>
 
-                {/* Add reference — mobile only */}
+                {/* Add user reference — mobile only */}
                 {isMobile && (
                   <>
                     {!showMoreDetails ? (
@@ -2219,7 +2207,7 @@ export function JournalDetailPane({
                         className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-xs font-medium transition-colors"
                       >
                         <Plus className="h-3 w-3" />
-                        Add reference
+                        Add user reference
                       </button>
                     ) : (
                       <div className="flex flex-col gap-1">
@@ -2229,21 +2217,21 @@ export function JournalDetailPane({
                           className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-xs font-medium transition-colors"
                         >
                           <ChevronDown className="h-3 w-3 rotate-180 transition-transform" />
-                          Hide reference
+                          Hide user reference
                         </button>
                         <div className="group/mref relative">
                           <Input
-                            value={reference}
+                            value={userReference}
                             onChange={(event) =>
-                              setReference(event.target.value)
+                              setUserReference(event.target.value)
                             }
                             placeholder="e.g. INV-001"
-                            className={`peer h-auto rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm shadow-none transition-[padding] duration-200 focus-visible:pl-[5rem] focus-visible:ring-0 dark:bg-transparent ${reference ? 'pl-[5rem]' : ''}`}
+                            className={`peer h-auto rounded-none border-0 border-b bg-transparent px-0 py-1.5 text-sm shadow-none transition-[padding] duration-200 focus-visible:pl-[5rem] focus-visible:ring-0 dark:bg-transparent ${userReference ? 'pl-[5rem]' : ''}`}
                           />
                           <span
-                            className={`text-muted-foreground pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 text-[11px] font-medium tracking-wide capitalize opacity-0 transition-all duration-200 peer-focus:translate-x-0 peer-focus:opacity-100 ${reference ? 'translate-x-0 opacity-100' : '-translate-x-1'}`}
+                            className={`text-muted-foreground pointer-events-none absolute top-1/2 left-0 -translate-y-1/2 text-[11px] font-medium tracking-wide capitalize opacity-0 transition-all duration-200 peer-focus:translate-x-0 peer-focus:opacity-100 ${userReference ? 'translate-x-0 opacity-100' : '-translate-x-1'}`}
                           >
-                            Reference
+                            User reference
                           </span>
                         </div>
                       </div>
@@ -2726,7 +2714,8 @@ export function JournalDetailPane({
                         }
                         title={`${detail.relatedJournals.originalJournal!.title} (${detail.relatedJournals.originalJournal!.date})`}
                       >
-                        {detail.relatedJournals.originalJournal!.reference ??
+                        {detail.relatedJournals.originalJournal!
+                          .systemReference ??
                           detail.relatedJournals.originalJournal!.title}
                       </button>
                     </span>
@@ -2745,7 +2734,8 @@ export function JournalDetailPane({
                         }
                         title={`${detail.relatedJournals.reversalJournal!.title} (${detail.relatedJournals.reversalJournal!.date})`}
                       >
-                        {detail.relatedJournals.reversalJournal!.reference ??
+                        {detail.relatedJournals.reversalJournal!
+                          .systemReference ??
                           detail.relatedJournals.reversalJournal!.title}
                       </button>
                     </span>

@@ -101,6 +101,11 @@ export type RunRecurringTemplateNowInput = {
   templateId: string;
 };
 
+export type DeleteRecurringTemplateInput = {
+  companyId: string;
+  templateId: string;
+};
+
 export type PreviewRecurringTemplateInput = {
   companyId: string;
   startDateYMD: string;
@@ -380,6 +385,16 @@ export async function updateRecurringTemplate(
   const res = await api.put(
     `/api/${companyId}/journals/templates/${templateId}`,
     data,
+  );
+  return res.data;
+}
+
+export async function deleteRecurringTemplate(
+  input: DeleteRecurringTemplateInput,
+): Promise<ApiResponse<{ templateId: string }>> {
+  const { companyId, templateId } = input;
+  const res = await api.delete(
+    `/api/${companyId}/journals/templates/${templateId}`,
   );
   return res.data;
 }

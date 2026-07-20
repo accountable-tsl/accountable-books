@@ -10,7 +10,7 @@ Additional feature gap discovered during the audit:
 
 ## Context
 
-[journal-detail-pane.tsx](apps/web/src/features/manage-journals/ui/components/journal-detail-pane.tsx) is a ~2,800-line component that handles many distinct product surfaces in one file:
+[journal-detail-pane.tsx](ui/components/journal-detail-pane.tsx) is a ~2,800-line component that handles many distinct product surfaces in one file:
 
 - Standard journal view + edit flows (draft/posted/voided)
 - New journal creation
@@ -32,8 +32,8 @@ It has accumulated significant technical debt: wrong endpoint wiring for recurri
 - **Lines 744–754, 796–814**: In that mode, `handleSave` and `handlePost` still call `createMutation.mutateAsync()` which creates a regular one-off journal. The UI says “Save Template” but the data goes to the normal `/journals` endpoint, not the recurring template endpoint.
 - **Root cause**: The backend endpoint `POST /api/{companyId}/journals/templates` exists (in `apps/api/src/domains/journals/recurring-templates.model.ts:563-653`) but the frontend is missing both the API function and the React Query hook.
 - **Fix**:
-  1. Add `createRecurringTemplate` API function in [api/index.ts](apps/web/src/modules/accounting/journals/api/index.ts) — `POST /api/{companyId}/journals/templates` with body: `{ description, title, note, contactId, currencyId, frequency, startDateYMD, endDateYMD, autoPost, entries[] }`
-  2. Add `useCreateRecurringTemplate` mutation hook in [model/hooks.ts](apps/web/src/modules/accounting/journals/model/hooks.ts) — with proper cache invalidation
+  1. Add `createRecurringTemplate` API function in [api/index.ts](../../modules/accounting/journals/api/index.ts) — `POST /api/{companyId}/journals/templates` with body: `{ description, title, note, contactId, currencyId, frequency, startDateYMD, endDateYMD, autoPost, entries[] }`
+  2. Add `useCreateRecurringTemplate` mutation hook in [model/hooks.ts](../../modules/accounting/journals/model/hooks.ts) — with proper cache invalidation
   3. In `handleSave`: when `isRecurringNew`, call the new mutation instead of `createMutation`, mapping the current form state to the template input shape (notably: `date` → `startDateYMD`, `recurringFrequency` → `frequency`, etc.)
   4. When `isRecurringNew`, `handlePost` should not be callable — templates are activated via status change, not posted
 

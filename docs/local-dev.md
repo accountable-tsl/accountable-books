@@ -1,252 +1,130 @@
 # Local Development Setup
 
-## Overview
-
-This project uses a **hybrid development approach**:
-
-- **Infrastructure** (Database + Redis) runs in Docker containers
-- **Applications** (API, Web, ML Engine) run directly on your host via Turbo
-
-This gives you the benefits of consistent infrastructure with the speed and flexibility of host-based development.
+Hybrid development: **infrastructure in Docker** (PostgreSQL + Redis), **applications on the host** via Turbo.
 
 ## Prerequisites
 
-- **Node.js** >= 24.16.0
-- **pnpm** >= 8.0.0
-- **Docker** & **Docker Compose**
+- Node.js >= 24.16.0
+- pnpm >= 11
+- Docker & Docker Compose
+- Make
+- [mise](https://mise.jdx.dev/) — runtime version manager (required by `make setup`)
+- [uv](https://docs.astral.sh/uv/) — Python package manager for the ML engine
 
-### Setup Options
-
-**Option 1: lvh.me (Default - Recommended)**
-
-Update your `/etc/hosts` file:
+## First-Time Setup
 
 ```bash
-sudo nano /etc/hosts
+make setup    # Infra + deps + generate-env + local/test migrate+bootstrap + demo
+# or
+make install  # Deps + generate-env only — then run db-up / db-ready / db-seed yourself
+```
 
-# Add:
+`make setup` and `make install` both run `pnpm run generate-env`, which creates `apps/api/.env.local` and `apps/web/.env.local` from the env schemas.
+
+Start developing:
+
+```bash
+make dev      # Core apps: api, web, ml-engine (excludes web-payroll)
+```
+
+To also start web-payroll: `make dev-full` or `pnpm dev`.
+
+## Hosts / URLs
+
+**lvh.me (recommended)** — add to `/etc/hosts`:
+
+```
 127.0.0.1 app.lvh.me
 127.0.0.1 api.lvh.me
 ```
 
-**Option 2: localhost**
+| Service   | lvh.me                              | localhost                          |
+| --------- | ----------------------------------- | ---------------------------------- |
+| Web       | http://app.lvh.me:5173              | http://localhost:5173              |
+| API       | http://api.lvh.me:5000              | http://localhost:5000              |
+| ML Engine | http://localhost:8000               | http://localhost:8000              |
+| API docs  | http://api.lvh.me:5000/docs         | http://localhost:5000/docs         |
+| Admin     | http://api.lvh.me:5000/admin/queues | http://localhost:5000/admin/queues |
 
-If you prefer localhost, after running `make dev-setup`, update:
-
-```bash
-# In apps/api/.env.local:
-BACKEND_URL=http://localhost:5000
-FRONTEND_URL=http://localhost:5173
-COOKIE_DOMAIN=localhost
-
-# In apps/web/.env.local:
-VITE_BACKEND_URL=http://localhost:5000
-```
-
-## Quick Start
-
-**3 commands to get started:**
-
-```bash
-# 1. Start infrastructure (DB + Redis)
-docker compose -f docker-compose.dev.yml up -d
-
-# 2. Install dependencies
-pnpm install
-
-# 3. Start all apps
-pnpm dev
-```
-
-**Or use Make shortcuts:**
-
-```bash
-# Setup everything (infra + deps + migrations)
-make dev-setup
-
-# Start all apps
-make dev
-
-# Full setup including demo seeds
-make dev-full
-```
-
-## Access URLs
-
-**Default (lvh.me):**
-
-- **🌐 Web App**: http://app.lvh.me:5173
-- **🔌 API**: http://api.lvh.me:5000
-- **🤖 ML Engine**: http://localhost:8000
-- **📊 Admin Panel**: http://api.lvh.me:5000/admin/queues
-- **📄 API Docs**: http://api.lvh.me:5000/docs
-
-**If using localhost option:**
-
-- **🌐 Web App**: http://localhost:5173
-- **🔌 API**: http://localhost:5000
-- **🤖 ML Engine**: http://localhost:8000
-- **📊 Admin Panel**: http://localhost:5000/admin/queues
-- **📄 API Docs**: http://localhost:5000/docs
+**localhost option:** after `make setup`, update `apps/api/.env.local` (`BACKEND_URL`, `FRONTEND_URL`, `COOKIE_DOMAIN`) and `apps/web/.env.local` (`VITE_BACKEND_URL`). See [ENVIRONMENT.md](ENVIRONMENT.md).
 
 ## Demo Credentials
 
-Use these credentials to log in:
+- `demo.us@example.com` / `StrongDemoPass!`
+- `demo.ng@example.com` / `StrongDemoPass!`
+- Admin: `support@getaccountable.com` / `StrongAdminPass!`
 
-### Demo Users
+## Individual Services
 
-- **Email**: `demo.us@example.com` | **Password**: `StrongDemoPass!`
-- **Email**: `demo.ng@example.com` | **Password**: `StrongDemoPass!`
-
-### Admin User
-
-- **Email**: `support@getaccountable.com` | **Password**: `StrongAdminPass!`
-
-## Why Hybrid Development?
-
-We use **infrastructure in Docker + apps on host** because:
-
-1. **Consistent Infrastructure**: Everyone gets the same DB and Redis setup
-2. **Fast Development**: Apps run directly on host with immediate hot reload
-3. **Turbo Benefits**: Full monorepo optimization, intelligent caching, parallel execution
-4. **Easy Debugging**: Direct access to Node.js processes, no container complexity
-
-## Individual Service Development
-
-Start specific services after running `make dev-setup`:
+After `make setup` (or `make install` + `make db-up` + `make db-ready` + `make db-seed`):
 
 ```bash
-# Start individual apps
-make dev-api      # API only
-make dev-web      # Web app only
-make dev-ml       # ML engine only
+make api-dev      # API only
+make web-dev      # Web only
+make ml-only      # ML engine only
 
-# Or with pnpm directly
+# Or via pnpm
 pnpm -F @accountable-books/api dev
 pnpm -F @accountable-books/web dev
 pnpm -F @accountable-books/ml-engine dev
 ```
 
-## Troubleshooting
+## Database
 
-### Application Issues
-
-If apps aren't starting properly:
-
-1. Make sure infrastructure is running: `docker compose -f docker-compose.dev.yml ps`
-2. Check that dependencies are installed: `pnpm install`
-3. Verify database migrations: `make db-dev-migrate`
-4. Check individual app logs in your terminal
-
-### Port Conflicts
-
-If ports are already in use:
+Happy-path Make targets prepare **both** the local app DB and the test DB (migrations use the same Postgres instance; catalogs + demo are applied to each).
 
 ```bash
-# Stop infrastructure
-make db-dev-down
-
-# Stop any running apps (Ctrl+C in terminal)
-# Then restart infrastructure
-make db-dev-up
+make db-up          # Start DB + Redis (creates local + test databases)
+make db-down        # Stop infrastructure
+make db-ready       # Migrate + bootstrap local and test
+make db-migrate     # Alias for db-ready
+make db-seed        # Apply demo data to local and test
+make db-reset       # Reset, migrate, bootstrap, seed local and test
+make db-shell       # psql shell (local)
+make db-logs        # View logs
+make db-rollback    # Roll back last local migration
 ```
 
-### Database Issues
+Single-env escape hatches: `db-migrate-local` / `db-migrate-test`, `db-seed-local` / `db-seed-test`, `db-reset-local` / `db-reset-test`.
+
+## Demo Data
 
 ```bash
-# Check database status
-make db-dev-status
+make demo              # Apply demo data (local + test)
+make demo-basic        # Without bank transactions (local + test)
+make demo-status       # Current state (local)
+make demo-reverse      # Remove demo data (local + test)
 
-# Run migrations manually
-make db-dev-migrate
-
-# Reset database completely
-make db-dev-nuke && make db-dev-up
-
-# Apply demo seeds
-make demo-apply
+# With filters (pnpm primitives — env-specific)
+pnpm -F @accountable-books/api run demo apply --country US
+NODE_ENV=test pnpm -F @accountable-books/api run demo apply --country US
 ```
 
-## Development Commands
+CLI reference: [apps/api/seeds/demo/README.md](../apps/api/seeds/demo/README.md) and `pnpm -F @accountable-books/api run demo help`.
 
-**Infrastructure:**
+## Environment Files
 
-```bash
-# View infrastructure logs
-make db-dev-logs
-
-# Restart infrastructure
-make db-dev-restart
-
-# Stop infrastructure
-make db-dev-down
-
-# Check infrastructure status
-make db-dev-status
-```
-
-**Applications:**
-
-```bash
-# Start all apps (after dev-setup)
-make dev
-
-# Start individual apps
-make dev-api
-make dev-web
-make dev-ml
-
-# Stop apps: Ctrl+C in terminal where they're running
-```
-
-## Environment Variables
-
-Environment files are automatically generated in:
+Created by `make setup` / `make install` via `pnpm run generate-env`:
 
 - `apps/api/.env.local`
 - `apps/web/.env.local`
 
-Key settings for development:
+Key local defaults: `DB_HOST=localhost`, `DB_PORT=5433`, `REDIS_HOST=localhost`, `REDIS_PORT=6380`.
 
-- `NODE_ENV=local`
-- `DB_HOST=localhost` (Docker port forwarded)
-- `DB_PORT=5433`
-- `REDIS_HOST=localhost`
-- `REDIS_PORT=6380`
+## Troubleshooting
 
-## Demo Data
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md). Quick checks:
 
-Apply demo seeds for testing:
+1. Infrastructure running: `docker compose -f docker-compose.dev.yml ps`
+2. Databases ready: `make db-ready` (and `make db-seed` if you need demo companies)
+3. Port conflicts: `make db-down`, stop running apps (Ctrl+C), restart
 
-```bash
-# Apply all demo data
-make demo-apply
+Nuclear reset: `make clean-all` (from repo root).
 
-# Country-specific
-make demo-apply ARGS="--country US"
+## Staging (local)
 
-# View current demo data
-make demo-status
+Production-like Docker environment: `make staging-up`, `make staging-down`, `make staging-health`. See `make help-advanced`.
 
-# Reset demo data
-make demo-reset ARGS="--all"
-```
+## Production Guard
 
-**Demo Users:**
-
-- Email: `demo.us@example.com` | Password: `StrongDemoPass!`
-- Email: `demo.ng@example.com` | Password: `StrongDemoPass!`
-
-## Staging vs Development
-
-**Development (this guide):**
-
-- Infrastructure: Docker containers
-- Apps: Run on host via Turbo
-- Fast iteration, debugging
-
-**Staging:**
-
-- Everything: Docker containers
-- Production-like environment
-- Use `make staging-*` commands
+Destructive `make` targets refuse to run in production-like contexts (`APP_ENV=production`, `FLY_APP_NAME`, etc.). Use `APP_ENV=local` locally. Details in [ENVIRONMENT.md](ENVIRONMENT.md).

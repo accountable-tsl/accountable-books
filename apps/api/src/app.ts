@@ -8,6 +8,7 @@ import { pinoHttp } from 'pino-http';
 import { ENV, isDev, NODE_ENV } from './config/env.js';
 import { basicAuth } from './core/middlewares/basicAuth.middleware.js';
 import { conditionalJsonParser } from './core/middlewares/bodyParser.middleware.js';
+import { initAuthLimiter } from './core/middlewares/rateLimiter.middleware.js';
 import { knexClient } from './db/knexClient.js';
 import { specs, swaggerUi } from './docs/swagger.js';
 import { loadAccountMeta } from './domains/account/account.registry.js';
@@ -15,6 +16,7 @@ import accountRoutes from './domains/account/account.routes.js';
 import firmRoutes from './domains/accountingFirms/firms.routes.js';
 import aiRoutes from './domains/ai/ai.routes.js';
 import { attachAuditContext } from './domains/audit/audit.middleware.js';
+import balancesRoutes from './domains/balances/balances.routes.js';
 import bankAccountsRoutes from './domains/banking/bankAccounts/bankAccounts.routes.js';
 import bankFeedProvidersRoutes from './domains/banking/bankFeedProviders/bankFeedProviders.routes.js';
 import bankingRoutes from './domains/banking/banking.routes.js';
@@ -31,14 +33,17 @@ import currencyRoutes from './domains/currencies/currencies.routes.js';
 import emailRoutes from './domains/email/email.routes.js';
 import journalsRoutes from './domains/journals/journals.routes.js';
 import ledgersRoutes from './domains/ledgers/ledgers.routes.js';
+import { notificationsRoutes } from './domains/notifications/index.js';
 import objectRoutes from './domains/objects/objects.routes.js';
 import projectsRoutes from './domains/projects/projects.routes.js';
+import closeReadinessRoutes from './domains/reporting/close-readiness/close-readiness.routes.js';
 import periodStatusRoutes from './domains/reporting/fiscal-calendar/period-status.routes.js';
 import { loadRoles } from './domains/roles/roles.model.js';
 import settingsRoutes from './domains/settings/settings.routes.js';
 import supportAccessRoutes from './domains/support-access/support-access.routes.js';
 import usersCompaniesRolesRoutes from './domains/user-roles/user-roles.routes.js';
 import usersRoutes from './domains/users/users.routes.js';
+import { workQueueRoutes } from './domains/work/index.js';
 import {
   conditionalCsrf,
   verifyAccessToken,
@@ -133,6 +138,7 @@ export async function setupApp() {
   // Load critical stuff first
   await loadRoles();
   await loadAccountMeta();
+  await initAuthLimiter();
 
   app.use(
     cors({
@@ -143,8 +149,13 @@ export async function setupApp() {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
-      exposedHeaders: ['X-CSRF-Token'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-CSRF-Token',
+        'X-Correlation-Id',
+      ],
+      exposedHeaders: ['X-CSRF-Token', 'X-Correlation-Id'],
     }),
   );
 
@@ -186,9 +197,13 @@ export async function setupApp() {
   app.use('/api/banks', bankRoutes);
   app.use('/api/:companyId/bank-accounts', bankAccountsRoutes);
   app.use('/api/:companyId/bank-accounts/transactions', bankTransactionRoutes);
+  app.use('/api/:companyId/balances', balancesRoutes);
   app.use('/api/bank-feed-providers', bankFeedProvidersRoutes);
   app.use('/api/:companyId', usersCompaniesRolesRoutes);
   app.use('/api/:companyId', periodStatusRoutes);
+  app.use('/api/:companyId', closeReadinessRoutes);
+  app.use('/api/:companyId', workQueueRoutes);
+  app.use('/api/:companyId', notificationsRoutes);
 
   app.use('/api/:companyId/ai', aiRoutes);
   app.use('/api/:companyId/categorization', categorizationRoutes);

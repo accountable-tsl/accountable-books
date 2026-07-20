@@ -26,34 +26,38 @@ export async function up(knex: Knex): Promise<void> {
       .references('id')
       .inTable('companies')
       .onDelete('CASCADE');
-    table
-      .uuid('contact_id')
-      .nullable()
-      .references('id')
-      .inTable('contacts')
-      .onDelete('SET NULL');
+    table.uuid('contact_id').nullable();
     table.string('contact_fingerprint', 256).notNullable();
     table.string('currency_code', 3).notNullable();
 
     table.uuid('bank_transaction_id').notNullable();
     table.date('bank_transaction_date').notNullable();
-    table.unique(['bank_transaction_id', 'bank_transaction_date']);
+    table.unique(['bank_transaction_id']);
 
     table.decimal('native_amount_abs', 20, 2).notNullable().defaultTo(0);
     table.decimal('reporting_amount_abs', 20, 2).notNullable().defaultTo(0);
     table.string('stats_snapshot_checksum', 64).nullable();
     table.integer('stats_replay_seq').notNullable().defaultTo(0);
     addStandardColumns(knex, table);
+
+    table
+      .foreign(
+        ['contact_id', 'company_id'],
+        'bank_transaction_contact_stats_entries_contact_company_fk',
+      )
+      .references(['id', 'company_id'])
+      .inTable('contacts')
+      .onDelete('RESTRICT');
   });
 
   await createUpdateTimestampTrigger(knex, entriesTable);
 
-  // Composite FK from entries to bank_transactions (id + date)
+  // The date remains because rolling stats query it directly.
   await knex.raw(`
     ALTER TABLE ${entriesTable}
     ADD CONSTRAINT bank_transaction_contact_stats_entries_bank_transaction_id_foreign
-    FOREIGN KEY (bank_transaction_id, bank_transaction_date)
-    REFERENCES bank_transactions (id, date)
+    FOREIGN KEY (bank_transaction_id)
+    REFERENCES bank_transactions (id)
     ON DELETE CASCADE;
   `);
 

@@ -128,8 +128,7 @@ async function fetchAccountTypes(
       'fs.default_label as fsLabel',
       'fs.us_gaap_label as usGaapLabel',
       'fs.ifrs_label as ifrsLabel',
-    )
-    .where('at.is_deleted', false);
+    );
 
   const accountTypes: AccountTypeDTO[] = rows.map(
     (r) =>
@@ -227,8 +226,7 @@ async function fetchAccountElements(
 
       'pae.key as parentKey',
       'fs.key as fsKey',
-    )
-    .where('ae.is_deleted', false);
+    );
 
   const accountElements: AccountElementDTO[] = raw
     .filter((r) => !!r.parentId)

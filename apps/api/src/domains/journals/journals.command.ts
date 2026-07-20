@@ -6,6 +6,7 @@ import type {
 import type { Knex } from 'knex';
 
 import { knexClient } from '../../db/knexClient.js';
+import { generateV7Ids } from '../../shared/db/generate-ids.js';
 import { toYMD } from '../../shared/index.js';
 import { logger } from '../../shared/utils/logger.js';
 import { getCompanyUUID } from '../../shared/utils/random.utils.js';
@@ -15,7 +16,13 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { createLedgerRecord } from '../ledgers/ledgers.model.js';
+import {
+  ACTIVITY_EVENT_TYPE,
+  writeActivityEventIntent,
+} from '../activity/index.js';
+import { reverseFxPositionMovementsForLedgerTransaction } from '../fx/index.js';
+import { postLedgerTransactions } from '../ledgers/ledger-mutation.service.js';
+import { toLedgerTransactionInput } from '../ledgers/ledgers.utils.js';
 import {
   persistTxnFiles,
   syncTxnFilesForTarget,
@@ -138,7 +145,7 @@ export async function copyJournal({
         description: source.description ?? undefined,
         note: source.note ?? undefined,
         status: 'draft',
-        reference: null,
+        userReference: null,
         contactId: source.contactId ?? null,
         currencyId: source.currencyId,
         autoReversalDate: null,
@@ -232,11 +239,13 @@ export async function postJournalRecord({
   companyId,
   userId,
   trx,
+  skipFxPositionTracking = false,
 }: {
   data: JournalBatchData;
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
+  skipFxPositionTracking?: boolean;
 
   // Validate input
   // Validate contact (if provided) exists and is active for this company
@@ -259,7 +268,8 @@ export async function postJournalRecord({
   ApiResponse<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
     ledgerTransactionId: string | null;
   }>
 > {
@@ -291,7 +301,7 @@ export async function postJournalRecord({
     entriesCount: data.entries?.length || 0,
     filesCount: data.files?.length || 0,
     status: data.status,
-    hasReference: !!data.reference,
+    hasUserReference: !!data.userReference,
   });
 
   const exec = async (
@@ -299,7 +309,8 @@ export async function postJournalRecord({
   ): Promise<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
     ledgerTransactionId: string | null;
   }> => {
     const now = new Date();
@@ -354,8 +365,8 @@ export async function postJournalRecord({
       });
     }
 
-    // Resolve reference + sequence
-    let journalReference: string | null = prepared.journalReference;
+    // Resolve official system reference + sequence.
+    let systemReference: string | null = null;
     let sequenceMonth: string | null = null;
     let sequenceNumber: number | null = null;
 
@@ -368,16 +379,15 @@ export async function postJournalRecord({
 
       sequenceMonth = ref.sequenceMonth;
       sequenceNumber = ref.sequenceNumber;
-      if (!journalReference) {
-        journalReference = ref.reference;
-      }
+      systemReference = ref.systemReference;
     }
 
     // Create journal batch
     const journalBatch: NewJournalBatch = {
       sequence_month: sequenceMonth,
       sequence_number: sequenceNumber,
-      reference: journalReference,
+      system_reference: systemReference,
+      user_reference: prepared.userReference,
       company_id: companyUUID,
       currency_id: journalCurrencyId,
       exchange_rate: exchangeRate,
@@ -416,7 +426,8 @@ export async function postJournalRecord({
 
     log('journal_batch_created', {
       journalBatchId: journalBatchId,
-      reference: journalReference,
+      systemReference,
+      userReference: prepared.userReference,
     });
 
     if (files.length > 0) {
@@ -439,12 +450,7 @@ export async function postJournalRecord({
 
     const entryFsDate = toYMD(batch.date);
     const totalIdsNeeded = entries.length * 2;
-    const idResult = await txn.raw<{
-      rows: Array<{ id: string }>;
-    }>('SELECT uuid_generate_v7() as id FROM generate_series(1, ?)', [
-      totalIdsNeeded,
-    ]);
-    const ids = idResult?.rows?.map((row) => row.id) ?? [];
+    const ids = await generateV7Ids(totalIdsNeeded, txn);
     if (ids.length !== totalIdsNeeded) {
       throw new AppError('Failed to allocate entry IDs', {
         traceId,
@@ -463,14 +469,17 @@ export async function postJournalRecord({
     }));
 
     const entriesToInsert: Array<NewJournalEntry & { id: string }> =
-      entryMappings.map(({ journalEntryId, entry }) => ({
+      entryMappings.map(({ journalEntryId, entry }, index) => ({
         id: journalEntryId,
+        company_id: companyUUID,
         journal_batch_id: journalBatchId,
-        description: entry.description,
+        line_number: index + 1,
+        description: entry.description ?? null,
         side: entry.side,
         amount: Math.abs(entry.amount),
         coa_id: entry.coa_id,
         project_id: entry.project_id ?? null,
+        entry_status: 'active',
         created_at: now,
         updated_at: now,
       }));
@@ -485,7 +494,7 @@ export async function postJournalRecord({
 
     if (batch.status === 'posted') {
       const ledgerPayload: NewLedgerTransactionData = {
-        date: batch.date,
+        transaction_date: batch.date,
         transaction_source: 'manual_journal',
         categorization_source: 'manual',
         description: batch.title,
@@ -508,25 +517,14 @@ export async function postJournalRecord({
         })),
       } as const;
 
-      const ledgerResult = await createLedgerRecord({
-        data: ledgerPayload,
-        companyId,
+      ledgerTransactionId = await postJournalLedgerTransaction({
+        ledgerPayload,
+        companyId: companyUUID,
         userId,
         trx: txn,
+        skipFxPositionTracking,
+        traceId,
       });
-
-      if (
-        !ledgerResult.success ||
-        !ledgerResult.data ||
-        !('ledgerTransactionId' in ledgerResult.data)
-      ) {
-        throw new AppError('Failed to create ledger transaction', {
-          traceId,
-          error: ledgerResult.error,
-        });
-      }
-
-      ledgerTransactionId = ledgerResult.data.ledgerTransactionId as string;
 
       await txn('journal_batches').where('id', journalBatchId).update({
         ledger_transaction_id: ledgerTransactionId,
@@ -534,19 +532,17 @@ export async function postJournalRecord({
         updated_at: now,
       });
 
-      const valuesSql = entryMappings.map(() => '(?, ?, ?)').join(', ');
+      const valuesSql = entryMappings.map(() => '(?, ?)').join(', ');
       const valuesBindings = entryMappings.flatMap((m) => [
         m.journalEntryId,
         m.ledgerEntryId,
-        m.fsDate,
       ]);
 
       await txn.raw(
         `UPDATE journal_entries AS je
          SET ledger_entry_id = v.ledger_entry_id::uuid,
-             ledger_entry_fs_date = v.ledger_entry_fs_date::date,
              updated_at = ?
-         FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id, ledger_entry_fs_date)
+         FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id)
          WHERE je.id = v.journal_entry_id::uuid`,
         [now, ...valuesBindings],
       );
@@ -563,7 +559,8 @@ export async function postJournalRecord({
       actor: { type: 'user', userId },
       payload: {
         status: batch.status,
-        reference: journalReference,
+        systemReference,
+        userReference: prepared.userReference,
         currencyId: journalCurrencyId,
         isFx,
         exchangeRate: isFx ? exchangeRate : null,
@@ -577,13 +574,45 @@ export async function postJournalRecord({
       trx: txn,
     });
 
+    const journalActivityEventType =
+      batch.status === 'posted'
+        ? ACTIVITY_EVENT_TYPE.JOURNAL_POSTED
+        : ACTIVITY_EVENT_TYPE.JOURNAL_CREATED;
+    await writeActivityEventIntent(txn, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      ledgerTransactionId,
+      eventType: journalActivityEventType,
+      itemCount: entries.length,
+      amount: prepared.totalDebits,
+      currencyId: journalCurrencyId,
+      idempotencyKey:
+        batch.status === 'posted' && ledgerTransactionId
+          ? `activity:${journalActivityEventType}:${ledgerTransactionId}`
+          : `activity:${journalActivityEventType}:${journalBatchId}`,
+      metadata: {
+        status: batch.status,
+        systemReference,
+        userReference: prepared.userReference,
+        isFx,
+        exchangeRate: isFx ? exchangeRate : null,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId,
+        isRecurring,
+        journalSource: journalBatch.journal_source,
+        recurringTemplateId,
+      },
+    });
     log('audit_event_created', { action: 'journal.create' });
 
     // Auto-reversal scheduling handled after transaction commit
     log('completed', {
       journalBatchId,
       ledgerTransactionId,
-      journalReference,
+      systemReference,
+      userReference: prepared.userReference,
       journalCurrencyId,
       exchangeRate,
       isFx,
@@ -592,7 +621,8 @@ export async function postJournalRecord({
     return {
       journalBatchId,
       journalId: journalBatchId,
-      journalReference,
+      systemReference,
+      userReference: prepared.userReference,
       ledgerTransactionId,
     };
   };
@@ -661,7 +691,8 @@ export async function updateDraftJournal({
   ApiResponse<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
   }>
 > {
   const traceId = randomUUID();
@@ -705,7 +736,8 @@ export async function updateDraftJournal({
   ): Promise<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string | null;
+    systemReference: string | null;
+    userReference: string | null;
   }> => {
     const now = new Date();
     const context = await resolveJournalCompanyContext({
@@ -723,9 +755,9 @@ export async function updateDraftJournal({
       .first<{
         id: string;
         status: string;
-        reference: string | null;
+        system_reference: string | null;
         ledger_transaction_id: string | null;
-      }>('id', 'status', 'reference', 'ledger_transaction_id');
+      }>('id', 'status', 'system_reference', 'ledger_transaction_id');
 
     if (!existingBatch) {
       throw new AppError(
@@ -787,7 +819,8 @@ export async function updateDraftJournal({
         status: 'draft',
         ledger_transaction_id: null,
 
-        reference: prepared.journalReference,
+        system_reference: null,
+        user_reference: prepared.userReference,
         company_id: companyUUID,
         currency_id: prepared.journalCurrencyId,
         exchange_rate: prepared.exchangeRate,
@@ -814,23 +847,28 @@ export async function updateDraftJournal({
         updated_by_id: userId,
       });
 
-    // Replace entries (soft-delete old + insert new)
+    // Replace active draft entries while retaining previous line sets.
     const deletedEntriesCount = await txn('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
       .where('is_deleted', false)
       .update({
+        entry_status: 'superseded',
         is_deleted: true,
         deleted_at: now,
         updated_at: now,
       });
 
-    const entriesToInsert: NewJournalEntry[] = entries.map((entry) => ({
+    const entriesToInsert: NewJournalEntry[] = entries.map((entry, index) => ({
+      company_id: companyUUID,
       journal_batch_id: journalBatchId,
-      description: entry.description,
+      line_number: index + 1,
+      description: entry.description ?? null,
       side: entry.side,
       amount: Math.abs(entry.amount),
       coa_id: entry.coa_id,
       project_id: entry.project_id ?? null,
+      entry_status: 'active',
       created_at: now,
       updated_at: now,
     }));
@@ -881,7 +919,8 @@ export async function updateDraftJournal({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'draft',
-        reference: prepared.journalReference,
+        systemReference: null,
+        userReference: prepared.userReference,
         currencyId: prepared.journalCurrencyId,
         isFx: prepared.isFx,
         exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
@@ -894,12 +933,34 @@ export async function updateDraftJournal({
       trx: txn,
     });
 
+    await writeActivityEventIntent(txn, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_UPDATED,
+      itemCount: entries.length,
+      amount: prepared.totalDebits,
+      currencyId: prepared.journalCurrencyId,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_UPDATED}:${journalBatchId}:${now.toISOString()}`,
+      metadata: {
+        previousStatus: 'draft',
+        userReference: prepared.userReference,
+        isFx: prepared.isFx,
+        exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId: prepared.contactId,
+        isRecurring: prepared.isRecurring,
+        replacedEntryCount: deletedEntriesCount,
+      },
+    });
     log('audit_event_created', { action: 'journal.update' });
 
     return {
       journalBatchId,
       journalId: journalBatchId,
-      journalReference: prepared.journalReference,
+      systemReference: null,
+      userReference: prepared.userReference,
     };
   };
 
@@ -978,8 +1039,9 @@ export async function voidDraftJournal({
       .first<{
         id: string;
         status: string;
-        reference: string | null;
-      }>('id', 'status', 'reference');
+        system_reference: string | null;
+        user_reference: string | null;
+      }>('id', 'status', 'system_reference', 'user_reference');
 
     if (!journalBatch) {
       throw new AppError(
@@ -1000,19 +1062,32 @@ export async function voidDraftJournal({
     }
 
     const now = new Date();
+    const activeEntryCountRow = await tx('journal_entries')
+      .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
+      .where('is_deleted', false)
+      .count<{ count: string }>({ count: 'id' })
+      .first();
+    const activeEntryCount = Number(activeEntryCountRow?.count ?? 0);
 
     await tx('journal_batches').where('id', journalBatchId).update({
       status: 'voided',
       updated_by_id: userId,
+      deleted_by_id: userId,
       is_deleted: true,
       updated_at: now,
       deleted_at: now,
-      voided_at: now,
+      system_reference: null,
+      sequence_month: null,
+      sequence_number: null,
     });
 
     await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
+      .where('is_deleted', false)
       .update({
+        entry_status: 'voided',
         is_deleted: true,
         updated_at: now,
         deleted_at: now,
@@ -1024,13 +1099,28 @@ export async function voidDraftJournal({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'draft',
-        reference: journalBatch.reference ?? null,
+        systemReference: journalBatch.system_reference ?? null,
+        userReference: journalBatch.user_reference ?? null,
         voidReason: voidReason ?? null,
       },
       notes: `Draft journal batch voided by user ${userId}${voidReason ? `: ${voidReason}` : ''}`,
       trx: tx,
     });
 
+    await writeActivityEventIntent(tx, {
+      clientCompanyId: companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_VOIDED,
+      itemCount: activeEntryCount > 0 ? activeEntryCount : undefined,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_VOIDED}:${journalBatchId}`,
+      metadata: {
+        previousStatus: 'draft',
+        systemReference: journalBatch.system_reference ?? null,
+        userReference: journalBatch.user_reference ?? null,
+        voidReason: voidReason ?? null,
+      },
+    });
     return {};
   };
 
@@ -1071,7 +1161,7 @@ export async function postDraftJournal({
   ApiResponse<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string;
+    systemReference: string;
     ledgerTransactionId: string;
   }>
 > {
@@ -1107,7 +1197,8 @@ export async function postDraftJournal({
   ): Promise<{
     journalBatchId: string;
     journalId: string;
-    journalReference: string;
+    systemReference: string;
+    userReference: string | null;
     ledgerTransactionId: string;
   }> => {
     const now = new Date();
@@ -1128,7 +1219,8 @@ export async function postDraftJournal({
         title: string;
         description: string | null;
         status: string;
-        reference: string | null;
+        system_reference: string | null;
+        user_reference: string | null;
         currency_id: string;
         exchange_rate: string | number;
         contact_id: string | null;
@@ -1174,20 +1266,22 @@ export async function postDraftJournal({
 
     const journalEntries = await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
       .where('is_deleted', false)
-      .orderBy('created_at', 'asc')
+      .orderBy('line_number', 'asc')
+      .orderBy('id', 'asc')
       .select<
         {
           id: string;
+          line_number: number;
           description: string | null;
           side: 'debit' | 'credit';
           amount: string | number;
           coa_id: string;
           project_id: string | null;
           ledger_entry_id: string | null;
-          ledger_entry_fs_date: string | null;
         }[]
-      >('id', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id', 'ledger_entry_fs_date');
+      >('id', 'line_number', 'description', 'side', 'amount', 'coa_id', 'project_id', 'ledger_entry_id');
 
     if (journalEntries.length < 2) {
       throw new AppError(
@@ -1196,11 +1290,7 @@ export async function postDraftJournal({
       );
     }
 
-    if (
-      journalEntries.some(
-        (e) => e.ledger_entry_id != null || e.ledger_entry_fs_date != null,
-      )
-    ) {
+    if (journalEntries.some((e) => e.ledger_entry_id != null)) {
       throw new AppError(
         'Draft journal already has ledger links and cannot be posted',
         { traceId, journalBatchId },
@@ -1219,7 +1309,7 @@ export async function postDraftJournal({
 
     const inputForValidation: JournalBatchData = {
       status: 'posted',
-      reference: journalBatch.reference,
+      userReference: journalBatch.user_reference,
       date: toYMD(journalBatch.date),
       title: journalBatch.title,
       description: journalBatch.description ?? undefined,
@@ -1264,24 +1354,17 @@ export async function postDraftJournal({
       trx: tx,
     });
 
-    // Allocate sequence + determine final reference
+    // Allocate sequence + determine final system reference
     const ref = await generateJournalReference({
       companyId: context.companyUUID,
       journalDate: toYMD(journalBatch.date),
       trx: tx,
     });
 
-    const finalReference = prepared.journalReference?.trim()
-      ? prepared.journalReference.trim()
-      : ref.reference;
+    const finalSystemReference = ref.systemReference;
 
     const entryFsDate = toYMD(journalBatch.date);
-    const idResult = await tx.raw<{
-      rows: Array<{ id: string }>;
-    }>('SELECT uuid_generate_v7() as id FROM generate_series(1, ?)', [
-      journalEntries.length,
-    ]);
-    const ledgerEntryIds = idResult?.rows?.map((row) => row.id) ?? [];
+    const ledgerEntryIds = await generateV7Ids(journalEntries.length, tx);
     if (ledgerEntryIds.length !== journalEntries.length) {
       throw new AppError('Failed to allocate ledger entry IDs', {
         traceId,
@@ -1298,7 +1381,7 @@ export async function postDraftJournal({
     }));
 
     const ledgerPayload: NewLedgerTransactionData = {
-      date: journalBatch.date,
+      transaction_date: journalBatch.date,
       transaction_source: 'manual_journal',
       categorization_source: 'manual',
       description: journalBatch.title,
@@ -1321,30 +1404,19 @@ export async function postDraftJournal({
       })),
     } as const;
 
-    const ledgerResult = await createLedgerRecord({
-      data: ledgerPayload,
+    const ledgerTransactionId = await postJournalLedgerTransaction({
+      ledgerPayload,
       companyId,
       userId,
       trx: tx,
+      skipFxPositionTracking: false,
+      traceId,
     });
-
-    if (
-      !ledgerResult.success ||
-      !ledgerResult.data ||
-      !('ledgerTransactionId' in ledgerResult.data)
-    ) {
-      throw new AppError('Failed to create ledger transaction', {
-        traceId,
-        error: ledgerResult.error,
-      });
-    }
-
-    const ledgerTransactionId = ledgerResult.data.ledgerTransactionId as string;
 
     // Update batch + link entries
     await tx('journal_batches').where('id', journalBatchId).update({
       status: 'posted',
-      reference: finalReference,
+      system_reference: finalSystemReference,
       sequence_month: ref.sequenceMonth,
       sequence_number: ref.sequenceNumber,
       ledger_transaction_id: ledgerTransactionId,
@@ -1352,19 +1424,17 @@ export async function postDraftJournal({
       updated_by_id: userId,
     });
 
-    const valuesSql = entryMappings.map(() => '(?, ?, ?)').join(', ');
+    const valuesSql = entryMappings.map(() => '(?, ?)').join(', ');
     const valuesBindings = entryMappings.flatMap((m) => [
       m.journalEntryId,
       m.ledgerEntryId,
-      m.fsDate,
     ]);
 
     await tx.raw(
       `UPDATE journal_entries AS je
        SET ledger_entry_id = v.ledger_entry_id::uuid,
-           ledger_entry_fs_date = v.ledger_entry_fs_date::date,
            updated_at = ?
-       FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id, ledger_entry_fs_date)
+       FROM (VALUES ${valuesSql}) AS v(journal_entry_id, ledger_entry_id)
        WHERE je.id = v.journal_entry_id::uuid`,
       [now, ...valuesBindings],
     );
@@ -1375,7 +1445,8 @@ export async function postDraftJournal({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'draft',
-        reference: finalReference,
+        systemReference: finalSystemReference,
+        userReference: prepared.userReference,
         currencyId: prepared.journalCurrencyId,
         isFx: prepared.isFx,
         exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
@@ -1391,10 +1462,35 @@ export async function postDraftJournal({
       trx: tx,
     });
 
+    await writeActivityEventIntent(tx, {
+      clientCompanyId: context.companyUUID,
+      actor: { type: 'user', userId },
+      sourceEntity: { type: 'journal', id: journalBatchId },
+      ledgerTransactionId,
+      eventType: ACTIVITY_EVENT_TYPE.JOURNAL_POSTED,
+      itemCount: prepared.entries.length,
+      amount: prepared.totalDebits,
+      currencyId: prepared.journalCurrencyId,
+      idempotencyKey: `activity:${ACTIVITY_EVENT_TYPE.JOURNAL_POSTED}:${ledgerTransactionId}`,
+      metadata: {
+        previousStatus: 'draft',
+        systemReference: finalSystemReference,
+        userReference: prepared.userReference,
+        isFx: prepared.isFx,
+        exchangeRate: prepared.isFx ? prepared.exchangeRate : null,
+        totalDebits: prepared.totalDebits,
+        totalCredits: prepared.totalCredits,
+        contactId: prepared.contactId,
+        isRecurring: prepared.isRecurring,
+        sequenceMonth: ref.sequenceMonth,
+        sequenceNumber: ref.sequenceNumber,
+      },
+    });
     return {
       journalBatchId,
       journalId: journalBatchId,
-      journalReference: finalReference,
+      systemReference: finalSystemReference,
+      userReference: prepared.userReference,
       ledgerTransactionId,
     };
   };
@@ -1463,7 +1559,7 @@ export async function postDraftJournalsBatch({
     results: Array<{
       journalId: string;
       success: boolean;
-      journalReference?: string;
+      systemReference?: string;
       ledgerTransactionId?: string;
       code?: string;
       message?: string;
@@ -1491,7 +1587,7 @@ export async function postDraftJournalsBatch({
     const results: Array<{
       journalId: string;
       success: boolean;
-      journalReference?: string;
+      systemReference?: string;
       ledgerTransactionId?: string;
       code?: string;
       message?: string;
@@ -1511,7 +1607,7 @@ export async function postDraftJournalsBatch({
           results.push({
             journalId,
             success: true,
-            journalReference: res.data.journalReference,
+            systemReference: res.data.systemReference,
             ledgerTransactionId: res.data.ledgerTransactionId,
           });
         } else {
@@ -1548,7 +1644,7 @@ export async function postDraftJournalsBatch({
     const results: Array<{
       journalId: string;
       success: boolean;
-      journalReference?: string;
+      systemReference?: string;
       ledgerTransactionId?: string;
     }> = [];
 
@@ -1572,7 +1668,7 @@ export async function postDraftJournalsBatch({
         results.push({
           journalId,
           success: true,
-          journalReference: res.data.journalReference,
+          systemReference: res.data.systemReference,
           ledgerTransactionId: res.data.ledgerTransactionId,
         });
       }
@@ -1829,21 +1925,29 @@ export async function reverseJournalRecord({
     if (isDraft) {
       log('handling_draft_journal');
 
+      const now = new Date();
+
       await tx('journal_batches').where('id', journalBatchId).update({
         status: 'voided',
         updated_by_id: userId,
+        deleted_by_id: userId,
         is_deleted: true,
-        updated_at: new Date(),
-        deleted_at: new Date(),
-        voided_at: new Date(),
+        updated_at: now,
+        deleted_at: now,
+        system_reference: null,
+        sequence_month: null,
+        sequence_number: null,
       });
 
       await tx('journal_entries')
         .where('journal_batch_id', journalBatchId)
+        .where('entry_status', 'active')
+        .where('is_deleted', false)
         .update({
+          entry_status: 'voided',
           is_deleted: true,
-          updated_at: new Date(),
-          deleted_at: new Date(),
+          updated_at: now,
+          deleted_at: now,
         });
 
       log('draft_journal_voided');
@@ -1854,7 +1958,8 @@ export async function reverseJournalRecord({
         actor: { type: 'user', userId },
         payload: {
           previousStatus: 'draft',
-          reference: journalBatch.reference ?? null,
+          systemReference: journalBatch.system_reference ?? null,
+          userReference: journalBatch.user_reference ?? null,
           voidReason: null,
         },
         notes: `Draft journal batch voided by user ${userId}`,
@@ -1874,7 +1979,10 @@ export async function reverseJournalRecord({
 
     const originalEntries = await tx('journal_entries')
       .where('journal_batch_id', journalBatchId)
+      .where('entry_status', 'active')
       .where('is_deleted', false)
+      .orderBy('line_number', 'asc')
+      .orderBy('id', 'asc')
       .select('coa_id', 'amount', 'side', 'description', 'project_id');
 
     if (originalEntries.length === 0) {
@@ -1899,7 +2007,7 @@ export async function reverseJournalRecord({
         title: `Reversal of ${journalBatch.title}`,
         description: reversalReason
           ? `Reversal reason: ${reversalReason}`
-          : `Reversing journal ${journalBatch.reference || journalBatchId}`,
+          : `Reversing journal ${journalBatch.system_reference || journalBatchId}`,
         status: 'posted',
         note: journalBatch.note,
         contactId: journalBatch.contact_id,
@@ -1913,6 +2021,7 @@ export async function reverseJournalRecord({
       companyId: journalBatch.company_id,
       userId,
       trx: tx,
+      skipFxPositionTracking: true,
     });
 
     if (!reversalResult.success || !reversalResult.data) {
@@ -1923,9 +2032,22 @@ export async function reverseJournalRecord({
       reversalJournalId: reversalResult.data.journalBatchId,
     });
 
+    if (reversalResult.data.ledgerTransactionId) {
+      await reverseFxPositionMovementsForLedgerTransaction({
+        companyId: journalBatch.company_id,
+        ledgerTransactionId: journalBatch.ledger_transaction_id,
+        reversingLedgerTransactionId: reversalResult.data.ledgerTransactionId,
+        movementDate: effectiveReversalDate,
+        createdById: userId,
+        movementType: 'reversed',
+        trx: tx,
+      });
+    }
+
     await tx('journal_batches')
       .where('id', journalBatchId)
       .update({
+        status: 'reversed',
         reversed_by_id: userId,
         reversed_at: new Date(),
         reversal_reason: reversalReason || null,
@@ -1942,10 +2064,10 @@ export async function reverseJournalRecord({
       actor: { type: 'user', userId },
       payload: {
         previousStatus: 'posted',
-        reference: journalBatch.reference ?? null,
+        systemReference: journalBatch.system_reference ?? null,
         ledgerTransactionId: journalBatch.ledger_transaction_id,
         reversalJournalId: reversalResult.data.journalBatchId,
-        reversalReference: reversalResult.data.journalReference ?? null,
+        reversalSystemReference: reversalResult.data.systemReference ?? null,
         reversalDate: effectiveReversalDate,
         reversalReason: reversalReason ?? null,
       },
@@ -1981,6 +2103,47 @@ export async function reverseJournalRecord({
   }
 }
 
+async function postJournalLedgerTransaction({
+  ledgerPayload,
+  companyId,
+  userId,
+  trx,
+  skipFxPositionTracking,
+  traceId,
+}: {
+  ledgerPayload: NewLedgerTransactionData;
+  companyId: string;
+  userId: string;
+  trx: Knex.Transaction;
+  skipFxPositionTracking?: boolean;
+  traceId?: string;
+}): Promise<string> {
+  const postResult = await postLedgerTransactions({
+    companyId,
+    actor: { type: 'user', userId },
+    requestContext: { source: 'web' },
+    transactions: [toLedgerTransactionInput(ledgerPayload)],
+    skipFxPositionTracking,
+    trx,
+  });
+
+  if (!postResult.success) {
+    throw new AppError('Failed to post ledger transaction', {
+      traceId,
+      error: postResult.error,
+    });
+  }
+
+  const ledgerTransactionId = postResult.data?.ledgerTransactionIds?.[0];
+  if (!ledgerTransactionId) {
+    throw new AppError('Ledger transaction ID not returned from post', {
+      traceId,
+    });
+  }
+
+  return ledgerTransactionId;
+}
+
 function mapPostJournalError(error: unknown): Error {
   if (error instanceof AppError) return error;
 
@@ -1988,9 +2151,18 @@ function mapPostJournalError(error: unknown): Error {
   if (err?.code === '23505') {
     const constraint = err.constraint ?? '';
 
-    if (constraint === 'journal_batch_company_reference_unique') {
+    if (constraint === 'journal_batch_company_system_reference_unique') {
       return new AppError(
-        'Journal reference already exists',
+        'Journal system reference already exists. Please retry.',
+        { constraint, detail: err.detail },
+        false,
+        ErrorCode.CONFLICT,
+      );
+    }
+
+    if (constraint === 'journal_batch_company_user_reference_unique') {
+      return new AppError(
+        'User reference already exists',
         { constraint, detail: err.detail },
         false,
         ErrorCode.CONFLICT,
@@ -2016,7 +2188,7 @@ function mapPostJournalError(error: unknown): Error {
     }
 
     return new AppError(
-      'Duplicate journal reference',
+      'Duplicate journal system reference',
       { constraint, detail: err.detail },
       false,
       ErrorCode.CONFLICT,

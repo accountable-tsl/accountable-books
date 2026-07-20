@@ -1,10 +1,12 @@
 import type { JobsOptions } from 'bullmq';
+import type { Knex } from 'knex';
 
 import {
   executeQueueOperation,
   QueueName,
 } from '../../../jobs/queues/queue-broker.js';
 import { createQueue } from '../../../jobs/queues/queue-factory.js';
+import { runAfterTransactionCommit } from '../../../shared/db/after-transaction-commit.js';
 import { withJobTelemetry } from '../../../shared/telemetry/request-context.js';
 import { getLogger } from '../../../shared/utils/logger.js';
 import { enrichmentJobDataSchema } from './enrichment.types.js';
@@ -123,6 +125,35 @@ export async function enqueueTransactionEnrichment(
       throw error;
     }
   }
+}
+
+export async function scheduleTransactionEnrichmentAfterCommit(
+  jobs: EnrichmentJobData | EnrichmentJobData[],
+  trx?: Knex.Transaction,
+): Promise<void> {
+  if (!trx) {
+    await enqueueTransactionEnrichment(jobs);
+    return;
+  }
+
+  const jobsArray = Array.isArray(jobs) ? jobs : [jobs];
+
+  runAfterTransactionCommit(trx, () => {
+    enqueueTransactionEnrichment(jobsArray).catch((error) => {
+      logger.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          jobCount: jobsArray.length,
+          companyIds: [...new Set(jobsArray.map((job) => job.companyId))],
+          transactionCount: jobsArray.reduce(
+            (count, job) => count + job.bankTransactionIds.length,
+            0,
+          ),
+        },
+        'Failed to enqueue transaction enrichment after transaction commit',
+      );
+    });
+  });
 }
 
 /**

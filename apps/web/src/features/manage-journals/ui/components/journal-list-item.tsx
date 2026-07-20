@@ -90,9 +90,9 @@ export function JournalListItem({
               date: journal.date,
               formatString: 'MMM dd, yyyy',
             })}
-            {journal.reference && (
+            {journal.systemReference && (
               <span className="ml-1.5 font-mono opacity-60">
-                {journal.reference}
+                {journal.systemReference}
               </span>
             )}
             {journal.contactName && (

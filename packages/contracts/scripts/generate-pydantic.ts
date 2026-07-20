@@ -1,31 +1,45 @@
 #!/usr/bin/env node
-import path, { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import path, { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { convertFolder } from 'schemabridge';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const ROOT_DIR = path.resolve(__dirname, '../../contracts');
+const ROOT_DIR = path.resolve(__dirname, '..');
 
-// Remove previous generated files if no --no-clean flag
-// if (!process.argv.includes('--no-clean')) {
-// rm -rf py folder or something
-// }
+const args = new Set(process.argv.slice(2));
+const clean = args.has('--clean');
+const verify = args.has('--verify');
 
-// Let schemabridge handle the conversion
 const result = await convertFolder({
   sourceDir: `${ROOT_DIR}/accountable_contracts/schema/source`,
   outDir: `${ROOT_DIR}/accountable_contracts/schema/py`,
   target: 'pydantic',
-  preserveStructure: false, // --flat
-  generateInitFiles: true, // --init
+  preserveStructure: false,
+  generateInitFiles: true,
   registerTsLoader: true,
   trustedInput: true,
+  clean,
+  verify,
 });
 
-console.log(`✅ Converted ${result.files.length} schemas`);
+const mode = verify ? 'Verify' : 'Sync';
+const outOfDateSuffix = verify ? `, ${result.outOfDate} out of date` : '';
+console.log(
+  `✅ ${mode}: ${result.written} written, ${result.unchanged} unchanged, ${result.deleted} deleted${outOfDateSuffix}`,
+);
+
 for (const warning of result.warnings) {
   console.warn(`⚠️  ${warning}`);
 }
 
-// Make sure the relevant init files exist so the package works
+if (result.errors.length > 0) {
+  for (const error of result.errors) {
+    console.error(`❌ ${error}`);
+  }
+  process.exit(1);
+}
+
+if (verify && result.outOfDate > 0) {
+  process.exit(1);
+}

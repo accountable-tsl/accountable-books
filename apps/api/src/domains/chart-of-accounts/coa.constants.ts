@@ -1,40 +1,43 @@
-import { accountTypeIds } from '../../db/data/accountTypes.js';
-import { type NewCoa } from './coa.types.js';
+import type { NewCoa } from './coa.types.js';
 
-export const DEFAULT_ACCOUNT_TYPE_IDS = {
-  tradeReceivables: 'd764021a-0847-4be8-a687-9c8195b47f6d',
-  tradePayables: '7def2082-8695-4d32-a385-2827e46747db',
-  ownersEquity: '39a0bb4a-fae3-4eab-bdac-fcf2794476a5',
+type MustHaveAccountTypeKey =
+  | 'ca_trade_receivable'
+  | 'cl_trade_payable'
+  | 'eq_contributed_capital';
+
+export type MustHaveAccount = Omit<
+  NewCoa,
+  'company_id' | 'created_by_id' | 'currency_id' | 'account_type_id'
+> & {
+  account_type_key: MustHaveAccountTypeKey;
 };
 
-export const mustHaveAccounts: Omit<
-  NewCoa,
-  'company_id' | 'created_by_id' | 'currency_id'
->[] = [
+/**
+ * Fallback definitions for required account types.
+ *
+ * A company already satisfies a requirement when it has an active, locked,
+ * non-deleted COA with the matching account-type key; names are not identity.
+ */
+export const MUST_HAVE_ACCOUNTS: readonly MustHaveAccount[] = [
   {
     name: 'Trade Receivables',
     description: 'Amount due from customers',
-    account_type_id:
-      accountTypeIds.ca_trade_receivable ||
-      DEFAULT_ACCOUNT_TYPE_IDS.tradeReceivables,
+    account_type_key: 'ca_trade_receivable',
     is_active: true,
     locked: true,
   },
   {
     name: 'Trade Payables',
     description: 'Amounts owed to suppliers',
-    account_type_id:
-      accountTypeIds.cl_trade_payable || DEFAULT_ACCOUNT_TYPE_IDS.tradePayables,
+    account_type_key: 'cl_trade_payable',
     is_active: true,
     locked: true,
   },
   {
     name: 'Owner Equity',
     description: 'Initial investment or funding',
-    account_type_id:
-      accountTypeIds.eq_contributed_capital ||
-      DEFAULT_ACCOUNT_TYPE_IDS.ownersEquity,
+    account_type_key: 'eq_contributed_capital',
     is_active: true,
     locked: true,
   },
-];
+] as const;

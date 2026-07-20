@@ -1,5 +1,0 @@
-from pydantic import BaseModel
-from uuid import UUID
-
-class RemoveTeamMemberRequestSchema(BaseModel):
-    membershipId: UUID

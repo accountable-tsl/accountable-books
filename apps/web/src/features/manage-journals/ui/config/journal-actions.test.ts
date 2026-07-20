@@ -37,7 +37,8 @@ const baseJournal: GetJournalResponse['journal'] = {
   journalSource: 'one_off',
   isFx: false,
   status: 'draft',
-  reference: null,
+  systemReference: null,
+  userReference: null,
   sequenceMonth: null,
   sequenceNumber: null,
   ledgerTransactionId: null,
@@ -66,8 +67,7 @@ const baseTemplate: GetRecurringTemplateResponse['template'] = {
   startDateYMD: '2026-01-01',
   endDateYMD: null,
   nextRunDateYMD: null,
-  placeholderVars: null,
-  currencyId: null,
+  currencyId: 'currency-1',
   currencyCode: null,
   currencyName: null,
   currencySymbol: null,
@@ -79,7 +79,12 @@ const baseTemplate: GetRecurringTemplateResponse['template'] = {
   lastError: null,
   failureCount: 0,
   createdAt: '2026-01-01T00:00:00Z',
+  createdById: 'user-1',
   updatedAt: '2026-01-01T00:00:00Z',
+  updatedById: null,
+  isDeleted: false,
+  deletedAt: null,
+  deletedById: null,
 };
 
 const makeJournal = (
@@ -135,8 +140,9 @@ describe('getAllowedActionsForJournal', () => {
 
   it('returns copy for reversed posted journals', () => {
     const journal = makeJournal({
-      status: 'posted',
+      status: 'reversed',
       reversalJournalId: 'journal-2',
+      reversedAt: '2026-01-02T00:00:00Z',
     });
     expect(getActionKeys(getAllowedActionsForJournal(journal))).toEqual([
       'copy',
@@ -173,6 +179,7 @@ describe('getAllowedActionsForTemplate', () => {
     const template = makeTemplate({ status: 'draft' });
     expect(getActionKeys(getAllowedActionsForTemplate(template))).toEqual([
       'activate',
+      'delete',
     ]);
   });
 

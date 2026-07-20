@@ -30,7 +30,7 @@ const JOURNAL_PREFIX = 'JE';
  * Generates journal sequencing fields for JE-YYYYMM-NNNN.
  * - bucket: "YYYY-MM-01" (sequenceMonth)
  * - allocated N from sequence_counters (atomic)
- * - reference string
+ * - systemReference string
  *
  * Call this when transitioning to "posted" (or when you decide numbering happens).
  */
@@ -60,7 +60,7 @@ export async function generateJournalReference(
     trx,
   });
 
-  const reference = `${JOURNAL_PREFIX}-${yyyymm(sequenceMonth)}-${pad4(sequenceNumber)}`;
+  const systemReference = `${JOURNAL_PREFIX}-${yyyymm(sequenceMonth)}-${pad4(sequenceNumber)}`;
 
-  return { sequenceMonth, sequenceNumber, reference };
+  return { sequenceMonth, sequenceNumber, systemReference };
 }

@@ -125,8 +125,28 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    font-size: 0.875rem;
+    scroll-behavior: smooth;
+    font-family:
+      'IBM Plex Sans Variable',
+      'Inter Variable',
+      system-ui,
+      -apple-system,
+      Oxygen,
+      Ubuntu,
+      sans-serif;
+    overscroll-behavior: none;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground text-sm;
+    overscroll-behavior: none;
+  }
+
+  .text-ms {
+    font-size: 13px;
   }
 }
 
@@ -151,38 +171,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-}
 
-@layer base {
-  html {
-    font-size: 0.875rem;
-    scroll-behavior: smooth;
-    font-family:
-      'IBM Plex Sans Variable',
-      'Inter Variable',
-      system-ui,
-      -apple-system,
-      Oxygen,
-      Ubuntu,
-      sans-serif;
-    overscroll-behavior: none;
-  }
-
-  body {
-    overscroll-behavior: none;
-  }
-
-  .text-ms {
-    font-size: 13px;
-  }
-}
-
-/* html {
-  scroll-behavior: smooth;
-} */
-
-/* index.css */
-@layer utilities {
   @keyframes slide-left {
     0% {
       transform: translateX(0);
@@ -289,4 +278,20 @@
 
 .spin-pause:hover {
   animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }

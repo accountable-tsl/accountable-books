@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestDb } from '../../../config/test-db.js';
 import { resolveWorkspaceBillingContext } from '../../domains/billing/resolver/ownership-resolver.service.js';
-import { mustHaveAccounts } from '../../domains/chart-of-accounts/coa.constants.js';
+import { MUST_HAVE_ACCOUNTS } from '../../domains/chart-of-accounts/coa.constants.js';
 import {
   VEYRA_NG_PARTNER_SLUG,
   VEYRA_US_PARTNER_SLUG,
@@ -104,7 +104,7 @@ describe('signup.service', () => {
       .count<{ count: string }>('id as count')
       .first();
 
-    expect(Number(coaCount?.count ?? 0)).toBe(mustHaveAccounts.length);
+    expect(Number(coaCount?.count ?? 0)).toBe(MUST_HAVE_ACCOUNTS.length);
   });
 
   it('provisions a regular business signup with correct workspace, billing, and role', async () => {
@@ -242,7 +242,7 @@ describe('signup.service', () => {
       .count<{ count: string }>('* as count')
       .first();
     expect(Number(coaCount?.count ?? 0)).toBeGreaterThan(
-      mustHaveAccounts.length,
+      MUST_HAVE_ACCOUNTS.length,
     );
   });
 });

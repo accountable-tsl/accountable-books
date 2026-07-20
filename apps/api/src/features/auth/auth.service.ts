@@ -50,8 +50,13 @@ export async function loginService(
   }>
 > {
   try {
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Look up user by email
-    const user = await knexClient('users').select('*').where({ email }).first();
+    const user = await knexClient('users')
+      .select('*')
+      .where({ email: normalizedEmail, is_deleted: false })
+      .first();
     if (!user) {
       // If no user found, fail with invalid credentials error
       return errorResponse('Email or password is incorrect', undefined, {
@@ -300,7 +305,7 @@ export async function verifyEmailService(input: VerifyEmailInput): Promise<
     // const slugs = await knexClient("user_company_roles as ucr")
     //   .select(["af.slug as slug", "c.created_by_id as creatorId"])
     //   .join("companies as c", "ucr.company_id", "c.id")
-    //   .join("accounting_firms_meta as af", "c.assigned_firm_id", "af.id")
+    //   .join("accounting_firms_meta as af", "c.assigned_firm_id", "af.company_id")
     //   .where("ucr.user_id", user.id);
 
     // We prefer to return a slug for the company the user *created* (if any),

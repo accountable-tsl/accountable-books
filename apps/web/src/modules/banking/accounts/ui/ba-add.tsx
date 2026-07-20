@@ -195,11 +195,6 @@ export default function AddBankAccount({
                 },
               }
             : {}),
-          accountMetadata: {
-            connection_source: 'manual',
-            connection_note:
-              'User-provided opening balance during bank account creation',
-          },
         },
       });
 

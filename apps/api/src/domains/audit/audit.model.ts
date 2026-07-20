@@ -2,6 +2,7 @@ import type { Knex } from 'knex';
 import z from 'zod';
 
 import { knexClient } from '../../db/knexClient.js';
+import { getSystemUser } from '../users/users.model.js';
 import { writeAuditEventInput } from './audit.types.js';
 
 import type {
@@ -14,31 +15,12 @@ import type {
   WriteAuditEventInputSnake,
 } from './audit.types.js';
 
-/**
- * Central function for writing audit events to the database.
- *
- * All domain-specific audit helpers should call this function.
- * This ensures consistent behavior for:
- * - Payload validation (via Zod schema)
- * - Full params validation via writeAuditEventInput schema
- * - Future cross-cutting concerns (metrics, logging, async queue, etc.)
- *
- * @throws If validation fails - caller should let transaction rollback
- */
-export async function writeAuditEvent<T extends z.ZodTypeAny>(
-  payloadSchema: T,
-  input: WriteAuditEventInputCamel<z.infer<T>>,
-  trx?: Knex.Transaction,
-): Promise<void> {
-  // Validate using the writeAuditEventInput schema
-  const schema = writeAuditEventInput(payloadSchema);
-  const validated = schema.parse(input) as WriteAuditEventInputSnake<
-    z.infer<T>
-  >;
+const AUDIT_INSERT_CHUNK = 500;
 
-  const db = trx ?? knexClient;
-
-  const row: Record<string, unknown> = {
+function toAuditEventRow<T>(
+  validated: WriteAuditEventInputSnake<T>,
+): Record<string, unknown> {
+  return {
     company_id: validated.company_id,
     entity_type: validated.entity_type,
     entity_id: validated.entity_id,
@@ -57,8 +39,67 @@ export async function writeAuditEvent<T extends z.ZodTypeAny>(
     user_agent: validated.user_agent ?? null,
     notes: validated.notes ?? null,
   };
+}
 
-  await db('audit_events').insert(row);
+/**
+ * Central function for writing audit events to the database.
+ *
+ * All domain-specific audit helpers should call this function.
+ * This ensures consistent behavior for:
+ * - Payload validation (via Zod schema)
+ * - Full params validation via writeAuditEventInput schema
+ * - Future cross-cutting concerns (metrics, logging, async queue, etc.)
+ *
+ * @throws If validation fails - caller should let transaction rollback
+ */
+export async function writeAuditEvent<T extends z.ZodTypeAny>(
+  payloadSchema: T,
+  input: WriteAuditEventInputCamel<z.infer<T>>,
+  trx?: Knex.Transaction,
+): Promise<void> {
+  const schema = writeAuditEventInput(payloadSchema);
+  const validated = schema.parse(input) as WriteAuditEventInputSnake<
+    z.infer<T>
+  >;
+
+  const db = trx ?? knexClient;
+  await db('audit_events').insert(toAuditEventRow(validated));
+}
+
+/**
+ * Bulk insert audit events with the same validation rules as {@link writeAuditEvent}.
+ */
+export async function writeAuditEventsBatch<T extends z.ZodTypeAny>(
+  payloadSchema: T,
+  inputs: WriteAuditEventInputCamel<z.infer<T>>[],
+  trx: Knex.Transaction,
+): Promise<void> {
+  if (inputs.length === 0) return;
+
+  const schema = writeAuditEventInput(payloadSchema);
+  const rows = inputs.map((input) =>
+    toAuditEventRow(
+      schema.parse(input) as WriteAuditEventInputSnake<z.infer<T>>,
+    ),
+  );
+
+  await trx.batchInsert('audit_events', rows, AUDIT_INSERT_CHUNK);
+}
+
+/**
+ * Resolve a `users.id` for row attribution (`created_by_id`, `updated_by_id`).
+ *
+ * Audit events use `actorToAuditFields` and may keep `user_id` null for
+ * non-user actors. Operational rows that require a user FK use this helper
+ * instead — non-user actors map to the system user.
+ */
+export async function resolveActorUserId(
+  actor: AuditActorInput,
+  trx?: Knex.Transaction,
+): Promise<string> {
+  if (actor.type === 'user') return actor.userId;
+  const systemUser = await getSystemUser({ trx });
+  return systemUser.id;
 }
 
 // =============================================================================
@@ -100,10 +141,10 @@ function actorToAuditFields(actor: AuditActorInput): {
 
 function contextToAuditFields(context?: AuditContextInput): {
   source: AuditEventSource;
-  requestId?: string | null;
-  correlationId?: string | null;
-  ip?: string | null;
-  userAgent?: string | null;
+  requestId: string | null;
+  correlationId: string | null;
+  ip: string | null;
+  userAgent: string | null;
 } {
   return {
     source: context?.source ?? 'api',
@@ -111,6 +152,18 @@ function contextToAuditFields(context?: AuditContextInput): {
     correlationId: context?.correlationId ?? null,
     ip: context?.ip ?? null,
     userAgent: context?.userAgent ?? null,
+  };
+}
+
+/** Shared actor + request context fields for audit event rows. */
+export function resolveAuditEventActorContext(
+  actor: AuditActorInput,
+  context?: AuditContextInput,
+): ReturnType<typeof actorToAuditFields> &
+  ReturnType<typeof contextToAuditFields> {
+  return {
+    ...actorToAuditFields(actor),
+    ...contextToAuditFields(context),
   };
 }
 
@@ -130,8 +183,7 @@ export function createAuditWriter<T extends z.ZodTypeAny>(options: {
     notes?: string;
     eventAt?: string;
   }): Promise<void> {
-    const actorFields = actorToAuditFields(input.actor);
-    const ctxFields = contextToAuditFields(input.context);
+    const fields = resolveAuditEventActorContext(input.actor, input.context);
 
     await writeAuditEvent(
       options.payloadSchema,
@@ -142,16 +194,16 @@ export function createAuditWriter<T extends z.ZodTypeAny>(options: {
         payload: input.payload,
         schemaVersion: options.schemaVersion,
         companyId: input.companyId,
-        actorType: actorFields.actorType,
-        actorId: actorFields.actorId,
-        userId: actorFields.userId,
-        impersonatedByUserId: actorFields.impersonatedByUserId,
+        actorType: fields.actorType,
+        actorId: fields.actorId,
+        userId: fields.userId,
+        impersonatedByUserId: fields.impersonatedByUserId,
         eventAt: input.eventAt ?? new Date().toISOString(),
-        source: ctxFields.source,
-        requestId: ctxFields.requestId,
-        correlationId: ctxFields.correlationId,
-        ip: ctxFields.ip,
-        userAgent: ctxFields.userAgent,
+        source: fields.source,
+        requestId: fields.requestId,
+        correlationId: fields.correlationId,
+        ip: fields.ip,
+        userAgent: fields.userAgent,
         notes: input.notes,
       },
       input.trx,

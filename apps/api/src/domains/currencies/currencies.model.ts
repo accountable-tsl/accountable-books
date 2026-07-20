@@ -2,13 +2,15 @@ import { knexClient } from '../../db/knexClient.js';
 import { redis } from '../../lib/redis.js';
 import { isValidUUID } from '../../shared/utils/formatting.utils.js';
 import {
+  ErrorCode,
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
 import { generateCacheKey } from '../../shared/utils/string.utils.js';
-import { type CurrencyRes } from './currencies.types.js';
+import { toCurrencyRes } from './currencies.types.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
+import type { CurrencyRes, CurrencyRow } from './currencies.types.js';
 
 const currenciesCacheKey = generateCacheKey('currencies', 'all');
 const CACHE_TTL = 60 * 60 * 24; // 24 hours
@@ -21,27 +23,37 @@ export async function getAllCurrencies({
       if (cachedCurrencies) {
         return successResponse(
           'Currencies fetched from cache',
-          JSON.parse(cachedCurrencies),
+          JSON.parse(cachedCurrencies) as CurrencyRes[],
         );
       }
     }
 
-    const currencies = await knexClient('currencies')
-      .select('id', 'code', 'name', 'symbol')
-      .where('is_deleted', false);
+    const currencies = (await knexClient('currencies').select(
+      'id',
+      'code',
+      'name',
+      'symbol',
+      'minor_unit',
+    )) as CurrencyRow[];
 
-    if (currencies.length === 0) successResponse('No currencies found', []);
+    const normalizedCurrencies: CurrencyRes[] = currencies.map(toCurrencyRes);
+
+    if (normalizedCurrencies.length === 0) {
+      return errorResponse('No currencies found', undefined, {
+        code: ErrorCode.NOT_FOUND,
+      });
+    }
 
     await redis.set(
       currenciesCacheKey,
-      JSON.stringify(currencies),
+      JSON.stringify(normalizedCurrencies),
       'EX',
       CACHE_TTL,
     );
 
     return successResponse(
-      `Successfully retrieved ${currencies.length} currencies`,
-      currencies,
+      `Successfully retrieved ${normalizedCurrencies.length} currencies`,
+      normalizedCurrencies,
     );
   } catch (error) {
     return errorResponse('Failed to fetch currencies', error);
@@ -68,7 +80,9 @@ export async function getCurrencyByCodeModel(
     const allCurrenciesRes = await getAllCurrencies();
 
     if (!allCurrenciesRes.success || !allCurrenciesRes.data) {
-      return errorResponse('Failed to fetch currencies');
+      return errorResponse(allCurrenciesRes.message, allCurrenciesRes.error, {
+        code: allCurrenciesRes.code as ErrorCode | undefined,
+      });
     }
 
     const currency = allCurrenciesRes.data.find(
@@ -105,7 +119,9 @@ export async function getCurrencyByIdModel(
     const allCurrenciesRes = await getAllCurrencies();
 
     if (!allCurrenciesRes.success || !allCurrenciesRes.data) {
-      return errorResponse('Failed to fetch currencies');
+      return errorResponse(allCurrenciesRes.message, allCurrenciesRes.error, {
+        code: allCurrenciesRes.code as ErrorCode | undefined,
+      });
     }
 
     const currency = allCurrenciesRes.data.find(

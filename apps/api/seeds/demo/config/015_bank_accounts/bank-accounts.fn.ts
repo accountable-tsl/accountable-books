@@ -1,9 +1,9 @@
 import type { Knex } from 'knex';
 
+import { createCoaAccount } from '../../../../src/domains/chart-of-accounts/coa.model.js';
 import { DEMO_CURRENCIES } from '../../shared/config.js';
 import {
   deleteDemoData,
-  getAccountTypeByKey,
   getBankMap,
   getDemoUserMap,
   resolveFiltersToIds,
@@ -19,51 +19,37 @@ import type { RawBankAccount } from './bank-accounts.data.js';
 const createBankAccountWithCoa = async (
   account: RawBankAccount,
   bankId: string,
-  currencyId: string,
+  bankCurrencyId: string,
   createdById: string,
   trx: Knex.Transaction,
 ): Promise<any> => {
-  // Get the bank account type (ca_bank) from cache
-  const accountType = await getAccountTypeByKey(trx, 'ca_bank');
-  if (!accountType || !accountType.id) {
-    throw new Error('Failed to fetch account type ca_bank for bank account');
-  }
+  const coa = await createCoaAccount({
+    trx,
+    companyId: account.companyId,
+    userId: createdById,
+    input: {
+      name: account.displayName,
+      code: null,
+      account_type_key: 'ca_bank',
+      source: 'user',
+    },
+    versionNote: 'demo_bank_account_coa_creation',
+  });
 
-  // Create COA entry first (following production createNewBankAccount pattern)
-  const [coa] = await trx('coa')
-    .insert({
-      company_id: account.companyId,
-      name: account.displayName, // Use display name as COA name
-      code: null, // No code for demo bank accounts
-      account_type_id: accountType.id,
-      source: 'user', // Demo accounts are user-created
-      created_by_id: createdById,
-      updated_by_id: createdById,
-      currency_id: currencyId,
-      is_active: true,
-    })
-    .returning('*');
-
-  if (!coa || !coa.id) {
-    throw new Error(
-      `Failed to create COA for bank account ${account.displayName}`,
-    );
-  }
-
-  // Create bank account with reference to COA
+  // Create bank account with reference to COA. Demo accounts are manual
+  // (never connected to a provider), so only the accounting-account fields
+  // apply; provider identity/connection/sync state live on bank_connections
+  // / bank_account_feeds and are never created here.
   const [bankAccount] = await trx('bank_accounts')
     .insert({
       display_name: account.displayName,
-      account_name: account.accountName,
       account_type: account.accountType,
-      account_number: account.accountNumber,
       account_number_mask: account.accountNumber.slice(-4),
       business_or_personal: account.businessOrPersonal,
       bank_id: bankId,
-      currency_id: currencyId,
+      currency_id: bankCurrencyId,
       company_id: account.companyId,
       coa_id: coa.id, // Reference to created COA
-      connection_status: 'not_connected', // Demo accounts are not connected to providers
       created_by_id: createdById,
       updated_by_id: createdById,
     })

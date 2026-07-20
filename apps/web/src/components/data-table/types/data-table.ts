@@ -121,6 +121,28 @@ export interface BaseDataTableOptions {
   sorting?: SortingOptions;
   rowSelection?: RowSelectionOptions; // Note: rowSelectionState/setRowSelectionState here are for initial controlled state
   globalSearch?: GlobalSearch;
+
+  /**
+   * Opt-in keyboard row navigation. When enabled, focusing the table lets the
+   * configured keys move an active-row highlight, Enter invokes the row click
+   * behavior, and Escape clears the highlight. Off by default so tables that
+   * don't opt in are unaffected.
+   */
+  keyboardNavigation?: {
+    enabled: boolean;
+    /**
+     * Complete key lists (KeyboardEvent.key values); defaults apply only when
+     * a list is omitted: next `['ArrowDown']`, prev `['ArrowUp']`.
+     * @example { next: ['ArrowDown', 'j'], prev: ['ArrowUp', 'k'] }
+     */
+    keys?: { next?: string[]; prev?: string[] };
+    /**
+     * Invoke the row click behavior whenever the active row changes (not only
+     * on Enter) — e.g. to keep a details panel in sync while navigating.
+     * @default false
+     */
+    activateOnNavigate?: boolean;
+  };
   customClassNames?: {
     wrapper?: string;
     table?: string;

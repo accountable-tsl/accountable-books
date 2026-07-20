@@ -7,6 +7,7 @@ export const bankLocalCodeType = z.enum([
   'sort_code',
   'routing',
   'bank_code',
+  'nip_code',
   'ifsc',
   'blz',
   'zengin_code',
@@ -21,13 +22,15 @@ const countryCode = z
   .regex(/^[A-Za-z]{2}$/, 'Country code must be exactly 2 letters')
   .transform((val) => val.toUpperCase());
 
-export const newBankInput = z.object({
+const bankInputBase = z.object({
   id: z.uuid().optional(),
-  display_name: z.string().min(1, 'Bank name is required'),
-  official_name: z.string().nullish(),
+  display_name: z.string().trim().min(1, 'Bank name is required').max(256),
+  official_name: z.string().trim().min(1).max(256).nullish(),
   key: z
     .string()
+    .trim()
     .min(1, 'Bank key is required')
+    .max(128)
     .transform((val) => val.toLowerCase())
     .refine((val) => /^[a-z]{2}_[a-z0-9_]+$/.test(val), {
       error:
@@ -35,34 +38,68 @@ export const newBankInput = z.object({
     }),
 
   country: z.union([countryId, countryCode]),
-  swift_code: z.string().nullish(),
-  local_code: z.string().nullish(),
-  local_code_type: z.string().nullish(),
-  secondary_reference: z.string().nullish(),
-  website: z.string().nullish(),
+  swift_code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/)
+    .nullish(),
+  local_code: z.string().trim().min(1).max(64).nullish(),
+  local_code_type: bankLocalCodeType.nullish(),
+  alternate_identifier: z.string().trim().min(1).max(128).nullish(),
+  website: z.string().trim().min(1).nullish(),
 
-  logo_url: z.string().nullish(),
-  logo_key: z.string().nullish(),
-  raw_data: z.any().nullish(),
+  logo_url: z.string().trim().min(1).nullish(),
 });
+
+const hasConsistentLocalCode = (bank: {
+  local_code?: string | null;
+  local_code_type?: BankLocalCodeType | null;
+}) => (bank.local_code == null) === (bank.local_code_type == null);
+
+const localCodeConsistencyIssue = {
+  error: 'local_code and local_code_type must be provided together',
+  path: ['local_code_type'],
+};
+
+export const newBankInput = bankInputBase.refine(
+  hasConsistentLocalCode,
+  localCodeConsistencyIssue,
+);
 export type NewBankInput = z.infer<typeof newBankInput>;
 export type NewBankInputCamel = SnakeToCamelCaseObject<NewBankInput>;
 export type NewInput = NewBankInput | NewBankInputCamel;
 
-export const newBank = newBankInput.omit({ country: true }).extend({
+const newBankBase = bankInputBase.omit({ country: true }).extend({
   country_id: z.uuid(),
   created_by_id: z.uuid(),
   updated_by_id: z.uuid().optional(),
 });
+export const newBank = newBankBase.refine(
+  hasConsistentLocalCode,
+  localCodeConsistencyIssue,
+);
 export type NewBank = z.infer<typeof newBank>;
 
-export const bank = newBank.merge(dbBaseFields);
+export const bank = newBankBase
+  .merge(dbBaseFields)
+  .refine(hasConsistentLocalCode, localCodeConsistencyIssue);
 export type Bank = z.infer<typeof bank>;
 
-export type FetchBanksResponse = Omit<NewBankInputCamel, 'country'> & {
-  countryId: string | null;
-  countryCode: string | null;
-  countryName: string | null;
+export type FetchBanksResponse = {
+  id: string;
+  key: string;
+  displayName: string;
+  officialName: string | null;
+  swiftCode: string | null;
+  localCode: string | null;
+  localCodeType: BankLocalCodeType | null;
+  alternateIdentifier: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  countryId: string;
+  countryCode: string;
+  countryName: string;
   countryFlag: string | null;
 };
 

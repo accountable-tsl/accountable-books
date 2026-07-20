@@ -1,6 +1,0 @@
-from pydantic import BaseModel, constr
-from datetime import datetime
-
-class OpenBreakGlassRequest(BaseModel):
-    expiresAt: datetime
-    reason: constr(min_length=1, max_length=500)

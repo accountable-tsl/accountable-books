@@ -5,6 +5,8 @@ import type { Knex } from 'knex';
 
 import { knexClient } from '../../../db/knexClient.js';
 import { generateFingerprintSync, logger } from '../../../shared/index.js';
+import { normalizeContactName } from '../../contacts/contact-normalization.utils.js';
+import { chooseContactMatch } from '../../contacts/contact-resolution-selection.utils.js';
 import {
   mccReferenceFileSchema,
   merchantPatternsFileSchema,
@@ -14,7 +16,6 @@ import {
   extendAliasMatcher,
   resolveDescriptionHeuristics,
 } from './resolve-contact-heuristics.js';
-import { extractContactFromDescription } from './utils/contact-from-desc.js';
 import { extractMccFromDescription } from './utils/mcc-from-desc.js';
 
 import type { ContactType } from '../../contacts/index.js';
@@ -110,29 +111,23 @@ export async function resolveContactForEnrichment({
   const companyUUID = company.uuid;
 
   const exec = async (tx: Knex.Transaction) => {
-    let resolvedContactId: string | null = contactId;
+    let resolvedContactId: string | null = null;
     let contactName: string | null = null;
     let confidence: ContactMatchConfidence = 'unmatched';
     let contactType: EnrichmentContactType = contactTypeSnapshot ?? 'unknown';
     let fingerprintSeed: string | null = null;
 
-    // If contact id is provided, get the contact from db
-    if (contactId || payee) {
+    // Explicit resolution wins. Do not combine this with payee matching, because
+    // an OR query can return a different contact than the resolved ID.
+    if (contactId) {
       const existingContact = await tx('contacts')
         .select('id', 'normalized_name')
         .where({
+          id: contactId,
           company_id: companyUUID,
+          status: 'active',
           is_deleted: false,
         })
-        .where((b) => {
-          if (contactId) {
-            b.orWhere('id', contactId);
-          }
-          if (payee) {
-            b.orWhere('display_name', payee);
-          }
-        })
-
         .first();
 
       if (existingContact) {
@@ -143,7 +138,54 @@ export async function resolveContactForEnrichment({
       }
     }
 
-    // If contact id is not provided or contact is not found, get the contact from heuristics
+    // Then try exact company-scoped aliases or one unambiguous normalized-name
+    // match. Duplicate contact names are valid, so multiple matches are treated
+    // as ambiguous and left for heuristics/unmatched handling.
+    if (!contactName && !contactId && payee) {
+      const normalizedPayee = normalizeContactName(payee);
+
+      const aliasContacts: Array<{
+        alias_id: string;
+        id: string;
+        normalized_name: string;
+      }> = [];
+
+      const contactMatches = await tx('contacts')
+        .where({
+          company_id: companyUUID,
+          normalized_name: normalizedPayee,
+          status: 'active',
+          is_deleted: false,
+        })
+        .select('id', 'normalized_name');
+      const selection = chooseContactMatch({
+        aliases: aliasContacts.map((contact) => ({
+          id: contact.alias_id,
+          contact_id: contact.id,
+        })),
+        contacts: contactMatches,
+      });
+
+      if (selection?.contactId) {
+        const candidateId = selection.contactId;
+        const aliasContact = aliasContacts.find(
+          (contact) => contact.id === candidateId,
+        );
+        const match =
+          aliasContact ??
+          contactMatches.find((contact) => contact.id === candidateId);
+        if (match) {
+          resolvedContactId = match.id;
+          contactName = match.normalized_name;
+          confidence = aliasContact ? 'high' : 'medium';
+          fingerprintSeed = match.normalized_name.toLowerCase();
+        }
+      }
+    }
+
+    // If contact id is not provided or contact is not found, get the contact
+    // classification from heuristics. Heuristics may produce a contact-like
+    // name/fingerprint, but they do not assign a canonical contact ID.
     if (!contactName) {
       // Get company alias matcher
       const bankAccountAliases = bankAccount?.aliases;

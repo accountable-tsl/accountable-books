@@ -9,7 +9,10 @@ import {
 } from '../../shared/utils/date.utils.js';
 import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import { enqueueFillCoverageGaps } from '../reporting/fiscal-calendar/fiscal-calendar.queue.js';
-import { getFiscalCalendar } from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
+import {
+  ensureAndFetchFiscalCalendar,
+  getFiscalCalendar,
+} from '../reporting/fiscal-calendar/fiscal-calendar.service.js';
 import { glBalanceRecalcParamsSchema } from './balances.types.js';
 
 import type { DebitCredit } from '../../core/types/core.js';
@@ -144,7 +147,6 @@ class GLBalanceService {
       await this.updateCurrentBalance({
         companyUUID,
         coaId: coaUUID,
-        asOfYMD: endYMD,
         trx: txn,
       });
 
@@ -195,15 +197,15 @@ class GLBalanceService {
     };
   }
 
-  // Normalize inputs → expand to a concrete [startYMD, endYMD] → assert fiscal periods are present
-  // & open → acquire PG advisory lock (companyId, coaId) → return normalized context.
+  // Normalize inputs, require fiscal calendar coverage, optionally enforce open
+  // monthly periods, then lock the company/account balance stream.
   private async guardAndLock(
     args: {
       companyId: string; // id or short_code
       coaId: string;
       recalcFrom: string; // YMD (min)
       recalcTo?: string; // YMD (max) optional
-      requireOpenMonthly?: boolean; // default true
+      requireOpenMonthly?: boolean;
       idempotencyKey?: string;
     },
     trx?: Knex.Transaction,
@@ -213,7 +215,7 @@ class GLBalanceService {
       coaId,
       recalcFrom,
       recalcTo,
-      requireOpenMonthly = true,
+      requireOpenMonthly = false,
     } = args;
 
     if (!companyId?.trim()) {
@@ -274,13 +276,14 @@ class GLBalanceService {
       const coaUUID = coa.id as string;
       const fsKey = coa.key as FinancialStatementKey;
 
-      // Period coverage + open-status assertion (monthly only)
-      // We use daterange overlap so any stray dates fail loudly.
-      const periods = await getFiscalCalendar({
+      // Balance recalculation is derived-cache maintenance, so it must be able
+      // to run for closed/locked periods. Posting rules are enforced upstream.
+      const { rows: periods } = await ensureAndFetchFiscalCalendar({
         companyId: companyUUID,
         startYMD,
         endYMD,
-        periodTypes: ['monthly'],
+        fetchTypes: ['monthly'],
+        requireMonthlyOpen: requireOpenMonthly,
         trx: txn,
       });
 
@@ -318,7 +321,7 @@ class GLBalanceService {
         const closedHit = periods.find((p) => p.status !== 'open');
         if (closedHit) {
           throw new Error(
-            `Monthly period ${closedHit.start_date}..${closedHit.end_date} is ${closedHit.status}. Posting/recalc blocked.`,
+            `Monthly period ${closedHit.start_date}..${closedHit.end_date} is ${closedHit.status}. Operation blocked.`,
           );
         }
       }
@@ -459,6 +462,7 @@ class GLBalanceService {
 
     const query = knex('ledger_entries as le')
       .join('coa', 'le.coa_id', 'coa.id')
+      .join('ledger_transactions as lt', 'le.ledger_transaction_id', 'lt.id')
       .select([
         'le.id',
         'le.ledger_transaction_id',
@@ -469,7 +473,7 @@ class GLBalanceService {
       ])
       .where('coa.company_id', companyUUID)
       .andWhere('le.coa_id', coaId)
-      .andWhere('le.is_deleted', false)
+      .andWhere('lt.status', 'posted')
       .andWhere('le.fs_date', '>=', fromDay);
 
     if (recalcTo) {
@@ -498,13 +502,16 @@ class GLBalanceService {
         throw new Error(`Unknown transaction side ${e.transaction_side}`);
       }
       if (e.transaction_side === 'debit') {
-        agg.debits += Math.abs(amt);
+        const debitAmount = Math.abs(amt);
+        agg.debits += debitAmount;
+        agg.delta += debitAmount;
       } else {
-        agg.credits += Math.abs(amt);
+        const creditAmount = Math.abs(amt);
+        agg.credits += creditAmount;
+        agg.delta -= creditAmount;
       }
 
       agg.txCount++;
-      agg.delta += amt;
     }
 
     // Return ordered by day to make roll-forward trivial
@@ -588,14 +595,14 @@ class GLBalanceService {
         company_id: companyUUID,
         coa_id: coaId,
         day,
-        opening_balance: opening,
-        day_debits: a.debits,
-        day_credits: a.credits,
-        closing_balance: closing,
+        opening_balance: this.toDbAmount(opening),
+        day_debits: this.toDbAmount(a.debits),
+        day_credits: this.toDbAmount(a.credits),
+        closing_balance: this.toDbAmount(closing),
         transaction_count: a.txCount,
       });
 
-      running = closing; // carry forward
+      running = this.toDbAmount(closing); // carry forward at persisted scale
     }
 
     return rows;
@@ -621,11 +628,16 @@ class GLBalanceService {
           day_credits: knex.raw('excluded.day_credits'),
           closing_balance: knex.raw('excluded.closing_balance'),
           transaction_count: knex.raw('excluded.transaction_count'),
-          updated_at: knex.fn.now(),
+          calculated_at: knex.fn.now(),
         })
-        // Only update when something actually changed to avoid bloat
         .whereRaw(
-          `(${tableName}.opening_balance, ${tableName}.day_debits, ${tableName}.day_credits, ${tableName}.closing_balance, ${tableName}.transaction_count) IS DISTINCT FROM (excluded.opening_balance, excluded.day_debits, excluded.day_credits, excluded.closing_balance, excluded.transaction_count)`,
+          `
+            ${tableName}.opening_balance IS DISTINCT FROM excluded.opening_balance
+            OR ${tableName}.day_debits IS DISTINCT FROM excluded.day_debits
+            OR ${tableName}.day_credits IS DISTINCT FROM excluded.day_credits
+            OR ${tableName}.closing_balance IS DISTINCT FROM excluded.closing_balance
+            OR ${tableName}.transaction_count IS DISTINCT FROM excluded.transaction_count
+          `,
         )
         .returning('day');
 
@@ -655,13 +667,13 @@ class GLBalanceService {
     }
 
     const exec = async (txn: Knex.Transaction) => {
-      // Get relevant fiscal periods (include open and closed)
+      // Include every status because balance rows are derived read models and
+      // must remain correct after legitimate period closure or locking.
       const fiscalPeriods = await getFiscalCalendar({
         companyId: companyUUID,
         startYMD,
         endYMD,
         periodTypes,
-        statuses: ['open', 'closed'],
         trx: txn,
       });
 
@@ -669,7 +681,7 @@ class GLBalanceService {
         return { rowsUpserted: 0 };
       }
 
-      //  Calculate the expanded date range covering all periods
+      // Calculate the expanded date range covering all periods.
       let minPeriodStart = fiscalPeriods[0].start_date;
       let maxPeriodEnd = fiscalPeriods[0].end_date;
       for (const p of fiscalPeriods) {
@@ -747,18 +759,14 @@ class GLBalanceService {
         aggregates.push({
           company_id: companyUUID,
           coa_id: coaId,
-          fiscal_year: period.fiscal_year,
-          fiscal_period: period.period_number,
-          period_type: period.period_type,
-          period_start_date: period.start_date,
-          period_end_date: period.end_date,
-          opening_balance: this.toNumber(firstRow.opening_balance || 0),
-          period_debits: debits,
-          period_credits: credits,
-          closing_balance: this.toNumber(lastRow.closing_balance || 0),
+          fiscal_calendar_id: period.id,
+          opening_balance: this.toDbAmount(firstRow.opening_balance || 0),
+          period_debits: this.toDbAmount(debits),
+          period_credits: this.toDbAmount(credits),
+          closing_balance: this.toDbAmount(lastRow.closing_balance || 0),
           transaction_count: txCount,
+          calculated_at: txn.raw('NOW()'),
           created_at: txn.raw('NOW()'),
-          updated_at: txn.raw('NOW()'),
         });
       }
 
@@ -768,22 +776,14 @@ class GLBalanceService {
       // Batch upsert the period balances
       await txn('gl_period_balances')
         .insert(aggregates)
-        .onConflict([
-          'company_id',
-          'coa_id',
-          'fiscal_year',
-          'fiscal_period',
-          'period_type',
-        ])
+        .onConflict(['company_id', 'coa_id', 'fiscal_calendar_id'])
         .merge({
-          period_start_date: txn.raw('EXCLUDED.period_start_date'),
-          period_end_date: txn.raw('EXCLUDED.period_end_date'),
           opening_balance: txn.raw('EXCLUDED.opening_balance'),
           period_debits: txn.raw('EXCLUDED.period_debits'),
           period_credits: txn.raw('EXCLUDED.period_credits'),
           closing_balance: txn.raw('EXCLUDED.closing_balance'),
           transaction_count: txn.raw('EXCLUDED.transaction_count'),
-          updated_at: txn.raw('NOW()'),
+          calculated_at: txn.raw('NOW()'),
         });
 
       return { rowsUpserted: aggregates.length };
@@ -802,12 +802,10 @@ class GLBalanceService {
   private async updateCurrentBalance({
     companyUUID,
     coaId,
-    asOfYMD,
     trx,
   }: {
     companyUUID: string;
     coaId: string;
-    asOfYMD: string;
     trx?: Knex.Transaction;
   }): Promise<void> {
     const knex = trx ?? db;
@@ -815,7 +813,6 @@ class GLBalanceService {
     const last = await knex('gl_daily_balance_snapshots')
       .select('closing_balance', 'day')
       .where({ company_id: companyUUID, coa_id: coaId })
-      .andWhere('day', '<=', asOfYMD)
       .orderBy('day', 'desc')
       .first();
 
@@ -827,18 +824,20 @@ class GLBalanceService {
       .insert({
         company_id: companyUUID,
         coa_id: coaId,
-        as_of_time: knex.raw('NOW()'),
-        reporting_currency_balance: Number(last.closing_balance || 0),
+        as_of_date: toYMD(last.day),
+        reporting_currency_balance: this.toDbAmount(last.closing_balance || 0),
+        calculated_at: knex.raw('NOW()'),
       })
       .onConflict(['company_id', 'coa_id'])
       .merge({
-        as_of_time: knex.raw('GREATEST(gl_current_balances.as_of_time, NOW())'),
-        reporting_currency_balance: Number(last.closing_balance || 0),
+        as_of_date: toYMD(last.day),
+        reporting_currency_balance: this.toDbAmount(last.closing_balance || 0),
+        calculated_at: knex.raw('NOW()'),
       });
   }
 
   private readonly SCALE = 3;
-  private toNumber(value: string | number): number {
+  private toDbAmount(value: string | number): number {
     const num = typeof value === 'number' ? value : parseFloat(value);
     if (!Number.isFinite(num)) {
       throw new Error(`Invalid numeric value: ${value}`);

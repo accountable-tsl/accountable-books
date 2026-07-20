@@ -39,24 +39,28 @@ const ENRICHMENT_VERSION = 'v260101-01-1.0.0';
 const BANK_TX_SELECT_FIELDS = [
   // Bank transaction
   'bt.id as bank_transaction_id',
-  'bt.date as date',
+  'bt.transaction_date as date',
   'bt.description as description',
   'bt.reference as reference',
   'bt.additional_notes as additional_notes',
   'bt.amount as amount_native',
   'bt.system_exchange_rate as system_exchange_rate',
   'bt.bank_transaction_batch_id as bank_transaction_batch_id',
-  'bt.contact_id as contact_id',
   'bt.payee as payee',
-  'bt.contact_type_snapshot as contact_type',
-  'bt.raw_data as raw_data',
-  'bt.source as source',
+  'bt.source_payload as raw_data',
+  'btb.source as source',
+
+  // Current contact interpretation
+  // 'bcr.contact_id as resolution_contact_id',
+  // 'bcr.status as resolution_status',
+  // 'bcr.source as resolution_source',
+  // 'bcr.confidence as resolution_confidence',
 
   // Bank account
   'ba.id as bank_account_id',
   'ba.company_id as company_id',
   'ba.coa_id as bank_account_coa_id',
-  'ba.account_name as bank_account_name',
+  'ba.display_name as bank_account_name',
   'ba.display_name as bank_account_display_name',
   'ba.currency_id as transaction_currency_id',
 
@@ -90,6 +94,11 @@ export async function enrichTransaction({
     // Load base transaction with minimal joins
     const txn = await tx('bank_transactions as bt')
       .select(BANK_TX_SELECT_FIELDS)
+      .leftJoin(
+        'bank_transaction_batches as btb',
+        'bt.bank_transaction_batch_id',
+        'btb.id',
+      )
       .leftJoin('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
       .leftJoin('currencies as cur', 'ba.currency_id', 'cur.id')
       .leftJoin('banks as b', 'ba.bank_id', 'b.id')
@@ -142,8 +151,8 @@ export async function enrichTransaction({
         accountName: txn.bank_account_name,
         displayName: txn.bank_account_display_name,
       },
-      contactId: txn.contact_id || null,
-      contactTypeSnapshot: txn.contact_type || null,
+      contactId: txn.resolution_contact_id || null,
+      contactTypeSnapshot: txn.resolution_contact_type || null,
       payee: txn.payee,
       description: normalizedDesc,
       transactionAmount: txn.amount_native

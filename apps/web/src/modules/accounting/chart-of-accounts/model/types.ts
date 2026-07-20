@@ -48,6 +48,8 @@ export type CoaResponse = {
   isDeleted: boolean;
   isLocked: boolean;
   hasTransactions: boolean;
+  isBankLinked: boolean;
+  canArchive: boolean;
   canDelete: boolean;
 };
 
@@ -84,8 +86,89 @@ export type EditCoaRequest = z.infer<typeof editCoaRequest>;
 
 export interface CoaUpdateResponse {
   updatedAccounts: Array<{ id: string; name?: string }>;
-  errors: Array<{ id: string; error: string }>;
+  errors: Array<{
+    id: string;
+    error: string;
+    impact?: CoaLifecycleImpact;
+  }>;
+  warnings?: Array<{ id: string; impact: CoaLifecycleImpact }>;
+  invalidatedDerivedData?: {
+    predictions: number;
+    candidates: number;
+  };
 }
+
+export type CoaLifecycleImpact = {
+  coaId: string;
+  bankAccounts: number;
+  draftJournals: number;
+  recurringTemplates: number;
+  categorizationRules: number;
+  predictions: number;
+  candidates: number;
+};
+
+export type CoaLifecycleOperation = 'archive' | 'delete';
+
+export type CoaLifecycleReference = {
+  id: string;
+  label: string;
+  resolvable?: boolean;
+};
+
+export type CoaLifecycleAccountPreflight = {
+  id: string;
+  name: string;
+  blockers: string[];
+  references: {
+    bankAccounts: CoaLifecycleReference[];
+    ledgerEntries: { count: number };
+    draftJournals: CoaLifecycleReference[];
+    recurringTemplates: CoaLifecycleReference[];
+    categorizationRules: CoaLifecycleReference[];
+    predictions: { count: number };
+    candidates: { count: number };
+  };
+  availableActions: string[];
+};
+
+export type CoaLifecyclePreflightResponse = {
+  operation: CoaLifecycleOperation;
+  impactFingerprint: string;
+  accounts: CoaLifecycleAccountPreflight[];
+  canExecuteWithoutResolution: boolean;
+};
+
+export type CoaLifecycleResolution =
+  | {
+      referenceType: 'draft_journal';
+      sourceCoaId: string;
+      referenceIds: string[];
+      action: 'replace' | 'void';
+      replacementCoaId?: string;
+    }
+  | {
+      referenceType: 'recurring_template';
+      sourceCoaId: string;
+      referenceIds: string[];
+      action: 'replace' | 'close';
+      replacementCoaId?: string;
+    }
+  | {
+      referenceType: 'categorization_rule';
+      sourceCoaId: string;
+      referenceIds: string[];
+      action: 'replace' | 'disable';
+      replacementCoaId?: string;
+    };
+
+export type CoaLifecycleExecuteInput = {
+  operation: CoaLifecycleOperation;
+  accountIds: string[];
+  impactFingerprint: string;
+  acknowledgeUnresolvedArchiveReferences?: boolean;
+  resolutions?: CoaLifecycleResolution[];
+};
 
 export const createCoaSchema = z.object({
   name: z.string().min(1).max(256),

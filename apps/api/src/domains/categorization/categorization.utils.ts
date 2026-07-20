@@ -1,10 +1,10 @@
 import type {
   CategorizationTransaction,
-  LedgerIntent,
   LedgerIntentEntry,
+  LedgerPostingIntent,
 } from '@accountable-books/contracts/schema';
 
-import { toDate, toYMD } from '../../shared/utils/date.utils.js';
+import { toYMD } from '../../shared/utils/date.utils.js';
 
 import type { BankTransactionWithFilteredFields } from '../bankTransactions/bankTransactions.types.js';
 import type { ContactType } from '../contacts/index.js';
@@ -41,9 +41,9 @@ import type {
  * - Latest intent with entries: [] clears all entries.
  */
 export const mergeIntents = (
-  intents: LedgerIntent[],
+  intents: LedgerPostingIntent[],
   useLatest: boolean = false,
-): LedgerIntent | null => {
+): LedgerPostingIntent | null => {
   if (intents.length === 0) {
     return null;
   }
@@ -78,7 +78,7 @@ export const mergeIntents = (
   };
 
   // Base intent = latest intent (metadata preserved verbatim)
-  const mergedIntent: LedgerIntent = structuredClone(latestIntent);
+  const mergedIntent: LedgerPostingIntent = structuredClone(latestIntent);
   const ds = mergedIntent.desired_state || {};
   mergedIntent.desired_state = ds;
 
@@ -213,7 +213,7 @@ function toNumber(value: unknown): number {
  * @returns Resolved exchange rate
  */
 export function resolveExchangeRate(
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateBankLeg: CategorizationCandidateLine | null | undefined,
   bankTransaction: BankTransactionWithFilteredFields,
 ): number {
@@ -235,12 +235,12 @@ export function resolveExchangeRate(
  */
 export function buildBankLeg(
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateBankLeg?: CategorizationCandidateLine | null,
 ): LedgerEntryInput {
   return {
     is_bank_leg: true,
-    fs_date: toYMD(bankTransaction.date),
+    fs_date: toYMD(bankTransaction.transaction_date),
     coa_id: bankTransaction.bank_account_coa_id,
     source_currency_id: bankTransaction.bank_account_currency_id,
     source_amount: toNumber(bankTransaction.amount),
@@ -249,8 +249,8 @@ export function buildBankLeg(
       candidateBankLeg,
       bankTransaction,
     ),
-    contact_id: bankTransaction.contact_id ?? null,
-    contact_type: bankTransaction.contact_type_snapshot ?? null,
+    contact_id: bankTransaction.resolved_contact_id ?? null,
+    contact_type: bankTransaction.resolved_contact_type ?? null,
     description: bankTransaction.description ?? null,
   };
 }
@@ -269,7 +269,7 @@ export function buildBankLeg(
 export function buildNonBankLegFromBankTransaction(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   intentEntriesCount: number,
 ): LedgerEntryInput {
   const isSplit = intentEntriesCount > 1;
@@ -289,17 +289,17 @@ export function buildNonBankLegFromBankTransaction(
   return {
     is_bank_leg: false,
     coa_id: intentEntry.coa_id,
-    fs_date: intentEntry.fs_date || toYMD(bankTransaction.date),
+    fs_date: intentEntry.fs_date || toYMD(bankTransaction.transaction_date),
     source_currency_id: bankTransaction.bank_account_currency_id,
     source_amount: sourceAmount,
     custom_exchange_rate: resolveExchangeRate(intent, null, bankTransaction),
     contact_id: resolveNullableField(
       intentEntry.contact_id,
-      bankTransaction.contact_id,
+      bankTransaction.resolved_contact_id,
     ),
     contact_type: resolveNullableField(
       intentEntry.contact_type,
-      bankTransaction.contact_type_snapshot,
+      bankTransaction.resolved_contact_type,
     ),
     description: resolveNullableField(
       intentEntry.description,
@@ -336,7 +336,7 @@ export function buildNonBankLegFromBankTransaction(
 export function buildNonBankLegFromCandidateSingle(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateLine: CategorizationCandidateLine | null,
   candidateBankLeg: CategorizationCandidateLine,
 ): LedgerEntryInput {
@@ -346,9 +346,12 @@ export function buildNonBankLegFromCandidateSingle(
     fs_date:
       intentEntry.fs_date ??
       candidateLine?.fs_date ??
-      toYMD(bankTransaction.date),
+      toYMD(bankTransaction.transaction_date),
     source_currency_id: bankTransaction.bank_account_currency_id,
-    source_amount: toNumber(bankTransaction.amount),
+    source_amount:
+      intentEntry.source_amount !== undefined
+        ? toNumber(intentEntry.source_amount)
+        : toNumber(candidateLine?.signed_native_amount ?? 0),
     custom_exchange_rate: resolveExchangeRate(
       intent,
       candidateBankLeg,
@@ -356,12 +359,12 @@ export function buildNonBankLegFromCandidateSingle(
     ),
     contact_id: resolveNullableField(
       intentEntry.contact_id,
-      candidateLine?.contact_id ?? bankTransaction.contact_id ?? null,
+      candidateLine?.contact_id ?? bankTransaction.resolved_contact_id ?? null,
     ),
     contact_type: resolveNullableField(
       intentEntry.contact_type,
       candidateLine?.contact_type ??
-        bankTransaction.contact_type_snapshot ??
+        bankTransaction.resolved_contact_type ??
         null,
     ),
     description: resolveNullableField(
@@ -402,7 +405,7 @@ export function buildNonBankLegFromCandidateSingle(
 export function buildNonBankLegFromCandidateSplit(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   candidateBankLeg: CategorizationCandidateLine,
 ): LedgerEntryInput {
   // Convert source_amount to number
@@ -417,7 +420,7 @@ export function buildNonBankLegFromCandidateSplit(
     fs_date:
       intentEntry.fs_date ??
       candidateBankLeg.fs_date ??
-      toYMD(bankTransaction.date),
+      toYMD(bankTransaction.transaction_date),
     source_currency_id: bankTransaction.bank_account_currency_id,
     source_amount: sourceAmount,
     custom_exchange_rate: resolveExchangeRate(
@@ -427,12 +430,14 @@ export function buildNonBankLegFromCandidateSplit(
     ),
     contact_id: resolveNullableField(
       intentEntry.contact_id,
-      candidateBankLeg.contact_id ?? bankTransaction.contact_id ?? null,
+      candidateBankLeg.contact_id ??
+        bankTransaction.resolved_contact_id ??
+        null,
     ),
     contact_type: resolveNullableField(
       intentEntry.contact_type,
       candidateBankLeg.contact_type ??
-        bankTransaction.contact_type_snapshot ??
+        bankTransaction.resolved_contact_type ??
         null,
     ),
     description: resolveNullableField(
@@ -467,7 +472,7 @@ export function buildNonBankLegFromCandidateSplit(
  */
 export function buildNonBankLegFromLedgerUpdate(
   intentEntry: LedgerIntentEntry,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   ledgerEntry: {
     id: string;
     coa_id: string;
@@ -554,9 +559,9 @@ export function buildNonBankLegFromLedgerUpdate(
 export function buildNonBankLegFromLedgerSplit(
   intentEntry: LedgerIntentEntry,
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   ledgerTxn: {
-    date: Date;
+    transaction_date: Date;
     source_transaction_currency_id: string;
     contact_id: string | null;
     contact_type: ContactType | null;
@@ -594,7 +599,9 @@ export function buildNonBankLegFromLedgerSplit(
     coa_id: intentEntry.coa_id,
     fs_date:
       intentEntry.fs_date ??
-      (templateEntry ? toYMD(templateEntry.fs_date) : toYMD(ledgerTxn.date)),
+      (templateEntry
+        ? toYMD(templateEntry.fs_date)
+        : toYMD(ledgerTxn.transaction_date)),
     source_currency_id:
       templateEntry?.source_currency_id ??
       ledgerTxn.source_transaction_currency_id,
@@ -641,21 +648,21 @@ export function buildNonBankLegFromLedgerSplit(
  */
 export function buildLedgerTransactionMetadata(
   bankTransaction: BankTransactionWithFilteredFields,
-  intent: LedgerIntent,
+  intent: LedgerPostingIntent,
   categorizationSource: 'manual' | 'ml' | 'ml_heuristic' | 'rule',
   candidateId?: string | null,
 ): Omit<NewLedgerTransactionData, 'transactions'> {
   return {
-    date: bankTransaction.date,
+    transaction_date: toYMD(bankTransaction.transaction_date),
     transaction_source: 'bank_transaction',
     categorization_source: categorizationSource,
     description: bankTransaction.description ?? null,
     reference: bankTransaction.reference ?? null,
     note: bankTransaction.additional_notes ?? null,
-    contact_id: bankTransaction.contact_id,
-    contact_type: bankTransaction.contact_type_snapshot,
+    contact_id: bankTransaction.resolved_contact_id ?? null,
+    contact_type: bankTransaction.resolved_contact_type ?? null,
     source_transaction_id: bankTransaction.id,
-    source_transaction_date: toDate(bankTransaction.date, 'start'),
+    source_transaction_date: toYMD(bankTransaction.transaction_date),
     source_transaction_amount: toNumber(bankTransaction.amount),
     source_transaction_currency_id: bankTransaction.bank_account_currency_id,
     ...(candidateId ? { categorization_candidate_id: candidateId } : {}),
@@ -676,7 +683,7 @@ export function buildLedgerTransactionMetadataFromCandidate(
   bankTransaction: BankTransactionWithFilteredFields,
 ): Omit<NewLedgerTransactionData, 'transactions'> {
   return {
-    date: toDate(bankTransaction.date, 'keep'),
+    transaction_date: toYMD(bankTransaction.transaction_date),
     transaction_source: 'bank_transaction',
     categorization_source: candidate.source,
     description: candidate.description ?? null,
@@ -685,7 +692,7 @@ export function buildLedgerTransactionMetadataFromCandidate(
     contact_id: candidate.contact_id,
     contact_type: candidate.contact_type ?? null,
     source_transaction_id: candidate.bank_transaction_id,
-    source_transaction_date: toDate(bankTransaction.date, 'keep'),
+    source_transaction_date: toYMD(bankTransaction.transaction_date),
     source_transaction_amount: toNumber(bankTransaction.amount),
     source_transaction_currency_id: bankTransaction.bank_account_currency_id,
     categorization_candidate_id: candidate.id,

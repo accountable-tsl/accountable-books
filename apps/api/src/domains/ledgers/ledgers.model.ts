@@ -10,7 +10,6 @@ import {
   lockKeyCompany,
   sleep,
 } from '../../shared/services/advisoryLocks.service.js';
-import { ensurePartitionsForDates } from '../../shared/services/partitionManagement.service.js';
 import { toYMD } from '../../shared/utils/date.utils.js';
 import { getIdentifierType } from '../../shared/utils/formatting.utils.js';
 import {
@@ -18,27 +17,34 @@ import {
   errorResponse,
   successResponse,
 } from '../../shared/utils/response.utils.js';
-import { enqueueGLBalance } from '../balances/index.js';
+import { writeGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
 import { runConstraints } from '../constraints/constraint-runner.js';
 import {
   determineMonetaryEntries,
   makeFxTransactionId,
+  reverseFxPositionMovementsForLedgerTransaction,
   upsertFxPosition,
 } from '../fx/index.js';
+import { writeCloseSignalEvalOutbox } from '../reporting/close-readiness/signals/close-signal.outbox.js';
 import { getCompanySetting } from '../settings/settings.service.js';
 import { isSystemUser } from '../users/users.model.js';
 import { logLedgerEvent } from './ledger-audit-logs.service.js';
+import { postLedgerTransactions } from './ledger-mutation.service.js';
 import { newLedgerTransactionData } from './ledgers.types.js';
 import {
+  buildOpenEndedGLBalanceRecalcRequests,
   detectChangedFields,
   fetchLookupMap,
   normalizeDateForComparison,
   processEntriesDates,
   resolveFx,
+  toLedgerTransactionInput,
   validateBankLegAmount,
 } from './ledgers.utils.js';
 
 import type { ApiResponse } from '../../core/types/api.types.js';
+import type { AuditContextInput } from '../audit/index.js';
+import type { ContactType } from '../contacts/index.js';
 import type {
   LedgerEntry,
   LedgerEntryInput,
@@ -62,6 +68,9 @@ interface CreateLedgerRecordResult {
 
 /**
  * Create a ledger transaction and its entries atomically
+ *
+ * @deprecated Use {@link postLedgerTransactions} from `ledger-mutation.service.ts`.
+ * Retained temporarily for supersede and integration tests; scheduled for removal.
  *
  * This function creates a complete accounting transaction (journal entry) in the ledger.
  * It ensures all accounting rules are followed and maintains data integrity.
@@ -87,12 +96,16 @@ export async function createLedgerRecord({
   companyId,
   userId,
   trx,
+  ledgerTransactionIdOverride,
+  skipFxPositionTracking = false,
 }: {
   data: NewLedgerTransactionData;
   autoPost?: boolean;
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
+  ledgerTransactionIdOverride?: string;
+  skipFxPositionTracking?: boolean;
 }): Promise<ApiResponse<CreateLedgerRecordResult>> {
   // PHASE 1: INPUT VALIDATION
   // Validate that the input data matches our expected schema
@@ -160,7 +173,9 @@ export async function createLedgerRecord({
       trx: txn,
     });
     const trackFxPositions =
-      fxSettingsResult.success && fxSettingsResult.data
+      !skipFxPositionTracking &&
+      fxSettingsResult.success &&
+      fxSettingsResult.data
         ? fxSettingsResult.data.track_fx_positions
         : false;
 
@@ -172,9 +187,9 @@ export async function createLedgerRecord({
       const existing = await txn('ledger_transactions')
         .where({
           company_id: companyUUID,
+          transaction_source: 'bank_transaction',
           source_transaction_id: sourceTxId,
-          source_transaction_date: toYMD(sourceTxDate),
-          is_deleted: false,
+          status: 'posted',
         })
         .first('id');
 
@@ -202,12 +217,8 @@ export async function createLedgerRecord({
     }
     await acquireAdvisoryXactLocks(txn, advisoryKeys);
 
-    // STEP 4: PARTITION MANAGEMENT
-    // PostgreSQL partitions the ledger_entries table by date for performance
-    // We must ensure the partitions exist before inserting data
-    const { transactionDates, bounds, minYMD, maxYMD } =
-      processEntriesDates(entries);
-    await ensurePartitionsForDates('ledger_entries', transactionDates, txn);
+    // STEP 4: EXTRACT DATE BOUNDS FOR GL BALANCE ENQUEUE
+    const { bounds, minYMD, maxYMD } = processEntriesDates(entries);
 
     // STEP 5: PRE-CONSTRAINT VALIDATIONS
     // These validations happen before we run the constraint system
@@ -238,8 +249,8 @@ export async function createLedgerRecord({
       system_exchange_rate: number;
       bank_coa_id: string;
       bank_currency_id: string;
-      contact_id?: string | null;
-      contact_type_snapshot?: string | null;
+      resolved_contact_id: string | null;
+      resolved_contact_type: ContactType | null;
     } | null = null;
 
     if (isBankTransaction && requiredBankTxSourceFieldsExist) {
@@ -249,7 +260,6 @@ export async function createLedgerRecord({
         .join('bank_accounts as ba', 'bt.bank_account_id', 'ba.id')
         .where({
           'bt.id': sourceTxId,
-          // 'bt.date': toYMD(sourceTxDate),
           'ba.company_id': companyUUID,
           'bt.is_deleted': false,
           'ba.is_deleted': false,
@@ -257,8 +267,6 @@ export async function createLedgerRecord({
         .first(
           'bt.amount',
           'bt.system_exchange_rate',
-          'bt.contact_id',
-          'bt.contact_type_snapshot',
           'ba.coa_id as bank_coa_id',
           'ba.currency_id as bank_currency_id',
         );
@@ -274,8 +282,8 @@ export async function createLedgerRecord({
         system_exchange_rate: Number(bankTxnResult.system_exchange_rate),
         bank_coa_id: bankTxnResult.bank_coa_id,
         bank_currency_id: bankTxnResult.bank_currency_id,
-        contact_id: bankTxnResult.contact_id ?? null,
-        contact_type_snapshot: bankTxnResult.contact_type_snapshot ?? null,
+        resolved_contact_id: null,
+        resolved_contact_type: null,
       };
 
       const bankLeg = bankLegs[0];
@@ -307,8 +315,10 @@ export async function createLedgerRecord({
     }
 
     // STEP 6: CONTACT & PROJECT RESOLUTION
-    // Contacts and projects can be specified at the transaction level or entry level
-    // If not specified at transaction level, we use the bank transaction's contact (if available)
+    // Contacts and projects can be specified at the transaction level or entry level.
+    // If no transaction-level contact is provided, bank transactions snapshot the
+    // current contact resolution row rather than reading contact data from the raw
+    // bank transaction record.
     // Then we validate that all referenced contacts and projects exist and belong to the company
 
     // Resolve transaction-level contact (cascades from bank transaction if not provided)
@@ -316,10 +326,10 @@ export async function createLedgerRecord({
       let id = ledgerTx.contact_id ?? null;
       let type = ledgerTx.contact_type ?? null;
 
-      // If no contact specified at transaction level, use bank transaction's contact
-      if (!id && bankTxn?.contact_id) {
-        id = bankTxn.contact_id;
-        type = (bankTxn.contact_type_snapshot as typeof type) ?? null;
+      // If no contact was specified, snapshot the current bank transaction resolution.
+      if (!id && bankTxn?.resolved_contact_id) {
+        id = bankTxn.resolved_contact_id;
+        type = bankTxn.resolved_contact_type;
       }
 
       return [id, type];
@@ -349,13 +359,13 @@ export async function createLedgerRecord({
     const contactIds = Array.from(allContactIds);
     const projectIds = Array.from(allProjectIds);
 
-    const contactNameById = await fetchLookupMap({
+    await fetchLookupMap({
       table: 'contacts',
       ids: contactIds,
       companyId: companyUUID,
       txn,
     });
-    const projectNameById = await fetchLookupMap({
+    await fetchLookupMap({
       table: 'projects',
       ids: projectIds,
       companyId: companyUUID,
@@ -376,7 +386,7 @@ export async function createLedgerRecord({
       warnings: fxWarnings,
     } = await resolveFx({
       entries,
-      ledgerTxDate: new Date(ledgerTx.date),
+      ledgerTxDate: new Date(ledgerTx.transaction_date),
       sourceCurrencyId: sourceTxCurrencyId,
       reportingCurrencyId,
       bankTxnSystemRate: bankTxn?.system_exchange_rate,
@@ -415,7 +425,7 @@ export async function createLedgerRecord({
       {
         companyUUID,
         entries: constraintEntries,
-        transaction_date: toYMD(ledgerTx.date),
+        transaction_date: toYMD(ledgerTx.transaction_date),
       },
       txn, // Pass the transaction to avoid deadlocks and ensure consistency
     );
@@ -460,7 +470,12 @@ export async function createLedgerRecord({
     };
 
     const [row] = await txn('ledger_transactions')
-      .insert(ledgerTransaction)
+      .insert({
+        ...(ledgerTransactionIdOverride
+          ? { id: ledgerTransactionIdOverride }
+          : {}),
+        ...ledgerTransaction,
+      })
       .returning('id');
     const ledgerTransactionId = String(row.id);
     result.ledgerTransactionId = ledgerTransactionId;
@@ -490,31 +505,6 @@ export async function createLedgerRecord({
         type: 'LEDGER_TX',
         ledgerTransactionId,
       });
-
-      // Only create/update fx_positions table if the company has FX tracking enabled
-      // This table tracks foreign currency exposures for revaluation
-      if (trackFxPositions) {
-        // For each monetary entry, create or update the FX position
-        for (const {
-          index,
-          entry: _baseEntry,
-        } of monetaryResult.monetaryEntries) {
-          const fullEntry = entries[index]!;
-          // Convert the foreign currency amount to reporting currency
-          const calculatedAmount = fullEntry.source_amount * customExRate;
-
-          await upsertFxPosition({
-            companyId: companyUUID,
-            fx_transaction_id: fxTransactionId,
-            account_id: fullEntry.coa_id,
-            foreign_currency_id: fullEntry.source_currency_id,
-            source_amount: fullEntry.source_amount,
-            amount: calculatedAmount,
-            exchange_rate: customExRate,
-            trx: txn,
-          });
-        }
-      }
     }
 
     // STEP 11: BUILD & INSERT LEDGER ENTRIES
@@ -527,54 +517,80 @@ export async function createLedgerRecord({
         ? entry.contact_type
         : transactionContactType,
     }));
-    const coaIds = Array.from(
-      new Set(resolvedEntries.map((entry) => entry.coa_id)),
-    );
-    const coas = coaIds.length
-      ? await txn('coa')
-          .whereIn('id', coaIds)
-          .where('company_id', companyUUID)
-          .select('id', 'name')
-      : [];
-    const coaNameById = new Map(coas.map((coa) => [String(coa.id), coa.name]));
-
     const entriesToInsert: NewLedgerEntry[] = resolvedEntries.map(
       (entry, index) => {
         return {
           ...entry,
+          company_id: companyUUID,
           ledger_transaction_id: ledgerTransactionId,
           is_bank_leg: entry.is_bank_leg ?? false,
           system_exchange_rate: systemExRate,
           custom_exchange_rate: customExRate,
           is_monetary: monetaryMap.get(index) ?? false,
           fx_transaction_id: monetaryMap.get(index) ? fxTransactionId : null,
-          coa_name: coaNameById.get(entry.coa_id) ?? null,
-          project_name: entry.project_id
-            ? (projectNameById.get(entry.project_id) ?? null)
-            : null,
-          contact_name: entry.contact_id
-            ? (contactNameById.get(entry.contact_id) ?? null)
-            : null,
           updated_by_id: userId,
         };
       },
     );
 
     // Insert all entries into the database
-    await txn('ledger_entries').insert(entriesToInsert);
+    const insertedEntries = await txn('ledger_entries')
+      .insert(entriesToInsert)
+      .returning<
+        Array<{
+          id: string;
+          coa_id: string;
+          source_currency_id: string;
+          source_amount: string | number;
+          amount: string | number;
+          is_monetary: boolean;
+          fx_transaction_id: string | null;
+          fs_date: string | Date;
+        }>
+      >(['id', 'coa_id', 'source_currency_id', 'source_amount', 'amount', 'is_monetary', 'fx_transaction_id', 'fs_date']);
+
+    if (trackFxPositions && fxTransactionId) {
+      for (const entry of insertedEntries) {
+        if (!entry.is_monetary || !entry.fx_transaction_id) continue;
+
+        await upsertFxPosition({
+          companyId: companyUUID,
+          fx_transaction_id: entry.fx_transaction_id,
+          account_id: entry.coa_id,
+          foreign_currency_id: entry.source_currency_id,
+          source_amount: Number(entry.source_amount),
+          amount: Number(entry.amount),
+          exchange_rate: customExRate,
+          source_type: 'ledger_entry',
+          source_id: entry.id,
+          ledger_transaction_id: ledgerTransactionId,
+          ledger_entry_id: entry.id,
+          movement_date: toYMD(entry.fs_date),
+          created_by_id: userId,
+          trx: txn,
+        });
+      }
+    }
 
     // STEP 12: ENQUEUE BALANCE RECALCULATION
     // After inserting entries, we need to recalculate account balances
     // This is done asynchronously via a job queue for performance
     // We enqueue one job per affected Chart of Account
-    for (const [coaId, range] of bounds) {
-      await enqueueGLBalance({
-        companyId: companyUUID,
-        coaId,
-        recalcFrom: range.min,
-        triggeredBy: 'ledger_entry',
-      });
+    for (const request of buildOpenEndedGLBalanceRecalcRequests({
+      companyId: companyUUID,
+      bounds,
+      triggeredBy: 'ledger_entry',
+    })) {
+      await writeGlBalanceRecalcOutbox(txn, request);
     }
+
+    // Re-evaluate close review signals for this transaction, written into the
+    // same transaction as the ledger entries so it can't be lost.
+    await writeCloseSignalEvalOutbox(txn, {
+      companyId: companyUUID,
+      ledgerTransactionId,
+      triggeredBy: 'ledger_write',
+    });
 
     // STEP 13: CREATE LEDGER AUDIT LOG
     // Automatically create audit log entry for all ledger transactions
@@ -774,7 +790,7 @@ export async function getLedgerTransaction(
 
   const result = await client('ledger_transactions')
     .where('id', id)
-    .where('is_deleted', false)
+    .where('status', 'posted')
     .first();
 
   return result || null;
@@ -789,10 +805,18 @@ export async function getLedgerEntriesForTransaction(
 ): Promise<LedgerEntry[]> {
   const client = trx || knexClient;
 
-  const entries = await client('ledger_entries')
-    .where('ledger_transaction_id', ledgerTransactionId)
-    .where('is_deleted', false)
-    .orderBy('created_at', 'asc');
+  const entries = await client('ledger_entries as le')
+    .leftJoin('coa', 'le.coa_id', 'coa.id')
+    .leftJoin('contacts', 'le.contact_id', 'contacts.id')
+    .leftJoin('projects', 'le.project_id', 'projects.id')
+    .where('le.ledger_transaction_id', ledgerTransactionId)
+    .orderBy('le.created_at', 'asc')
+    .select(
+      'le.*',
+      'coa.name as coa_name',
+      'contacts.display_name as contact_name',
+      'projects.name as project_name',
+    );
 
   return entries;
 }
@@ -849,7 +873,7 @@ export async function getLedgerTransactionsWithEntries({
   }
 
   const transactions: LedgerTransaction[] = await client('ledger_transactions')
-    .where('is_deleted', false)
+    .where('status', 'posted')
     .modify((qb) => {
       if (hasLedgerIds) qb.whereIn('id', idsToUse);
       else qb.whereIn('source_transaction_id', idsToUse);
@@ -860,10 +884,18 @@ export async function getLedgerTransactionsWithEntries({
 
   const transactionIdsFetched = transactions.map((t) => t.id);
 
-  const entries: LedgerEntry[] = await client('ledger_entries')
-    .whereIn('ledger_transaction_id', transactionIdsFetched)
-    .where('is_deleted', false)
-    .orderBy('created_at', 'asc');
+  const entries: LedgerEntry[] = await client('ledger_entries as le')
+    .leftJoin('coa', 'le.coa_id', 'coa.id')
+    .leftJoin('contacts', 'le.contact_id', 'contacts.id')
+    .leftJoin('projects', 'le.project_id', 'projects.id')
+    .whereIn('le.ledger_transaction_id', transactionIdsFetched)
+    .orderBy('le.created_at', 'asc')
+    .select(
+      'le.*',
+      'coa.name as coa_name',
+      'contacts.display_name as contact_name',
+      'projects.name as project_name',
+    );
 
   const entriesByTransactionId = new Map<string, LedgerEntry[]>();
   for (const entry of entries) {
@@ -876,14 +908,11 @@ export async function getLedgerTransactionsWithEntries({
     const transactionEntries = entriesByTransactionId.get(transaction.id) || [];
 
     if (excludeAutoGeneratedFields) {
-      const { created_at, updated_at, is_deleted, deleted_at, ...t } =
-        transaction;
+      const { created_at, updated_at, ...t } = transaction;
       const filteredEntries = transactionEntries.map(
         ({
           created_at,
           updated_at,
-          is_deleted,
-          deleted_at,
           absolute_source_amount,
           amount,
           absolute_amount,
@@ -940,6 +969,7 @@ export async function updateLedgerMetadata({
     entries?: Array<{
       entryId: string;
       description?: string | null;
+      reference?: string | null;
       metadata?: Record<string, unknown>;
       human_reviewed?: boolean;
       review_notes?: string | null;
@@ -953,7 +983,7 @@ export async function updateLedgerMetadata({
   try {
     // 1. Validate transaction exists and is not deleted
     const existingTxn = await trx('ledger_transactions')
-      .where({ id: ledgerTransactionId, is_deleted: false })
+      .where({ id: ledgerTransactionId, status: 'posted' })
       .first();
 
     if (!existingTxn) {
@@ -992,9 +1022,11 @@ export async function updateLedgerMetadata({
       for (const entryUpdate of updates.entries) {
         const { entryId, ...entryFields } = entryUpdate;
 
-        // Fetch existing entry for old values
         const existingEntry = await trx('ledger_entries')
-          .where({ id: entryId, is_deleted: false })
+          .where({
+            id: entryId,
+            ledger_transaction_id: ledgerTransactionId,
+          })
           .first();
 
         if (!existingEntry) {
@@ -1031,7 +1063,12 @@ export async function updateLedgerMetadata({
           }
         }
 
-        await trx('ledger_entries').where({ id: entryId }).update(entryUpdates);
+        await trx('ledger_entries')
+          .where({
+            id: entryId,
+            ledger_transaction_id: ledgerTransactionId,
+          })
+          .update(entryUpdates);
       }
     }
 
@@ -1126,7 +1163,7 @@ export async function supersedeLedgerTransaction({
   try {
     // 1. Fetch old ledger transaction and entries
     const oldTxn = await trx('ledger_transactions')
-      .where({ id: oldLedgerTransactionId, is_deleted: false })
+      .where({ id: oldLedgerTransactionId, status: 'posted' })
       .first();
 
     if (!oldTxn) {
@@ -1136,10 +1173,7 @@ export async function supersedeLedgerTransaction({
     }
 
     const oldEntries = await trx('ledger_entries')
-      .where({
-        ledger_transaction_id: oldLedgerTransactionId,
-        is_deleted: false,
-      })
+      .where({ ledger_transaction_id: oldLedgerTransactionId })
       .orderBy('created_at', 'asc');
 
     if (oldEntries.length === 0) {
@@ -1182,53 +1216,59 @@ export async function supersedeLedgerTransaction({
         changedFields.push(`entry_${i}_project_id`);
     }
 
-    // 4. Soft-delete old transaction
+    const nextLedgerTransactionIdResult = await trx.raw<{
+      rows: Array<{ id: string }>;
+    }>('SELECT uuid_generate_v7() AS id');
+    const newLedgerTransactionId = String(
+      nextLedgerTransactionIdResult.rows[0]!.id,
+    );
+
+    // 4. Supersede old transaction before creating the replacement. The
+    // self-reference is deferrable, so the replacement can be inserted later
+    // in this same database transaction.
     await trx('ledger_transactions')
       .where({ id: oldLedgerTransactionId })
       .update({
-        is_deleted: true,
-        deleted_at: new Date(),
+        status: 'superseded',
+        superseded_by_ledger_transaction_id: newLedgerTransactionId,
+        superseded_at: new Date(),
+        superseded_by_id: userId,
         updated_at: new Date(),
         updated_by_id: userId,
       });
 
     logger.debug(
       { oldLedgerTransactionId },
-      'Soft-deleted old ledger transaction',
+      'Superseded old ledger transaction',
     );
 
-    // 5. Soft-delete old entries
-    await trx('ledger_entries')
-      .where({ ledger_transaction_id: oldLedgerTransactionId })
-      .update({
-        is_deleted: true,
-        deleted_at: new Date(),
-        updated_at: new Date(),
-        updated_by_id: userId,
-      });
-
-    logger.debug(
-      { oldLedgerTransactionId, entryCount: oldEntries.length },
-      'Soft-deleted old ledger entries',
-    );
-
-    // 6. Trigger balance recalculation for old entries
+    // 5. Trigger balance recalculation for old entries
     // Get unique COAs and date range from old entries
-    const oldCoaIds = new Set(oldEntries.map((e) => e.coa_id));
-    const oldDates = oldEntries.map((e) => toYMD(e.fs_date));
-    const oldMinDate = oldDates.reduce(
-      (min, d) => (d < min ? d : min),
-      oldDates[0]!,
-    );
-
-    for (const coaId of oldCoaIds) {
-      await enqueueGLBalance({
-        companyId,
-        coaId,
-        recalcFrom: oldMinDate,
-        triggeredBy: 'soft_delete', // Old entries are being soft-deleted
-      });
+    const oldBounds = new Map<string, { min: string }>();
+    for (const entry of oldEntries) {
+      const fsDate = toYMD(entry.fs_date);
+      const existing = oldBounds.get(entry.coa_id);
+      if (!existing || fsDate < existing.min) {
+        oldBounds.set(entry.coa_id, { min: fsDate });
+      }
     }
+
+    for (const request of buildOpenEndedGLBalanceRecalcRequests({
+      companyId: oldTxn.company_id,
+      bounds: oldBounds,
+      triggeredBy: 'supersession',
+    })) {
+      await writeGlBalanceRecalcOutbox(trx, request);
+    }
+
+    // The old transaction is now superseded (no longer posted): reconcile so its
+    // close signals are removed. The new transaction is handled by
+    // createLedgerRecord below.
+    await writeCloseSignalEvalOutbox(trx, {
+      companyId: oldTxn.company_id,
+      ledgerTransactionId: oldLedgerTransactionId,
+      triggeredBy: 'supersession',
+    });
 
     // 7. Create new ledger transaction
     const createResult = await createLedgerRecord({
@@ -1237,6 +1277,7 @@ export async function supersedeLedgerTransaction({
       companyId,
       userId,
       trx,
+      ledgerTransactionIdOverride: newLedgerTransactionId,
     });
 
     if (!createResult.success) {
@@ -1247,7 +1288,15 @@ export async function supersedeLedgerTransaction({
       );
     }
 
-    const newLedgerTransactionId = createResult.data!.ledgerTransactionId;
+    await reverseFxPositionMovementsForLedgerTransaction({
+      companyId: oldTxn.company_id,
+      ledgerTransactionId: oldLedgerTransactionId,
+      reversingLedgerTransactionId: newLedgerTransactionId,
+      movementDate: toYMD(oldTxn.transaction_date),
+      createdById: userId,
+      movementType: 'superseded_reversed',
+      trx,
+    });
 
     logger.debug(
       {
@@ -1338,11 +1387,13 @@ export async function updateOrCreateLedger({
   companyId,
   userId,
   trx,
+  requestContext = { source: 'api' },
 }: {
   data: Partial<NewLedgerTransactionData>[];
   companyId: string;
   userId: string;
   trx?: Knex.Transaction;
+  requestContext?: AuditContextInput;
 }): Promise<
   ApiResponse<
     {
@@ -1416,12 +1467,66 @@ export async function updateOrCreateLedger({
       warnings?: Record<string, string>;
     }[]
   > => {
-    const results: {
+    type RouteResult = {
       operation: 'created' | 'updated_metadata' | 'superseded';
       ledgerTransactionId: string;
       oldLedgerTransactionId?: string;
       warnings?: Record<string, string>;
-    }[] = [];
+    };
+
+    const results: (RouteResult | undefined)[] = new Array(data.length);
+    const pendingCreates: Array<{
+      index: number;
+      data: NewLedgerTransactionData;
+    }> = [];
+
+    const commitPendingCreates = async () => {
+      if (pendingCreates.length === 0) {
+        return;
+      }
+
+      const postResult = await postLedgerTransactions({
+        companyId: companyUUID,
+        actor: { type: 'user', userId },
+        requestContext,
+        transactions: pendingCreates.map((p) =>
+          toLedgerTransactionInput(p.data),
+        ),
+        trx: txn,
+      });
+
+      if (!postResult.success) {
+        const errorMessage =
+          typeof postResult.error === 'object'
+            ? JSON.stringify(postResult.error, null, 2)
+            : String(postResult.error);
+
+        throw new AppError(
+          `Failed to create ledger transactions: ${errorMessage}`,
+          postResult.error,
+        );
+      }
+
+      const ids = postResult.data?.ledgerTransactionIds ?? [];
+      if (ids.length !== pendingCreates.length) {
+        throw new AppError(
+          'Ledger post returned unexpected transaction count',
+          {
+            expected: pendingCreates.length,
+            actual: ids.length,
+          },
+        );
+      }
+
+      for (let j = 0; j < pendingCreates.length; j++) {
+        const slot = pendingCreates[j]!;
+        results[slot.index] = {
+          operation: 'created',
+          ledgerTransactionId: ids[j]!,
+        };
+      }
+      pendingCreates.length = 0;
+    };
 
     // Resolve company UUID once
     const company: { id: string; reporting_currency_id: string } =
@@ -1440,7 +1545,8 @@ export async function updateOrCreateLedger({
     const companyUUID = company.id;
 
     // Process each transaction
-    for (const txnData of data) {
+    for (let i = 0; i < data.length; i++) {
+      const txnData = data[i];
       // STEP 1: Validate required fields
       if (!txnData.transaction_source) {
         throw new AppError('transaction_source is required');
@@ -1467,7 +1573,7 @@ export async function updateOrCreateLedger({
           .select('lt.id as actualLedgerId', 'lt.*')
           .where({
             'lt.source_transaction_id': txnData.source_transaction_id,
-            'lt.is_deleted': false,
+            'lt.status': 'posted',
           });
 
         if (isBankTransaction) {
@@ -1500,37 +1606,21 @@ export async function updateOrCreateLedger({
 
       // STEP 3: Route to appropriate handler
       if (!existingLedgerTransactionId) {
-        // ROUTE A: CREATE NEW LEDGER TRANSACTION
+        // ROUTE A: CREATE NEW LEDGER TRANSACTION (batched via postLedgerTransactions)
         logger.debug(
           { sourceTransactionId: txnData.source_transaction_id },
-          'No existing ledger transaction found, creating new one',
+          'No existing ledger transaction found, queuing create',
         );
 
-        const createResult = await createLedgerRecord({
-          data: txnData as NewLedgerTransactionData,
-          autoPost: false, // This is explicit user action
-          companyId: companyUUID,
-          userId,
-          trx: txn,
-        });
-
-        if (!createResult.success) {
-          const errorMessage =
-            typeof createResult.error === 'object'
-              ? JSON.stringify(createResult.error, null, 2)
-              : String(createResult.error);
-
+        const parsed = newLedgerTransactionData.safeParse(txnData);
+        if (!parsed.success) {
           throw new AppError(
-            `Failed to create ledger transaction: ${errorMessage}`,
-            createResult,
+            'Invalid ledger transaction data for create',
+            z.treeifyError(parsed.error),
           );
         }
 
-        results.push({
-          operation: 'created',
-          ledgerTransactionId: createResult.data!.ledgerTransactionId,
-          warnings: createResult.data?.warnings,
-        });
+        pendingCreates.push({ index: i, data: parsed.data });
       } else {
         // There's an existing ledger transaction - need to determine if update or supersede
         logger.debug(
@@ -1547,10 +1637,7 @@ export async function updateOrCreateLedger({
         }
 
         const existingEntries = await txn('ledger_entries')
-          .where({
-            ledger_transaction_id: existingLedgerTransactionId,
-            is_deleted: false,
-          })
+          .where({ ledger_transaction_id: existingLedgerTransactionId })
           .orderBy('created_at', 'asc');
 
         // EARLY VALIDATIONS (before change detection)
@@ -1558,7 +1645,7 @@ export async function updateOrCreateLedger({
         // VALIDATION 1: Transaction-level immutable fields must not be modified
         // These fields come from the source (bank_transaction/journal_batch) and are set once
         const immutableTransactionFields = [
-          'date',
+          'transaction_date',
           'transaction_source',
           'categorization_source',
           'contact_id',
@@ -1578,8 +1665,11 @@ export async function updateOrCreateLedger({
             const existingValue =
               existingTxn[field as keyof typeof existingTxn];
 
-            // Handle date fields explicitly: 'date' and 'source_transaction_date'
-            if (field === 'date' || field === 'source_transaction_date') {
+            // Handle date fields explicitly.
+            if (
+              field === 'transaction_date' ||
+              field === 'source_transaction_date'
+            ) {
               // Normalize both to YMD strings (handles Date objects, YMD strings, or null)
               const proposedYMD = normalizeDateForComparison(proposedValue);
               const existingYMD = normalizeDateForComparison(existingValue);
@@ -1650,10 +1740,10 @@ export async function updateOrCreateLedger({
             'No changes detected, returning existing transaction',
           );
 
-          results.push({
+          results[i] = {
             operation: 'updated_metadata', // Technically no update, but closest semantic
             ledgerTransactionId: existingLedgerTransactionId,
-          });
+          };
         } else if (changes.isMetadataOnly) {
           // ROUTE B: UPDATE METADATA IN-PLACE
           logger.debug(
@@ -1724,6 +1814,7 @@ export async function updateOrCreateLedger({
               const entryUpdate: {
                 entryId: string;
                 description?: string | null;
+                reference?: string | null;
                 metadata?: Record<string, unknown>;
                 human_reviewed?: boolean;
                 review_notes?: string | null;
@@ -1733,6 +1824,9 @@ export async function updateOrCreateLedger({
 
               if (changedFields.has('description')) {
                 entryUpdate.description = proposedEntry.description ?? null;
+              }
+              if (changedFields.has('reference')) {
+                entryUpdate.reference = proposedEntry.reference ?? null;
               }
               if (changedFields.has('metadata')) {
                 entryUpdate.metadata = proposedEntry.metadata;
@@ -1761,10 +1855,10 @@ export async function updateOrCreateLedger({
             );
           }
 
-          results.push({
+          results[i] = {
             operation: 'updated_metadata',
             ledgerTransactionId: existingLedgerTransactionId,
-          });
+          };
         } else {
           // ROUTE C: SUPERSEDE TRANSACTION (accounting changes)
           logger.debug(
@@ -1781,7 +1875,7 @@ export async function updateOrCreateLedger({
           // Convert types to match schema expectations (DB may return strings for numbers, null for metadata)
           const newTxnData: NewLedgerTransactionData = {
             // Preserve immutable transaction-level fields from existing
-            date: existingTxn.date,
+            transaction_date: existingTxn.transaction_date,
             transaction_source: existingTxn.transaction_source,
             categorization_source: existingTxn.categorization_source,
             contact_id: existingTxn.contact_id,
@@ -1855,18 +1949,25 @@ export async function updateOrCreateLedger({
             );
           }
 
-          results.push({
+          results[i] = {
             operation: 'superseded',
             ledgerTransactionId: supersedeResult.data!.newLedgerTransactionId,
             oldLedgerTransactionId:
               supersedeResult.data!.oldLedgerTransactionId,
             warnings: supersedeResult.data?.warnings,
-          });
+          };
         }
       }
     }
 
-    return results;
+    await commitPendingCreates();
+
+    return results.map((result, index) => {
+      if (!result) {
+        throw new AppError(`Missing ledger route result at index ${index}`);
+      }
+      return result;
+    });
   };
 
   // Execute in transaction (use provided or create new)

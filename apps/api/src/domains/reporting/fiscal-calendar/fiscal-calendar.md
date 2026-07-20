@@ -24,47 +24,48 @@ The fiscal calendar system manages accounting periods for companies, providing s
 
 ```sql
 CREATE TABLE fiscal_calendar (
-  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
   fiscal_year INTEGER NOT NULL,
   period_number INTEGER NOT NULL,
-  period_type VARCHAR(20) NOT NULL DEFAULT 'monthly',
+  period_type fiscal_period_type NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'open',
-  closed_at TIMESTAMP WITH TIME ZONE,
+  status VARCHAR(16) NOT NULL DEFAULT 'open',
+  closed_at TIMESTAMPTZ,
   closed_by_id UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  metadata JSONB,
+  locked_at TIMESTAMPTZ,
+  locked_by_id UUID REFERENCES users(id),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  PRIMARY KEY (company_id, fiscal_year, period_number, period_type)
+  UNIQUE (company_id, fiscal_year, period_number, period_type),
+  UNIQUE (id, company_id)
 );
 ```
+
+Child tables reference `(fiscal_calendar_id, company_id) → (id, company_id)` for tenant isolation (same pattern as COA).
 
 ### gl_period_balances Table
 
 ```sql
 CREATE TABLE gl_period_balances (
-  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  coa_id UUID NOT NULL REFERENCES coa(id) ON DELETE CASCADE,
-  fiscal_year INTEGER NOT NULL,
-  fiscal_period INTEGER NOT NULL,
-  period_type VARCHAR(10) NOT NULL DEFAULT 'monthly',
-  period_start_date DATE NOT NULL,
-  period_end_date DATE NOT NULL,
-  opening_balance DECIMAL(32,10) NOT NULL DEFAULT 0,
-  period_debits DECIMAL(32,10) NOT NULL DEFAULT 0,
-  period_credits DECIMAL(32,10) NOT NULL DEFAULT 0,
-  closing_balance DECIMAL(32,10) NOT NULL,
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
+  coa_id UUID NOT NULL,
+  fiscal_calendar_id UUID NOT NULL,
+  opening_balance DECIMAL(18, 3) NOT NULL DEFAULT 0,
+  period_debits DECIMAL(18, 3) NOT NULL DEFAULT 0,
+  period_credits DECIMAL(18, 3) NOT NULL DEFAULT 0,
+  closing_balance DECIMAL(18, 3) NOT NULL DEFAULT 0,
   transaction_count INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  PRIMARY KEY (company_id, coa_id, fiscal_year, fiscal_period, period_type),
+  PRIMARY KEY (company_id, coa_id, fiscal_calendar_id),
 
-  FOREIGN KEY (company_id, fiscal_year, fiscal_period, period_type)
-    REFERENCES fiscal_calendar(company_id, fiscal_year, period_number, period_type)
-    ON DELETE CASCADE,
+  FOREIGN KEY (coa_id, company_id) REFERENCES coa(id, company_id),
+  FOREIGN KEY (fiscal_calendar_id, company_id) REFERENCES fiscal_calendar(id, company_id),
 
   CONSTRAINT gl_period_balance_math_check
     CHECK (closing_balance = opening_balance + period_debits - period_credits)
@@ -207,6 +208,6 @@ When the balance recalculation worker processes transactions:
 
 ## Related Documentation
 
-- [Balances System README](./README.md) - Main balances system documentation
-- [Main Balances Documentation](../../../../docs/accounting/balances.md) - Technical specification
-- [Posting Logic](../../../../docs/accounting/posting-logic.md) - Transaction flow documentation
+- [Balances domain documentation](../../balances/balances.md) - Main balances system documentation
+- [Main Balances Documentation](../../../../../../docs/accounting/balances.md) - Technical specification
+- [Posting Logic](../../../../../../docs/accounting/posting-logic.md) - Transaction flow documentation

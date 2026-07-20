@@ -1,4 +1,10 @@
-Goals
+> **Status:** Design note (rough)
+> **Purpose:** GL and bank balance snapshots, write path, and fiscal period balances.
+> Verify against balance workers before treating as source of truth. See [docs index](../README.md).
+
+# Balances
+
+## Goals
 
 - Fast reads for balances (“as of now”).
 - Accurate historical balances (daily, monthly, quarterly, yearly).

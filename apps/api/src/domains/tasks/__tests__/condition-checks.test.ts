@@ -34,12 +34,30 @@ describe('condition-checks', () => {
   let isolatedCoaId: string;
 
   const march2025: PeriodRange = {
+    fiscal_calendar_id: '00000000-0000-0000-0000-000000000003',
     start_date: '2025-03-01',
     end_date: '2025-03-31',
     fiscal_year: 2025,
     period_number: 3,
     period_type: 'monthly',
   };
+
+  async function createIsolatedTransactionBatch(importRowCount: number) {
+    const [batch] = await trx('bank_transaction_batches')
+      .insert({
+        bank_account_id: isolatedBankAccountId,
+        company_id: isolatedCompanyId,
+        start_date: '2025-03-15',
+        end_date: '2025-03-16',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: importRowCount,
+        created_by_id: testUserId,
+      })
+      .returning<{ id: string }[]>('id');
+
+    return batch.id;
+  }
 
   beforeEach(async () => {
     const db = getTestDb();
@@ -57,7 +75,7 @@ describe('condition-checks', () => {
       .first();
     if (!cashCoa) {
       throw new Error(
-        'Demo company missing COA. Ensure demo data is seeded with: pnpm demo:apply:test',
+        'Demo company missing COA. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo apply',
       );
     }
     testCoaId = cashCoa.id;
@@ -80,14 +98,11 @@ describe('condition-checks', () => {
         .insert({
           company_id: testCompanyId,
           display_name: 'Test Bank Account',
-          account_name: 'Test Bank Account',
           account_type: 'checkings_current',
-          account_number: '1234567890',
           business_or_personal: 'business',
           bank_id: bank.id,
           currency_id: testCurrencyId,
           coa_id: testCoaId,
-          connection_status: 'not_connected',
           created_by_id: testUserId,
           updated_by_id: testUserId,
         })
@@ -146,14 +161,11 @@ describe('condition-checks', () => {
       .insert({
         company_id: company.id,
         display_name: 'Isolated test account',
-        account_name: 'Isolated',
         account_type: 'checkings_current',
-        account_number: `iso-${randomUUID().slice(0, 8)}`,
         business_or_personal: 'business',
         bank_id: bank.id,
         currency_id: testCurrencyId,
         coa_id: isolatedCoa.id,
-        connection_status: 'not_connected',
         created_by_id: testUserId,
         updated_by_id: testUserId,
       })
@@ -184,24 +196,29 @@ describe('condition-checks', () => {
     it('returns count > 0 and isActive true when bank transactions have no ledger entry', async () => {
       const extId1 = `cc-${Date.now()}-1`;
       const extId2 = `cc-${Date.now()}-2`;
+      const batchId = await createIsolatedTransactionBatch(2);
       await trx('bank_transactions').insert([
         {
           bank_account_id: isolatedBankAccountId,
-          date: '2025-03-15',
-          txn_at: new Date('2025-03-15T12:00:00Z'),
+          company_id: isolatedCompanyId,
+          bank_transaction_batch_id: batchId,
+          transaction_date: '2025-03-15',
+          transaction_at: new Date('2025-03-15T12:00:00Z'),
           amount: -100,
           system_exchange_rate: 1,
           created_by_id: testUserId,
-          external_id: extId1,
+          idempotency_key: extId1,
         },
         {
           bank_account_id: isolatedBankAccountId,
-          date: '2025-03-16',
-          txn_at: new Date('2025-03-16T12:00:00Z'),
+          company_id: isolatedCompanyId,
+          bank_transaction_batch_id: batchId,
+          transaction_date: '2025-03-16',
+          transaction_at: new Date('2025-03-16T12:00:00Z'),
           amount: -200,
           system_exchange_rate: 1,
           created_by_id: testUserId,
-          external_id: extId2,
+          idempotency_key: extId2,
         },
       ]);
 
@@ -217,21 +234,24 @@ describe('condition-checks', () => {
 
     it('excludes bank transactions that have a matching ledger_transaction', async () => {
       const extId = `cc-${Date.now()}-ledger`;
+      const batchId = await createIsolatedTransactionBatch(1);
       const [bt] = await trx('bank_transactions')
         .insert({
           bank_account_id: isolatedBankAccountId,
-          date: '2025-03-15',
-          txn_at: new Date('2025-03-15T12:00:00Z'),
+          company_id: isolatedCompanyId,
+          bank_transaction_batch_id: batchId,
+          transaction_date: '2025-03-15',
+          transaction_at: new Date('2025-03-15T12:00:00Z'),
           amount: -100,
           system_exchange_rate: 1,
           created_by_id: testUserId,
-          external_id: extId,
+          idempotency_key: extId,
         })
         .returning('*');
 
       await trx('ledger_transactions').insert({
         company_id: isolatedCompanyId,
-        date: new Date('2025-03-15'),
+        transaction_date: '2025-03-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'manual',
         source_transaction_id: bt.id,
@@ -239,7 +259,6 @@ describe('condition-checks', () => {
         source_transaction_amount: -100,
         source_transaction_currency_id: testCurrencyId,
         created_by_id: testUserId,
-        is_deleted: false,
       });
 
       const result = await checkUncategorizedTransactions(
@@ -264,7 +283,7 @@ describe('condition-checks', () => {
     it('returns count > 0 and isActive true when draft journal batches exist in period', async () => {
       const [batch] = await trx('journal_batches')
         .insert({
-          company_id: testCompanyId,
+          company_id: isolatedCompanyId,
           date: '2025-03-10',
           title: 'Test draft journal',
           currency_id: testCurrencyId,
@@ -275,16 +294,34 @@ describe('condition-checks', () => {
         })
         .returning('*');
 
-      await trx('journal_entries').insert({
-        journal_batch_id: batch.id,
-        coa_id: testCoaId,
-        side: 'debit',
-        amount: 100,
-      });
+      await trx('journal_entries').insert([
+        {
+          company_id: isolatedCompanyId,
+          journal_batch_id: batch.id,
+          line_number: 1,
+          coa_id: isolatedCoaId,
+          side: 'debit',
+          amount: 100,
+          entry_status: 'active',
+        },
+        {
+          company_id: isolatedCompanyId,
+          journal_batch_id: batch.id,
+          line_number: 2,
+          coa_id: isolatedCoaId,
+          side: 'credit',
+          amount: 100,
+          entry_status: 'active',
+        },
+      ]);
 
-      const result = await checkDraftJournals(testCompanyId, march2025, trx);
+      const result = await checkDraftJournals(
+        isolatedCompanyId,
+        march2025,
+        trx,
+      );
       expect(result.isActive).toBe(true);
-      expect(result.details).toMatchObject({ count: 1 });
+      expect(result.details).toMatchObject({ count: 2 });
       expect(result.message).toContain('unposted journal entries found');
     });
   });
@@ -331,6 +368,8 @@ describe('condition-checks', () => {
           start_date: '2025-04-01',
           end_date: '2025-04-30',
           status: 'closed',
+          closed_at: trx.fn.now(),
+          closed_by_id: testUserId,
         },
       ]);
 
@@ -362,6 +401,8 @@ describe('condition-checks', () => {
         start_date: '2026-01-01',
         end_date: '2026-01-31',
         status: 'closed',
+        closed_at: trx.fn.now(),
+        closed_by_id: testUserId,
       });
 
       const result = await checkLaterPeriodsClosed(
@@ -383,107 +424,81 @@ describe('condition-checks', () => {
       expect(result.details).toMatchObject({ count: 0, bankAccountIds: [] });
     });
 
-    it('returns count > 0 when an account has connection_status revoked', async () => {
-      let provider = await trx('bank_feed_providers')
-        .where({ key: 'plaid' })
-        .first();
-      if (!provider) {
-        [provider] = await trx('bank_feed_providers')
-          .insert({
-            key: 'plaid',
-            name: 'Plaid',
-            created_by_id: testUserId,
-          })
-          .returning('*');
-      }
-      const [credential] = await trx('bank_account_credentials')
-        .insert({
-          company_id: isolatedCompanyId,
-          provider_id: provider!.id,
-          encrypted_access_token: 'test-token',
-          connected_by: testUserId,
-        })
-        .returning('*');
-      const [revokedAccount] = await trx('bank_accounts')
-        .insert({
-          company_id: isolatedCompanyId,
-          display_name: 'Revoked test account',
-          account_name: 'Revoked',
-          account_type: 'checkings_current',
-          account_number: `rev-${randomUUID().slice(0, 8)}`,
-          business_or_personal: 'business',
-          bank_id: (await trx('banks').where({ key: 'us_chase_bank' }).first())!
-            .id,
-          currency_id: testCurrencyId,
-          coa_id: isolatedCoaId,
-          provider_id: provider!.id,
-          provider_bank_account_id: 'item-revoked-test',
-          connection_credential_id: credential!.id,
-          connection_status: 'revoked',
-          created_by_id: testUserId,
-          updated_by_id: testUserId,
-        })
-        .returning('*');
-
-      const result = await checkBankConnectionHealth(isolatedCompanyId, trx);
-      expect(result.isActive).toBe(true);
-      expect(result.details).toMatchObject({
-        count: 1,
-        bankAccountIds: [revokedAccount!.id],
+    it('preserves revoked accounts as an unhealthy connection condition', async () => {
+      const { connectionId } = await createConnectionFixture(trx, {
+        companyId: isolatedCompanyId,
+        userId: testUserId,
       });
-    });
-
-    it('returns count > 0 when an account has connection_status error', async () => {
-      let provider = await trx('bank_feed_providers')
-        .where({ key: 'plaid' })
-        .first();
-      if (!provider) {
-        [provider] = await trx('bank_feed_providers')
-          .insert({ key: 'plaid', name: 'Plaid', created_by_id: testUserId })
-          .returning('*');
-      }
-      const [credential] = await trx('bank_account_credentials')
-        .insert({
-          company_id: isolatedCompanyId,
-          provider_id: provider!.id,
-          encrypted_access_token: 'test-token-error',
-          connected_by: testUserId,
-        })
-        .returning('*');
-      const [errorAccount] = await trx('bank_accounts')
-        .insert({
-          company_id: isolatedCompanyId,
-          display_name: 'Error test account',
-          account_name: 'Error',
-          account_type: 'checkings_current',
-          account_number: `err-${randomUUID().slice(0, 8)}`,
-          business_or_personal: 'business',
-          bank_id: (await trx('banks').where({ key: 'us_chase_bank' }).first())!
-            .id,
-          currency_id: testCurrencyId,
-          coa_id: isolatedCoaId,
-          provider_id: provider!.id,
-          provider_bank_account_id: 'item-error-test',
-          connection_credential_id: credential!.id,
-          connection_status: 'error',
-          created_by_id: testUserId,
-          updated_by_id: testUserId,
-        })
-        .returning('*');
+      const revokedAccount = await createBankAccountFixture(trx, {
+        companyId: isolatedCompanyId,
+        coaId: isolatedCoaId,
+        currencyId: testCurrencyId,
+        userId: testUserId,
+      });
+      await createFeedFixture(trx, {
+        companyId: isolatedCompanyId,
+        bankAccountId: revokedAccount,
+        connectionId,
+        userId: testUserId,
+        revoked: true,
+      });
 
       const result = await checkBankConnectionHealth(isolatedCompanyId, trx);
       expect(result.isActive).toBe(true);
-      expect(result.details.bankAccountIds).toContain(errorAccount!.id);
+      expect(result.details.bankAccountIds).toContain(revokedAccount);
     });
 
-    it('does not count not_connected as unhealthy', async () => {
-      await trx('bank_accounts')
-        .where({ id: testBankAccountId })
-        .update({ connection_status: 'not_connected' });
+    it('returns count > 0 when an account has an active feed on a connection requiring action', async () => {
+      const { connectionId } = await createConnectionFixture(trx, {
+        companyId: isolatedCompanyId,
+        userId: testUserId,
+        authorizationStatus: 'requires_action',
+      });
+      const errorAccount = await createBankAccountFixture(trx, {
+        companyId: isolatedCompanyId,
+        coaId: isolatedCoaId,
+        currencyId: testCurrencyId,
+        userId: testUserId,
+      });
+      await createFeedFixture(trx, {
+        companyId: isolatedCompanyId,
+        bankAccountId: errorAccount,
+        connectionId,
+        userId: testUserId,
+      });
 
+      const result = await checkBankConnectionHealth(isolatedCompanyId, trx);
+      expect(result.isActive).toBe(true);
+      expect(result.details.bankAccountIds).toContain(errorAccount);
+    });
+
+    it('does not count an account with no feed history as unhealthy', async () => {
       const result = await checkBankConnectionHealth(testCompanyId, trx);
       expect(result.isActive).toBe(false);
       expect(result.details).toMatchObject({ count: 0 });
+    });
+
+    it('does not count an account with a healthy active feed as unhealthy', async () => {
+      const { connectionId } = await createConnectionFixture(trx, {
+        companyId: isolatedCompanyId,
+        userId: testUserId,
+      });
+      const healthyAccount = await createBankAccountFixture(trx, {
+        companyId: isolatedCompanyId,
+        coaId: isolatedCoaId,
+        currencyId: testCurrencyId,
+        userId: testUserId,
+      });
+      await createFeedFixture(trx, {
+        companyId: isolatedCompanyId,
+        bankAccountId: healthyAccount,
+        connectionId,
+        userId: testUserId,
+      });
+
+      const result = await checkBankConnectionHealth(isolatedCompanyId, trx);
+      expect(result.isActive).toBe(false);
+      expect(result.details.bankAccountIds).not.toContain(healthyAccount);
     });
   });
 
@@ -516,3 +531,93 @@ describe('condition-checks', () => {
     });
   });
 });
+
+async function createConnectionFixture(
+  trx: Knex.Transaction,
+  input: {
+    companyId: string;
+    userId: string;
+    authorizationStatus?: 'active' | 'requires_action' | 'revoked';
+  },
+): Promise<{ connectionId: string; providerId: string }> {
+  let provider = await trx('bank_feed_providers')
+    .where({ key: 'plaid' })
+    .first();
+  if (!provider) {
+    [provider] = await trx('bank_feed_providers')
+      .insert({
+        key: 'plaid',
+        display_name: 'Plaid',
+        created_by_id: input.userId,
+      })
+      .returning('*');
+  }
+
+  const [connection] = await trx('bank_connections')
+    .insert({
+      company_id: input.companyId,
+      provider_id: provider!.id,
+      authorization_status: input.authorizationStatus ?? 'active',
+      requires_action_at:
+        input.authorizationStatus === 'requires_action' ? trx.fn.now() : null,
+      connected_by_id: input.userId,
+    })
+    .returning<{ id: string }[]>('id');
+
+  return { connectionId: connection.id, providerId: provider!.id };
+}
+
+async function createBankAccountFixture(
+  trx: Knex.Transaction,
+  input: {
+    companyId: string;
+    coaId: string;
+    currencyId: string;
+    userId: string;
+  },
+): Promise<string> {
+  const bank = await trx('banks').where({ key: 'us_chase_bank' }).first();
+  if (!bank) throw new Error('Expected us_chase_bank fixture');
+
+  const [account] = await trx('bank_accounts')
+    .insert({
+      company_id: input.companyId,
+      display_name: `Condition check account ${randomUUID()}`,
+      account_type: 'checkings_current',
+      business_or_personal: 'business',
+      bank_id: bank.id,
+      currency_id: input.currencyId,
+      coa_id: input.coaId,
+      created_by_id: input.userId,
+      updated_by_id: input.userId,
+    })
+    .returning<{ id: string }[]>('id');
+
+  return account.id;
+}
+
+async function createFeedFixture(
+  trx: Knex.Transaction,
+  input: {
+    companyId: string;
+    bankAccountId: string;
+    connectionId: string;
+    userId: string;
+    revoked?: boolean;
+  },
+): Promise<string> {
+  const [feed] = await trx('bank_account_feeds')
+    .insert({
+      company_id: input.companyId,
+      bank_account_id: input.bankAccountId,
+      bank_connection_id: input.connectionId,
+      provider_account_id: `provider-account-${randomUUID()}`,
+      connected_by_id: input.userId,
+      revoked_at: input.revoked ? trx.fn.now() : null,
+      revocation_origin: input.revoked ? 'client' : null,
+      revoked_by_id: input.revoked ? input.userId : null,
+    })
+    .returning<{ id: string }[]>('id');
+
+  return feed.id;
+}

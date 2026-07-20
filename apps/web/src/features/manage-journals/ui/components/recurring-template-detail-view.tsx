@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
+  useDeleteRecurringTemplate,
   usePreviewRecurringTemplate,
   useRecurringTemplate,
   useRunRecurringTemplateNow,
@@ -81,11 +82,12 @@ export function RecurringTemplateDetailView({
 
   const updateRecurringTemplateStatusMutation =
     useUpdateRecurringTemplateStatus();
+  const deleteRecurringTemplateMutation = useDeleteRecurringTemplate();
   const runRecurringTemplateNowMutation = useRunRecurringTemplateNow();
   const previewRecurringTemplateMutation = usePreviewRecurringTemplate();
 
   const [confirmDialog, setConfirmDialog] = useState<
-    null | 'run_now' | 'close'
+    null | 'run_now' | 'close' | 'delete'
   >(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [preview, setPreview] =
@@ -201,6 +203,31 @@ export function RecurringTemplateDetailView({
     recurringTemplateQuery,
   ]);
 
+  const handleTemplateDelete = useCallback(async () => {
+    if (!templateId || mockDetail) return;
+    try {
+      const res = await deleteRecurringTemplateMutation.mutateAsync({
+        companyId,
+        templateId,
+      });
+      if (res.success) {
+        toast.success('Template deleted.');
+        onBack?.();
+        return;
+      }
+      toast.error(res.message ?? 'Unable to delete template');
+    } catch (error) {
+      logError('Delete template failed', error);
+      toast.error(getErrorMessage(error, 'Unable to delete template'));
+    }
+  }, [
+    companyId,
+    templateId,
+    mockDetail,
+    deleteRecurringTemplateMutation,
+    onBack,
+  ]);
+
   const handleTemplatePreview = useCallback(async () => {
     if (mockDetail || !template) return;
     try {
@@ -264,6 +291,10 @@ export function RecurringTemplateDetailView({
       if (updateRecurringTemplateStatusMutation.isPending) return;
       void handleTemplateStatusChange('active');
     },
+    delete: () => {
+      if (deleteRecurringTemplateMutation.isPending) return;
+      setConfirmDialog('delete');
+    },
     pause: () => {
       if (updateRecurringTemplateStatusMutation.isPending) return;
       void handleTemplateStatusChange('paused');
@@ -293,6 +324,7 @@ export function RecurringTemplateDetailView({
       className: action.className,
       disabled:
         updateRecurringTemplateStatusMutation.isPending ||
+        deleteRecurringTemplateMutation.isPending ||
         (action.action === 'run_now'
           ? template.status !== 'active' ||
             runRecurringTemplateNowMutation.isPending
@@ -320,7 +352,7 @@ export function RecurringTemplateDetailView({
   return (
     <div className="flex h-full flex-1 flex-col overflow-auto">
       <JournalDetailHeader
-        reference={null}
+        systemReference={null}
         status={template.status}
         leftAddon={
           <span className="bg-accent text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize">
@@ -367,8 +399,8 @@ export function RecurringTemplateDetailView({
           <AlertDialogHeader>
             <AlertDialogTitle>Close this template?</AlertDialogTitle>
             <AlertDialogDescription>
-              Closing stops future generation and archives this template. You
-              can still copy it to create a new template later.
+              Closing stops future generation and marks this template as ended.
+              You can still copy it to create a new template later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -380,6 +412,32 @@ export function RecurringTemplateDetailView({
               }}
             >
               Close template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDialog === 'delete'}
+        onOpenChange={(open) => setConfirmDialog(open ? 'delete' : null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this draft template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes discarded setup from the recurring journal list.
+              Templates that have generated journals cannot be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDialog(null);
+                void handleTemplateDelete();
+              }}
+            >
+              Delete template
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

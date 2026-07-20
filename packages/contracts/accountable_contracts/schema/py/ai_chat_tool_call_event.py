@@ -1,8 +1,0 @@
-from pydantic import BaseModel, constr
-from typing import Any, Literal
-
-class AiChatToolCallEvent(BaseModel):
-    type: Literal["tool.call"]
-    toolCallId: constr(min_length=1)
-    tool: constr(min_length=1)
-    args: Any

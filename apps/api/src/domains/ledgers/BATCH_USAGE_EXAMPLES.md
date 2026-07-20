@@ -83,7 +83,7 @@ const ledgerTransactions = bankTransactions.map((bt) => ({
       source_currency_id: bt.currency_id,
       source_amount: -bt.amount, // Opposite sign
       description: bt.description,
-      contact_id: bt.contact_id,
+      contact_id: bt.resolved_contact_id,
       project_id: bt.project_id,
     },
   ],

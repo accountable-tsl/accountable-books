@@ -1,8 +1,0 @@
-from enum import Enum
-
-class BillingCreditGrantTypeSchema(str, Enum):
-    MONTHLY_INCLUDED = "monthly_included"
-    MONTHLY_WORKSPACE_BONUS = "monthly_workspace_bonus"
-    GIFTED = "gifted"
-    PURCHASED = "purchased"
-    NEGOTIATED = "negotiated"

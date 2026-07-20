@@ -1,6 +1,0 @@
-from enum import Enum
-
-class BillingBusinessPlanKeySchema(str, Enum):
-    BUSINESS_BASIC = "business_basic"
-    BUSINESS_STANDARD = "business_standard"
-    BUSINESS_PREMIUM = "business_premium"

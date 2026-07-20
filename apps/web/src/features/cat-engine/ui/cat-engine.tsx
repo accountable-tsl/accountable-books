@@ -4,7 +4,15 @@ import type {
   GroupedTransaction,
 } from '@/modules/accounting/categorization';
 import type { CoaResponse } from '@/modules/accounting/chart-of-accounts/model/types';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useSession } from '@/app/session';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import { DataTable } from '@/components/data-table/data-table';
@@ -38,6 +46,7 @@ import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { toYMD } from '@/shared/utils/date-utils';
+import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 
 import { catEngineAiRegistration } from '../ai/registration';
@@ -262,6 +271,8 @@ export function CatEngine() {
   useRegisterAiDomain(useMemo(() => catEngineAiRegistration(), []));
 
   const { companyId, company, loading: isLoadingSession } = useSession();
+  const [searchParams] = useSearchParams();
+  const workItemId = searchParams.get('workItemId') || undefined;
   const [view, setView] = useState<'table' | 'group'>('table');
   const ROW_HEIGHT_KEY = `cat-engine-row-height-${companyId || 'default'}`;
   const [rowHeight, setRowHeight] = useState<'min' | 'mid' | 'max'>(() => {
@@ -435,9 +446,10 @@ export function CatEngine() {
     companyId: companyId ?? '',
     dateFrom: debouncedDateRange.from,
     dateTo: debouncedDateRange.to || new Date(),
-    status: statusFilterForServer,
-    bankAccountIds: bankAccountIdsForServer,
-    searchQuery: searchQueryForServer,
+    status: workItemId ? undefined : statusFilterForServer,
+    bankAccountIds: workItemId ? undefined : bankAccountIdsForServer,
+    workItemId,
+    searchQuery: workItemId ? undefined : searchQueryForServer,
     limit: 100,
   });
 
@@ -700,7 +712,11 @@ export function CatEngine() {
   const rowClickHandler = useCallback((row: any) => {
     const id = row.original.id;
 
-    setSelectedTransactionId((prevId) => (prevId === id ? null : id));
+    // Deferred so the heavy details-panel re-render never blocks the urgent
+    // paint of the row highlight + scroll during rapid keyboard navigation.
+    startTransition(() => {
+      setSelectedTransactionId((prevId) => (prevId === id ? null : id));
+    });
   }, []);
 
   // Handler to update exchange rate and recalculate spent/received
@@ -806,6 +822,11 @@ export function CatEngine() {
       rowClick: {
         mode: 'custom',
         onClick: rowClickHandler,
+      },
+      keyboardNavigation: {
+        enabled: true,
+        // Review mode: the details panel follows the highlight as it moves.
+        activateOnNavigate: mode === 'review',
       },
       infiniteScroll: {
         enabled: true,

@@ -1,58 +1,90 @@
 import type { Knex } from 'knex';
 
 import {
-  addStandardColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db.js';
 
+/**
+ * Accounting firm metadata extends company workspaces that operate as firms.
+ * The company row remains the workspace identity; this table stores firm-only
+ * public routing metadata such as slug and firm classification.
+ */
+
+const schemaName = 'app';
 const tableName = 'accounting_firms_meta';
+const FIRM_TYPES = [
+  'freelancer',
+  'ca_cpa',
+  'tax_preparer',
+  'international',
+] as const;
+
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema.createTable(tableName, (table) => {
+  await knex.schema.withSchema(schemaName).createTable(tableName, (table) => {
     table
       .uuid('company_id')
       .primary()
       .references('id')
-      .inTable('companies')
-      .onDelete('CASCADE'); // Company that is the accounting firm's HQ
+      .inTable(`${schemaName}.companies`)
+      .onDelete('CASCADE');
 
-    table.string('slug', 20).unique().nullable();
-    table.string('firm_type', 50).nullable(); //freelancer, ca / cpa, tax preparer, international
+    table.string('slug', 20).unique().notNullable();
+    table
+      .string('firm_type', 50)
+      .nullable()
+      .checkIn([...FIRM_TYPES]);
 
-    addStandardColumns(knex, table);
+    table
+      .uuid('created_by_id')
+      .notNullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('RESTRICT');
+    table
+      .uuid('updated_by_id')
+      .nullable()
+      .references('id')
+      .inTable(`${schemaName}.users`)
+      .onDelete('SET NULL');
+    table
+      .timestamp('created_at', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
+    table
+      .timestamp('updated_at', { useTz: true })
+      .notNullable()
+      .defaultTo(knex.fn.now());
   });
 
-  const hasColumn = await knex.schema.hasColumn(
-    'companies',
-    'assigned_firm_id',
-  );
-  if (!hasColumn) {
-    await knex.schema.alterTable('companies', (table) => {
-      table
-        .uuid('assigned_firm_id')
-        .references('company_id')
-        .inTable('accounting_firms_meta')
-        .onDelete('SET NULL');
-    });
-  }
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."${tableName}"
+    ADD CONSTRAINT accounting_firms_meta_slug_format_chk
+    CHECK (
+      slug = lower(btrim(slug))
+      AND char_length(slug) BETWEEN 3 AND 20
+      AND slug ~ '^[a-z]+(-[a-z]+)*$'
+    )
+  `);
 
-  await createUpdateTimestampTrigger(knex, tableName);
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."companies"
+    ADD CONSTRAINT companies_assigned_firm_id_fkey
+    FOREIGN KEY (assigned_firm_id)
+    REFERENCES "${schemaName}"."${tableName}" (company_id)
+    ON DELETE SET NULL
+  `);
+
+  await createUpdateTimestampTrigger(knex, tableName, schemaName);
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await dropUpdateTimestampTrigger(knex, tableName);
+  await dropUpdateTimestampTrigger(knex, tableName, schemaName);
 
-  // Remove the foreign key constraint from companies table first
-  const hasColumn = await knex.schema.hasColumn(
-    'companies',
-    'assigned_firm_id',
-  );
-  if (hasColumn) {
-    await knex.schema.alterTable('companies', (table) => {
-      table.dropForeign(['assigned_firm_id']);
-      table.dropColumn('assigned_firm_id');
-    });
-  }
+  await knex.raw(`
+    ALTER TABLE "${schemaName}"."companies"
+    DROP CONSTRAINT IF EXISTS companies_assigned_firm_id_fkey
+  `);
 
-  await knex.schema.dropTableIfExists(tableName);
+  await knex.schema.withSchema(schemaName).dropTableIfExists(tableName);
 }

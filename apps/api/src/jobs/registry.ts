@@ -16,10 +16,26 @@ import { journalAutoReversalQueue } from '../domains/journals/auto-reversal.queu
 import { startJournalAutoReversalWorker } from '../domains/journals/auto-reversal.worker.js';
 import { recurringTemplatesQueue } from '../domains/journals/recurring-templates.queue.js';
 import { startRecurringTemplatesWorker } from '../domains/journals/recurring-templates.worker.js';
+import { OUTBOX_LANE } from '../domains/outbox/outbox.lanes.js';
+import {
+  outboxDispatchQueue,
+  outboxHeavyDispatchQueue,
+} from '../domains/outbox/outbox.queue.js';
+import {
+  closeOutboxSchedulers,
+  startOutboxDispatchWorker,
+} from '../domains/outbox/outbox.worker.js';
+import { closeSignalEvalQueue } from '../domains/reporting/close-readiness/signals/close-signal-eval.queue.js';
+import { startCloseSignalEvalWorker } from '../domains/reporting/close-readiness/signals/close-signal-eval.worker.js';
 import { fiscalCalendarQueue } from '../domains/reporting/fiscal-calendar/fiscal-calendar.queue.js';
 import { startFiscalCalendarWorker } from '../domains/reporting/fiscal-calendar/index.js';
 import { taskEvaluationQueue } from '../domains/tasks/task-evaluation.queue.js';
 import { startTaskEvaluationWorker } from '../domains/tasks/task-evaluation.worker.js';
+import {
+  closeCommsSchedulers,
+  commsDispatchQueue,
+  startCommsDispatchWorker,
+} from '../features/comms/index.js';
 import { emailQueue } from '../features/communications/email/email.queue.js';
 import { startEmailWorker } from '../features/communications/email/index.js';
 import {
@@ -27,8 +43,6 @@ import {
   startTransactionSyncWorker,
 } from '../integrations/banking/index.js';
 import { transactionSyncQueue } from '../integrations/banking/jobs/transaction-sync.queue.js';
-import { partitionMaintenanceQueue } from './queues/partition-maintenance.queue.js';
-import { startPartitionMaintenanceWorker } from './workers/partition-maintenance.worker.js';
 
 export interface JobDefinition {
   name: string;
@@ -59,6 +73,18 @@ export const JOB_REGISTRY: JobDefinition[] = [
     },
   },
   {
+    name: 'commsDispatch',
+    queue: commsDispatchQueue,
+    factory: (concurrency) => startCommsDispatchWorker(concurrency),
+    teardown: closeCommsSchedulers,
+    label: 'Comms dispatch worker',
+    critical: true,
+    config: {
+      envVar: 'COMMS_DISPATCH_CONCURRENCY',
+      defaultValue: 5,
+    },
+  },
+  {
     name: 'transactionSync',
     queue: transactionSyncQueue,
     factory: (concurrency) => startTransactionSyncWorker(concurrency),
@@ -69,17 +95,6 @@ export const JOB_REGISTRY: JobDefinition[] = [
     config: {
       envVar: 'TRANSACTION_SYNC_CONCURRENCY',
       defaultValue: 3,
-    },
-  },
-  {
-    name: 'partitionMaintenance',
-    queue: partitionMaintenanceQueue,
-    factory: () => startPartitionMaintenanceWorker(),
-    label: 'Partition maintenance worker',
-    icon: '🗂️',
-    config: {
-      envVar: 'PARTITION_MAINTENANCE_CONCURRENCY',
-      defaultValue: 1,
     },
   },
   {
@@ -181,6 +196,44 @@ export const JOB_REGISTRY: JobDefinition[] = [
     config: {
       envVar: 'TASK_EVALUATION_CONCURRENCY',
       defaultValue: 3,
+    },
+  },
+  {
+    name: 'closeSignalEval',
+    queue: closeSignalEvalQueue,
+    factory: (concurrency) => startCloseSignalEvalWorker(concurrency),
+    label: 'Close signal evaluation worker',
+    icon: '🔎',
+    config: {
+      envVar: 'CLOSE_SIGNAL_EVAL_CONCURRENCY',
+      defaultValue: 3,
+    },
+  },
+  {
+    name: 'outboxDispatchFast',
+    queue: outboxDispatchQueue,
+    factory: (concurrency) =>
+      startOutboxDispatchWorker(OUTBOX_LANE.FAST, concurrency),
+    teardown: closeOutboxSchedulers,
+    label: 'Outbox dispatch worker (fast lane)',
+    icon: '📬',
+    critical: true,
+    config: {
+      envVar: 'OUTBOX_DISPATCH_CONCURRENCY',
+      defaultValue: 5,
+    },
+  },
+  {
+    name: 'outboxDispatchHeavy',
+    queue: outboxHeavyDispatchQueue,
+    factory: (concurrency) =>
+      startOutboxDispatchWorker(OUTBOX_LANE.HEAVY, concurrency),
+    label: 'Outbox dispatch worker (heavy lane)',
+    icon: '🏋️',
+    critical: true,
+    config: {
+      envVar: 'OUTBOX_HEAVY_DISPATCH_CONCURRENCY',
+      defaultValue: 2,
     },
   },
 ];

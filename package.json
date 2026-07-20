@@ -13,12 +13,12 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "fix": "pnpm lint:fix && pnpm format",
     "generate-env": "pnpm -r -F \"@accountable-books/api\" -F \"@accountable-books/web\" run generate-env",
     "gen:pydantic": "pnpm -F @accountable-books/contracts run gen:pydantic && pnpm build",
     "gen:data": "pnpm -F @accountable-books/contracts run gen:data && pnpm build",
     "gen:contracts": "pnpm -F @accountable-books/contracts run gen:pydantic && pnpm -F @accountable-books/contracts run gen:data && pnpm build",
     "contracts": "pnpm gen:contracts",
-    "demo:apply:basic": "pnpm -F @accountable-books/api run demo:apply:basic",
     "clean": "turbo run clean",
     "prepare": "is-ci || husky",
     "worker": "pnpm -F @accountable-books/api run worker",
@@ -29,25 +29,19 @@
   "license": "ISC",
   "packageManager": "pnpm@11.3.0",
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.0",
     "@types/node": "^25.6.0",
-    "@types/supertest": "^6.0.3",
-    "@typescript-eslint/eslint-plugin": "^8.58.2",
-    "@typescript-eslint/parser": "^8.58.2",
-    "chokidar": "^5.0.0",
-    "chokidar-cli": "^3.0.0",
     "dotenv-cli": "^11.0.0",
     "eslint": "9.33.0",
+    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.5.0",
     "husky": "^9.1.7",
     "is-ci": "^4.1.0",
     "lint-staged": "^16.4.0",
-    "pino-pretty": "^13.1.3",
     "prettier": "3.6.2",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "supertest": "^7.2.2",
-    "turbo": "^2.9.6",
+    "turbo": "^2.10.2",
     "typescript": "5.9.2",
     "typescript-eslint": "^8.58.2",
     "vitest": "^4.1.4"
@@ -70,10 +64,5 @@
     "apps/{api,web}/config/env-schema.ts": [
       "pnpm run generate-env"
     ]
-  },
-  "dependencies": {
-    "eslint-plugin-react": "^7.37.5",
-    "globals": "^17.5.0",
-    "lru-cache": "^11.3.5"
   }
 }

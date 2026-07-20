@@ -67,6 +67,14 @@ export interface DetermineMonetaryResult {
   }>;
 }
 
+export const fxMovementSourceType = z.enum([
+  'ledger_entry',
+  'ledger_reversal',
+  'ledger_supersession',
+  'period_revaluation',
+  'manual_adjustment',
+]);
+
 /**
  * Zod schema for upserting FX position parameters
  */
@@ -78,6 +86,35 @@ export const upsertFxPositionParamsSchema = z.object({
   source_amount: z.number(),
   amount: z.number(),
   exchange_rate: z.number().positive('exchange_rate must be positive'),
+  source_type: fxMovementSourceType,
+  source_id: z
+    .string()
+    .trim()
+    .min(1, 'source_id cannot be empty')
+    .max(128, 'source_id cannot exceed 128 characters')
+    .nullish(),
+  ledger_transaction_id: z
+    .uuid('ledger_transaction_id must be a valid UUID')
+    .nullish(),
+  ledger_entry_id: z.uuid('ledger_entry_id must be a valid UUID').nullish(),
+  movement_date: z.iso.date(),
+  created_by_id: z.uuid('created_by_id must be a valid UUID'),
+  movement_type: z
+    .enum([
+      'opened',
+      'increased',
+      'partially_settled',
+      'fully_settled',
+      'revalued',
+      'reversed',
+      'superseded_reversed',
+      'adjusted',
+    ])
+    .optional(),
+  reversal_of_movement_id: z
+    .uuid('reversal_of_movement_id must be a valid UUID')
+    .nullish(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -136,6 +173,9 @@ export const processFxPositionsParamsSchema = z.object({
   reportingCurrencyId: z
     .string()
     .uuid('reportingCurrencyId must be a valid UUID'),
+  movementDate: z.iso.date(),
+  createdById: z.uuid('createdById must be a valid UUID'),
+  sourceType: fxMovementSourceType.default('manual_adjustment'),
 });
 
 /**
@@ -154,4 +194,20 @@ export interface ProcessFxPositionsResult {
   positionsCreated: number;
   positionsUpdated: number;
   positionsClosed: number;
+}
+
+export const reverseFxPositionMovementsParamsSchema = z.object({
+  companyId: z.uuid('companyId must be a valid UUID'),
+  ledgerTransactionId: z.uuid('ledgerTransactionId must be a valid UUID'),
+  reversingLedgerTransactionId: z
+    .uuid('reversingLedgerTransactionId must be a valid UUID')
+    .nullish(),
+  movementDate: z.iso.date(),
+  createdById: z.uuid('createdById must be a valid UUID'),
+  movementType: z.enum(['reversed', 'superseded_reversed']),
+});
+
+export interface ReverseFxPositionMovementsParams
+  extends z.infer<typeof reverseFxPositionMovementsParamsSchema> {
+  trx: Knex.Transaction;
 }

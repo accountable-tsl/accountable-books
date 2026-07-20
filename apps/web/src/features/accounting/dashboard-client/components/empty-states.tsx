@@ -1,7 +1,12 @@
 import { Button } from '@/components/ui/button';
+import { useSession } from '@session';
 import { Ellipsis, Landmark } from 'lucide-react';
+import { useNavigate } from 'react-router';
 
 export function EmptyStateUnlinkedBank() {
+  const navigate = useNavigate();
+  const { tenantRoutes } = useSession();
+
   return (
     <div className="border-border/50 bg-background relative flex min-h-165 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border p-12 text-center shadow-sm">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:32px_32px]"></div>
@@ -19,7 +24,14 @@ export function EmptyStateUnlinkedBank() {
           Link your bank accounts to get started. We'll automatically categorize
           your transactions and calculate your real-time tax readiness.
         </p>
-        <Button className="mt-8 cursor-pointer font-normal" variant="default">
+        <Button
+          className="mt-8 cursor-pointer font-normal"
+          variant="default"
+          onClick={() => {
+            if (!tenantRoutes) return;
+            navigate(tenantRoutes.banking.connect());
+          }}
+        >
           Link a bank account
         </Button>
       </div>
@@ -28,6 +40,9 @@ export function EmptyStateUnlinkedBank() {
 }
 
 export function EmptyStateSyncing() {
+  const navigate = useNavigate();
+  const { tenantRoutes } = useSession();
+
   return (
     <div className="border-border/50 bg-background relative flex min-h-165 flex-1 flex-col items-center justify-center overflow-hidden rounded-xl border p-12 text-center shadow-sm">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_16px]"></div>
@@ -49,6 +64,10 @@ export function EmptyStateSyncing() {
           <Button
             variant="outline"
             className="flex-1 cursor-pointer font-normal"
+            onClick={() => {
+              if (!tenantRoutes) return;
+              navigate(tenantRoutes.banking.connect());
+            }}
           >
             Link another bank
           </Button>

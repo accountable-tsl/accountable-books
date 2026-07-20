@@ -5,6 +5,7 @@ import { roleKey } from './roles.types.js';
 import type { RoleInfo, RoleKey } from './roles.types.js';
 
 let rolesLoaded = false;
+const ROLES_TABLE = 'app.roles';
 
 export const roles: Record<RoleKey, RoleInfo> = Object.fromEntries(
   roleKey.options.map((key) => [key, { id: '', name: '', description: '' }]),
@@ -13,16 +14,19 @@ export const roles: Record<RoleKey, RoleInfo> = Object.fromEntries(
 export const loadRoles = async () => {
   if (rolesLoaded) return;
 
-  const result = await knexClient('roles')
-    .select('id', 'key', 'name', 'description')
-    .where('is_deleted', false);
+  const result = await knexClient(ROLES_TABLE).select(
+    'id',
+    'key',
+    'name',
+    'description',
+  );
 
   for (const role of result) {
     if (roleKey.options.includes(role.key)) {
       roles[role.key as RoleKey] = {
         id: String(role.id),
         name: role.name,
-        description: role.description,
+        description: role.description ?? undefined,
       };
     } else {
       console.warn(`Unknown role key in DB: ${role.key}`);

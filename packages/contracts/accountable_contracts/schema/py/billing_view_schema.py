@@ -1,6 +1,0 @@
-from enum import Enum
-
-class BillingViewSchema(str, Enum):
-    FIRM = "firm"
-    CLIENT_SELF_SERVE = "client_self_serve"
-    CLIENT_MANAGED = "client_managed"

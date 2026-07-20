@@ -1,5 +1,6 @@
 import type { Knex } from 'knex';
 
+import { SYSTEM_USER_ID } from '../../companies/workspace-bootstrap.config.js';
 import {
   BILLING_COMMERCIAL_MODES,
   BILLING_SOFTWARE_PAYERS,
@@ -20,6 +21,8 @@ export type WorkspaceBillingOwnershipRow = {
   software_payer: BillingSoftwarePayer;
   effective_at: Date;
   ended_at: Date | null;
+  created_by_id: string | null;
+  updated_by_id: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -42,6 +45,8 @@ const OWNERSHIP_COLUMNS = [
   'software_payer',
   'effective_at',
   'ended_at',
+  'created_by_id',
+  'updated_by_id',
   'created_at',
   'updated_at',
 ] as const;
@@ -116,6 +121,8 @@ export async function createWorkspaceBillingOwnership(
     commercial_mode: input.commercialMode,
     software_payer: softwarePayer,
     effective_at: input.effectiveAt ?? new Date(),
+    created_by_id: SYSTEM_USER_ID,
+    updated_by_id: SYSTEM_USER_ID,
   };
 
   try {
@@ -145,6 +152,7 @@ export async function endWorkspaceBillingOwnership(
     })
     .update({
       ended_at: endedAt,
+      updated_by_id: SYSTEM_USER_ID,
       updated_at: db.fn.now(),
     })
     .returning(OWNERSHIP_COLUMNS);

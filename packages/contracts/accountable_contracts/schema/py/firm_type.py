@@ -1,7 +1,0 @@
-from enum import Enum
-
-class FirmType(str, Enum):
-    FREELANCER = "freelancer"
-    CA_CPA = "ca_cpa"
-    TAX_PREPARER = "tax_preparer"
-    INTERNATIONAL = "international"

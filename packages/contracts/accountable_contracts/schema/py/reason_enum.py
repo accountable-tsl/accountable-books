@@ -1,6 +1,0 @@
-from enum import Enum
-
-class ReasonEnum(str, Enum):
-    HISTORY = "history"
-    EMBEDDING_MATCH = "embedding_match"
-    SEMANTIC_INTENT = "semantic_intent"

@@ -1,376 +1,160 @@
 # Fly.io Deployment Guide
 
-This guide covers deploying the Accountable Books API to Fly.io for staging and production environments.
+Deploy the Accountable Books API to Fly.io (staging today; production later).
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-1. **Install Fly CLI**:
+1. Install Fly CLI: `curl -L https://fly.io/install.sh | sh`
+2. Login: `fly auth login`
+3. Generate env files from the repo root:
 
    ```bash
-   curl -L https://fly.io/install.sh | sh
-   ```
-
-2. **Login to Fly.io**:
-
-   ```bash
-   fly auth login
-   ```
-
-3. **Ensure environment files exist**:
-   ```bash
-   cd apps/api && pnpm run generate-env && cd -
+   pnpm -F @accountable-books/utils run build
+   pnpm -F @accountable-books/api run generate-env
    ```
 
 ### Staging Deployment
 
 ```bash
-# Deploy to staging
 ./scripts/deploy-fly-staging.sh deploy
 
 # Or manually:
 fly deploy --config fly.staging.toml
 
-# Check status
 ./scripts/deploy-fly-staging.sh status
-
-# View logs
 ./scripts/deploy-fly-staging.sh logs
 ```
 
-## 📋 Configuration Files
+## Configuration
 
-### `fly.staging.toml` (Staging)
+### `fly.staging.toml`
 
-- **App Name**: `accountable-books-api-staging`
-- **Region**: `iad` (Washington DC)
-- **Port**: `8080` (Fly.io standard)
-- **Resources**: 1 CPU, 1GB RAM
-- **Health Check**: `/health/ready` (readiness) and `/health/live` (liveness)
+| Setting       | Value                                                    |
+| ------------- | -------------------------------------------------------- |
+| App           | `accountable-books-api-staging`                          |
+| Region        | `iad`                                                    |
+| Internal port | **5001** (matches `PORT` / `http_service.internal_port`) |
+| Health        | `/health/ready`, `/health/live`                          |
+| Processes     | `web`, `worker`, `scheduler`                             |
 
-### `fly.production.toml` (Production)
+### Staging URLs
 
-- **App Name**: `accountable-books-api`
-- **Region**: `iad` (Washington DC)
-- **Port**: `8080` (Fly.io standard)
-- **Resources**: 2 CPU, 2GB RAM
-- **Min Instances**: 2 (high availability)
+| Surface     | URL                                                 |
+| ----------- | --------------------------------------------------- |
+| Web         | https://staging.getaccountable.com                  |
+| API         | https://api-staging.getaccountable.com              |
+| Fly default | https://accountable-books-api-staging.fly.dev       |
+| Health      | https://api-staging.getaccountable.com/health/ready |
+| Bull Board  | https://api-staging.getaccountable.com/admin/queues |
 
-## 🔐 Environment Variables & Secrets
+Env overrides in `fly.staging.toml`:
 
-### Environment Variables (Non-sensitive)
-
-These are set from `apps/api/.env.staging`:
-
-- `NODE_ENV`
-- `PORT`
-- `BASE_DOMAIN`
-- `BACKEND_URL`
-- `FRONTEND_URL`
-- `COOKIE_DOMAIN`
-- `DB_HOST`
-- `DB_PORT`
-- `POSTGRES_DB`
-- `POSTGRES_USER`
-- `EMAIL_PROVIDER`
-- `EMAIL_FROM`
-- `SLACK_CHANNEL`
-- `SENTRY_RELEASE`
-- `PLATFORM_COMPANY_*`
-- `TEST_ADMIN_*`
-- `SEED_DB`
-- `BULLBOARD_USER`
-
-### Secrets (Sensitive)
-
-These are set from `apps/api/.env.secrets.staging`:
-
-- `POSTGRES_PASSWORD`
-- `DATABASE_URL`
-- `DATABASE_URL_NOPOOL`
-- `REDIS_URL`
-- `REDIS_PASSWORD`
-- `CSRF_SECRET`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `POSTMARK_API_KEY`
-- `SLACK_SIGNING_SECRET`
-- `SLACK_BOT_TOKEN`
-- `POSTHOG_API_KEY` (with `POSTHOG_ENABLED`, `TELEMETRY_ENABLED`)
-- `SENTRY_DSN`
-- `R2_TOKEN`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `R2_ENDPOINT`
-- `BULLBOARD_PASSWORD`
-- `MONO_SECRET_KEY`
-
-## 🏗️ Architecture
-
-### Staging Environment
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Fly.io API    │    │   Neon DB       │    │   Redis (TBD)   │
-│   (Staging)     │◄──►│   (Staging)     │    │   (Staging)     │
-│   Port: 8080    │    │   External      │    │   External      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+```toml
+BASE_DOMAIN = "getaccountable.com"
+BACKEND_URL = "https://api-staging.getaccountable.com"
+FRONTEND_URL = "https://staging.getaccountable.com"
+COOKIE_DOMAIN = ".getaccountable.com"
+PORT = "5001"
 ```
 
-### Production Environment
+## Custom Domain (API staging)
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Fly.io API    │    │   Neon DB       │    │   Redis (TBD)   │
-│   (Production)  │◄──►│   (Production)  │    │   (Production)  │
-│   Port: 8080    │    │   External      │    │   External      │
-│   Min: 2 inst   │    │   High Avail    │    │   High Avail    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## 🔧 Deployment Scripts
-
-### Available Commands
+### 1. Deploy
 
 ```bash
-# Full deployment
 ./scripts/deploy-fly-staging.sh deploy
-
-# Individual operations
-./scripts/deploy-fly-staging.sh create    # Create Fly app
-./scripts/deploy-fly-staging.sh secrets   # Set secrets only
-./scripts/deploy-fly-staging.sh env       # Set env vars only
-./scripts/deploy-fly-staging.sh status    # Check status
-./scripts/deploy-fly-staging.sh logs      # View logs
-./scripts/deploy-fly-staging.sh scale N   # Scale to N instances
-./scripts/deploy-fly-staging.sh destroy   # Destroy app
 ```
 
-### Manual Fly CLI Commands
+### 2. DNS
+
+Add a CNAME:
+
+```
+Type: CNAME
+Name: api-staging
+Value: accountable-books-api-staging.fly.dev
+```
+
+### 3. Certificate
 
 ```bash
-# Create app
-fly apps create accountable-books-api-staging --org accountable-books
-
-# Set secrets
-fly secrets set JWT_ACCESS_SECRET=your-secret --app accountable-books-api-staging
-
-# Deploy
-fly deploy --config fly.staging.toml
-
-# Check status
-fly status --app accountable-books-api-staging
-
-# View logs
-fly logs --app accountable-books-api-staging
-
-# Scale
-fly scale count 2 --app accountable-books-api-staging
+./scripts/deploy-fly-staging.sh domain
+# or: fly certs add api-staging.getaccountable.com --app accountable-books-api-staging
+fly certs show api-staging.getaccountable.com --app accountable-books-api-staging
+curl -I https://api-staging.getaccountable.com/health/ready
 ```
 
-## 🌐 URLs
+If the cert is pending: verify DNS (`dig api-staging.getaccountable.com`), wait for propagation, re-run the domain command.
 
-### Staging
+## Environment Variables & Secrets
 
-- **API**: https://accountable-books-api-staging.fly.dev
-- **Health Check**: https://accountable-books-api-staging.fly.dev/health/ready
-- **Bull Board**: https://accountable-books-api-staging.fly.dev/admin/queues
-
-### Production (Future)
-
-- **API**: https://accountable-books-api.fly.dev
-- **Health Check**: https://accountable-books-api.fly.dev/health/ready
-- **Bull Board**: https://accountable-books-api.fly.dev/admin/queues
-
-## 🔍 Monitoring & Debugging
-
-### Health Checks
-
-The API exposes two health endpoints:
-
-- `GET /health/live` — always returns `{ "status": "alive" }` if the process is running; used for Fly liveness probes
-- `GET /health/ready` — checks Postgres and Redis connectivity; returns `{ "status": "ready", "checks": { "postgres": "ok", "redis": "ok" } }` or 503 if a dependency is down; used by the Fly load balancer
-
-```json
-{ "status": "ready", "checks": { "postgres": "ok", "redis": "ok" } }
-```
-
-### Logs
+Non-sensitive values come from `apps/api/.env.staging` (and Fly `[env]` overrides). Secrets come from `apps/api/.env.secrets.staging` via:
 
 ```bash
-# View recent logs
-fly logs --app accountable-books-api-staging
-
-# Follow logs in real-time
-fly logs --app accountable-books-api-staging --follow
-
-# Filter logs
-fly logs --app accountable-books-api-staging | grep ERROR
+./scripts/deploy-fly-staging.sh secrets
+# or: fly secrets set KEY=value --app accountable-books-api-staging
 ```
 
-### Metrics
+Typical secrets: `DATABASE_URL`, `REDIS_URL`, JWT secrets, Postmark, Sentry, R2, Mono, Bull Board password.
 
-- **Port**: 9091
-- **Path**: `/metrics`
-- **Format**: Prometheus metrics
-
-## 🔄 Database Migrations
-
-### Automatic Migrations
-
-Migrations run automatically on startup via the `env-loader.ts` file.
-
-### Manual Migrations
+## Deployment Scripts
 
 ```bash
-# Connect to the deployed app
+./scripts/deploy-fly-staging.sh deploy
+./scripts/deploy-fly-staging.sh create
+./scripts/deploy-fly-staging.sh secrets
+./scripts/deploy-fly-staging.sh validate
+./scripts/deploy-fly-staging.sh status
+./scripts/deploy-fly-staging.sh logs
+./scripts/deploy-fly-staging.sh scale N
+./scripts/deploy-fly-staging.sh domain
+./scripts/deploy-fly-staging.sh destroy
+```
+
+## Health Checks
+
+- `GET /health/live` — process alive
+- `GET /health/ready` — Postgres + Redis ready (or 503)
+
+Inside the machine, probe the **internal** port:
+
+```bash
 fly ssh console --app accountable-books-api-staging
+curl -s http://localhost:5001/health/ready
+```
 
-# Run migrations manually
+Metrics: port `9091`, path `/metrics`.
+
+## Database Migrations
+
+Migrations run on startup. Manual:
+
+```bash
+fly ssh console --app accountable-books-api-staging
 cd /app/apps/api
 npx knex migrate:latest --env staging
 ```
 
-## 🛡️ Security
+## Troubleshooting
 
-### HTTPS
+| Issue           | Check                                                                              |
+| --------------- | ---------------------------------------------------------------------------------- |
+| Build failure   | `fly logs --app accountable-books-api-staging`; rebuild Dockerfile.staging locally |
+| Missing env     | `fly config show` / `fly secrets list`                                             |
+| DB connectivity | SSH + `curl localhost:5001/health/ready`                                           |
+| Memory          | `fly scale memory 2048 --app accountable-books-api-staging`                        |
 
-- **Automatic**: Fly.io provides automatic HTTPS
-- **Force HTTPS**: Enabled in `fly.toml`
-- **HSTS**: Automatic security headers
+## Production (future)
 
-### Secrets Management
+1. Add production values to `env-schema.ts` and run `pnpm run generate-env`
+2. Use `fly.production.toml` when ready
+3. Same custom-domain flow for production hostnames
 
-- **Fly Secrets**: Sensitive data stored securely
-- **No Build-time Secrets**: Secrets not baked into images
-- **Runtime Injection**: Secrets injected at runtime
+## Related
 
-### Network Security
-
-- **Internal Port**: 8080 (not exposed externally)
-- **External Access**: Via Fly.io proxy
-- **Health Checks**: Regular endpoint monitoring
-
-## 📊 Resource Management
-
-### Staging Resources
-
-- **CPU**: 1 shared CPU
-- **Memory**: 1GB RAM
-- **Auto-stop**: Enabled (cost optimization)
-- **Min Instances**: 1
-
-### Production Resources
-
-- **CPU**: 2 shared CPUs
-- **Memory**: 2GB RAM
-- **Auto-stop**: Disabled (high availability)
-- **Min Instances**: 2
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### 1. Build Failures
-
-```bash
-# Check build logs
-fly logs --app accountable-books-api-staging
-
-# Verify Dockerfile
-docker build -f apps/api/infra/docker/Dockerfile.staging .
-```
-
-#### 2. Environment Variables
-
-```bash
-# Check current env vars
-fly config show --app accountable-books-api-staging
-
-# Set missing variables
-fly secrets set VARIABLE_NAME=value --app accountable-books-api-staging
-```
-
-#### 3. Database Connection
-
-```bash
-# Check database connectivity
-fly ssh console --app accountable-books-api-staging
-curl -s http://localhost:8080/health/ready
-
-# Verify DATABASE_URL secret
-fly secrets list --app accountable-books-api-staging
-```
-
-#### 4. Memory Issues
-
-```bash
-# Check resource usage
-fly status --app accountable-books-api-staging
-
-# Scale up if needed
-fly scale memory 2048 --app accountable-books-api-staging
-```
-
-### Debug Commands
-
-```bash
-# SSH into the app
-fly ssh console --app accountable-books-api-staging
-
-# Check environment
-env | grep -E "(NODE_ENV|PORT|DATABASE)"
-
-# Check logs
-tail -f /var/log/app.log
-
-# Check disk space
-df -h
-
-# Check memory usage
-free -h
-```
-
-## 🚀 Production Deployment
-
-### Preparation
-
-1. **Update Environment Schema**: Add production values to `env-schema.ts`
-2. **Generate Production Files**: `cd apps/api && pnpm run generate-env`
-3. **Set Production Secrets**: Use `fly.production.toml`
-4. **Database Setup**: Ensure production Neon database is ready
-5. **Domain Configuration**: Set up custom domain if needed
-
-### Deployment Steps
-
-```bash
-# Use production config
-fly deploy --config fly.production.toml
-
-# Set production secrets
-fly secrets set PROD_SECRET=value --app accountable-books-api
-
-# Scale for production
-fly scale count 2 --app accountable-books-api
-fly scale memory 2048 --app accountable-books-api
-```
-
-## 📝 Best Practices
-
-1. **Environment Separation**: Keep staging and production configs separate
-2. **Secret Management**: Never commit secrets to version control
-3. **Health Checks**: Implement comprehensive health checks
-4. **Logging**: Use structured logging for better debugging
-5. **Monitoring**: Set up alerts for critical metrics
-6. **Backup Strategy**: Ensure database backups are configured
-7. **Rollback Plan**: Test rollback procedures regularly
-8. **Security Scanning**: Regular security assessments
-
-## 🔗 Related Documentation
-
-- [Fly.io Documentation](https://fly.io/docs/)
-- [Fly.io CLI Reference](https://fly.io/docs/flyctl/)
-- [Neon Database Documentation](https://neon.tech/docs)
-- [Accountable Books Architecture](./ARCHITECTURE.md)
-- [Staging Environment](./STAGING.md)
+- [Fly.io docs](https://fly.io/docs/)
+- [Custom domains](https://fly.io/docs/networking/custom-domains/)
+- [Environment variables](ENVIRONMENT.md)
+- [Docs index](README.md)

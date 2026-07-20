@@ -1,6 +1,0 @@
-from enum import Enum
-
-class ActionIntent(str, Enum):
-    UPDATE_FX_RATE = "UPDATE_FX_RATE"
-    POST_TO_LEDGER = "POST_TO_LEDGER"
-    SPLIT_TRANSACTION = "SPLIT_TRANSACTION"

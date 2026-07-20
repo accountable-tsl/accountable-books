@@ -1,3 +1,20 @@
+# ---- contracts builder ----
+FROM node:24-alpine AS contracts-builder
+WORKDIR /workspace
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/contracts/package.json packages/contracts/
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+  pnpm install --frozen-lockfile --filter @accountable-books/contracts...
+
+COPY packages/contracts packages/contracts
+
+RUN pnpm --filter @accountable-books/contracts build
+
 # ---- builder ----
 FROM python:3.13-slim AS builder
 ENV PIP_NO_CACHE_DIR=1 \
@@ -9,9 +26,9 @@ RUN python -m pip install --no-cache-dir uv
 
 WORKDIR /workspace/apps/ml-engine
 
-# Copy uv files and local path dependency source used by lockfile
+# Copy uv files and built contracts package (generated pydantic + data)
 COPY apps/ml-engine/pyproject.toml apps/ml-engine/uv.lock ./
-COPY packages/contracts /workspace/packages/contracts
+COPY --from=contracts-builder /workspace/packages/contracts /workspace/packages/contracts
 
 # Install runtime dependencies into project virtualenv
 RUN uv sync --frozen --no-dev

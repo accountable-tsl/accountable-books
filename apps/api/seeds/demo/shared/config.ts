@@ -1,5 +1,5 @@
-import { CURRENCY_MAP } from '../../../migrations/20250403184410_currencies.js';
-import { COUNTRY_MAP } from '../../../migrations/20250403184419_countries.js';
+import { getCountryFromCatalogByCode } from '../../../src/bootstrap/catalogs/countries/countries.js';
+import { getCurrencyFromCatalogByCode } from '../../../src/bootstrap/catalogs/currencies/currencies.js';
 
 export const COUNTRY_CODES = {
   US: 'US',
@@ -16,9 +16,26 @@ export interface DemoCountry {
   flag?: string | null;
   continent?: string | null;
 }
+
+function getDemoCountry(code: DemoCountryCode): DemoCountry {
+  const country = getCountryFromCatalogByCode(code);
+  if (!country) {
+    throw new Error(`Missing country catalog entry for ${code}`);
+  }
+
+  return {
+    id: country.id,
+    code,
+    name: country.name,
+    phone_code: country.phoneCode,
+    flag: country.flag,
+    continent: country.continent,
+  };
+}
+
 export const DEMO_COUNTRIES: Record<DemoCountryCode, DemoCountry> = {
-  NG: COUNTRY_MAP.get('NG') as DemoCountry,
-  US: COUNTRY_MAP.get('US') as DemoCountry,
+  NG: getDemoCountry('NG'),
+  US: getDemoCountry('US'),
 } as const;
 
 export const COMPANY_TYPES = {
@@ -41,10 +58,27 @@ export interface DemoCurrency {
   name: string;
   code: DemoCurrencyCode;
   symbol: string;
+  minorUnit: number;
 }
+
+function getDemoCurrency(code: DemoCurrencyCode): DemoCurrency {
+  const currency = getCurrencyFromCatalogByCode(code);
+  if (!currency) {
+    throw new Error(`Missing currency catalog entry for ${code}`);
+  }
+
+  return {
+    id: currency.id,
+    name: currency.name,
+    code,
+    symbol: currency.symbol,
+    minorUnit: currency.minorUnit,
+  };
+}
+
 export const DEMO_CURRENCIES = {
-  USD: CURRENCY_MAP.get('USD') as DemoCurrency,
-  NGN: CURRENCY_MAP.get('NGN') as DemoCurrency,
+  USD: getDemoCurrency('USD'),
+  NGN: getDemoCurrency('NGN'),
 } as const;
 
 export type DemoFilter = {

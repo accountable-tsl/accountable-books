@@ -63,7 +63,7 @@ export type PreparedJournalInput<TParsed extends ParsedJournalInput> = {
   batch: Omit<TParsed, 'entries' | 'files'>;
   entries: TParsed['entries'];
   files: TxnFileBase[];
-  journalReference: string | null;
+  userReference: string | null;
   journalCurrencyId: string;
   exchangeRate: number;
   isFx: boolean;
@@ -134,17 +134,17 @@ export async function validateAndPrepareJournalInput<
     );
   }
 
-  let journalReference: string | null =
-    typeof rawBatch.reference === 'string'
-      ? rawBatch.reference.trim()
-      : (rawBatch.reference ?? null);
-  if (journalReference === '') journalReference = null;
+  let userReference: string | null =
+    typeof rawBatch.user_reference === 'string'
+      ? rawBatch.user_reference.trim()
+      : (rawBatch.user_reference ?? null);
+  if (userReference === '') userReference = null;
 
-  if (journalReference) {
+  if (userReference) {
     const qb = p
       .trx('journal_batches')
       .where('company_id', p.context.companyUUID)
-      .where('reference', journalReference)
+      .where('user_reference', userReference)
       .where('is_deleted', false);
 
     if (p.journalBatchIdForRefUniqCheck) {
@@ -154,10 +154,10 @@ export async function validateAndPrepareJournalInput<
     const existingRef = await qb.first<{ id: string }>('id');
     if (existingRef) {
       throw new AppError(
-        'Journal reference already exists',
+        'User reference already exists',
         {
           traceId: p.traceId,
-          journalReference,
+          userReference,
           existingJournalBatchId: existingRef.id,
         },
         false,
@@ -173,7 +173,6 @@ export async function validateAndPrepareJournalInput<
   const currency = await p
     .trx('currencies')
     .where('id', journalCurrencyId)
-    .where('is_deleted', false)
     .first<{ id: string }>('id');
 
   if (!currency) {
@@ -229,9 +228,12 @@ export async function validateAndPrepareJournalInput<
       .first<{ id: string }>('id');
 
     if (!contact) {
-      throw new AppError(`Invalid or inactive contact ID: ${contactId}`, {
-        traceId: p.traceId,
-      });
+      throw new AppError(
+        `Invalid, archived, or deleted contact ID: ${contactId}`,
+        {
+          traceId: p.traceId,
+        },
+      );
     }
   }
 
@@ -290,8 +292,10 @@ export async function validateAndPrepareJournalInput<
       const foundIds = new Set(projects.map((proj) => proj.id));
       const missing = projectIds.filter((id) => !foundIds.has(id));
       throw new AppError(
-        `Invalid or inactive Project IDs: ${missing.join(', ')}`,
-        { traceId: p.traceId },
+        `Invalid or deleted Project IDs: ${missing.join(', ')}`,
+        {
+          traceId: p.traceId,
+        },
       );
     }
   }
@@ -300,7 +304,7 @@ export async function validateAndPrepareJournalInput<
     batch: rawBatch,
     entries,
     files,
-    journalReference,
+    userReference,
     journalCurrencyId,
     exchangeRate,
     isFx,

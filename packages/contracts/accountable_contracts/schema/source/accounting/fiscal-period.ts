@@ -17,6 +17,7 @@ export type FiscalPeriodType = z.infer<typeof fiscalPeriodType>;
 export type PeriodStatusResponse = {
   status: FiscalCalendarStatus;
   periodInfo?: {
+    id: string;
     periodType: FiscalPeriodType;
     fiscalYear: number;
     periodNumber: number;

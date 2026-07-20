@@ -8,6 +8,7 @@ import { PFA_KEYS, PFAS } from '../data/pfa';
 import { NIGERIAN_STATES } from '../data/states';
 import { makeNewEmployeeRecord } from '../domain';
 import { generateId } from '../utils';
+import { downloadBlob } from './download';
 import { logger } from './logger';
 
 import type { PfaKey } from '../data/pfa';
@@ -176,15 +177,7 @@ export function generateCsvTemplate(
 export function downloadCsvTemplate(format: CsvImportFormat): void {
   const content = generateCsvTemplate(format, true);
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `payroll-import-template-${format}.csv`;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `payroll-import-template-${format}.csv`);
 }
 
 /**

@@ -36,6 +36,54 @@ export async function acquireAdvisoryXactLocks(
   }
 }
 
+/**
+ * Single, non-blocking attempt to take a transaction-level advisory lock.
+ * Returns whether the lock was acquired. Unlike {@link acquireAdvisoryXactLocks}
+ * this never retries and never throws on contention, so callers can implement
+ * "try briefly, otherwise defer" semantics (see the materializer concurrency
+ * model: an inline materializer that cannot get the scope lock returns a
+ * refetch hint and lets the outbox worker finish reconciliation).
+ */
+export async function tryAcquireAdvisoryXactLock(
+  trx: Knex.Transaction,
+  key: string,
+): Promise<boolean> {
+  const result = await trx.raw(
+    'SELECT pg_try_advisory_xact_lock(hashtext(?)) AS locked',
+    [key],
+  );
+  return (
+    (result as { rows?: Array<{ locked?: boolean }> })?.rows?.[0]?.locked ??
+    (result as { rows?: Array<{ pg_try_advisory_xact_lock?: boolean }> })
+      ?.rows?.[0]?.pg_try_advisory_xact_lock ??
+    false
+  );
+}
+
+/**
+ * Try to acquire a transaction-level advisory lock with a small bounded number
+ * of attempts. Returns true once held (released automatically at transaction
+ * end) or false if it could not be acquired within the attempt budget. Used by
+ * the work materializer to serialize per-scope reconciliation without blocking
+ * the request path indefinitely.
+ */
+export async function tryAcquireAdvisoryXactLockWithBackoff(
+  trx: Knex.Transaction,
+  key: string,
+  options?: { maxAttempts?: number; baseDelayMs?: number },
+): Promise<boolean> {
+  const { maxAttempts = 5, baseDelayMs = 25 } = options ?? {};
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (await tryAcquireAdvisoryXactLock(trx, key)) {
+      return true;
+    }
+    if (attempt < maxAttempts) {
+      await sleep(baseDelayMs * attempt);
+    }
+  }
+  return false;
+}
+
 export function isDeadlockError(error: unknown): boolean {
   const err = error as { code?: string; message?: string };
   return (
@@ -83,6 +131,10 @@ export function lockKeyBankTxn(sourceTxId: string): string {
   return `bank_txn:${sourceTxId}`;
 }
 
+export function lockKeyJournalBatch(sourceTxId: string): string {
+  return `journal_batch:${sourceTxId}`;
+}
+
 export function lockKeyCategorizationIntent(bankTxnId: string): string {
   return `cat_intent:${bankTxnId}`;
 }
@@ -100,4 +152,14 @@ export function lockKeyFiscalCalendar(
 
 export function lockKeyGlBalance(companyId: string, coaId: string): string {
   return `gl_balance:${companyId}:${coaId}`;
+}
+
+/**
+ * Lock key serializing work materialization for one scope. The `scopeKey`
+ * argument is the canonical materializer scope string
+ * (e.g. `bank_account:{clientCompanyId}:{bankAccountId}`), so inline fast
+ * materialization and the outbox worker contend on the same lock.
+ */
+export function lockKeyMaterializerScope(scopeKey: string): string {
+  return `materializer:${scopeKey}`;
 }

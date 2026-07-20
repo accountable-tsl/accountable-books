@@ -18,6 +18,7 @@ import {
   copyJournal,
   createJournal,
   createRecurringTemplate,
+  deleteRecurringTemplate,
   fetchJournalsByCursor,
   getJournal,
   getPeriodStatus,
@@ -40,6 +41,7 @@ import type {
   CopyJournalInput,
   CreateJournalInput,
   CreateRecurringTemplateInput,
+  DeleteRecurringTemplateInput,
   GetJournalInput,
   GetRecurringTemplateInput,
   PostJournalInput,
@@ -215,6 +217,27 @@ export function useUpdateRecurringTemplateStatus() {
           variables.companyId,
           variables.templateId,
         ),
+      });
+    },
+  });
+}
+
+export function useDeleteRecurringTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: DeleteRecurringTemplateInput) =>
+      deleteRecurringTemplate(input),
+    onSuccess: (_, variables) => {
+      invalidateJournals(queryClient, variables.companyId);
+      queryClient.invalidateQueries({
+        queryKey: getRecurringTemplateKey(
+          variables.companyId,
+          variables.templateId,
+        ),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['journals', variables.companyId, 'recurring-templates'],
       });
     },
   });

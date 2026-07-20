@@ -6,12 +6,16 @@ import {
   createCoa,
   deleteCoa,
   editCoa,
+  executeCoaLifecycle,
   fetchChartOfAccounts,
+  preflightCoaLifecycle,
   unarchiveCoa,
 } from '../api';
 import { createCoaSchema } from './types';
 
 import type {
+  CoaLifecycleExecuteInput,
+  CoaLifecycleOperation,
   CoaResponse,
   CreateCoa,
   EditCoaRequest,
@@ -173,6 +177,39 @@ export const useDeleteCoa = () => {
       companyId: string;
       accountIds: string[];
     }) => deleteCoa(companyId, accountIds),
+    onSuccess: (_response, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['coa', variables.companyId],
+        exact: false,
+      });
+    },
+  });
+};
+
+export const usePreflightCoaLifecycle = () =>
+  useMutation({
+    mutationFn: ({
+      companyId,
+      operation,
+      accountIds,
+    }: {
+      companyId: string;
+      operation: CoaLifecycleOperation;
+      accountIds: string[];
+    }) => preflightCoaLifecycle(companyId, operation, accountIds),
+  });
+
+export const useExecuteCoaLifecycle = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: CoaLifecycleExecuteInput;
+    }) => executeCoaLifecycle(companyId, data),
     onSuccess: (_response, variables) => {
       queryClient.invalidateQueries({
         queryKey: ['coa', variables.companyId],

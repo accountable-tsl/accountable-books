@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DatePicker } from '@/components/date-pickers';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,6 +58,8 @@ import {
   needsFutureStartConfirm,
 } from './comp-history-utils';
 import { ComputationDetailsSheet } from './computation-details-sheet';
+import { getEmployeeComputationNotes } from './employee-computation-notes';
+import { EmployeeComputationNotesIndicator } from './employee-computation-notes-indicator';
 import { getTableRowData, ngnMoneyFormatter } from './payroll-table-utils';
 
 import type { PfaKey } from '../data/pfa';
@@ -4370,6 +4372,11 @@ export function PayrollTableCard({
     renderDetailsPanel,
   } = editor;
 
+  const computationNotes = useMemo(
+    () => getEmployeeComputationNotes({ runItem, computedItem }),
+    [runItem, computedItem],
+  );
+
   return (
     <>
       <div
@@ -4381,15 +4388,18 @@ export function PayrollTableCard({
         {/* Header: Name, Role, Actions */}
         <div className="relative flex items-start justify-between gap-2">
           <div className="flex flex-1 flex-col gap-1">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={commitEmployeeEdits}
-              disabled={isReadOnly}
-              spellCheck={false}
-              placeholder="Employee name"
-              className="h-7.5 rounded p-0 px-1 text-[16px] font-medium shadow-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={commitEmployeeEdits}
+                disabled={isReadOnly}
+                spellCheck={false}
+                placeholder="Employee name"
+                className="h-7.5 min-w-0 flex-1 rounded p-0 px-1 text-[16px] font-medium shadow-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <EmployeeComputationNotesIndicator notes={computationNotes} />
+            </div>
             <Input
               value={role}
               onChange={(e) => setRole(e.target.value)}

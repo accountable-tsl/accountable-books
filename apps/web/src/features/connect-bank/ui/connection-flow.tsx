@@ -9,7 +9,7 @@ import type {
 import { useState } from 'react';
 import { CenteredLoader } from '@/components/CenteredLoader';
 import ErrorPage from '@/components/ErrorPage';
-import { Button } from '@/components/ui/button';
+import { isAccountingRole } from '@/modules/auth';
 import {
   useBanking,
   useConnectAccounts,
@@ -31,8 +31,7 @@ type FlowStep =
   | 'country-select'
   | 'provider-select'
   | 'connecting'
-  | 'classify-accounts'
-  | 'success';
+  | 'classify-accounts';
 
 export function BankConnectionFlow() {
   const [currentStep, setCurrentStep] = useState<FlowStep>('welcome');
@@ -58,6 +57,7 @@ export function BankConnectionFlow() {
   const navigate = useNavigate();
   const createLinkTokenMutation = useCreateLinkToken();
   const connectAccountsMutation = useConnectAccounts();
+  const showClassification = companyType !== 'individual';
 
   const { supportedCountries, getSelectionStrategy } = useBanking();
   const {
@@ -132,7 +132,16 @@ export function BankConnectionFlow() {
   };
 
   const navigateAway = () => {
-    navigate(tenantRoutes?.accounting.catEngine() || '/');
+    if (!tenantRoutes) {
+      navigate('/');
+      return;
+    }
+    // Firm/platform bookkeepers land in accounting; clients land on dashboard.
+    if (isAccountingRole(user?.currentCompany)) {
+      navigate(tenantRoutes.accounting.index());
+      return;
+    }
+    navigate(tenantRoutes.general.dashboard());
   };
 
   const createLinkToken = async (provider: BankProvider) => {
@@ -189,11 +198,7 @@ export function BankConnectionFlow() {
             const message =
               response?.message || 'Bank account connected successfully!';
             toast.success(message);
-            if (companyType === 'individual') {
-              setCurrentStep('success');
-            } else {
-              setCurrentStep('classify-accounts');
-            }
+            setCurrentStep('classify-accounts');
           }
         },
         onError: (error: any) => {
@@ -323,25 +328,8 @@ export function BankConnectionFlow() {
             onComplete={navigateAway}
             onConnectAnother={() => setCurrentStep('country-select')}
             companyId={companyId || ''}
+            showClassification={showClassification}
           />
-        );
-
-      case 'success':
-        return (
-          <div className={stepWrapperClass}>
-            <div className="space-y-4 text-center">
-              <div className="text-lg font-semibold text-green-600">
-                Success!
-              </div>
-              <div className="text-muted-foreground text-sm">
-                Your bank account has been connected successfully. Transactions
-                will start syncing shortly.
-              </div>
-              <Button onClick={() => window.location.reload()} className="mt-4">
-                Continue
-              </Button>
-            </div>
-          </div>
         );
 
       default:

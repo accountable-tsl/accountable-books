@@ -11,7 +11,7 @@ import {
   startOfDay,
   sub,
 } from 'date-fns';
-import z from 'zod';
+import { z } from 'zod';
 
 // Use plural units for date-fns compatibility
 const dateUnitSchema = z.enum(['days', 'weeks', 'months', 'years']);

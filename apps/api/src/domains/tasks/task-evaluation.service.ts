@@ -230,7 +230,7 @@ export async function evaluateForClient(
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function periodKey(p: PeriodRange): string {
-  return `${p.fiscal_year}-${p.period_number}-${p.period_type}`;
+  return p.fiscal_calendar_id;
 }
 
 async function resolvePeriods(
@@ -242,6 +242,7 @@ async function resolvePeriods(
     .where('status', 'open')
     .orderBy([{ column: 'fiscal_year' }, { column: 'period_number' }])
     .select(
+      'id',
       'start_date',
       'end_date',
       'fiscal_year',
@@ -250,6 +251,7 @@ async function resolvePeriods(
     );
 
   return rows.map((r) => ({
+    fiscal_calendar_id: r.id,
     start_date: r.start_date,
     end_date: r.end_date,
     fiscal_year: r.fiscal_year,
@@ -272,9 +274,7 @@ async function ensureWorkflowRuns(
       .where({
         client_company_id: clientCompanyId,
         domain_area: 'bookkeeping',
-        fiscal_year: p.fiscal_year,
-        period_number: p.period_number,
-        period_type: p.period_type,
+        fiscal_calendar_id: p.fiscal_calendar_id,
         is_deleted: false,
       })
       .select('id')
@@ -288,9 +288,7 @@ async function ensureWorkflowRuns(
           firm_company_id: firmCompanyId,
           client_company_id: clientCompanyId,
           domain_area: 'bookkeeping',
-          fiscal_year: p.fiscal_year,
-          period_number: p.period_number,
-          period_type: p.period_type,
+          fiscal_calendar_id: p.fiscal_calendar_id,
           status: 'not_started',
           source: 'system_detected',
         })

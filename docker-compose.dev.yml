@@ -22,6 +22,22 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  db-init:
+    image: iamtemi/accountable:pg17-cron-vector-v1
+    env_file:
+      - ./apps/api/.env.local
+    environment:
+      EXPECTED_POSTGRES_DB: accountable_books
+      PGHOST: db
+      PGPORT: 5432
+    volumes:
+      - ./infra/postgres/image/01-setup-databases.sh:/usr/local/bin/setup-databases.sh:ro
+    entrypoint: ['/bin/bash', '/usr/local/bin/setup-databases.sh']
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
   redis:
     image: redis:8.0-alpine
     container_name: books-redis-dev

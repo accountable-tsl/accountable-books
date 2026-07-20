@@ -4,9 +4,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { DEMO_USERS, NG_USER, US_USER } from './users.data.js';
 import { createDemoUsers, deleteDemoUsers } from './users.fn.js';
 
-// Mock the createUser function from the migration file
-vi.mock('../../../../migrations/20250403184441_users.ts', () => ({
-  createUser: vi.fn(),
+vi.mock('../../../../src/domains/users/users.model.js', () => ({
+  createUserDirect: vi.fn(),
 }));
 
 // Mock faker to return predictable avatar URLs in tests
@@ -120,12 +119,12 @@ describe('createDemoUsers', () => {
     // Suppress console.log output during tests
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    // Get the mocked createUser function and configure it to succeed
-    const { createUser } = (await vi.importMock(
-      '../../../../migrations/20250403184441_users.ts',
+    // Get the mocked createUserDirect function and configure it to succeed
+    const { createUserDirect } = (await vi.importMock(
+      '../../../../src/domains/users/users.model.js',
     )) as any;
-    mockCreateUser = createUser;
-    mockCreateUser.mockResolvedValue(undefined);
+    mockCreateUser = createUserDirect;
+    mockCreateUser.mockResolvedValue({ success: true });
   });
 
   test('should create all users when no filters provided', async () => {
@@ -137,18 +136,18 @@ describe('createDemoUsers', () => {
     // Should create both US and NG users
     expect(mockCreateUser).toHaveBeenCalledTimes(2);
     expect(mockCreateUser).toHaveBeenCalledWith({
-      user: expect.objectContaining({
+      input: expect.objectContaining({
         email: 'demo.us@example.com',
         user_type: 'demo',
       }),
-      trx: mockTransaction,
+      transaction: mockTransaction,
     });
     expect(mockCreateUser).toHaveBeenCalledWith({
-      user: expect.objectContaining({
+      input: expect.objectContaining({
         email: 'demo.ng@example.com',
         user_type: 'demo',
       }),
-      trx: mockTransaction,
+      transaction: mockTransaction,
     });
   });
 
@@ -160,8 +159,8 @@ describe('createDemoUsers', () => {
 
     expect(mockCreateUser).toHaveBeenCalledTimes(1);
     expect(mockCreateUser).toHaveBeenCalledWith({
-      user: expect.objectContaining({ email: 'demo.us@example.com' }),
-      trx: mockTransaction,
+      input: expect.objectContaining({ email: 'demo.us@example.com' }),
+      transaction: mockTransaction,
     });
   });
 
@@ -194,8 +193,8 @@ describe('createDemoUsers', () => {
     // Should only create the NG user (US user already exists)
     expect(mockCreateUser).toHaveBeenCalledTimes(1);
     expect(mockCreateUser).toHaveBeenCalledWith({
-      user: expect.objectContaining({ email: 'demo.ng@example.com' }),
-      trx: mockTransaction,
+      input: expect.objectContaining({ email: 'demo.ng@example.com' }),
+      transaction: mockTransaction,
     });
   });
 

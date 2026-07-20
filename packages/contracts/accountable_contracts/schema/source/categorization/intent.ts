@@ -60,13 +60,32 @@ export const ledgerIntentDesiredState = z.object({
 });
 export type LedgerIntentDesiredState = z.infer<typeof ledgerIntentDesiredState>;
 
-export const ledgerIntentSchema = z.object({
+export const ledgerPostingIntentSchema = z.object({
   intent_id: z.uuid(),
   bank_transaction_id: z.uuid(),
   ledger_transaction_id: z.uuid().optional(),
   candidate_id: z.uuid().optional(),
+  action: z.undefined().optional(),
   desired_state: ledgerIntentDesiredState.optional(),
   timestamp: z.iso.datetime(),
 });
 
+export const candidateDecisionIntentSchema = z.object({
+  intent_id: z.uuid(),
+  bank_transaction_id: z.uuid(),
+  candidate_id: z.uuid(),
+  action: z.literal('reject_suggestion'),
+  reason: z.string().nullish(),
+  timestamp: z.iso.datetime(),
+});
+
+export const ledgerIntentSchema = z.union([
+  candidateDecisionIntentSchema,
+  ledgerPostingIntentSchema,
+]);
+
 export type LedgerIntent = z.infer<typeof ledgerIntentSchema>;
+export type LedgerPostingIntent = z.infer<typeof ledgerPostingIntentSchema>;
+export type CandidateDecisionIntent = z.infer<
+  typeof candidateDecisionIntentSchema
+>;

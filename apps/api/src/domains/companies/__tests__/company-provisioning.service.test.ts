@@ -5,7 +5,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getTestDb } from '../../../../config/test-db.js';
 import { getTestUserId, US_USER_EMAIL } from '../../../../test/helpers.js';
 import { resolveWorkspaceBillingContext } from '../../billing/resolver/ownership-resolver.service.js';
-import { mustHaveAccounts } from '../../chart-of-accounts/coa.constants.js';
+import { loadCoaTemplateForCompany } from '../../chart-of-accounts/coa-template.model.js';
+import { MUST_HAVE_ACCOUNTS } from '../../chart-of-accounts/coa.constants.js';
+import {
+  createCoaAccount,
+  createDefaultAccounts,
+} from '../../chart-of-accounts/coa.model.js';
 import { createCompany } from '../companies.model.js';
 import {
   ensureAccountingFirmMeta,
@@ -258,9 +263,213 @@ describe('company-provisioning.service', () => {
     expect(secondCoa.skipped).toBe(true);
     expect(firstRole.action).toBe('created');
     expect(secondRole.action).toBe('no change');
-    expect(Number(coaCount?.count ?? 0)).toBe(mustHaveAccounts.length);
+    expect(Number(coaCount?.count ?? 0)).toBe(MUST_HAVE_ACCOUNTS.length);
     expect(Number(settingsCount?.count ?? 0)).toBeGreaterThan(0);
     expect(Number(roleCount?.count ?? 0)).toBe(1);
+  });
+
+  it('repairs missing must-have accounts when a company already has a COA', async () => {
+    const company = await insertCompanyRecord({
+      trx,
+      company: buildCompanyInput({
+        created_by_id: userId,
+        short_code: `bz${randomUUID().slice(0, 8)}`,
+      }),
+    });
+
+    await createCoaAccount({
+      trx,
+      companyId: company.id,
+      userId,
+      input: {
+        name: `Existing account ${randomUUID()}`,
+        account_type_key: 'ca_other',
+      },
+    });
+
+    const result = await ensureCompanyChartOfAccounts({
+      trx,
+      companyId: company.id,
+      userId,
+      mode: 'template',
+    });
+
+    const requiredRows = await trx('coa')
+      .join('account_types', 'coa.account_type_id', 'account_types.id')
+      .where({
+        'coa.company_id': company.id,
+        'coa.is_active': true,
+        'coa.is_deleted': false,
+        'coa.locked': true,
+      })
+      .whereIn(
+        'account_types.key',
+        MUST_HAVE_ACCOUNTS.map((account) => account.account_type_key),
+      )
+      .select('account_types.key');
+
+    expect(result.skipped).toBe(false);
+    expect(requiredRows).toHaveLength(MUST_HAVE_ACCOUNTS.length);
+  });
+
+  it('loads the selected template and confirms all must-have account types', async () => {
+    const templateName = 'biz:none:basic:nocode:v1';
+    const company = await insertCompanyRecord({
+      trx,
+      company: buildCompanyInput({
+        created_by_id: userId,
+        short_code: `tp${randomUUID().slice(0, 8)}`,
+      }),
+    });
+    const templateCount = await trx('coa_templates')
+      .where({ template_name: templateName, is_active: true })
+      .count<{ count: string }>('* as count')
+      .first();
+
+    const result = await ensureCompanyChartOfAccounts({
+      trx,
+      companyId: company.id,
+      userId,
+      mode: 'template',
+      templateName,
+    });
+
+    const templateRows = await trx('coa')
+      .where({ company_id: company.id, source: 'template' })
+      .select<{ id: string }[]>('id');
+    const currentVersions = await trx('coa_versions')
+      .whereIn(
+        'coa_id',
+        templateRows.map((row) => row.id),
+      )
+      .whereNull('effective_to')
+      .count<{ count: string }>('* as count')
+      .first();
+    const requiredTypeCount = await countQualifyingRequiredTypes(
+      trx,
+      company.id,
+    );
+
+    expect(result).toEqual({ skipped: false, mode: 'template' });
+    expect(templateRows).toHaveLength(Number(templateCount?.count ?? 0));
+    expect(Number(currentVersions?.count ?? 0)).toBe(templateRows.length);
+    expect(requiredTypeCount).toBe(MUST_HAVE_ACCOUNTS.length);
+  });
+
+  it('rolls back the full template batch when one template account conflicts', async () => {
+    const templateName = 'biz:none:basic:nocode:v1';
+    const company = await insertCompanyRecord({
+      trx,
+      company: buildCompanyInput({
+        created_by_id: userId,
+        short_code: `tf${randomUUID().slice(0, 8)}`,
+      }),
+    });
+    const templateAccount = await trx('coa_templates')
+      .where({ template_name: templateName, is_active: true })
+      .first<{ name: string }>('name');
+
+    if (!templateAccount) {
+      throw new Error(`Expected active template ${templateName}`);
+    }
+
+    await createCoaAccount({
+      trx,
+      companyId: company.id,
+      userId,
+      input: {
+        name: templateAccount.name,
+        account_type_key: 'ca_other',
+      },
+    });
+    const countBefore = await countCompanyCoa(trx, company.id);
+
+    await expect(
+      trx.transaction(async (savepoint) => {
+        const response = await loadCoaTemplateForCompany(savepoint, {
+          companyId: company.id,
+          created_by_id: userId,
+          template_name: templateName,
+          use_code: true,
+        });
+
+        if (!response.success) {
+          throw new Error(response.message);
+        }
+      }),
+    ).rejects.toThrow('Failed to load and insert coa template');
+
+    expect(await countCompanyCoa(trx, company.id)).toBe(countBefore);
+  });
+
+  it('rolls back the full default-account batch when one required name conflicts', async () => {
+    const company = await insertCompanyRecord({
+      trx,
+      company: buildCompanyInput({
+        created_by_id: userId,
+        short_code: `df${randomUUID().slice(0, 8)}`,
+      }),
+    });
+    const conflictingName = MUST_HAVE_ACCOUNTS[0].name;
+
+    await createCoaAccount({
+      trx,
+      companyId: company.id,
+      userId,
+      input: {
+        name: conflictingName,
+        account_type_key: 'ca_other',
+      },
+    });
+    const countBefore = await countCompanyCoa(trx, company.id);
+
+    await expect(
+      trx.transaction((savepoint) =>
+        createDefaultAccounts({
+          trx: savepoint,
+          companyUUID: company.id,
+          userId,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+
+    expect(await countCompanyCoa(trx, company.id)).toBe(countBefore);
+    expect(await countQualifyingRequiredTypes(trx, company.id)).toBe(0);
+  });
+
+  it('rolls back the complete workspace when a late provisioning step fails', async () => {
+    const shortCode = `rb${randomUUID().replace(/-/g, '').slice(0, 8)}`;
+    const company = buildCompanyInput({
+      created_by_id: userId,
+      short_code: shortCode,
+    });
+
+    await expect(
+      trx.transaction((savepoint) =>
+        provisionCompanyWorkspace({
+          trx: savepoint,
+          actorUserId: userId,
+          ownerUserId: userId,
+          billingEmail: 'rollback-provision@example.com',
+          policy: { kind: 'signup' },
+          company: {
+            ...company,
+            coa_mode: 'default',
+            skip_side_effects: true,
+            additional_role_grants: [
+              {
+                user_id: randomUUID(),
+                role_key: 'client_owner',
+              },
+            ],
+          },
+        }),
+      ),
+    ).rejects.toThrow('User not found');
+
+    expect(
+      await trx('companies').where({ short_code: shortCode }).first(),
+    ).toBeUndefined();
   });
 
   it('provisions a customer workspace end to end', async () => {
@@ -551,7 +760,8 @@ describe('company-provisioning.service', () => {
 
   // platform_bootstrap policy is intentionally not tested here: the unique partial index
   // on workspace_class='platform' prevents inserting a second platform workspace while
-  // the bootstrapped one exists. Coverage lives in workspace-bootstrap.service.test.ts.
+  // the bootstrapped one exists. Canonical platform workspace coverage belongs to the
+  // central bootstrap phase.
 
   it('provisions a workspace with admin policy (behaves like signup)', async () => {
     const result = await provisionCompanyWorkspace({
@@ -620,3 +830,35 @@ describe('company-provisioning.service', () => {
     expect(Number(settingsCount?.count ?? 0)).toBeGreaterThan(0);
   });
 });
+
+async function countCompanyCoa(
+  trx: Knex.Transaction,
+  companyId: string,
+): Promise<number> {
+  const result = await trx('coa')
+    .where({ company_id: companyId })
+    .count<{ count: string }>('* as count')
+    .first();
+  return Number(result?.count ?? 0);
+}
+
+async function countQualifyingRequiredTypes(
+  trx: Knex.Transaction,
+  companyId: string,
+): Promise<number> {
+  const result = await trx('coa')
+    .join('account_types', 'coa.account_type_id', 'account_types.id')
+    .where({
+      'coa.company_id': companyId,
+      'coa.is_active': true,
+      'coa.is_deleted': false,
+      'coa.locked': true,
+    })
+    .whereIn(
+      'account_types.key',
+      MUST_HAVE_ACCOUNTS.map((account) => account.account_type_key),
+    )
+    .countDistinct<{ count: string }>('account_types.key as count')
+    .first();
+  return Number(result?.count ?? 0);
+}

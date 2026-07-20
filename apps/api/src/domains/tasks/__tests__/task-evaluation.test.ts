@@ -22,6 +22,8 @@ describe('task-evaluation', () => {
   let clientCompanyId: string;
   let bankAccountId: string;
 
+  let fiscalCalendarId: string;
+
   beforeEach(async () => {
     const db = getTestDb();
     trx = await db.transaction();
@@ -97,14 +99,11 @@ describe('task-evaluation', () => {
       .insert({
         company_id: clientCompanyId,
         display_name: 'Client checking',
-        account_name: 'Client checking',
         account_type: 'checkings_current',
-        account_number: `ba-${randomUUID().slice(0, 8)}`,
         business_or_personal: 'business',
         bank_id: bank.id,
         currency_id: testCurrencyId,
         coa_id: coa.id,
-        connection_status: 'not_connected',
         created_by_id: testUserId,
         updated_by_id: testUserId,
       })
@@ -112,15 +111,19 @@ describe('task-evaluation', () => {
     bankAccountId = ba.id;
 
     // One fiscal period for client
-    await trx('fiscal_calendar').insert({
-      company_id: clientCompanyId,
-      fiscal_year: 2025,
-      period_number: 3,
-      period_type: 'monthly',
-      start_date: '2025-03-01',
-      end_date: '2025-03-31',
-      status: 'open',
-    });
+    const [period] = await trx('fiscal_calendar')
+      .insert({
+        company_id: clientCompanyId,
+        fiscal_year: 2025,
+        period_number: 3,
+        period_type: 'monthly',
+        start_date: '2025-03-01',
+        end_date: '2025-03-31',
+        status: 'open',
+      })
+      .returning<{ id: string }[]>(['id']);
+    if (!period) throw new Error('Failed to create fiscal period');
+    fiscalCalendarId = period.id;
   });
 
   afterEach(async () => {
@@ -176,8 +179,7 @@ describe('task-evaluation', () => {
       });
       expect(runs).toHaveLength(1);
       expect(runs[0].domain_area).toBe('bookkeeping');
-      expect(runs[0].fiscal_year).toBe(2025);
-      expect(runs[0].period_number).toBe(3);
+      expect(runs[0].fiscal_calendar_id).toBe(fiscalCalendarId);
 
       const tasks = await trx('engagement_tasks').where({
         client_company_id: clientCompanyId,

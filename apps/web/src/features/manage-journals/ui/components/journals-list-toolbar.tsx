@@ -20,6 +20,7 @@ const statusOptions = [
   { label: 'Draft', value: 'draft' },
   { label: 'Posted', value: 'posted' },
   { label: 'Voided', value: 'voided' },
+  { label: 'Reversed', value: 'reversed' },
   { label: 'Recurring', value: 'recurring' },
 ] as const;
 
@@ -68,7 +69,7 @@ export function JournalsListToolbar({
   onResetFilters: () => void;
   onCreateJournal?: () => void;
   onImportClick?: () => void;
-  searchInputRef?: RefObject<HTMLInputElement>;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
   showStatusOptions?: boolean;
 }) {
   const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
@@ -187,6 +188,7 @@ export function JournalsListToolbar({
                           { key: 'draft', label: 'Draft' },
                           { key: 'posted', label: 'Posted' },
                           { key: 'voided', label: 'Voided' },
+                          { key: 'reversed', label: 'Reversed' },
                           { key: 'recurring', label: 'Recurring' },
                         ] as const
                       ).map(({ key, label }) => (

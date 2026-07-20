@@ -121,6 +121,7 @@ export interface GetCategorizationTransactionsParams {
   dateTo: Date;
   status?: CategorizationTransactionStatus[];
   bankAccountIds?: string[];
+  workItemId?: string;
   searchQuery?: string;
   limit?: number;
   offset?: number;
@@ -221,9 +222,14 @@ export interface GroupedTransaction {
 export interface SendCategorizationIntentResponse {
   results?: Array<{
     bank_transaction_id: string;
-    operation: 'created' | 'updated_metadata' | 'superseded';
-    ledger_transaction_id: string;
+    operation:
+      | 'created'
+      | 'updated_metadata'
+      | 'superseded'
+      | 'candidate_rejected';
+    ledger_transaction_id?: string;
     old_ledger_transaction_id?: string;
+    candidate_id?: string;
     warnings?: Record<string, string>;
     transaction?: CategorizationTransaction[];
   }>;
@@ -236,7 +242,15 @@ export interface SendCategorizationIntentResponse {
     created: number;
     updated: number;
     superseded: number;
+    rejected: number;
     skipped: number;
     has_warnings: boolean;
+  };
+  workMaterialization?: {
+    scopes: Array<{
+      scopeKey: string;
+      status: 'reconciled' | 'deferred' | 'error';
+      refetch: boolean;
+    }>;
   };
 }

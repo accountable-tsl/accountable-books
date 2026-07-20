@@ -1,6 +1,0 @@
-from enum import Enum
-
-class CompanyType(str, Enum):
-    BUSINESS = "business"
-    INDIVIDUAL = "individual"
-    ACCOUNTING_FIRM = "accounting_firm"

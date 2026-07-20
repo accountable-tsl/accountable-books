@@ -7,7 +7,7 @@ import {
   startOfDay,
 } from 'date-fns';
 import Decimal from 'decimal.js';
-import z from 'zod';
+import { z } from 'zod';
 
 import { getUserLocale } from './random-utils';
 

@@ -1,4 +1,5 @@
 import type { BankAccountWithMeta } from '@/modules/banking/accounts/model/types';
+import { contactType } from '@/modules/contacts/model/types';
 import { debitCredit } from '@/shared/types/core';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
@@ -38,12 +39,27 @@ export const bankTransactionInput = z.object({
 });
 export type BankTransactionInput = z.infer<typeof bankTransactionInput>;
 
+const bankTransactionContactResolution = z.object({
+  contact_id: z.uuid(),
+  contact_type: contactType.nullish(),
+  reason: z.string().trim().max(512).optional(),
+});
+
 export const bankTransactionBatchInput = z.object({
-  startDate: z.date(),
-  endDate: z.date(),
   source: bankTransactionSource,
-  bankAccountId: z.uuid(),
-  bankTransactions: z.array(bankTransactionInput),
+  bank_account_id: z.uuid(),
+  bank_transactions: z.array(
+    z.object({
+      transaction_date: z.date(),
+      amount: z.number(),
+      bank_account_id: z.uuid(),
+      description: z.string().nullish(),
+      payee: z.string().nullish(),
+      reference: z.string().nullish(),
+      additional_notes: z.string().nullish(),
+      contact_resolution: bankTransactionContactResolution.optional(),
+    }),
+  ),
 });
 export type BankTransactionBatchInput = z.infer<
   typeof bankTransactionBatchInput

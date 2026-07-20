@@ -47,10 +47,10 @@ export default function AppLayout({
           companyId={companyId}
           companyType={companyType}
         />
-        <SidebarInset className="flex h-dvh flex-col overflow-hidden">
+        <SidebarInset className="flex h-dvh flex-col overflow-hidden text-sm">
           <AppHeader company={company} />
 
-          <div className="min-h-0 flex-1">
+          <div className="min-h-0 flex-1 text-sm">
             <Outlet />
           </div>
         </SidebarInset>

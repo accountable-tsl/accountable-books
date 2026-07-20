@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 import {
+  addUserAuditColumns,
   createUpdateTimestampTrigger,
   dropUpdateTimestampTrigger,
 } from './utils/db.js';
@@ -57,6 +58,8 @@ export async function up(knex: Knex): Promise<void> {
       .defaultTo(knex.fn.now());
 
     table.timestamp('ended_at', { useTz: true }).nullable();
+
+    addUserAuditColumns(table, { includeDeletedBy: false });
 
     table
       .timestamp('created_at', { useTz: true })

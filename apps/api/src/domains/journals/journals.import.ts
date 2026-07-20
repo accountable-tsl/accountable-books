@@ -36,7 +36,7 @@ type PreflightLine = {
   lineNumber: number;
   date?: string;
   title?: string;
-  journalReference?: string;
+  userReference?: string;
   description?: string;
   note?: string;
   currencyCode?: string;
@@ -76,7 +76,7 @@ type PreflightJournal = {
   importKey: string;
   date?: string;
   title?: string;
-  journalReference?: string | null;
+  userReference?: string | null;
   description?: string | null;
   note?: string | null;
   currencyCode?: string | null;
@@ -192,7 +192,6 @@ async function getCompanyImportContext(
 
   const currency = await db('currencies')
     .where('id', company.reporting_currency_id)
-    .where('is_deleted', false)
     .first<{ id: string; code: string }>('id', 'code');
 
   if (!currency?.id || !currency.code) {
@@ -397,7 +396,6 @@ export async function preflightJournalImport(p: {
     if (currencyCodes.size) {
       const rows = await db('currencies')
         .whereIn('code', [...currencyCodes])
-        .where('is_deleted', false)
         .select<{ id: string; code: string }[]>('id', 'code');
       for (const r of rows) currencyByCode.set(r.code.toUpperCase(), r);
     }
@@ -427,7 +425,7 @@ export async function preflightJournalImport(p: {
           importKey,
           date: line.date,
           title: line.title,
-          journalReference: line.journal_reference ?? null,
+          userReference: line.journal_reference ?? null,
           description: line.description ?? null,
           note: line.note ?? null,
           currencyCode: line.currency_code ?? null,
@@ -455,7 +453,7 @@ export async function preflightJournalImport(p: {
         });
       }
 
-      // Structural consistency for reference-based groups
+      // Structural consistency for user-reference-based groups
       if (importKey.startsWith('ref:')) {
         const existingDate = journal.date?.trim();
         const existingTitle = journal.title?.trim();
@@ -767,7 +765,7 @@ export async function preflightJournalImport(p: {
         lineNumber,
         date: line.date,
         title: line.title,
-        journalReference: line.journal_reference,
+        userReference: line.journal_reference,
         description: line.description,
         note: line.note,
         currencyCode: line.currency_code,
@@ -838,16 +836,16 @@ export async function preflightJournalImport(p: {
       });
     }
 
-    // Reference conflicts against DB (existing non-deleted refs)
+    // User reference conflicts against DB (existing non-deleted refs)
     const providedRefs = [...references].filter((r) => r.length > 0);
     const existingRefs = new Set<string>();
     if (providedRefs.length) {
       const rows = await db('journal_batches')
         .where('company_id', context.companyUUID)
         .where('is_deleted', false)
-        .whereIn('reference', providedRefs)
-        .select<{ reference: string }[]>('reference');
-      for (const r of rows) existingRefs.add(r.reference);
+        .whereIn('user_reference', providedRefs)
+        .select<{ user_reference: string }[]>('user_reference');
+      for (const r of rows) existingRefs.add(r.user_reference);
     }
 
     // Period status lookups by date (distinct)
@@ -904,11 +902,11 @@ export async function preflightJournalImport(p: {
       const currencyCodesList = [...currencySet];
       if (currencyCodesList.length > 1) {
         const sorted = currencyCodesList.sort();
-        const ref = j.journalReference?.trim();
+        const ref = j.userReference?.trim();
         const date = j.date?.trim();
         const title = j.title?.trim();
         const journalLabel = ref
-          ? `reference ${ref}`
+          ? `user reference ${ref}`
           : `date ${date ?? '(missing)'} and title ${title ?? '(missing)'}`;
         messages.push({
           level: 'error',
@@ -1002,13 +1000,13 @@ export async function preflightJournalImport(p: {
         });
       }
 
-      // Reference conflicts
-      const ref = j.journalReference?.trim();
+      // User reference conflicts
+      const ref = j.userReference?.trim();
       if (ref && existingRefs.has(ref)) {
         messages.push({
           level: 'error',
           code: 'REFERENCE_CONFLICT',
-          message: 'Journal reference already exists',
+          message: 'User reference already exists',
         });
       }
 
@@ -1086,7 +1084,7 @@ export async function importJournals(p: {
       action: JournalImportAction;
       success: boolean;
       journalBatchId?: string;
-      journalReference?: string | null;
+      systemReference?: string | null;
       ledgerTransactionId?: string | null;
       code?: string;
       message?: string;
@@ -1126,7 +1124,7 @@ export async function importJournals(p: {
     }
 
     const refs = body.journals
-      .map((j) => (j.data.reference ?? '').trim())
+      .map((j) => (j.data.user_reference ?? '').trim())
       .filter((r) => r.length > 0);
     const seenRefs = new Set<string>();
     const dupRefs = new Set<string>();
@@ -1136,7 +1134,7 @@ export async function importJournals(p: {
     }
     if (dupRefs.size) {
       return errorResponse(
-        'Duplicate journal references in the same import are not allowed',
+        'Duplicate user references in the same import are not allowed',
         { duplicateReferences: [...dupRefs] },
         { code: ErrorCode.INVALID_INPUT },
       );
@@ -1168,7 +1166,7 @@ export async function importJournals(p: {
 
       const dataForPost: JournalBatchData = {
         status: action,
-        reference: j.data.reference ?? null,
+        userReference: j.data.user_reference ?? null,
         date: j.data.date,
         title: j.data.title,
         description: j.data.description ?? undefined,
@@ -1200,7 +1198,7 @@ export async function importJournals(p: {
       action: JournalImportAction;
       success: boolean;
       journalBatchId?: string;
-      journalReference?: string | null;
+      systemReference?: string | null;
       ledgerTransactionId?: string | null;
       code?: string;
       message?: string;
@@ -1225,7 +1223,7 @@ export async function importJournals(p: {
             action: j.action,
             success: true,
             journalBatchId: res.data.journalBatchId,
-            journalReference: res.data.journalReference ?? null,
+            systemReference: res.data.systemReference ?? null,
             ledgerTransactionId: res.data.ledgerTransactionId ?? null,
           });
         }
@@ -1240,7 +1238,7 @@ export async function importJournals(p: {
                     action: j.action,
                     success: true,
                     journalBatchId: res.data.journalBatchId,
-                    journalReference: res.data.journalReference ?? null,
+                    systemReference: res.data.systemReference ?? null,
                     ledgerTransactionId: res.data.ledgerTransactionId ?? null,
                   }
                 : {
@@ -1281,7 +1279,7 @@ export async function importJournals(p: {
             action: j.action,
             success: true,
             journalBatchId: res.data.journalBatchId,
-            journalReference: res.data.journalReference ?? null,
+            systemReference: res.data.systemReference ?? null,
             ledgerTransactionId: res.data.ledgerTransactionId ?? null,
           });
         }
@@ -1298,7 +1296,7 @@ export async function importJournals(p: {
                   action: j.action,
                   success: true,
                   journalBatchId: res.data.journalBatchId,
-                  journalReference: res.data.journalReference ?? null,
+                  systemReference: res.data.systemReference ?? null,
                   ledgerTransactionId: res.data.ledgerTransactionId ?? null,
                 }
               : {

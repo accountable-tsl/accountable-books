@@ -1,5 +1,6 @@
+import { contactType } from '@/modules/contacts/model/types';
 import { debitCredit } from '@/shared/types/core';
-import z from 'zod';
+import { z } from 'zod';
 
 export const bankTransactionSource = z.enum([
   'file_import',
@@ -36,24 +37,31 @@ export const parsedBankTxn = rawRowSchema.extend({
 });
 export type ParsedBankTxn = z.infer<typeof parsedBankTxn>;
 
+const bankTransactionContactResolutionSchema = z.object({
+  contact_id: z.uuid(),
+  contact_type: contactType.nullish(),
+  reason: z.string().trim().max(512).optional(),
+});
+
 export const bankTransactionInsertSchema = z.object({
-  date: z.date(),
+  transaction_date: z.date(),
   amount: z.number(),
   bank_account_id: z.uuid(),
   // transactionSide: debitCredit.nullish(),
   description: z.string().nullish(),
   payee: z.string().nullish(),
   reference: z.string().nullish(),
-  additionalComments: z.string().nullish(),
-  rawData: z.any().nullish(),
+  additional_notes: z.string().nullish(),
+  source_payload: z.record(z.string(), z.unknown()).optional(),
+  contact_resolution: bankTransactionContactResolutionSchema.optional(),
 });
 export type BankTransactionInsert = z.infer<typeof bankTransactionInsertSchema>;
 
 const bankTransactionBatchInsertSchema = z.object({
   source: bankTransactionSource,
   bank_account_id: z.uuid(),
-  bank_transactions: z.array(bankTransactionInsertSchema),
-  metadata: z.any().nullish(),
+  bank_transactions: z.array(bankTransactionInsertSchema).min(1),
+  source_metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type BankTransactionBatchInsert = z.infer<
   typeof bankTransactionBatchInsertSchema

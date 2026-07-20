@@ -1,6 +1,0 @@
-from pydantic import BaseModel, Field, conint
-from typing import Optional
-
-class StatementLineAccountTransactionsQuery(BaseModel):
-    cursor: Optional[str] = None
-    limit: Optional[conint(ge=1, le=100)] = Field(default=50)

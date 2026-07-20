@@ -132,8 +132,8 @@ describe('projectExists constraint', () => {
       expect(result[0]?.message).toContain('does not belong to company');
     });
 
-    it('should fail when project ID exists but is deleted', async () => {
-      // Query returns empty (project is deleted, filtered by is_deleted: false)
+    it('should fail when project ID does not resolve for the company', async () => {
+      // Query returns empty when the project does not exist or belongs elsewhere.
       mockQuery.select.mockResolvedValue([]);
 
       const ctx = createMockConstraintContext({

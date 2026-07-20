@@ -1,0 +1,5078 @@
+[
+  {
+    "id": "407db877-5aea-42ac-ab71-9684bf706c7d",
+    "display_name": "Other Financial Institutions (Aruba)",
+    "country": "AW",
+    "key": "aw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Aruba)"
+  },
+  {
+    "id": "ba1a4d3a-5ab2-4521-b08b-227e6be80c75",
+    "display_name": "Other Financial Institutions (Afghanistan)",
+    "country": "AF",
+    "key": "af_other_financial_institution",
+    "official_name": "Other Financial Institutions (Afghanistan)"
+  },
+  {
+    "id": "00ae8283-52d4-48cd-af42-3603eb83f1cd",
+    "display_name": "Other Financial Institutions (Angola)",
+    "country": "AO",
+    "key": "ao_other_financial_institution",
+    "official_name": "Other Financial Institutions (Angola)"
+  },
+  {
+    "id": "2587889e-62ba-48ab-b372-c50c6bae3a0c",
+    "display_name": "Other Financial Institutions (Anguilla)",
+    "country": "AI",
+    "key": "ai_other_financial_institution",
+    "official_name": "Other Financial Institutions (Anguilla)"
+  },
+  {
+    "id": "ef330a2a-26f4-492e-80ad-5ecb88da6eab",
+    "display_name": "Other Financial Institutions (�land Islands)",
+    "country": "AX",
+    "key": "ax_other_financial_institution",
+    "official_name": "Other Financial Institutions (�land Islands)"
+  },
+  {
+    "id": "75603af0-b36c-4f86-bbdd-94afd3398922",
+    "display_name": "Other Financial Institutions (Albania)",
+    "country": "AL",
+    "key": "al_other_financial_institution",
+    "official_name": "Other Financial Institutions (Albania)"
+  },
+  {
+    "id": "25639fc4-55ce-407c-a75f-746dbb89dbb5",
+    "display_name": "Other Financial Institutions (Andorra)",
+    "country": "AD",
+    "key": "ad_other_financial_institution",
+    "official_name": "Other Financial Institutions (Andorra)"
+  },
+  {
+    "id": "88c87af4-0c61-4ae7-983f-809300006d96",
+    "display_name": "Other Financial Institutions (United Arab Emirates)",
+    "country": "AE",
+    "key": "ae_other_financial_institution",
+    "official_name": "Other Financial Institutions (United Arab Emirates)"
+  },
+  {
+    "id": "f6113369-1f4a-4f34-9ce2-bb7052774544",
+    "display_name": "Other Financial Institutions (Argentina)",
+    "country": "AR",
+    "key": "ar_other_financial_institution",
+    "official_name": "Other Financial Institutions (Argentina)"
+  },
+  {
+    "id": "69a9a21f-7f59-4184-9965-4623864cf918",
+    "display_name": "Other Financial Institutions (Armenia)",
+    "country": "AM",
+    "key": "am_other_financial_institution",
+    "official_name": "Other Financial Institutions (Armenia)"
+  },
+  {
+    "id": "4481a5b2-750e-4490-a4e6-f8f6ddb8f8a5",
+    "display_name": "Other Financial Institutions (American Samoa)",
+    "country": "AS",
+    "key": "as_other_financial_institution",
+    "official_name": "Other Financial Institutions (American Samoa)"
+  },
+  {
+    "id": "0f0fa8b9-de22-4af1-b287-9c50d5809032",
+    "display_name": "Other Financial Institutions (Antarctica)",
+    "country": "AQ",
+    "key": "aq_other_financial_institution",
+    "official_name": "Other Financial Institutions (Antarctica)"
+  },
+  {
+    "id": "20e95ffd-660b-4af0-b6af-7b6e88511263",
+    "display_name": "Other Financial Institutions (French Southern Territories)",
+    "country": "TF",
+    "key": "tf_other_financial_institution",
+    "official_name": "Other Financial Institutions (French Southern Territories)"
+  },
+  {
+    "id": "73c3021d-bc82-46e8-b063-b0e335ba7e25",
+    "display_name": "Other Financial Institutions (Antigua and Barbuda)",
+    "country": "AG",
+    "key": "ag_other_financial_institution",
+    "official_name": "Other Financial Institutions (Antigua and Barbuda)"
+  },
+  {
+    "id": "dfed8cd9-6fac-480a-98e6-9ea0f966ee60",
+    "display_name": "Other Financial Institutions (Australia)",
+    "country": "AU",
+    "key": "au_other_financial_institution",
+    "official_name": "Other Financial Institutions (Australia)"
+  },
+  {
+    "id": "0b3442bc-5311-4141-bd83-4cf3a85c386c",
+    "display_name": "Other Financial Institutions (Austria)",
+    "country": "AT",
+    "key": "at_other_financial_institution",
+    "official_name": "Other Financial Institutions (Austria)"
+  },
+  {
+    "id": "516ecb22-a7a6-4149-931c-7977f89647a3",
+    "display_name": "Other Financial Institutions (Azerbaijan)",
+    "country": "AZ",
+    "key": "az_other_financial_institution",
+    "official_name": "Other Financial Institutions (Azerbaijan)"
+  },
+  {
+    "id": "b409fe79-e7e2-4a1e-ab8d-9e1b89606c00",
+    "display_name": "Other Financial Institutions (Burundi)",
+    "country": "BI",
+    "key": "bi_other_financial_institution",
+    "official_name": "Other Financial Institutions (Burundi)"
+  },
+  {
+    "id": "136e29aa-2ac4-428c-82dc-0aaf2602fae0",
+    "display_name": "Other Financial Institutions (Belgium)",
+    "country": "BE",
+    "key": "be_other_financial_institution",
+    "official_name": "Other Financial Institutions (Belgium)"
+  },
+  {
+    "id": "07c50a2c-4871-47e7-ab7c-13cebc3ab41b",
+    "display_name": "Other Financial Institutions (Benin)",
+    "country": "BJ",
+    "key": "bj_other_financial_institution",
+    "official_name": "Other Financial Institutions (Benin)"
+  },
+  {
+    "id": "73d9438a-d486-4ff9-b2b1-51bf5a50d9b6",
+    "display_name": "Other Financial Institutions (Bonaire, Sint Eustatius and Saba)",
+    "country": "BQ",
+    "key": "bq_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bonaire, Sint Eustatius and Saba)"
+  },
+  {
+    "id": "10ad3f1e-f054-4894-b0b3-53d11aaeb478",
+    "display_name": "Other Financial Institutions (Burkina Faso)",
+    "country": "BF",
+    "key": "bf_other_financial_institution",
+    "official_name": "Other Financial Institutions (Burkina Faso)"
+  },
+  {
+    "id": "a9f8172e-9689-4218-b711-a08a256aef42",
+    "display_name": "Other Financial Institutions (Bangladesh)",
+    "country": "BD",
+    "key": "bd_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bangladesh)"
+  },
+  {
+    "id": "12f9ff83-9f1c-4ee1-bf8f-e0a9f294d20d",
+    "display_name": "Other Financial Institutions (Bulgaria)",
+    "country": "BG",
+    "key": "bg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bulgaria)"
+  },
+  {
+    "id": "f9b44afc-8c05-4ec0-bfe1-8ac78891b147",
+    "display_name": "Other Financial Institutions (Bahrain)",
+    "country": "BH",
+    "key": "bh_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bahrain)"
+  },
+  {
+    "id": "49a43dbc-f5bb-4ebb-899a-fa3625c25b0d",
+    "display_name": "Other Financial Institutions (Bahamas)",
+    "country": "BS",
+    "key": "bs_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bahamas)"
+  },
+  {
+    "id": "f74bd30b-f855-4965-b650-4c2d241c8ffb",
+    "display_name": "Other Financial Institutions (Bosnia and Herzegovina)",
+    "country": "BA",
+    "key": "ba_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bosnia and Herzegovina)"
+  },
+  {
+    "id": "0c573a97-600d-4970-88b6-9e915880a6b3",
+    "display_name": "Other Financial Institutions (Saint Barth�lemy)",
+    "country": "BL",
+    "key": "bl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Barth�lemy)"
+  },
+  {
+    "id": "20adc688-b47e-4186-bdb0-d21416793447",
+    "display_name": "Other Financial Institutions (Belarus)",
+    "country": "BY",
+    "key": "by_other_financial_institution",
+    "official_name": "Other Financial Institutions (Belarus)"
+  },
+  {
+    "id": "a85a0833-3970-4d67-b5d2-783bfd285bdb",
+    "display_name": "Other Financial Institutions (Belize)",
+    "country": "BZ",
+    "key": "bz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Belize)"
+  },
+  {
+    "id": "a53217b1-0cd2-4b5d-88fe-80855f2a25f8",
+    "display_name": "Other Financial Institutions (Bermuda)",
+    "country": "BM",
+    "key": "bm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bermuda)"
+  },
+  {
+    "id": "2dd790e9-4161-42f6-8a1a-33830eea4711",
+    "display_name": "Other Financial Institutions (Bolivia, Plurinational State of)",
+    "country": "BO",
+    "key": "bo_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bolivia, Plurinational State of)"
+  },
+  {
+    "id": "67f6fbc4-dd53-4315-8ed0-78631bbdea18",
+    "display_name": "Other Financial Institutions (Brazil)",
+    "country": "BR",
+    "key": "br_other_financial_institution",
+    "official_name": "Other Financial Institutions (Brazil)"
+  },
+  {
+    "id": "588633db-ae43-4063-8045-5642d94d1af1",
+    "display_name": "Other Financial Institutions (Barbados)",
+    "country": "BB",
+    "key": "bb_other_financial_institution",
+    "official_name": "Other Financial Institutions (Barbados)"
+  },
+  {
+    "id": "d7788cb4-7308-4680-b62c-df8aa6f58204",
+    "display_name": "Other Financial Institutions (Brunei Darussalam)",
+    "country": "BN",
+    "key": "bn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Brunei Darussalam)"
+  },
+  {
+    "id": "3411c5e1-ab3d-4ef2-ad11-3a58240b9208",
+    "display_name": "Other Financial Institutions (Bhutan)",
+    "country": "BT",
+    "key": "bt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bhutan)"
+  },
+  {
+    "id": "a304976f-acd8-4b2d-860b-245df4e98a3b",
+    "display_name": "Other Financial Institutions (Bouvet Island)",
+    "country": "BV",
+    "key": "bv_other_financial_institution",
+    "official_name": "Other Financial Institutions (Bouvet Island)"
+  },
+  {
+    "id": "893cf235-1931-4953-b84a-e4a2dce93eeb",
+    "display_name": "Other Financial Institutions (Botswana)",
+    "country": "BW",
+    "key": "bw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Botswana)"
+  },
+  {
+    "id": "423b26bb-fd4a-4854-b778-1afa195725a1",
+    "display_name": "Other Financial Institutions (Central African Republic)",
+    "country": "CF",
+    "key": "cf_other_financial_institution",
+    "official_name": "Other Financial Institutions (Central African Republic)"
+  },
+  {
+    "id": "bef7c73e-0949-4404-b0a2-511cde5ff343",
+    "display_name": "Other Financial Institutions (Canada)",
+    "country": "CA",
+    "key": "ca_other_financial_institution",
+    "official_name": "Other Financial Institutions (Canada)"
+  },
+  {
+    "id": "480b1cba-5d27-42e1-9a29-8fa2422fd5d2",
+    "display_name": "Other Financial Institutions (Cocos (Keeling) Islands)",
+    "country": "CC",
+    "key": "cc_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cocos (Keeling) Islands)"
+  },
+  {
+    "id": "494c85df-75a5-415a-ab9f-03763b941404",
+    "display_name": "Other Financial Institutions (Switzerland)",
+    "country": "CH",
+    "key": "ch_other_financial_institution",
+    "official_name": "Other Financial Institutions (Switzerland)"
+  },
+  {
+    "id": "05977aca-e976-47b7-a988-b79661f82a6e",
+    "display_name": "Other Financial Institutions (Chile)",
+    "country": "CL",
+    "key": "cl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Chile)"
+  },
+  {
+    "id": "6fbc14d7-06a0-43da-b986-bac79d173894",
+    "display_name": "Other Financial Institutions (China)",
+    "country": "CN",
+    "key": "cn_other_financial_institution",
+    "official_name": "Other Financial Institutions (China)"
+  },
+  {
+    "id": "4c2976ea-d4cb-4b4c-999a-6c3e6a114cb2",
+    "display_name": "Other Financial Institutions (C�te d'Ivoire)",
+    "country": "CI",
+    "key": "ci_other_financial_institution",
+    "official_name": "Other Financial Institutions (C�te d'Ivoire)"
+  },
+  {
+    "id": "7e98d998-a734-4b72-bee3-76f82bfd9df8",
+    "display_name": "Other Financial Institutions (Cameroon)",
+    "country": "CM",
+    "key": "cm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cameroon)"
+  },
+  {
+    "id": "f122834a-ab8a-4d38-8351-1adfba913233",
+    "display_name": "Other Financial Institutions (Congo, The Democratic Republic of the)",
+    "country": "CD",
+    "key": "cd_other_financial_institution",
+    "official_name": "Other Financial Institutions (Congo, The Democratic Republic of the)"
+  },
+  {
+    "id": "b7081578-d51d-47f0-a16a-8399f17eac88",
+    "display_name": "Other Financial Institutions (Congo)",
+    "country": "CG",
+    "key": "cg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Congo)"
+  },
+  {
+    "id": "814382b6-b9af-4b6a-bfbf-8dfa13cb78df",
+    "display_name": "Other Financial Institutions (Cook Islands)",
+    "country": "CK",
+    "key": "ck_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cook Islands)"
+  },
+  {
+    "id": "26587f73-dcbe-467b-80d4-5ff943252cca",
+    "display_name": "Other Financial Institutions (Colombia)",
+    "country": "CO",
+    "key": "co_other_financial_institution",
+    "official_name": "Other Financial Institutions (Colombia)"
+  },
+  {
+    "id": "771a6a09-ae59-4436-96f0-5845c8bdd93f",
+    "display_name": "Other Financial Institutions (Comoros)",
+    "country": "KM",
+    "key": "km_other_financial_institution",
+    "official_name": "Other Financial Institutions (Comoros)"
+  },
+  {
+    "id": "cee74ea8-ce63-4d06-8daf-e05eda2a8322",
+    "display_name": "Other Financial Institutions (Cabo Verde)",
+    "country": "CV",
+    "key": "cv_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cabo Verde)"
+  },
+  {
+    "id": "93fb6f6b-521c-41e0-9b42-5e7f366a7b87",
+    "display_name": "Other Financial Institutions (Costa Rica)",
+    "country": "CR",
+    "key": "cr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Costa Rica)"
+  },
+  {
+    "id": "40b5fe8d-1e39-4bc3-a779-a8f2d4f843fb",
+    "display_name": "Other Financial Institutions (Cuba)",
+    "country": "CU",
+    "key": "cu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cuba)"
+  },
+  {
+    "id": "a983b8d5-128b-4798-9040-09e8c0bd9592",
+    "display_name": "Other Financial Institutions (Cura�ao)",
+    "country": "CW",
+    "key": "cw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cura�ao)"
+  },
+  {
+    "id": "a24e98bf-27f6-4960-9941-6a4a6377ce8d",
+    "display_name": "Other Financial Institutions (Christmas Island)",
+    "country": "CX",
+    "key": "cx_other_financial_institution",
+    "official_name": "Other Financial Institutions (Christmas Island)"
+  },
+  {
+    "id": "4607eee0-541f-4121-b4e6-6afe1117da6a",
+    "display_name": "Other Financial Institutions (Cayman Islands)",
+    "country": "KY",
+    "key": "ky_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cayman Islands)"
+  },
+  {
+    "id": "b07c4d86-6b72-4c66-9d5f-fe3cba2a8e7b",
+    "display_name": "Other Financial Institutions (Cyprus)",
+    "country": "CY",
+    "key": "cy_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cyprus)"
+  },
+  {
+    "id": "9b544129-6137-4f63-a9e0-bf1e01857e07",
+    "display_name": "Other Financial Institutions (Czechia)",
+    "country": "CZ",
+    "key": "cz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Czechia)"
+  },
+  {
+    "id": "46d24320-ca5b-45c4-b671-4378095e2585",
+    "display_name": "Other Financial Institutions (Germany)",
+    "country": "DE",
+    "key": "de_other_financial_institution",
+    "official_name": "Other Financial Institutions (Germany)"
+  },
+  {
+    "id": "537c5c7c-b338-4793-996e-acae41e6277e",
+    "display_name": "Other Financial Institutions (Djibouti)",
+    "country": "DJ",
+    "key": "dj_other_financial_institution",
+    "official_name": "Other Financial Institutions (Djibouti)"
+  },
+  {
+    "id": "812561a3-89d2-464d-b2d6-5b5a9407f4f7",
+    "display_name": "Other Financial Institutions (Dominica)",
+    "country": "DM",
+    "key": "dm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Dominica)"
+  },
+  {
+    "id": "246477dc-bcfc-4d80-9e24-c8e1554d552f",
+    "display_name": "Other Financial Institutions (Denmark)",
+    "country": "DK",
+    "key": "dk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Denmark)"
+  },
+  {
+    "id": "77479b1b-ee26-4a53-93c8-8ae447725c16",
+    "display_name": "Other Financial Institutions (Dominican Republic)",
+    "country": "DO",
+    "key": "do_other_financial_institution",
+    "official_name": "Other Financial Institutions (Dominican Republic)"
+  },
+  {
+    "id": "c8da93b8-033b-4dc2-bbc9-9bc9e5c02f15",
+    "display_name": "Other Financial Institutions (Algeria)",
+    "country": "DZ",
+    "key": "dz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Algeria)"
+  },
+  {
+    "id": "742ae3d1-d56a-4636-97aa-632f86044bb4",
+    "display_name": "Other Financial Institutions (Ecuador)",
+    "country": "EC",
+    "key": "ec_other_financial_institution",
+    "official_name": "Other Financial Institutions (Ecuador)"
+  },
+  {
+    "id": "19b4a97e-a76d-43d6-b2a4-5d8d2f31cb80",
+    "display_name": "Other Financial Institutions (Egypt)",
+    "country": "EG",
+    "key": "eg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Egypt)"
+  },
+  {
+    "id": "ff573b64-74d2-4f7e-8b0f-04738d6ea45f",
+    "display_name": "Other Financial Institutions (Eritrea)",
+    "country": "ER",
+    "key": "er_other_financial_institution",
+    "official_name": "Other Financial Institutions (Eritrea)"
+  },
+  {
+    "id": "209e777e-3246-46c5-bf02-a8fc7e0d9bd5",
+    "display_name": "Other Financial Institutions (Western Sahara)",
+    "country": "EH",
+    "key": "eh_other_financial_institution",
+    "official_name": "Other Financial Institutions (Western Sahara)"
+  },
+  {
+    "id": "f30ec16f-8cc9-42ec-8e1b-aebf718a1364",
+    "display_name": "Other Financial Institutions (Spain)",
+    "country": "ES",
+    "key": "es_other_financial_institution",
+    "official_name": "Other Financial Institutions (Spain)"
+  },
+  {
+    "id": "c38f35ea-b21e-4191-b824-8a3099e2402a",
+    "display_name": "Other Financial Institutions (Estonia)",
+    "country": "EE",
+    "key": "ee_other_financial_institution",
+    "official_name": "Other Financial Institutions (Estonia)"
+  },
+  {
+    "id": "3c8f1d4f-bba2-4d69-b191-ca60560b23f4",
+    "display_name": "Other Financial Institutions (Ethiopia)",
+    "country": "ET",
+    "key": "et_other_financial_institution",
+    "official_name": "Other Financial Institutions (Ethiopia)"
+  },
+  {
+    "id": "e4a23b98-484e-4bb4-9d31-f95433bcbf2f",
+    "display_name": "Other Financial Institutions (Finland)",
+    "country": "FI",
+    "key": "fi_other_financial_institution",
+    "official_name": "Other Financial Institutions (Finland)"
+  },
+  {
+    "id": "879fca52-2257-4fb6-bdc1-00e73e6a23ee",
+    "display_name": "Other Financial Institutions (Fiji)",
+    "country": "FJ",
+    "key": "fj_other_financial_institution",
+    "official_name": "Other Financial Institutions (Fiji)"
+  },
+  {
+    "id": "7b6bfb2d-b411-4081-ae31-c1a7395049c9",
+    "display_name": "Other Financial Institutions (Falkland Islands (Malvinas))",
+    "country": "FK",
+    "key": "fk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Falkland Islands (Malvinas))"
+  },
+  {
+    "id": "0f51faf6-5cdd-456e-b9b1-54b868c959be",
+    "display_name": "Other Financial Institutions (France)",
+    "country": "FR",
+    "key": "fr_other_financial_institution",
+    "official_name": "Other Financial Institutions (France)"
+  },
+  {
+    "id": "cb593cf6-a0ef-4b3d-86a8-8a3f6eebacf1",
+    "display_name": "Other Financial Institutions (Faroe Islands)",
+    "country": "FO",
+    "key": "fo_other_financial_institution",
+    "official_name": "Other Financial Institutions (Faroe Islands)"
+  },
+  {
+    "id": "2a2e7fd1-6665-4d36-ae07-7fee1965f614",
+    "display_name": "Other Financial Institutions (Micronesia, Federated States of)",
+    "country": "FM",
+    "key": "fm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Micronesia, Federated States of)"
+  },
+  {
+    "id": "7e3b1bda-c8d7-414d-b4de-060177f3b11d",
+    "display_name": "Other Financial Institutions (Gabon)",
+    "country": "GA",
+    "key": "ga_other_financial_institution",
+    "official_name": "Other Financial Institutions (Gabon)"
+  },
+  {
+    "id": "45020e31-dd2e-4c22-9c60-8f62897b7965",
+    "display_name": "Other Financial Institutions (United Kingdom)",
+    "country": "GB",
+    "key": "gb_other_financial_institution",
+    "official_name": "Other Financial Institutions (United Kingdom)"
+  },
+  {
+    "id": "9a89e933-3a8f-41b8-a19e-a9b3e552e023",
+    "display_name": "Other Financial Institutions (Georgia)",
+    "country": "GE",
+    "key": "ge_other_financial_institution",
+    "official_name": "Other Financial Institutions (Georgia)"
+  },
+  {
+    "id": "40176403-c9b4-480a-afd9-48f8ab71f936",
+    "display_name": "Other Financial Institutions (Guernsey)",
+    "country": "GG",
+    "key": "gg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guernsey)"
+  },
+  {
+    "id": "df0abdec-9f79-4e27-95cf-c03f782a6248",
+    "display_name": "Other Financial Institutions (Ghana)",
+    "country": "GH",
+    "key": "gh_other_financial_institution",
+    "official_name": "Other Financial Institutions (Ghana)"
+  },
+  {
+    "id": "e67e6aad-398d-4067-89fa-9d340aa59040",
+    "display_name": "Other Financial Institutions (Gibraltar)",
+    "country": "GI",
+    "key": "gi_other_financial_institution",
+    "official_name": "Other Financial Institutions (Gibraltar)"
+  },
+  {
+    "id": "297060e5-095d-4895-bdb8-47afe21362ad",
+    "display_name": "Other Financial Institutions (Guinea)",
+    "country": "GN",
+    "key": "gn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guinea)"
+  },
+  {
+    "id": "385de68d-17b9-456c-9557-c9b7d89d1e9f",
+    "display_name": "Other Financial Institutions (Guadeloupe)",
+    "country": "GP",
+    "key": "gp_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guadeloupe)"
+  },
+  {
+    "id": "3881a68f-8ae3-4aae-a74f-6ed81286f640",
+    "display_name": "Other Financial Institutions (Gambia)",
+    "country": "GM",
+    "key": "gm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Gambia)"
+  },
+  {
+    "id": "27bf4028-f596-46c9-972b-0135947ff959",
+    "display_name": "Other Financial Institutions (Guinea-Bissau)",
+    "country": "GW",
+    "key": "gw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guinea-Bissau)"
+  },
+  {
+    "id": "cc2b34cc-19e4-490d-830b-041c46639eb0",
+    "display_name": "Other Financial Institutions (Equatorial Guinea)",
+    "country": "GQ",
+    "key": "gq_other_financial_institution",
+    "official_name": "Other Financial Institutions (Equatorial Guinea)"
+  },
+  {
+    "id": "a92c0f09-a375-4a47-8234-0228d59f4e99",
+    "display_name": "Other Financial Institutions (Greece)",
+    "country": "GR",
+    "key": "gr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Greece)"
+  },
+  {
+    "id": "abac806f-a567-45c6-83e9-3511f88e55ef",
+    "display_name": "Other Financial Institutions (Grenada)",
+    "country": "GD",
+    "key": "gd_other_financial_institution",
+    "official_name": "Other Financial Institutions (Grenada)"
+  },
+  {
+    "id": "b2e74f65-d338-4204-8f08-4731100880ce",
+    "display_name": "Other Financial Institutions (Greenland)",
+    "country": "GL",
+    "key": "gl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Greenland)"
+  },
+  {
+    "id": "36076786-9ff5-483f-b7e9-dbbb143c4a9b",
+    "display_name": "Other Financial Institutions (Guatemala)",
+    "country": "GT",
+    "key": "gt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guatemala)"
+  },
+  {
+    "id": "96c237e0-33f1-45be-802a-c3e7a68ecf4b",
+    "display_name": "Other Financial Institutions (French Guiana)",
+    "country": "GF",
+    "key": "gf_other_financial_institution",
+    "official_name": "Other Financial Institutions (French Guiana)"
+  },
+  {
+    "id": "195df191-3747-4775-95a8-57ce35137487",
+    "display_name": "Other Financial Institutions (Guam)",
+    "country": "GU",
+    "key": "gu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guam)"
+  },
+  {
+    "id": "df4383c0-61da-402c-b3a0-df888c0feedc",
+    "display_name": "Other Financial Institutions (Guyana)",
+    "country": "GY",
+    "key": "gy_other_financial_institution",
+    "official_name": "Other Financial Institutions (Guyana)"
+  },
+  {
+    "id": "d6ca7db8-16f0-40ef-b4ec-a74b6ea3ee9d",
+    "display_name": "Other Financial Institutions (Hong Kong)",
+    "country": "HK",
+    "key": "hk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Hong Kong)"
+  },
+  {
+    "id": "ff51739c-98c3-4c7c-bcb4-d5756cfec9ef",
+    "display_name": "Other Financial Institutions (Heard Island and McDonald Islands)",
+    "country": "HM",
+    "key": "hm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Heard Island and McDonald Islands)"
+  },
+  {
+    "id": "40136e21-6a6e-4a36-93df-dec1e1867554",
+    "display_name": "Other Financial Institutions (Honduras)",
+    "country": "HN",
+    "key": "hn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Honduras)"
+  },
+  {
+    "id": "b9d53f44-899d-4ae9-abfe-5fdc854581fa",
+    "display_name": "Other Financial Institutions (Croatia)",
+    "country": "HR",
+    "key": "hr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Croatia)"
+  },
+  {
+    "id": "df667baa-7ec6-485b-8fc4-21262c244d13",
+    "display_name": "Other Financial Institutions (Haiti)",
+    "country": "HT",
+    "key": "ht_other_financial_institution",
+    "official_name": "Other Financial Institutions (Haiti)"
+  },
+  {
+    "id": "cf3ea5c6-ac65-4656-a1e2-12de284fc080",
+    "display_name": "Other Financial Institutions (Hungary)",
+    "country": "HU",
+    "key": "hu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Hungary)"
+  },
+  {
+    "id": "7f20fb8a-4ec8-474c-9d64-e19c0f9f1323",
+    "display_name": "Other Financial Institutions (Indonesia)",
+    "country": "ID",
+    "key": "id_other_financial_institution",
+    "official_name": "Other Financial Institutions (Indonesia)"
+  },
+  {
+    "id": "c82d46a3-24fb-4c5f-bccc-29520602e13c",
+    "display_name": "Other Financial Institutions (Isle of Man)",
+    "country": "IM",
+    "key": "im_other_financial_institution",
+    "official_name": "Other Financial Institutions (Isle of Man)"
+  },
+  {
+    "id": "cd73b676-a093-4e99-ac93-8d400f41b2dc",
+    "display_name": "Other Financial Institutions (India)",
+    "country": "IN",
+    "key": "in_other_financial_institution",
+    "official_name": "Other Financial Institutions (India)"
+  },
+  {
+    "id": "59dc0380-c72b-40b1-a78c-098f2996d790",
+    "display_name": "Other Financial Institutions (British Indian Ocean Territory)",
+    "country": "IO",
+    "key": "io_other_financial_institution",
+    "official_name": "Other Financial Institutions (British Indian Ocean Territory)"
+  },
+  {
+    "id": "34b51732-cdd0-44cd-b31d-ca617002c72d",
+    "display_name": "Other Financial Institutions (Ireland)",
+    "country": "IE",
+    "key": "ie_other_financial_institution",
+    "official_name": "Other Financial Institutions (Ireland)"
+  },
+  {
+    "id": "cefc2ca1-83e8-47dd-9f7d-9e092eda916e",
+    "display_name": "Other Financial Institutions (Iran, Islamic Republic of)",
+    "country": "IR",
+    "key": "ir_other_financial_institution",
+    "official_name": "Other Financial Institutions (Iran, Islamic Republic of)"
+  },
+  {
+    "id": "1ec1000a-1f15-43e1-850a-bff243b5d247",
+    "display_name": "Other Financial Institutions (Iraq)",
+    "country": "IQ",
+    "key": "iq_other_financial_institution",
+    "official_name": "Other Financial Institutions (Iraq)"
+  },
+  {
+    "id": "7e5f03b4-d5c3-497c-80f2-67bf27281064",
+    "display_name": "Other Financial Institutions (Iceland)",
+    "country": "IS",
+    "key": "is_other_financial_institution",
+    "official_name": "Other Financial Institutions (Iceland)"
+  },
+  {
+    "id": "11ae19ec-17fe-40cf-bc4f-c436e86e819c",
+    "display_name": "Other Financial Institutions (Israel)",
+    "country": "IL",
+    "key": "il_other_financial_institution",
+    "official_name": "Other Financial Institutions (Israel)"
+  },
+  {
+    "id": "eeb36391-3bbb-46cb-bb75-9d3624ab3578",
+    "display_name": "Other Financial Institutions (Italy)",
+    "country": "IT",
+    "key": "it_other_financial_institution",
+    "official_name": "Other Financial Institutions (Italy)"
+  },
+  {
+    "id": "91d397d1-cf30-43b2-b7a9-12450e99cb3a",
+    "display_name": "Other Financial Institutions (Jamaica)",
+    "country": "JM",
+    "key": "jm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Jamaica)"
+  },
+  {
+    "id": "cbfd8e48-d183-4108-9c94-1a48bae2c116",
+    "display_name": "Other Financial Institutions (Jersey)",
+    "country": "JE",
+    "key": "je_other_financial_institution",
+    "official_name": "Other Financial Institutions (Jersey)"
+  },
+  {
+    "id": "508844e4-a386-4ea8-b7ad-15a6531e40e2",
+    "display_name": "Other Financial Institutions (Jordan)",
+    "country": "JO",
+    "key": "jo_other_financial_institution",
+    "official_name": "Other Financial Institutions (Jordan)"
+  },
+  {
+    "id": "4976863f-f0c3-4fad-8fc5-4963aa225746",
+    "display_name": "Other Financial Institutions (Japan)",
+    "country": "JP",
+    "key": "jp_other_financial_institution",
+    "official_name": "Other Financial Institutions (Japan)"
+  },
+  {
+    "id": "cb4afeec-2db7-407c-b8fa-4016c670f28f",
+    "display_name": "Other Financial Institutions (Kazakhstan)",
+    "country": "KZ",
+    "key": "kz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Kazakhstan)"
+  },
+  {
+    "id": "5f120bcd-18ee-4bfd-9440-eba01fa0280f",
+    "display_name": "Other Financial Institutions (Kenya)",
+    "country": "KE",
+    "key": "ke_other_financial_institution",
+    "official_name": "Other Financial Institutions (Kenya)"
+  },
+  {
+    "id": "e86de3cd-ae13-4581-9bae-49483b7d64d9",
+    "display_name": "Other Financial Institutions (Kyrgyzstan)",
+    "country": "KG",
+    "key": "kg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Kyrgyzstan)"
+  },
+  {
+    "id": "572a5d35-2525-4242-8d06-4adfce17c981",
+    "display_name": "Other Financial Institutions (Cambodia)",
+    "country": "KH",
+    "key": "kh_other_financial_institution",
+    "official_name": "Other Financial Institutions (Cambodia)"
+  },
+  {
+    "id": "eae8ac6c-d4e7-4dfe-8d08-4d323ceb8fcf",
+    "display_name": "Other Financial Institutions (Kiribati)",
+    "country": "KI",
+    "key": "ki_other_financial_institution",
+    "official_name": "Other Financial Institutions (Kiribati)"
+  },
+  {
+    "id": "9461a972-deb4-458b-be9f-77657ad8926b",
+    "display_name": "Other Financial Institutions (Saint Kitts and Nevis)",
+    "country": "KN",
+    "key": "kn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Kitts and Nevis)"
+  },
+  {
+    "id": "883dd94d-706f-4556-af10-382665bdc755",
+    "display_name": "Other Financial Institutions (Korea, Republic of)",
+    "country": "KR",
+    "key": "kr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Korea, Republic of)"
+  },
+  {
+    "id": "9a0d7074-485f-4f15-82aa-0cc2b03cb078",
+    "display_name": "Other Financial Institutions (Kuwait)",
+    "country": "KW",
+    "key": "kw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Kuwait)"
+  },
+  {
+    "id": "625e429c-6cc0-4a4b-9009-08baf571d773",
+    "display_name": "Other Financial Institutions (Lao People's Democratic Republic)",
+    "country": "LA",
+    "key": "la_other_financial_institution",
+    "official_name": "Other Financial Institutions (Lao People's Democratic Republic)"
+  },
+  {
+    "id": "44a59e9c-81fa-4ccf-b00a-59948ddd57fc",
+    "display_name": "Other Financial Institutions (Lebanon)",
+    "country": "LB",
+    "key": "lb_other_financial_institution",
+    "official_name": "Other Financial Institutions (Lebanon)"
+  },
+  {
+    "id": "98b23996-f46d-40d6-86e1-e0c8db6a1205",
+    "display_name": "Other Financial Institutions (Liberia)",
+    "country": "LR",
+    "key": "lr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Liberia)"
+  },
+  {
+    "id": "beca972b-c97c-4ee7-b3d9-2f8c5f9b7f6b",
+    "display_name": "Other Financial Institutions (Libya)",
+    "country": "LY",
+    "key": "ly_other_financial_institution",
+    "official_name": "Other Financial Institutions (Libya)"
+  },
+  {
+    "id": "1ea90155-f74c-47d4-9a8f-3e3ee986a9f0",
+    "display_name": "Other Financial Institutions (Saint Lucia)",
+    "country": "LC",
+    "key": "lc_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Lucia)"
+  },
+  {
+    "id": "9a36cfee-5595-4929-a49e-8cd8b735ad3d",
+    "display_name": "Other Financial Institutions (Liechtenstein)",
+    "country": "LI",
+    "key": "li_other_financial_institution",
+    "official_name": "Other Financial Institutions (Liechtenstein)"
+  },
+  {
+    "id": "183908c7-2b6b-4f46-8985-052f94fe153f",
+    "display_name": "Other Financial Institutions (Sri Lanka)",
+    "country": "LK",
+    "key": "lk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Sri Lanka)"
+  },
+  {
+    "id": "b2712d36-e162-4255-b6e5-d9c742c6ef70",
+    "display_name": "Other Financial Institutions (Lesotho)",
+    "country": "LS",
+    "key": "ls_other_financial_institution",
+    "official_name": "Other Financial Institutions (Lesotho)"
+  },
+  {
+    "id": "e279630e-c562-4d96-aa98-cd2b0aebffd2",
+    "display_name": "Other Financial Institutions (Lithuania)",
+    "country": "LT",
+    "key": "lt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Lithuania)"
+  },
+  {
+    "id": "8f2081f4-03e2-404e-9a51-70df0c6a93f2",
+    "display_name": "Other Financial Institutions (Luxembourg)",
+    "country": "LU",
+    "key": "lu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Luxembourg)"
+  },
+  {
+    "id": "c589dd62-051c-4aa2-aff4-94ca43fe7c9f",
+    "display_name": "Other Financial Institutions (Latvia)",
+    "country": "LV",
+    "key": "lv_other_financial_institution",
+    "official_name": "Other Financial Institutions (Latvia)"
+  },
+  {
+    "id": "e2f404b5-4164-4216-93c7-1589953ea412",
+    "display_name": "Other Financial Institutions (Macao)",
+    "country": "MO",
+    "key": "mo_other_financial_institution",
+    "official_name": "Other Financial Institutions (Macao)"
+  },
+  {
+    "id": "d9fd02fc-d531-4ee2-93d9-7caa83c01d3c",
+    "display_name": "Other Financial Institutions (Saint Martin (French part))",
+    "country": "MF",
+    "key": "mf_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Martin (French part))"
+  },
+  {
+    "id": "92cd3031-cfd6-42dd-a2d7-e3dea7c43dcd",
+    "display_name": "Other Financial Institutions (Morocco)",
+    "country": "MA",
+    "key": "ma_other_financial_institution",
+    "official_name": "Other Financial Institutions (Morocco)"
+  },
+  {
+    "id": "934db0a7-c1c8-4d5c-a37c-26c7cab33413",
+    "display_name": "Other Financial Institutions (Monaco)",
+    "country": "MC",
+    "key": "mc_other_financial_institution",
+    "official_name": "Other Financial Institutions (Monaco)"
+  },
+  {
+    "id": "acd52011-9e61-4ff7-ae57-c5beca139e96",
+    "display_name": "Other Financial Institutions (Moldova, Republic of)",
+    "country": "MD",
+    "key": "md_other_financial_institution",
+    "official_name": "Other Financial Institutions (Moldova, Republic of)"
+  },
+  {
+    "id": "3c5dd75a-2c9d-4a79-97b0-2f991d7b1b3b",
+    "display_name": "Other Financial Institutions (Madagascar)",
+    "country": "MG",
+    "key": "mg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Madagascar)"
+  },
+  {
+    "id": "0f8ac0da-2e4e-4773-a7a3-63f06caec552",
+    "display_name": "Other Financial Institutions (Maldives)",
+    "country": "MV",
+    "key": "mv_other_financial_institution",
+    "official_name": "Other Financial Institutions (Maldives)"
+  },
+  {
+    "id": "4cf0fe10-8483-4408-b856-880e0eb87991",
+    "display_name": "Other Financial Institutions (Mexico)",
+    "country": "MX",
+    "key": "mx_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mexico)"
+  },
+  {
+    "id": "37f04e01-11c2-421c-bfd6-e76c56d36590",
+    "display_name": "Other Financial Institutions (Marshall Islands)",
+    "country": "MH",
+    "key": "mh_other_financial_institution",
+    "official_name": "Other Financial Institutions (Marshall Islands)"
+  },
+  {
+    "id": "7cdf825e-d2d1-4ffd-8f4d-24b60539191e",
+    "display_name": "Other Financial Institutions (North Macedonia)",
+    "country": "MK",
+    "key": "mk_other_financial_institution",
+    "official_name": "Other Financial Institutions (North Macedonia)"
+  },
+  {
+    "id": "c3b305dc-2438-46d3-8a1c-3052d3da28eb",
+    "display_name": "Other Financial Institutions (Mali)",
+    "country": "ML",
+    "key": "ml_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mali)"
+  },
+  {
+    "id": "6a998ced-96f3-49bf-94e2-b887440dc64c",
+    "display_name": "Other Financial Institutions (Malta)",
+    "country": "MT",
+    "key": "mt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Malta)"
+  },
+  {
+    "id": "ae1baf18-1635-4c33-8bc5-a3ca7e74529a",
+    "display_name": "Other Financial Institutions (Myanmar)",
+    "country": "MM",
+    "key": "mm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Myanmar)"
+  },
+  {
+    "id": "264a1601-6aff-432e-84cd-d84f5001d276",
+    "display_name": "Other Financial Institutions (Montenegro)",
+    "country": "ME",
+    "key": "me_other_financial_institution",
+    "official_name": "Other Financial Institutions (Montenegro)"
+  },
+  {
+    "id": "e768031e-3822-4f82-b328-6ecda3d002d3",
+    "display_name": "Other Financial Institutions (Mongolia)",
+    "country": "MN",
+    "key": "mn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mongolia)"
+  },
+  {
+    "id": "976b69e1-da84-4089-afaa-3d7b8a115566",
+    "display_name": "Other Financial Institutions (Northern Mariana Islands)",
+    "country": "MP",
+    "key": "mp_other_financial_institution",
+    "official_name": "Other Financial Institutions (Northern Mariana Islands)"
+  },
+  {
+    "id": "85ceaa94-1f90-4ee9-9734-ca7defc7ba9a",
+    "display_name": "Other Financial Institutions (Mozambique)",
+    "country": "MZ",
+    "key": "mz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mozambique)"
+  },
+  {
+    "id": "866cba9f-6ca9-449a-9873-f3cc271a4f01",
+    "display_name": "Other Financial Institutions (Mauritania)",
+    "country": "MR",
+    "key": "mr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mauritania)"
+  },
+  {
+    "id": "fd9569b0-e344-4973-8220-0932e726e47d",
+    "display_name": "Other Financial Institutions (Montserrat)",
+    "country": "MS",
+    "key": "ms_other_financial_institution",
+    "official_name": "Other Financial Institutions (Montserrat)"
+  },
+  {
+    "id": "2f92f8df-8809-41b0-826c-49ef3a2dd5f6",
+    "display_name": "Other Financial Institutions (Martinique)",
+    "country": "MQ",
+    "key": "mq_other_financial_institution",
+    "official_name": "Other Financial Institutions (Martinique)"
+  },
+  {
+    "id": "55588b91-a487-4c47-8417-4f8e18dff9af",
+    "display_name": "Other Financial Institutions (Mauritius)",
+    "country": "MU",
+    "key": "mu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mauritius)"
+  },
+  {
+    "id": "e47e43be-3b52-4385-821d-a8a6929850d8",
+    "display_name": "Other Financial Institutions (Malawi)",
+    "country": "MW",
+    "key": "mw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Malawi)"
+  },
+  {
+    "id": "c8b72463-3225-4c91-a3a9-bbe838c030ff",
+    "display_name": "Other Financial Institutions (Malaysia)",
+    "country": "MY",
+    "key": "my_other_financial_institution",
+    "official_name": "Other Financial Institutions (Malaysia)"
+  },
+  {
+    "id": "093f4925-336f-4856-9bd3-a6ebb98360d0",
+    "display_name": "Other Financial Institutions (Mayotte)",
+    "country": "YT",
+    "key": "yt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Mayotte)"
+  },
+  {
+    "id": "b7ac67ba-f6b0-4ccb-b755-13b25c74c1ad",
+    "display_name": "Other Financial Institutions (Namibia)",
+    "country": "NA",
+    "key": "na_other_financial_institution",
+    "official_name": "Other Financial Institutions (Namibia)"
+  },
+  {
+    "id": "bb59b59c-ebc5-424b-b9ab-fcfc61101c22",
+    "display_name": "Other Financial Institutions (New Caledonia)",
+    "country": "NC",
+    "key": "nc_other_financial_institution",
+    "official_name": "Other Financial Institutions (New Caledonia)"
+  },
+  {
+    "id": "545d4442-2d3c-4563-96c0-359b396e1a3c",
+    "display_name": "Other Financial Institutions (Niger)",
+    "country": "NE",
+    "key": "ne_other_financial_institution",
+    "official_name": "Other Financial Institutions (Niger)"
+  },
+  {
+    "id": "f9e80aee-ff3f-4203-b1da-20e9c29a99f8",
+    "display_name": "Other Financial Institutions (Norfolk Island)",
+    "country": "NF",
+    "key": "nf_other_financial_institution",
+    "official_name": "Other Financial Institutions (Norfolk Island)"
+  },
+  {
+    "id": "9e0e7131-5d24-4422-8403-73b4f61ace14",
+    "display_name": "Other Financial Institutions (Nigeria)",
+    "country": "NG",
+    "key": "ng_other_financial_institution",
+    "official_name": "Other Financial Institutions (Nigeria)"
+  },
+  {
+    "id": "81d31067-0b16-4ac0-bbac-830201ce3b6b",
+    "display_name": "Other Financial Institutions (Nicaragua)",
+    "country": "NI",
+    "key": "ni_other_financial_institution",
+    "official_name": "Other Financial Institutions (Nicaragua)"
+  },
+  {
+    "id": "d68ee343-6463-4775-8cfd-0ef10dda0071",
+    "display_name": "Other Financial Institutions (Niue)",
+    "country": "NU",
+    "key": "nu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Niue)"
+  },
+  {
+    "id": "a60e57cf-99a8-471a-b616-ea6315213d37",
+    "display_name": "Other Financial Institutions (Netherlands)",
+    "country": "NL",
+    "key": "nl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Netherlands)"
+  },
+  {
+    "id": "a8ea96d4-8af7-4bce-b1cf-8e43ec2a1f67",
+    "display_name": "Other Financial Institutions (Norway)",
+    "country": "NO",
+    "key": "no_other_financial_institution",
+    "official_name": "Other Financial Institutions (Norway)"
+  },
+  {
+    "id": "31bb47c3-c000-48d0-b202-044b60c91512",
+    "display_name": "Other Financial Institutions (Nepal)",
+    "country": "NP",
+    "key": "np_other_financial_institution",
+    "official_name": "Other Financial Institutions (Nepal)"
+  },
+  {
+    "id": "66f134fd-0134-4113-bf85-4965f94d0fa9",
+    "display_name": "Other Financial Institutions (Nauru)",
+    "country": "NR",
+    "key": "nr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Nauru)"
+  },
+  {
+    "id": "a07737a4-0c3c-4e93-b156-8415f03efa99",
+    "display_name": "Other Financial Institutions (New Zealand)",
+    "country": "NZ",
+    "key": "nz_other_financial_institution",
+    "official_name": "Other Financial Institutions (New Zealand)"
+  },
+  {
+    "id": "41028609-0430-4d23-9d0a-8a4d57c2ebfa",
+    "display_name": "Other Financial Institutions (Oman)",
+    "country": "OM",
+    "key": "om_other_financial_institution",
+    "official_name": "Other Financial Institutions (Oman)"
+  },
+  {
+    "id": "5af072d4-9831-41d2-b0ac-e960d796b6b7",
+    "display_name": "Other Financial Institutions (Pakistan)",
+    "country": "PK",
+    "key": "pk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Pakistan)"
+  },
+  {
+    "id": "6a934b8f-7eff-40af-8384-18bc2f687bab",
+    "display_name": "Other Financial Institutions (Panama)",
+    "country": "PA",
+    "key": "pa_other_financial_institution",
+    "official_name": "Other Financial Institutions (Panama)"
+  },
+  {
+    "id": "bd90e789-e061-44b6-996b-afdf8df536b4",
+    "display_name": "Other Financial Institutions (Pitcairn)",
+    "country": "PN",
+    "key": "pn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Pitcairn)"
+  },
+  {
+    "id": "791f4ab8-2549-4a34-bf75-33d0505a2a34",
+    "display_name": "Other Financial Institutions (Peru)",
+    "country": "PE",
+    "key": "pe_other_financial_institution",
+    "official_name": "Other Financial Institutions (Peru)"
+  },
+  {
+    "id": "625f0482-e9a8-4e8a-825b-ce916df62d00",
+    "display_name": "Other Financial Institutions (Philippines)",
+    "country": "PH",
+    "key": "ph_other_financial_institution",
+    "official_name": "Other Financial Institutions (Philippines)"
+  },
+  {
+    "id": "25e3365c-4117-43d0-ad87-35f20fa805e7",
+    "display_name": "Other Financial Institutions (Palau)",
+    "country": "PW",
+    "key": "pw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Palau)"
+  },
+  {
+    "id": "a4e68f35-16dc-49fd-927d-ae3aec607de9",
+    "display_name": "Other Financial Institutions (Papua New Guinea)",
+    "country": "PG",
+    "key": "pg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Papua New Guinea)"
+  },
+  {
+    "id": "2881480d-6f9b-44a9-a38d-8b227be7ec07",
+    "display_name": "Other Financial Institutions (Poland)",
+    "country": "PL",
+    "key": "pl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Poland)"
+  },
+  {
+    "id": "0c0081ca-e0f7-4d1f-bbaa-97d26e635fba",
+    "display_name": "Other Financial Institutions (Puerto Rico)",
+    "country": "PR",
+    "key": "pr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Puerto Rico)"
+  },
+  {
+    "id": "bbab07d9-6a71-4eb8-80e6-c454f559d5be",
+    "display_name": "Other Financial Institutions (Korea, Democratic People's Republic of)",
+    "country": "KP",
+    "key": "kp_other_financial_institution",
+    "official_name": "Other Financial Institutions (Korea, Democratic People's Republic of)"
+  },
+  {
+    "id": "28b508f0-c2b5-49db-b566-3144b5e0d4c9",
+    "display_name": "Other Financial Institutions (Portugal)",
+    "country": "PT",
+    "key": "pt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Portugal)"
+  },
+  {
+    "id": "b8a1476a-7da1-42ca-90db-0e3dd51022a3",
+    "display_name": "Other Financial Institutions (Paraguay)",
+    "country": "PY",
+    "key": "py_other_financial_institution",
+    "official_name": "Other Financial Institutions (Paraguay)"
+  },
+  {
+    "id": "f1387043-610e-471f-a520-c8890d41407f",
+    "display_name": "Other Financial Institutions (Palestine, State of)",
+    "country": "PS",
+    "key": "ps_other_financial_institution",
+    "official_name": "Other Financial Institutions (Palestine, State of)"
+  },
+  {
+    "id": "ebed8c1c-5ac7-43fc-969d-38beb498e1c5",
+    "display_name": "Other Financial Institutions (French Polynesia)",
+    "country": "PF",
+    "key": "pf_other_financial_institution",
+    "official_name": "Other Financial Institutions (French Polynesia)"
+  },
+  {
+    "id": "ed6d0c73-5db9-4d8b-9732-6ba7d677e71b",
+    "display_name": "Other Financial Institutions (Qatar)",
+    "country": "QA",
+    "key": "qa_other_financial_institution",
+    "official_name": "Other Financial Institutions (Qatar)"
+  },
+  {
+    "id": "a21ba0e5-1b0a-4141-8e2e-19acb3526f36",
+    "display_name": "Other Financial Institutions (R�union)",
+    "country": "RE",
+    "key": "re_other_financial_institution",
+    "official_name": "Other Financial Institutions (R�union)"
+  },
+  {
+    "id": "2b8bef75-b299-4ca9-9a5e-a5bc26f3287d",
+    "display_name": "Other Financial Institutions (Romania)",
+    "country": "RO",
+    "key": "ro_other_financial_institution",
+    "official_name": "Other Financial Institutions (Romania)"
+  },
+  {
+    "id": "dadf7367-8a1b-43b0-934f-76446e6d801b",
+    "display_name": "Other Financial Institutions (Russian Federation)",
+    "country": "RU",
+    "key": "ru_other_financial_institution",
+    "official_name": "Other Financial Institutions (Russian Federation)"
+  },
+  {
+    "id": "c0101632-4130-4b24-a047-1c8803fc337f",
+    "display_name": "Other Financial Institutions (Rwanda)",
+    "country": "RW",
+    "key": "rw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Rwanda)"
+  },
+  {
+    "id": "5330b307-11aa-4e29-907e-0354e01e4952",
+    "display_name": "Other Financial Institutions (Saudi Arabia)",
+    "country": "SA",
+    "key": "sa_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saudi Arabia)"
+  },
+  {
+    "id": "6471b396-fe42-4684-bee0-157cd66e0953",
+    "display_name": "Other Financial Institutions (Sudan)",
+    "country": "SD",
+    "key": "sd_other_financial_institution",
+    "official_name": "Other Financial Institutions (Sudan)"
+  },
+  {
+    "id": "2934d670-57cf-4f2b-b4d8-ae55704a8481",
+    "display_name": "Other Financial Institutions (Senegal)",
+    "country": "SN",
+    "key": "sn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Senegal)"
+  },
+  {
+    "id": "8f883ac0-82f8-4daf-b76c-779ff698eafb",
+    "display_name": "Other Financial Institutions (Singapore)",
+    "country": "SG",
+    "key": "sg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Singapore)"
+  },
+  {
+    "id": "f6ee4a8f-025e-4705-80cf-6ad2b252e7fd",
+    "display_name": "Other Financial Institutions (South Georgia and the South Sandwich Islands)",
+    "country": "GS",
+    "key": "gs_other_financial_institution",
+    "official_name": "Other Financial Institutions (South Georgia and the South Sandwich Islands)"
+  },
+  {
+    "id": "cf9adc1a-c698-4788-9dfa-f382df7e1b9b",
+    "display_name": "Other Financial Institutions (Saint Helena, Ascension and Tristan da Cunha)",
+    "country": "SH",
+    "key": "sh_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Helena, Ascension and Tristan da Cunha)"
+  },
+  {
+    "id": "60209c08-247f-4247-9a92-1ed669f009e9",
+    "display_name": "Other Financial Institutions (Svalbard and Jan Mayen)",
+    "country": "SJ",
+    "key": "sj_other_financial_institution",
+    "official_name": "Other Financial Institutions (Svalbard and Jan Mayen)"
+  },
+  {
+    "id": "26162e36-5d03-4bff-b8aa-8791b0dc633e",
+    "display_name": "Other Financial Institutions (Solomon Islands)",
+    "country": "SB",
+    "key": "sb_other_financial_institution",
+    "official_name": "Other Financial Institutions (Solomon Islands)"
+  },
+  {
+    "id": "4dc7adbd-db95-44ea-9403-41f9089057cf",
+    "display_name": "Other Financial Institutions (Sierra Leone)",
+    "country": "SL",
+    "key": "sl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Sierra Leone)"
+  },
+  {
+    "id": "72d869bc-bdec-47cd-8635-ef5b9c9f0c92",
+    "display_name": "Other Financial Institutions (El Salvador)",
+    "country": "SV",
+    "key": "sv_other_financial_institution",
+    "official_name": "Other Financial Institutions (El Salvador)"
+  },
+  {
+    "id": "390075f0-1ffd-4fee-b6a2-dbeacdf0a609",
+    "display_name": "Other Financial Institutions (San Marino)",
+    "country": "SM",
+    "key": "sm_other_financial_institution",
+    "official_name": "Other Financial Institutions (San Marino)"
+  },
+  {
+    "id": "deb3ec37-7691-4ed9-be88-1ef327d0a4a9",
+    "display_name": "Other Financial Institutions (Somalia)",
+    "country": "SO",
+    "key": "so_other_financial_institution",
+    "official_name": "Other Financial Institutions (Somalia)"
+  },
+  {
+    "id": "3ec64f3b-b04d-4fe5-9041-7d4371f14d86",
+    "display_name": "Other Financial Institutions (Saint Pierre and Miquelon)",
+    "country": "PM",
+    "key": "pm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Pierre and Miquelon)"
+  },
+  {
+    "id": "0ba9b106-c71f-4dc1-9464-f4951d19922b",
+    "display_name": "Other Financial Institutions (Serbia)",
+    "country": "RS",
+    "key": "rs_other_financial_institution",
+    "official_name": "Other Financial Institutions (Serbia)"
+  },
+  {
+    "id": "eeecb20b-48f2-40df-9c6a-2d4c3ba5113d",
+    "display_name": "Other Financial Institutions (South Sudan)",
+    "country": "SS",
+    "key": "ss_other_financial_institution",
+    "official_name": "Other Financial Institutions (South Sudan)"
+  },
+  {
+    "id": "0c390984-203f-4453-8cde-7c02cacc13db",
+    "display_name": "Other Financial Institutions (Sao Tome and Principe)",
+    "country": "ST",
+    "key": "st_other_financial_institution",
+    "official_name": "Other Financial Institutions (Sao Tome and Principe)"
+  },
+  {
+    "id": "8a0ef90a-8335-4623-85ad-7e9fb36030a9",
+    "display_name": "Other Financial Institutions (Suriname)",
+    "country": "SR",
+    "key": "sr_other_financial_institution",
+    "official_name": "Other Financial Institutions (Suriname)"
+  },
+  {
+    "id": "d038637f-e8ca-462b-9c36-ba1304ab3fd1",
+    "display_name": "Other Financial Institutions (Slovakia)",
+    "country": "SK",
+    "key": "sk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Slovakia)"
+  },
+  {
+    "id": "4e3b35fe-e865-4356-b41f-a418e4792805",
+    "display_name": "Other Financial Institutions (Slovenia)",
+    "country": "SI",
+    "key": "si_other_financial_institution",
+    "official_name": "Other Financial Institutions (Slovenia)"
+  },
+  {
+    "id": "c2949c7a-b278-4376-8ef5-b9a8e0c6ce97",
+    "display_name": "Other Financial Institutions (Sweden)",
+    "country": "SE",
+    "key": "se_other_financial_institution",
+    "official_name": "Other Financial Institutions (Sweden)"
+  },
+  {
+    "id": "7b371342-a825-4852-921e-7f09892bea81",
+    "display_name": "Other Financial Institutions (Eswatini)",
+    "country": "SZ",
+    "key": "sz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Eswatini)"
+  },
+  {
+    "id": "c4997c2a-3959-4975-a67b-942378632fac",
+    "display_name": "Other Financial Institutions (Sint Maarten (Dutch part))",
+    "country": "SX",
+    "key": "sx_other_financial_institution",
+    "official_name": "Other Financial Institutions (Sint Maarten (Dutch part))"
+  },
+  {
+    "id": "9e87e66c-2078-4d66-b8dd-847e25a3ada6",
+    "display_name": "Other Financial Institutions (Seychelles)",
+    "country": "SC",
+    "key": "sc_other_financial_institution",
+    "official_name": "Other Financial Institutions (Seychelles)"
+  },
+  {
+    "id": "e1ad23f1-378c-42c8-bb80-634c44e4e784",
+    "display_name": "Other Financial Institutions (Syrian Arab Republic)",
+    "country": "SY",
+    "key": "sy_other_financial_institution",
+    "official_name": "Other Financial Institutions (Syrian Arab Republic)"
+  },
+  {
+    "id": "c1b3ddf4-8b66-43d7-b0d1-74d56cafb245",
+    "display_name": "Other Financial Institutions (Turks and Caicos Islands)",
+    "country": "TC",
+    "key": "tc_other_financial_institution",
+    "official_name": "Other Financial Institutions (Turks and Caicos Islands)"
+  },
+  {
+    "id": "ca1b1ddd-2cb9-4c3b-8c3e-1f9edf455e37",
+    "display_name": "Other Financial Institutions (Chad)",
+    "country": "TD",
+    "key": "td_other_financial_institution",
+    "official_name": "Other Financial Institutions (Chad)"
+  },
+  {
+    "id": "0eb8d805-b54a-4993-9b40-e9138426d393",
+    "display_name": "Other Financial Institutions (Togo)",
+    "country": "TG",
+    "key": "tg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Togo)"
+  },
+  {
+    "id": "d20a3513-6868-4c26-9415-b654bad30fb3",
+    "display_name": "Other Financial Institutions (Thailand)",
+    "country": "TH",
+    "key": "th_other_financial_institution",
+    "official_name": "Other Financial Institutions (Thailand)"
+  },
+  {
+    "id": "39a4b742-3091-45c9-bc9d-7b0329e7db2e",
+    "display_name": "Other Financial Institutions (Tajikistan)",
+    "country": "TJ",
+    "key": "tj_other_financial_institution",
+    "official_name": "Other Financial Institutions (Tajikistan)"
+  },
+  {
+    "id": "a31fdeaf-2422-4201-b462-3e40e36a6aae",
+    "display_name": "Other Financial Institutions (Tokelau)",
+    "country": "TK",
+    "key": "tk_other_financial_institution",
+    "official_name": "Other Financial Institutions (Tokelau)"
+  },
+  {
+    "id": "e10f1405-da74-4c17-ba31-3a0e0d92431d",
+    "display_name": "Other Financial Institutions (Turkmenistan)",
+    "country": "TM",
+    "key": "tm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Turkmenistan)"
+  },
+  {
+    "id": "49f0fc6a-d317-48e0-b3af-6a2ddacb36d8",
+    "display_name": "Other Financial Institutions (Timor-Leste)",
+    "country": "TL",
+    "key": "tl_other_financial_institution",
+    "official_name": "Other Financial Institutions (Timor-Leste)"
+  },
+  {
+    "id": "4fbc8d6d-4186-4ae8-bc99-2c84903ca8c5",
+    "display_name": "Other Financial Institutions (Tonga)",
+    "country": "TO",
+    "key": "to_other_financial_institution",
+    "official_name": "Other Financial Institutions (Tonga)"
+  },
+  {
+    "id": "61b1f486-8c90-49d9-911b-954325b39999",
+    "display_name": "Other Financial Institutions (Trinidad and Tobago)",
+    "country": "TT",
+    "key": "tt_other_financial_institution",
+    "official_name": "Other Financial Institutions (Trinidad and Tobago)"
+  },
+  {
+    "id": "ccf74cf1-0df8-41ee-b7e7-b37ea63e3068",
+    "display_name": "Other Financial Institutions (Tunisia)",
+    "country": "TN",
+    "key": "tn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Tunisia)"
+  },
+  {
+    "id": "04c5095f-349c-42da-a913-bdec765bb77f",
+    "display_name": "Other Financial Institutions (T�rkiye)",
+    "country": "TR",
+    "key": "tr_other_financial_institution",
+    "official_name": "Other Financial Institutions (T�rkiye)"
+  },
+  {
+    "id": "69ebf35c-fd05-4c00-a090-0f7b1986b2a4",
+    "display_name": "Other Financial Institutions (Tuvalu)",
+    "country": "TV",
+    "key": "tv_other_financial_institution",
+    "official_name": "Other Financial Institutions (Tuvalu)"
+  },
+  {
+    "id": "21ee3fad-ddfc-40ff-8e25-56e900fe7369",
+    "display_name": "Other Financial Institutions (Taiwan, Province of China)",
+    "country": "TW",
+    "key": "tw_other_financial_institution",
+    "official_name": "Other Financial Institutions (Taiwan, Province of China)"
+  },
+  {
+    "id": "317ebd5e-2e72-4f56-8a12-6bf1fef037f5",
+    "display_name": "Other Financial Institutions (Tanzania, United Republic of)",
+    "country": "TZ",
+    "key": "tz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Tanzania, United Republic of)"
+  },
+  {
+    "id": "1293f99c-8dee-46be-84c5-afc1600bd291",
+    "display_name": "Other Financial Institutions (Uganda)",
+    "country": "UG",
+    "key": "ug_other_financial_institution",
+    "official_name": "Other Financial Institutions (Uganda)"
+  },
+  {
+    "id": "d0dca5c1-096e-4bf7-a221-4a2c6f9264f6",
+    "display_name": "Other Financial Institutions (Ukraine)",
+    "country": "UA",
+    "key": "ua_other_financial_institution",
+    "official_name": "Other Financial Institutions (Ukraine)"
+  },
+  {
+    "id": "7aff093e-5d5b-4ad4-8c99-78a3d3714686",
+    "display_name": "Other Financial Institutions (United States Minor Outlying Islands)",
+    "country": "UM",
+    "key": "um_other_financial_institution",
+    "official_name": "Other Financial Institutions (United States Minor Outlying Islands)"
+  },
+  {
+    "id": "3064761e-b727-4882-9bcb-520f1f7f5783",
+    "display_name": "Other Financial Institutions (Uruguay)",
+    "country": "UY",
+    "key": "uy_other_financial_institution",
+    "official_name": "Other Financial Institutions (Uruguay)"
+  },
+  {
+    "id": "47d723d0-403b-4ac2-8f06-2ef391fa769b",
+    "display_name": "Other Financial Institutions (United States)",
+    "country": "US",
+    "key": "us_other_financial_institution",
+    "official_name": "Other Financial Institutions (United States)"
+  },
+  {
+    "id": "f9ee4b4c-1733-4c13-8228-c0b4e720e499",
+    "display_name": "Other Financial Institutions (Uzbekistan)",
+    "country": "UZ",
+    "key": "uz_other_financial_institution",
+    "official_name": "Other Financial Institutions (Uzbekistan)"
+  },
+  {
+    "id": "832072b1-18b6-454c-9cba-e6b14249a09e",
+    "display_name": "Other Financial Institutions (Holy See (Vatican City State))",
+    "country": "VA",
+    "key": "va_other_financial_institution",
+    "official_name": "Other Financial Institutions (Holy See (Vatican City State))"
+  },
+  {
+    "id": "a07cc61c-a658-4364-9062-6ff9bd4f0eac",
+    "display_name": "Other Financial Institutions (Saint Vincent and the Grenadines)",
+    "country": "VC",
+    "key": "vc_other_financial_institution",
+    "official_name": "Other Financial Institutions (Saint Vincent and the Grenadines)"
+  },
+  {
+    "id": "96bd59e6-7d8c-4bd8-ae6b-053c53ceb10f",
+    "display_name": "Other Financial Institutions (Venezuela, Bolivarian Republic of)",
+    "country": "VE",
+    "key": "ve_other_financial_institution",
+    "official_name": "Other Financial Institutions (Venezuela, Bolivarian Republic of)"
+  },
+  {
+    "id": "372436eb-2ebe-4a3b-bbf9-380a06f8c4e8",
+    "display_name": "Other Financial Institutions (Virgin Islands, British)",
+    "country": "VG",
+    "key": "vg_other_financial_institution",
+    "official_name": "Other Financial Institutions (Virgin Islands, British)"
+  },
+  {
+    "id": "be900f61-8a33-47a3-a2a6-5a5ce321ac4a",
+    "display_name": "Other Financial Institutions (Virgin Islands, U.S.)",
+    "country": "VI",
+    "key": "vi_other_financial_institution",
+    "official_name": "Other Financial Institutions (Virgin Islands, U.S.)"
+  },
+  {
+    "id": "57a44bf5-344f-4293-b3e3-dd55f1d51843",
+    "display_name": "Other Financial Institutions (Viet Nam)",
+    "country": "VN",
+    "key": "vn_other_financial_institution",
+    "official_name": "Other Financial Institutions (Viet Nam)"
+  },
+  {
+    "id": "b0cf77db-406c-44e6-9b5f-1a17d737d171",
+    "display_name": "Other Financial Institutions (Vanuatu)",
+    "country": "VU",
+    "key": "vu_other_financial_institution",
+    "official_name": "Other Financial Institutions (Vanuatu)"
+  },
+  {
+    "id": "9f4e1188-5e07-4b60-9afb-752521ce3012",
+    "display_name": "Other Financial Institutions (Wallis and Futuna)",
+    "country": "WF",
+    "key": "wf_other_financial_institution",
+    "official_name": "Other Financial Institutions (Wallis and Futuna)"
+  },
+  {
+    "id": "2d2e96d0-5390-4a19-b5d4-646c9183378c",
+    "display_name": "Other Financial Institutions (Samoa)",
+    "country": "WS",
+    "key": "ws_other_financial_institution",
+    "official_name": "Other Financial Institutions (Samoa)"
+  },
+  {
+    "id": "d540b42a-e03c-4863-8283-a3507d34c3b7",
+    "display_name": "Other Financial Institutions (Yemen)",
+    "country": "YE",
+    "key": "ye_other_financial_institution",
+    "official_name": "Other Financial Institutions (Yemen)"
+  },
+  {
+    "id": "e16bd2b4-b9d0-474c-a446-9ae4b1ab2ef8",
+    "display_name": "Other Financial Institutions (South Africa)",
+    "country": "ZA",
+    "key": "za_other_financial_institution",
+    "official_name": "Other Financial Institutions (South Africa)"
+  },
+  {
+    "id": "2118300d-671a-4e41-916b-abd67f8cb6bb",
+    "display_name": "Other Financial Institutions (Zambia)",
+    "country": "ZM",
+    "key": "zm_other_financial_institution",
+    "official_name": "Other Financial Institutions (Zambia)"
+  },
+  {
+    "id": "4a46f28c-0f8e-4f9a-b6cf-925de77295a7",
+    "display_name": "Bank of America",
+    "country": "US",
+    "key": "us_bank_of_america",
+    "official_name": "Bank of America Corporation",
+    "swift_code": "BOFAUS3N",
+    "website": "https://www.bankofamerica.com"
+  },
+  {
+    "id": "920fa212-81c6-4fc1-b4be-05c05cf7351e",
+    "display_name": "Chase Bank",
+    "country": "US",
+    "key": "us_chase_bank",
+    "official_name": "JPMorgan Chase Bank, N.A.",
+    "swift_code": "CHASUS33",
+    "website": "https://www.chase.com"
+  },
+  {
+    "id": "23ddf2b5-7336-4c13-bf9c-33ad33cd313f",
+    "display_name": "Wells Fargo",
+    "country": "US",
+    "key": "us_wells_fargo",
+    "official_name": "Wells Fargo & Company",
+    "swift_code": "WFBIUS6S",
+    "website": "https://www.wellsfargo.com"
+  },
+  {
+    "id": "f7be8ed4-38b5-4536-9a2d-3e0e5390c6ec",
+    "display_name": "Citibank",
+    "country": "US",
+    "key": "us_citibank",
+    "official_name": "Citibank, N.A.",
+    "swift_code": "CITIUS33",
+    "website": "https://www.citi.com"
+  },
+  {
+    "id": "af84029b-64a0-4a61-8355-0d41adcd5f27",
+    "display_name": "Capital One",
+    "country": "US",
+    "key": "us_capital_one",
+    "official_name": "Capital One Financial Corporation",
+    "swift_code": "NFBKUSF1",
+    "website": "https://www.capitalone.com"
+  },
+  {
+    "id": "6ce14e2b-cc8a-4864-8e68-6d5ec12f0480",
+    "display_name": "Barclays",
+    "country": "GB",
+    "key": "gb_barclays",
+    "official_name": "Barclays Bank PLC",
+    "swift_code": "BARCGB22",
+    "website": "https://www.barclays.co.uk"
+  },
+  {
+    "id": "4d3bbf3a-63b9-4a35-8e93-1c5b25d1a9fc",
+    "display_name": "HSBC",
+    "country": "GB",
+    "key": "gb_hsbc",
+    "official_name": "HSBC Bank PLC",
+    "swift_code": "MIDLGB22",
+    "website": "https://www.hsbc.co.uk"
+  },
+  {
+    "id": "7d6f9f1d-d93c-4638-9917-4607ec3cd1ee",
+    "display_name": "Lloyds Bank",
+    "country": "GB",
+    "key": "gb_lloyds_bank",
+    "official_name": "Lloyds Bank PLC",
+    "swift_code": "LOYDGB2L",
+    "website": "https://www.lloydsbank.com"
+  },
+  {
+    "id": "03c30a5c-9a1e-4800-9292-dcb2e7e2c6de",
+    "display_name": "NatWest",
+    "country": "GB",
+    "key": "gb_natwest",
+    "official_name": "National Westminster Bank PLC",
+    "swift_code": "NWBKGB2L",
+    "website": "https://www.natwest.com"
+  },
+  {
+    "id": "d3f4a1c2-5b6e-4a7f-9c8d-1e2f3a4b5c6d",
+    "display_name": "Revolut",
+    "country": "GB",
+    "key": "gb_revolut",
+    "official_name": "Revolut Ltd",
+    "swift_code": "REVOGB2L",
+    "website": "https://www.revolut.com"
+  },
+  {
+    "id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "display_name": "Wise",
+    "country": "GB",
+    "key": "gb_wise",
+    "official_name": "Wise Payments Limited",
+    "swift_code": "TRWIGB2L",
+    "website": "https://wise.com"
+  },
+  {
+    "id": "9fa79387-8b30-43b3-bd4e-f2d1c2dc2f5f",
+    "display_name": "Monzo",
+    "country": "GB",
+    "key": "gb_monzo",
+    "official_name": "Monzo Bank Ltd",
+    "swift_code": "MONZGB21",
+    "website": "https://monzo.com"
+  },
+  {
+    "id": "ed2d503a-5271-4c63-a1b5-0675696f32a6",
+    "display_name": "BNP Paribas",
+    "country": "FR",
+    "key": "fr_bnp_paribas",
+    "official_name": "BNP Paribas S.A.",
+    "swift_code": "BNPAFRPP",
+    "website": "https://group.bnpparibas"
+  },
+  {
+    "id": "bb0f035a-7948-4c4f-b9e5-9b45b1fd6573",
+    "display_name": "Deutsche Bank",
+    "country": "DE",
+    "key": "de_deutsche_bank",
+    "official_name": "Deutsche Bank AG",
+    "swift_code": "DEUTDEFF",
+    "website": "https://www.db.com"
+  },
+  {
+    "id": "bc1aea9e-eb30-47e3-af50-ba5d7da464db",
+    "display_name": "9 Payment Service Bank",
+    "country": "NG",
+    "key": "ng_9_psb",
+    "local_code": "120001",
+    "local_code_type": "nip_code",
+    "website": "https://9psb.com.ng/"
+  },
+  {
+    "id": "d476c303-4c12-46a2-8569-411fe1b91b6e",
+    "display_name": "Abbey Mortgage Bank",
+    "country": "NG",
+    "key": "ng_abbey_mtg_bank",
+    "official_name": "Abbey Mortgage Bank Plc",
+    "local_code": "070010",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "404",
+    "website": "https://www.abbeymortgagebank.com/"
+  },
+  {
+    "id": "8fa0b676-26b5-4d8b-b193-3b2921bf2ca9",
+    "display_name": "Above Only MFB",
+    "country": "NG",
+    "key": "ng_above_only_mfb",
+    "local_code": "090260",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51204"
+  },
+  {
+    "id": "0834def0-ca20-4113-8ae6-19d734854438",
+    "display_name": "Abulesoro Microfinance Bank Ltd",
+    "country": "NG",
+    "key": "ng_abulesoro_mfb",
+    "local_code": "090545",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51312"
+  },
+  {
+    "id": "d796c021-e4e4-497e-8fad-c312f38ca023",
+    "display_name": "Access Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/access-bank.png",
+    "country": "NG",
+    "key": "ng_access_bank",
+    "official_name": "Access Holdings Plc",
+    "swift_code": "ABNGNGLA",
+    "local_code": "000014",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "044",
+    "website": "https://www.accessbank.com"
+  },
+  {
+    "id": "f691ee45-f638-4563-b011-f50d74965ecb",
+    "display_name": "Accion Microfinance Bank",
+    "country": "NG",
+    "key": "ng_accion_mfb",
+    "local_code": "090134",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "602"
+  },
+  {
+    "id": "20e4ab91-cafb-45cf-b30d-1d5825b3d03b",
+    "display_name": "Aella MFB",
+    "country": "NG",
+    "key": "ng_aella_mfb",
+    "local_code": "090614",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50315"
+  },
+  {
+    "id": "329f65a7-89fd-4bc1-b727-db591b910130",
+    "display_name": "AG Mortgage Bank",
+    "country": "NG",
+    "key": "ng_ag_mtg_bank",
+    "local_code": "100028",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "90077"
+  },
+  {
+    "id": "4bc752d9-eb87-47a8-aa91-c95a0bf5d921",
+    "display_name": "Ahmadu Bello University Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ahmadu_bello_mfb",
+    "local_code": "090197",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50036"
+  },
+  {
+    "id": "0ed8705e-20d5-460e-8845-586ba1d79dde",
+    "display_name": "Smartcash Payment Service Bank",
+    "country": "NG",
+    "key": "ng_smartcash_psb",
+    "local_code": "120004",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b13d5aaf-c11b-4e11-b9c9-00105082509d",
+    "display_name": "Aku Microfinance Bank",
+    "country": "NG",
+    "key": "ng_aku_mfb",
+    "local_code": "090531",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51336"
+  },
+  {
+    "id": "6e022011-0483-4fe8-b357-74a7ed910864",
+    "display_name": "Akuchukwu Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_akuchukwu_mfb",
+    "local_code": "090561",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1f790d16-b5b5-4e4b-80e5-a77590cb2b4c",
+    "display_name": "Alat By Wema",
+    "logo_url": "https://nigerianbanks.xyz/logo/alat-by-wema.png",
+    "country": "NG",
+    "key": "ng_alat_by_wema",
+    "local_code": "000017",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "035A"
+  },
+  {
+    "id": "87493884-f24a-4965-8888-563817add745",
+    "display_name": "Alternative Bank",
+    "country": "NG",
+    "key": "ng_alternative_bank",
+    "local_code": "000037",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "000304"
+  },
+  {
+    "id": "4458197b-dc02-4730-9621-3942d9f55934",
+    "display_name": "Amju Unique MFB",
+    "country": "NG",
+    "key": "ng_amju_unique_mfb",
+    "local_code": "090180",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50926"
+  },
+  {
+    "id": "38a92335-2d90-4a89-a176-22624dbc38ff",
+    "display_name": "Aramoko MFB",
+    "country": "NG",
+    "key": "ng_aramoko_mfb",
+    "local_code": "090307",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50083"
+  },
+  {
+    "id": "2a29cb74-ca54-4805-ac55-01d8c6c7b5eb",
+    "display_name": "Aso Savings And Loans",
+    "logo_url": "https://nigerianbanks.xyz/logo/asosavings.png",
+    "country": "NG",
+    "key": "ng_aso_savings_and_loans",
+    "official_name": "Aso Savings And Loans Plc",
+    "local_code": "090001",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "401"
+  },
+  {
+    "id": "053a1e91-dd50-4515-99db-53c0244c913c",
+    "display_name": "Assets Microfinance Bank",
+    "country": "NG",
+    "key": "ng_assets_mfb",
+    "local_code": "090473",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50092"
+  },
+  {
+    "id": "731f77ad-7c3b-4ff3-86bd-c61b01062f2b",
+    "display_name": "Astrapolaris MFB Ltd",
+    "country": "NG",
+    "key": "ng_astrapolaris_mfb_ltd",
+    "local_code": "090172",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "MFB50094"
+  },
+  {
+    "id": "3a440524-8665-4478-beda-acef9ac5df9a",
+    "display_name": "Avuenegbe Microfinance Bank",
+    "country": "NG",
+    "key": "ng_avuenegbe_mfb",
+    "local_code": "090478",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "14e3c446-7992-4ec9-bf91-2fb7d0cd647c",
+    "display_name": "Aztec Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_aztec_mfb",
+    "local_code": "090540",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51337"
+  },
+  {
+    "id": "eacbca31-9dd5-41ee-b23d-2330e7c37cdd",
+    "display_name": "Bainescredit MFB",
+    "country": "NG",
+    "key": "ng_bainescredit_mfb",
+    "local_code": "090188",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51229"
+  },
+  {
+    "id": "c7a73ac7-2fca-408c-b2a0-44eff6b11054",
+    "display_name": "Banc Corp Microfinance Bank",
+    "country": "NG",
+    "key": "ng_banc_corp_mfb",
+    "local_code": "090581",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50117"
+  },
+  {
+    "id": "c4ac7a58-32e9-448f-81a5-7ec9e6786d48",
+    "display_name": "Bankit Microfinance Bank Ltd",
+    "country": "NG",
+    "key": "ng_bankit_mfb",
+    "local_code": "090275",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50572"
+  },
+  {
+    "id": "9af20430-df10-48d1-b1bd-60be4b3d94d0",
+    "display_name": "Bankly MFB",
+    "country": "NG",
+    "key": "ng_bankly_mfb",
+    "local_code": "090529",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51341"
+  },
+  {
+    "id": "40990c62-d727-4fb4-abae-8f0080cf3009",
+    "display_name": "Baobab Microfinance Bank",
+    "country": "NG",
+    "key": "ng_baobab_mfb",
+    "local_code": "090136",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "MFB50992"
+  },
+  {
+    "id": "9c7285a6-e102-4250-b262-a3a75e1cab26",
+    "display_name": "Benysta Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_benysta_mfb",
+    "local_code": "090413",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51267"
+  },
+  {
+    "id": "f74f77d7-9f26-4212-a563-af19af0e6263",
+    "display_name": "Beststar Microfinance Bank",
+    "country": "NG",
+    "key": "ng_beststar_mfb",
+    "local_code": "090615",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50123"
+  },
+  {
+    "id": "5e0299a7-4069-46e6-a65a-e564e0b68895",
+    "display_name": "Bosak Microfinance Bank",
+    "country": "NG",
+    "key": "ng_bosak_mfb",
+    "local_code": "090176",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "650"
+  },
+  {
+    "id": "2b7fac38-e33c-4853-839c-b4241721727a",
+    "display_name": "Bowen Microfinance Bank",
+    "country": "NG",
+    "key": "ng_bowen_mfb",
+    "local_code": "090148",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50931"
+  },
+  {
+    "id": "56f6415e-d3ec-40de-91ab-2d1e77636331",
+    "display_name": "Branch International Finance Company Limited",
+    "country": "NG",
+    "key": "ng_branch_intl_fc",
+    "local_code": "050006",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "FC40163"
+  },
+  {
+    "id": "7bbeb183-15ef-4ce0-bbed-20392864a537",
+    "display_name": "Carbon",
+    "country": "NG",
+    "key": "ng_carbon",
+    "local_code": "100026",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "565"
+  },
+  {
+    "id": "d9cf99bb-77b0-47ac-a346-0f4c3b5d5f70",
+    "display_name": "Cashconnect MFB",
+    "country": "NG",
+    "key": "ng_cashconnect_mfb",
+    "local_code": "090360",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "865"
+  },
+  {
+    "id": "a3e8a634-66c6-4f1e-8a20-fb5ba0b07759",
+    "display_name": "Cemcs Microfinance Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/cemcs-microfinance-bank.png",
+    "country": "NG",
+    "key": "ng_cemcs_mfb",
+    "local_code": "090154",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50823"
+  },
+  {
+    "id": "5ceac12d-bd8d-48c8-83b1-a93ba8f5c848",
+    "display_name": "Chanelle Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_chanelle_mfb",
+    "local_code": "090365",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50171"
+  },
+  {
+    "id": "a8217bec-9074-4f07-a71d-b987fa55bb6b",
+    "display_name": "Chikum Microfinance Bank",
+    "country": "NG",
+    "key": "ng_chikum_mfb",
+    "local_code": "090141",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "312"
+  },
+  {
+    "id": "90488504-6bb9-491b-9184-c39c346c6570",
+    "display_name": "Citibank Nigeria",
+    "logo_url": "https://nigerianbanks.xyz/logo/citibank-nigeria.png",
+    "country": "NG",
+    "key": "ng_citibank_nigeria",
+    "local_code": "000009",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "023"
+  },
+  {
+    "id": "f001c17e-ee87-4b2a-bff1-0651ddcdcd5c",
+    "display_name": "Consumer Microfinance Bank",
+    "country": "NG",
+    "key": "ng_consumer_mfb",
+    "local_code": "090130",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50910"
+  },
+  {
+    "id": "6edf3837-f897-46b9-a834-13093d6ca91c",
+    "display_name": "Corestep MFB",
+    "country": "NG",
+    "key": "ng_corestep_mfb",
+    "local_code": "090365",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50204"
+  },
+  {
+    "id": "df38f169-1045-4114-ae30-b4d8d4b19f67",
+    "display_name": "Coronation Merchant Bank",
+    "country": "NG",
+    "key": "ng_coronation_merch_bank",
+    "local_code": "060001",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "559"
+  },
+  {
+    "id": "af49e396-8601-4f21-9446-9652db0b7fb9",
+    "display_name": "County Finance Limited",
+    "country": "NG",
+    "key": "ng_county_finance_ltd",
+    "local_code": "050001",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "FC40128"
+  },
+  {
+    "id": "7ef2a78b-c9ad-47da-b054-f3eaea6c9833",
+    "display_name": "Crescent MFB",
+    "country": "NG",
+    "key": "ng_crescent_mfb",
+    "local_code": "090526",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51297"
+  },
+  {
+    "id": "5d541026-a77b-4937-b218-3c58a54f74fd",
+    "display_name": "Crust Microfinance Bank",
+    "country": "NG",
+    "key": "ng_crust_mfb",
+    "local_code": "090560",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "ee0c5b55-a38d-4c3a-9a7f-9c934855ec77",
+    "display_name": "Crutech Microfinance Bank Ltd",
+    "country": "NG",
+    "key": "ng_crutech_mfb",
+    "local_code": "090414",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50216"
+  },
+  {
+    "id": "1d75f57e-a5f3-4550-9e24-106da2e243a1",
+    "display_name": "Dot Microfinance Bank",
+    "country": "NG",
+    "key": "ng_dot_mfb",
+    "local_code": "090470",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50162"
+  },
+  {
+    "id": "42b2d4ec-6a03-4ce1-9f47-cb3ab890e056",
+    "display_name": "Ebsu Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ebsu_mfb",
+    "local_code": "090427",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50922"
+  },
+  {
+    "id": "cdecba8b-bb63-42c6-a277-97ceffe0e0f3",
+    "display_name": "Ecobank Nigeria",
+    "logo_url": "https://nigerianbanks.xyz/logo/ecobank-nigeria.png",
+    "country": "NG",
+    "key": "ng_ecobank_nigeria",
+    "official_name": "Ecobank Transnational Incorporated",
+    "swift_code": "ECOCNGLA",
+    "local_code": "000010",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "050"
+  },
+  {
+    "id": "be9a6b04-fe23-4272-a0f4-fd4690946b21",
+    "display_name": "Ekimogun MFB",
+    "country": "NG",
+    "key": "ng_ekimogun_mfb",
+    "local_code": "090552",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50263"
+  },
+  {
+    "id": "c2db8282-c8f5-47bf-b443-e4ec0ef16a9a",
+    "display_name": "Ekondo Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ekondo_mfb",
+    "local_code": "090097",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "098"
+  },
+  {
+    "id": "b705d5e8-34ac-4b2c-935c-a1526df9087b",
+    "display_name": "Eyowo",
+    "country": "NG",
+    "key": "ng_eyowo",
+    "local_code": "090328",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50126"
+  },
+  {
+    "id": "b3bdf3fe-7ddf-4c9d-84a8-ff96e99ddd79",
+    "display_name": "Fairmoney Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fairmoney_mfb",
+    "local_code": "090551",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51318"
+  },
+  {
+    "id": "e868b8f7-5de8-474e-8b0f-5c0feb0492d1",
+    "display_name": "Fedeth MFB",
+    "country": "NG",
+    "key": "ng_fedeth_mfb",
+    "local_code": "090482",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50298"
+  },
+  {
+    "id": "170b9cc0-0c7e-4ce7-a33a-6be0098f14ba",
+    "display_name": "Fidelity Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/fidelity-bank.png",
+    "country": "NG",
+    "key": "ng_fidelity_bank",
+    "official_name": "Fidelity Bank Plc",
+    "swift_code": "FIDTNGLA",
+    "local_code": "000007",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "070",
+    "website": "https://www.fidelitybank.com"
+  },
+  {
+    "id": "92eb74be-4fb1-45cb-bb49-d666f45b5aec",
+    "display_name": "Firmus MFB",
+    "country": "NG",
+    "key": "ng_firmus_mfb",
+    "local_code": "090366",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51314"
+  },
+  {
+    "id": "b23d7297-6bed-410e-83f3-bc9dc6bed623",
+    "display_name": "First Bank Of Nigeria",
+    "logo_url": "https://nigerianbanks.xyz/logo/first-bank-of-nigeria.png",
+    "country": "NG",
+    "key": "ng_first_bank_of_nigeria",
+    "official_name": "First HoldCo Plc",
+    "swift_code": "FBNINGLA",
+    "local_code": "000016",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "011",
+    "website": "https://www.firstbankofnigeria.com"
+  },
+  {
+    "id": "076a38f1-0050-4797-b4d5-c85370d71de1",
+    "display_name": "First City Monument Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/first-city-monument-bank.png",
+    "country": "NG",
+    "key": "ng_first_city_monument_ba",
+    "official_name": "FCMB Group Plc",
+    "swift_code": "FCMBNGLA",
+    "local_code": "000003",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "214",
+    "website": "https://www.firstbank.com"
+  },
+  {
+    "id": "3cfac349-3359-46d5-b9c7-9bc5ae4fb899",
+    "display_name": "First Royal Microfinance Bank",
+    "country": "NG",
+    "key": "ng_first_royal_mfb",
+    "local_code": "090164",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "285f9e0a-4b6a-4587-9958-3211054efeb6",
+    "display_name": "Firstmidas MFB",
+    "country": "NG",
+    "key": "ng_firstmidas_mfb",
+    "local_code": "090575",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51333"
+  },
+  {
+    "id": "3923623e-188e-4bf8-90dc-b5803b06e4b5",
+    "display_name": "Fsdh Merchant Bank Limited",
+    "country": "NG",
+    "key": "ng_fsdh_merchant_bank",
+    "local_code": "400001",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "501"
+  },
+  {
+    "id": "43ddf26a-8be5-4abe-a105-62a242c71315",
+    "display_name": "Futminna Microfinance Bank",
+    "country": "NG",
+    "key": "ng_futminna_mfb",
+    "local_code": "090438",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "832"
+  },
+  {
+    "id": "71f6af13-e95f-41c5-9204-9ae2d8346fde",
+    "display_name": "Gateway Mortgage Bank Ltd",
+    "country": "NG",
+    "key": "ng_gateway_mtg_bank",
+    "local_code": "070009",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "812"
+  },
+  {
+    "id": "bb46750c-4a65-4777-ab9d-1aa5de9c8815",
+    "display_name": "Globus Bank",
+    "country": "NG",
+    "key": "ng_globus_bank",
+    "official_name": "Globus Bank Limited",
+    "swift_code": "GLOUNGLA",
+    "local_code": "000027",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "103",
+    "website": "https://www.globusbank.com"
+  },
+  {
+    "id": "93cde52a-e49b-4aa9-babe-d110eff7cdcb",
+    "display_name": "Goldman MFB",
+    "country": "NG",
+    "key": "ng_goldman_mfb",
+    "local_code": "090574",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c389918e-260d-4c50-b682-2d2b35440e01",
+    "display_name": "Gomoney",
+    "country": "NG",
+    "key": "ng_gomoney",
+    "local_code": "100022",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "02405e21-e08f-4928-a9d0-8dba0303ef21",
+    "display_name": "Goodnews Microfinance Bank",
+    "country": "NG",
+    "key": "ng_goodnews_mfb",
+    "local_code": "090495",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50739"
+  },
+  {
+    "id": "707ce684-b38b-4958-a0aa-8607d7b643f8",
+    "display_name": "Greenwich Merchant Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/ekondo-microfinance-bank.png",
+    "country": "NG",
+    "key": "ng_greenwich_merch_bank",
+    "local_code": "060004",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "562"
+  },
+  {
+    "id": "c455c18b-b3d3-482d-b499-7709fb5b164f",
+    "display_name": "Grooming Microfinance Bank",
+    "country": "NG",
+    "key": "ng_grooming_mfb",
+    "local_code": "090195",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51276"
+  },
+  {
+    "id": "2a876794-de37-43a5-8df1-7f4b3d1fae03",
+    "display_name": "GTI Microfinance Bank",
+    "country": "NG",
+    "key": "ng_gti_mfb",
+    "local_code": "090385",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50368"
+  },
+  {
+    "id": "107fc5de-91d3-415d-9f3f-d683b22b06bc",
+    "display_name": "GTBank",
+    "logo_url": "https://nigerianbanks.xyz/logo/guaranty-trust-bank.png",
+    "country": "NG",
+    "key": "ng_gtbank",
+    "official_name": "Guaranty Trust Holding Company Plc",
+    "swift_code": "GTBINGLA",
+    "local_code": "000013",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "058",
+    "website": "https://www.gtbank.com"
+  },
+  {
+    "id": "d25dfb79-c936-4885-a1c0-05e6b8e85b11",
+    "display_name": "Hackman Microfinance Bank",
+    "country": "NG",
+    "key": "ng_hackman_mfb",
+    "local_code": "090147",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51251"
+  },
+  {
+    "id": "5ae5e16d-46ac-42ca-aa3c-ceb02f596742",
+    "display_name": "Hasal Microfinance Bank",
+    "country": "NG",
+    "key": "ng_hasal_mfb",
+    "local_code": "090121",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50383"
+  },
+  {
+    "id": "fa057744-19dc-49ed-9386-cf0e855d3dbd",
+    "display_name": "Hope PSB",
+    "country": "NG",
+    "key": "ng_hope_psb",
+    "local_code": "120002",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "bb90ab95-f142-4674-bff9-2730705bb816",
+    "display_name": "ibank Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ibank_mfb",
+    "local_code": "090115",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51211"
+  },
+  {
+    "id": "80fed801-ffb1-412d-8f3b-27df95d2a4a0",
+    "display_name": "IBILE Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ibile_mfb",
+    "local_code": "090118",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51244"
+  },
+  {
+    "id": "e64fe07d-ca0c-4920-a866-10d6a232e284",
+    "display_name": "Ikoyi-Osun Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ikoyi_osun_mfb",
+    "local_code": "090536",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50439"
+  },
+  {
+    "id": "fc85f7aa-1bcf-436c-953a-f2f7a84c3303",
+    "display_name": "Ilaro Poly Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ilaro_poly_mfb",
+    "local_code": "090571",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50442"
+  },
+  {
+    "id": "3182bb8c-2703-4b60-a44c-45976c0675a1",
+    "display_name": "Imowo MFB",
+    "country": "NG",
+    "key": "ng_imowo_mfb",
+    "local_code": "090417",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50453"
+  },
+  {
+    "id": "a1090343-9ad7-40ed-abe3-dccc19bee80d",
+    "display_name": "Imperial Homes Mortage Bank",
+    "country": "NG",
+    "key": "ng_imperial_homes_mgt_bank",
+    "local_code": "100024",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "415"
+  },
+  {
+    "id": "9f159d39-5fcd-41fd-9561-62fe84370638",
+    "display_name": "Infinity Microfinance Bank",
+    "country": "NG",
+    "key": "ng_infinity_mfb",
+    "local_code": "090157",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50457"
+  },
+  {
+    "id": "bd7f4d96-cd31-4595-8e46-56df065d3862",
+    "display_name": "Infinity Trust  Mortgage Bank",
+    "country": "NG",
+    "key": "ng_infinity_trust_mtg_ban",
+    "local_code": "070016",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "26d8a4f6-ff82-43b8-9717-1a42586ab572",
+    "display_name": "Jaiz Bank",
+    "country": "NG",
+    "key": "ng_jaiz_bank",
+    "official_name": "Jaiz Bank Plc",
+    "swift_code": "JAIZNGLA",
+    "local_code": "000006",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "301"
+  },
+  {
+    "id": "cb12148b-f293-484a-9c77-474a3a32a99d",
+    "display_name": "Kadpoly MFB",
+    "country": "NG",
+    "key": "ng_kadpoly_mfb",
+    "local_code": "090320",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50502"
+  },
+  {
+    "id": "31b5a366-34ff-439f-b060-96451c2bd3f9",
+    "display_name": "Kano Poly MFB",
+    "country": "NG",
+    "key": "ng_kano_poly_mfb",
+    "local_code": "090592",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51308"
+  },
+  {
+    "id": "2017937b-d7e7-4dee-8f21-6ef6d5e84f82",
+    "display_name": "Keystone Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/keystone-bank.png",
+    "country": "NG",
+    "key": "ng_keystone_bank",
+    "official_name": "Keystone Bank Limited",
+    "swift_code": "KEYTNGLA",
+    "local_code": "000002",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "082",
+    "website": "https://www.keystonebank.com"
+  },
+  {
+    "id": "780e17bc-effc-40ef-8f3e-77bdb9eb233c",
+    "display_name": "Kolomoni MFB",
+    "country": "NG",
+    "key": "ng_kolomoni_mfb",
+    "local_code": "090480",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "899"
+  },
+  {
+    "id": "81f3b8b0-66a1-472b-a8b1-025a1e7e06a6",
+    "display_name": "Kongapay (Kongapay Technologies Limited)(Formerly Zinternet)",
+    "country": "NG",
+    "key": "ng_kongapay",
+    "local_code": "100025",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "0a39bea0-4010-4611-a26b-f462cc21a53d",
+    "display_name": "Kredi Money MFB Ltd",
+    "country": "NG",
+    "key": "ng_kredi_money_mfb_ltd",
+    "local_code": "090380",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50200"
+  },
+  {
+    "id": "9831f582-db5a-4705-ab10-2a54fd8a2b8c",
+    "display_name": "Kuda Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/kuda-bank.png",
+    "country": "NG",
+    "key": "ng_kuda_bank",
+    "local_code": "090267",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50211"
+  },
+  {
+    "id": "2a7abc89-6c4c-4254-bb16-d9998e852174",
+    "display_name": "Lagos Building Investment Company Plc.",
+    "country": "NG",
+    "key": "ng_lagos_building_inv_coy",
+    "local_code": "070012",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "90052"
+  },
+  {
+    "id": "46293939-e0c8-48fd-adce-7ebc2798c188",
+    "display_name": "Letshego Microfinance Bank",
+    "country": "NG",
+    "key": "ng_letshego_mfb",
+    "local_code": "090420",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c22cf9f1-2007-4a00-80f0-4bd0c38966f2",
+    "display_name": "Links MFB",
+    "country": "NG",
+    "key": "ng_links_mfb",
+    "local_code": "090435",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50549"
+  },
+  {
+    "id": "625a020b-ca6f-4e77-b2fb-266361ed3365",
+    "display_name": "Living Trust Mortgage Bank",
+    "country": "NG",
+    "key": "ng_living_trust_mtg_bank",
+    "local_code": "070007",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "031"
+  },
+  {
+    "id": "ab2b3b5c-8d44-4b04-9818-7fae0a9d6e66",
+    "display_name": "Loma MFB",
+    "country": "NG",
+    "key": "ng_loma_mfb",
+    "local_code": "090620",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50491"
+  },
+  {
+    "id": "dcb9591b-6391-4399-9351-c5524b96127b",
+    "display_name": "Lotus Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/lotus-bank.png",
+    "country": "NG",
+    "key": "ng_lotus_bank",
+    "local_code": "000029",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "303"
+  },
+  {
+    "id": "f345b777-9245-4624-b458-e9f29fc5b058",
+    "display_name": "Mainstreet Microfinance Bank",
+    "country": "NG",
+    "key": "ng_mainstreet_mfb",
+    "local_code": "090171",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "42d812bb-05f5-44bf-9880-7716ba2bc21f",
+    "display_name": "Mayfair MFB",
+    "country": "NG",
+    "key": "ng_mayfair_mfb",
+    "local_code": "090321",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50563"
+  },
+  {
+    "id": "4a6ac95d-f680-4448-b400-e70f882b3123",
+    "display_name": "Mint MFB",
+    "country": "NG",
+    "key": "ng_mint_mfb",
+    "local_code": "090281",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50304"
+  },
+  {
+    "id": "53506b51-7c26-4b84-9d83-82bcfdbe049c",
+    "display_name": "Money Master PSB",
+    "country": "NG",
+    "key": "ng_money_master_psb",
+    "local_code": "120005",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "946"
+  },
+  {
+    "id": "a194a4fa-26d9-457d-9402-242aa3f19d5d",
+    "display_name": "Moniepoint",
+    "logo_url": "https://nigerianbanks.xyz/logo/moniepoint-mfb-ng.png",
+    "country": "NG",
+    "key": "ng_moniepoint",
+    "local_code": "090405",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50515"
+  },
+  {
+    "id": "db129bf5-b6ad-413c-9974-d67d371d397c",
+    "display_name": "MTN Momo PSB",
+    "country": "NG",
+    "key": "ng_mtn_momo_psb",
+    "local_code": "120003",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "ac95f4eb-b319-4371-8b82-83880b1c894c",
+    "display_name": "Mutual Benefits Microfinance Bank",
+    "country": "NG",
+    "key": "ng_mutual_benefits_mfb",
+    "local_code": "090190",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "cb90220f-c66c-4f66-bcf6-b6737c2648f5",
+    "display_name": "Nigerian Navy Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_nigerian_navy_mfb",
+    "local_code": "090263",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51142"
+  },
+  {
+    "id": "29cc33f8-d45e-46a5-b6d4-208d540d1ded",
+    "display_name": "Nova Bank",
+    "country": "NG",
+    "key": "ng_nova_bank",
+    "local_code": "060003",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "561"
+  },
+  {
+    "id": "a5007ece-f9a2-4c3b-bed9-3784e88227a6",
+    "display_name": "NPF Microfinance Bank",
+    "country": "NG",
+    "key": "ng_npf_mfb",
+    "official_name": "NPF Microfinance Bank Plc",
+    "local_code": "070001",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50629"
+  },
+  {
+    "id": "1c2e24ca-8b2b-4502-87ee-6e2051998612",
+    "display_name": "Nsuk Microfinance Bank",
+    "country": "NG",
+    "key": "ng_nsgb_mfb",
+    "local_code": "090491",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51261"
+  },
+  {
+    "id": "c5a25a08-a8da-4a8d-a92a-59547e15ce4e",
+    "display_name": "Oluchukwu Microfinance Bank Ltd",
+    "country": "NG",
+    "key": "ng_oluchukwu_mfb",
+    "local_code": "090471",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50697"
+  },
+  {
+    "id": "7bd4fe41-c0d0-44be-b426-eb2529ff87e0",
+    "display_name": "Opay Digital Services Limited (Opay)",
+    "logo_url": "https://nigerianbanks.xyz/logo/paycom.png",
+    "country": "NG",
+    "key": "ng_opay",
+    "local_code": "100004",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "999992"
+  },
+  {
+    "id": "28a9c4a3-0348-4584-aeb4-4faca60d2ec6",
+    "display_name": "Optimus Bank Limited",
+    "country": "NG",
+    "key": "ng_optimus_bank_ltd",
+    "local_code": "000036",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "107"
+  },
+  {
+    "id": "7f597730-e285-4828-979a-a5263ab655d2",
+    "display_name": "Paga",
+    "logo_url": "https://nigerianbanks.xyz/logo/paga.png",
+    "country": "NG",
+    "key": "ng_paga",
+    "local_code": "100002",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "327"
+  },
+  {
+    "id": "a92e2608-f26e-4058-baf7-5e49a9ff38f9",
+    "display_name": "Palmpay",
+    "logo_url": "https://nigerianbanks.xyz/logo/palmpay.png",
+    "country": "NG",
+    "key": "ng_palmpay",
+    "local_code": "100033",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "999991"
+  },
+  {
+    "id": "d222b1c9-0c25-4c02-9f4b-7aeee5fa4162",
+    "display_name": "Parallex Bank",
+    "country": "NG",
+    "key": "ng_parallex_bank",
+    "local_code": "000030",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "104"
+  },
+  {
+    "id": "04e34ddc-b478-45c7-b294-a084d3e2d49d",
+    "display_name": "Parkway - Readycash",
+    "country": "NG",
+    "key": "ng_parkway_readycash",
+    "local_code": "100003",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "311"
+  },
+  {
+    "id": "5c1db9f7-c979-40e7-9ed5-0ad9581a269f",
+    "display_name": "Paystack-Titan",
+    "country": "NG",
+    "key": "ng_paystack_titan",
+    "local_code": "100039",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6e549780-6c95-4239-bf05-ca9ba21af4dc",
+    "display_name": "Peace Microfinance Bank",
+    "country": "NG",
+    "key": "ng_peace_mfb",
+    "local_code": "090402",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50743"
+  },
+  {
+    "id": "f5e3ef5a-9920-4fc2-bfd2-cdce3d43ca54",
+    "display_name": "Pecantrust Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_pecantrust_mfb",
+    "local_code": "090137",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51226"
+  },
+  {
+    "id": "0bbbc815-2609-42d2-8c27-31b6e1698c8b",
+    "display_name": "Personal Trust MFB",
+    "country": "NG",
+    "key": "ng_personal_trust_mfb",
+    "local_code": "090135",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51146"
+  },
+  {
+    "id": "522041e1-4925-4902-a288-0c19a12499e7",
+    "display_name": "Petra Microfinance Bank Plc",
+    "country": "NG",
+    "key": "ng_petra_mfb",
+    "local_code": "090165",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50746"
+  },
+  {
+    "id": "9926d432-424a-4c04-b3a5-15df85268c91",
+    "display_name": "Platinum Mortgage Bank",
+    "country": "NG",
+    "key": "ng_platinum_mtg_bank",
+    "local_code": "070013",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "268"
+  },
+  {
+    "id": "ee339814-5e7f-4408-93b7-588049e0ce30",
+    "display_name": "Polaris Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/polaris-bank.png",
+    "country": "NG",
+    "key": "ng_polaris_bank",
+    "official_name": "Polaris Bank Limited",
+    "swift_code": "PRDTNGLA",
+    "local_code": "000008",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "076"
+  },
+  {
+    "id": "db39d8b4-61ae-481a-92ac-926929a70b25",
+    "display_name": "Polyunwana MFB",
+    "country": "NG",
+    "key": "ng_polyunwana_mfb",
+    "local_code": "090296",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50864"
+  },
+  {
+    "id": "180bb4b8-a530-4fd3-ad75-176d6fbb9a5f",
+    "display_name": "Premiumtrust Bank",
+    "country": "NG",
+    "key": "ng_premiumtrust_bank",
+    "local_code": "000031",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "105"
+  },
+  {
+    "id": "cf63a4af-084b-4496-a4b8-b09d9bd42937",
+    "display_name": "Prospa Capital Microfinance Bank",
+    "country": "NG",
+    "key": "ng_prospa_capital_mfb",
+    "local_code": "090495",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50739"
+  },
+  {
+    "id": "7732e7be-4216-4511-9126-1cdef3d41bee",
+    "display_name": "Providus Bank",
+    "country": "NG",
+    "key": "ng_providus_bank",
+    "official_name": "Providus Bank Limited",
+    "swift_code": "UMPLNGLA",
+    "local_code": "000023",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "101",
+    "website": "https://www.providusbank.com"
+  },
+  {
+    "id": "e3224833-c14f-4504-ac48-0921e2c5c131",
+    "display_name": "Quickfund MFB",
+    "country": "NG",
+    "key": "ng_quickfund_mfb",
+    "local_code": "090261",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51293"
+  },
+  {
+    "id": "1311dc61-1f9d-40e9-b23f-a5dae84661be",
+    "display_name": "Rand Merchant Bank",
+    "country": "NG",
+    "key": "ng_rand_merch_bank",
+    "local_code": "000024",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "502"
+  },
+  {
+    "id": "e07fdff2-b261-4356-9f70-748a2fb16ca4",
+    "display_name": "Randalpha Microfinance Bank",
+    "country": "NG",
+    "key": "ng_randalpha_mfb",
+    "local_code": "090496",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "7b8d4665-40ca-475c-971a-e5663fd130e7",
+    "display_name": "Refuge Mortgage Bank",
+    "country": "NG",
+    "key": "ng_refuge_mtg_bank",
+    "local_code": "070011",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "90067"
+  },
+  {
+    "id": "ef30caa9-8493-4d5a-a29f-7c74f555da9d",
+    "display_name": "Rehoboth Microfinance Bank",
+    "country": "NG",
+    "key": "ng_rehoboth_mfb",
+    "local_code": "090463",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50761"
+  },
+  {
+    "id": "aa265bac-0654-4506-b092-941282f10c60",
+    "display_name": "Rephidim Microfinance Bank",
+    "country": "NG",
+    "key": "ng_rephidim_mfb",
+    "local_code": "090322",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50994"
+  },
+  {
+    "id": "33589211-17e8-4e3e-9924-ba1fdc1ac865",
+    "display_name": "Rigo Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_rigo_mfb",
+    "local_code": "090433",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51286"
+  },
+  {
+    "id": "c05ce944-2c31-4933-ba53-057675d6fdae",
+    "display_name": "Rockshield Microfinance Bank",
+    "country": "NG",
+    "key": "ng_rockshield_mfb",
+    "local_code": "090547",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50767"
+  },
+  {
+    "id": "62c8108e-9e39-46a3-927a-949cb3d1d2bd",
+    "display_name": "Rubies MFB",
+    "country": "NG",
+    "key": "ng_rubies_mfb",
+    "local_code": "090175",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "125"
+  },
+  {
+    "id": "0397b550-ce71-4267-8c03-ce3951283c9f",
+    "display_name": "Safe Haven MFB",
+    "country": "NG",
+    "key": "ng_safe_haven_mfb",
+    "local_code": "090286",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51113"
+  },
+  {
+    "id": "12e6bff2-eebc-431d-9171-0e526f1f3eff",
+    "display_name": "Sage Grey Finance Limited",
+    "country": "NG",
+    "key": "ng_sage_grey_finance_ltd",
+    "local_code": "050003",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "40165"
+  },
+  {
+    "id": "edb9df85-28bb-4b9b-a05e-54954861924a",
+    "display_name": "Shield MFB",
+    "country": "NG",
+    "key": "ng_shield_mfb",
+    "local_code": "090559",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50582"
+  },
+  {
+    "id": "0b809e65-6af8-466f-89a2-a6af1d7b62dc",
+    "display_name": "Signature Bank Ltd",
+    "country": "NG",
+    "key": "ng_signature_bank_ltd",
+    "local_code": "000034",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "106"
+  },
+  {
+    "id": "17526d85-2546-4c35-8a70-1e2d59e8d158",
+    "display_name": "Solid Allianze MFB",
+    "country": "NG",
+    "key": "ng_solid_allianze_mfb",
+    "local_code": "090506",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51062"
+  },
+  {
+    "id": "e71b207a-68e2-44fe-968e-7ab4683afad2",
+    "display_name": "Solid Rock MFB",
+    "country": "NG",
+    "key": "ng_solid_rock_mfb",
+    "local_code": "090524",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50800"
+  },
+  {
+    "id": "2bf40b82-573a-44c3-aa7d-6cb68cdedd3a",
+    "display_name": "Sparkle Microfinance Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/sparkle-microfinance-bank.png",
+    "country": "NG",
+    "key": "ng_sparkle_mfb",
+    "local_code": "090325",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51310"
+  },
+  {
+    "id": "bf642d46-4321-4b94-a7cb-316a9ef99968",
+    "display_name": "Stanbic IBTC",
+    "logo_url": "https://nigerianbanks.xyz/logo/stanbic-ibtc-bank.png",
+    "country": "NG",
+    "key": "ng_stanbic_ibtc",
+    "official_name": "Stanbic IBTC Holdings Plc",
+    "swift_code": "SBICNGLX",
+    "local_code": "000012",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "221",
+    "website": "https://www.stanbicibtc.com"
+  },
+  {
+    "id": "4ac27229-7596-41a9-921c-eede7259882b",
+    "display_name": "Standard Chartered",
+    "logo_url": "https://nigerianbanks.xyz/logo/standard-chartered-bank.png",
+    "country": "NG",
+    "key": "ng_standard_chartered",
+    "official_name": "Standard Chartered Bank Nigeria Limited",
+    "swift_code": "SCBLNGLA",
+    "local_code": "000021",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "068",
+    "website": "https://www.standardchartered.com"
+  },
+  {
+    "id": "7b8387c3-68ce-416d-a878-853154768b88",
+    "display_name": "Stanford Microfinance Bank",
+    "country": "NG",
+    "key": "ng_stanford_mfb",
+    "local_code": "090162",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d37918e7-ea17-4552-b38f-ab6e322f8ed0",
+    "display_name": "Stateside Microfinance Bank",
+    "country": "NG",
+    "key": "ng_stateside_mfb",
+    "local_code": "090583",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50809"
+  },
+  {
+    "id": "c527c951-2dd8-46fd-b10b-01e6d3c2190e",
+    "display_name": "Stb Mortgage Bank",
+    "country": "NG",
+    "key": "ng_stb_mtg_bank",
+    "local_code": "070022",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e2f99881-e835-4bd3-b1da-78751f30888a",
+    "display_name": "Stellas MFB",
+    "country": "NG",
+    "key": "ng_stellas_mfb",
+    "local_code": "090262",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51253"
+  },
+  {
+    "id": "36df8d25-64c0-400e-9b76-d2ee890e01a9",
+    "display_name": "Sterling Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/sterling-bank.png",
+    "country": "NG",
+    "key": "ng_sterling_bank",
+    "official_name": "Sterling Financial Holdings Company Plc",
+    "swift_code": "NAMENGLA",
+    "local_code": "000001",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "232",
+    "website": "https://www.sterlingbank.com"
+  },
+  {
+    "id": "9f7c4506-dee3-4e5e-a36d-69be7e555d31",
+    "display_name": "Suntrust Bank",
+    "country": "NG",
+    "key": "ng_suntrust_bank",
+    "official_name": "SunTrust Bank Nigeria Limited",
+    "swift_code": "SUTRNGLA",
+    "local_code": "000022",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "100",
+    "website": "https://www.suntrustbank.com"
+  },
+  {
+    "id": "4671e105-5fee-455e-8aca-757c02b60881",
+    "display_name": "Supreme MFB",
+    "country": "NG",
+    "key": "ng_supreme_mfb",
+    "local_code": "090564",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50968"
+  },
+  {
+    "id": "ec0ac08a-dba2-46ea-af0f-2b56112f0ee3",
+    "display_name": "TAJ Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/taj-bank.png",
+    "country": "NG",
+    "key": "ng_taj_bank",
+    "official_name": "Taj Bank Limited",
+    "swift_code": "TAJJNGLA",
+    "local_code": "000026",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "302"
+  },
+  {
+    "id": "67eaa878-0ee6-4fce-b62d-97dc0ceb4416",
+    "display_name": "Tangerine Money",
+    "country": "NG",
+    "key": "ng_tangerine_money",
+    "local_code": "090426",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51269"
+  },
+  {
+    "id": "ecb318bd-5b9c-4989-9103-259726f1b7ea",
+    "display_name": "Titan Trust Bank",
+    "country": "NG",
+    "key": "ng_titan_trust_bank",
+    "official_name": "Titan Trust Bank Limited",
+    "swift_code": "TTRUNGLA",
+    "local_code": "000025",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "102",
+    "website": "https://www.titantrustbank.com"
+  },
+  {
+    "id": "44b7b4ab-d1e4-42d0-a7cd-a6b5403d415c",
+    "display_name": "U&C Microfinance Bank Ltd (U And C MFB)",
+    "country": "NG",
+    "key": "ng_u_c_mfb",
+    "local_code": "090315",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50840"
+  },
+  {
+    "id": "0c52863a-d3fd-443f-8604-309cf5e2658a",
+    "display_name": "Uhuru MFB",
+    "country": "NG",
+    "key": "ng_uhuru_mfb",
+    "local_code": "090517",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51322"
+  },
+  {
+    "id": "bd438a40-d44b-4214-89be-4a0a4f3aae82",
+    "display_name": "Unaab Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_unaab_mfb",
+    "local_code": "090331",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50870"
+  },
+  {
+    "id": "7660efd9-e812-4741-84c4-83f11b6c182f",
+    "display_name": "Unical MFB",
+    "country": "NG",
+    "key": "ng_unical_mfb",
+    "local_code": "090193",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50871"
+  },
+  {
+    "id": "b75f0a81-eb9a-4b29-a8a7-beed1fb8497c",
+    "display_name": "Unilag Microfinance Bank",
+    "country": "NG",
+    "key": "ng_unilag_mfb",
+    "local_code": "090452",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51316"
+  },
+  {
+    "id": "1230d59b-a599-421a-a5cc-1ced00df7f00",
+    "display_name": "Unimaid Microfinance Bank",
+    "country": "NG",
+    "key": "ng_unimaid_mfb",
+    "local_code": "090464",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50875"
+  },
+  {
+    "id": "dd3b638f-4989-4f6a-8d1c-12a660def9c9",
+    "display_name": "Union Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/union-bank-of-nigeria.png",
+    "country": "NG",
+    "key": "ng_union_bank",
+    "official_name": "Union Bank of Nigeria Plc",
+    "swift_code": "UBNIGNLA",
+    "local_code": "000018",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "032",
+    "website": "https://www.unionbank.com"
+  },
+  {
+    "id": "12978d68-24bf-4f7b-b3d8-12bdfbfcb609",
+    "display_name": "United Bank For Africa",
+    "logo_url": "https://nigerianbanks.xyz/logo/united-bank-for-africa.png",
+    "country": "NG",
+    "key": "ng_united_bank_for_africa",
+    "official_name": "United Bank for Africa Plc",
+    "swift_code": "UNAFNGLA",
+    "local_code": "000004",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "033",
+    "website": "https://www.unitedbankforafrica.com"
+  },
+  {
+    "id": "8b5f1652-10fc-413f-9a41-c3c6b11cbc0f",
+    "display_name": "Unity Bank",
+    "country": "NG",
+    "key": "ng_unity_bank",
+    "official_name": "Unity Bank Plc",
+    "swift_code": "ICITNGLA",
+    "local_code": "000011",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "215",
+    "website": "https://www.unitybank.com"
+  },
+  {
+    "id": "ed0fb039-4193-4ce9-8794-06d199cb5fe9",
+    "display_name": "Uzondu Microfinance Bank Awka Anambra State",
+    "country": "NG",
+    "key": "ng_uzondu_mfb",
+    "local_code": "090453",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "50894"
+  },
+  {
+    "id": "6b3b489c-249e-4b19-8e6f-0f3f7d7db4a0",
+    "display_name": "Vfd Microfinance Bank Limited",
+    "country": "NG",
+    "key": "ng_vfd_mfb",
+    "local_code": "090110",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "566"
+  },
+  {
+    "id": "009ce5e0-c1a1-477a-9c08-f81341e08994",
+    "display_name": "Waya Microfinance Bank",
+    "country": "NG",
+    "key": "ng_waya_mfb",
+    "local_code": "090590",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "51355"
+  },
+  {
+    "id": "fbef3985-6edb-420f-9a4d-031184b35bf3",
+    "display_name": "Wema Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/wema-bank.png",
+    "country": "NG",
+    "key": "ng_wema_bank",
+    "official_name": "Wema Bank Plc",
+    "swift_code": "WEMANGLA",
+    "local_code": "000017",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "035",
+    "website": "https://www.wemabank.com"
+  },
+  {
+    "id": "83e1ddf4-f187-42c8-86d1-33bf8f1c2b13",
+    "display_name": "Yes MFB",
+    "country": "NG",
+    "key": "ng_yes_mfb",
+    "local_code": "090142",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "594"
+  },
+  {
+    "id": "b161328a-de07-4640-85ec-51cf00a7cfd5",
+    "display_name": "Zenith Bank",
+    "logo_url": "https://nigerianbanks.xyz/logo/zenith-bank.png",
+    "country": "NG",
+    "key": "ng_zenith_bank",
+    "official_name": "Zenith Bank Plc",
+    "swift_code": "ZEIBNGLA",
+    "local_code": "000015",
+    "local_code_type": "nip_code",
+    "alternate_identifier": "057",
+    "website": "https://www.zenithbank.com"
+  },
+  {
+    "id": "2b4cb45e-d640-4024-b778-637676fc1433",
+    "display_name": "Paystack",
+    "country": "NG",
+    "key": "ng_paystack",
+    "official_name": "Paystack Payments Limited",
+    "local_code": "110006",
+    "local_code_type": "nip_code",
+    "website": "https://paystack.com/"
+  },
+  {
+    "id": "cb6c3925-b970-4747-a1d3-64d4dcf1eaad",
+    "display_name": "Flutterwave",
+    "country": "NG",
+    "key": "ng_flutterwave",
+    "official_name": "Flutterwave Technology Solutions Limited",
+    "local_code": "110002",
+    "local_code_type": "nip_code",
+    "website": "https://flutterwave.com/"
+  },
+  {
+    "id": "35613662-6ef4-4ba1-bcb8-2f9bc2ba8bf4",
+    "display_name": "Enterprise Bank",
+    "country": "NG",
+    "key": "ng_enterprise_bank",
+    "local_code": "000019",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "cd23ed71-6c95-4a5b-8595-02af09e430a3",
+    "display_name": "FBNQUEST Merchant Bank",
+    "country": "NG",
+    "key": "ng_fbnquest_merch_bank",
+    "local_code": "060002",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2804c78b-17a5-414c-93ba-6fbffb0a6727",
+    "display_name": "Fortis Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fortis_mfb",
+    "local_code": "070002",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f7fb0905-a456-4527-af52-c18d2fbf1dc2",
+    "display_name": "Covenant Microfinance Bank",
+    "country": "NG",
+    "key": "ng_covenant_mfb",
+    "local_code": "070006",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "decbbb0e-a2a9-46fc-b486-9a131c917979",
+    "display_name": "Page Financials",
+    "country": "NG",
+    "key": "ng_page_financials",
+    "local_code": "070008",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "239a76b5-27e2-4bc0-a10b-66a0c8d2bdd6",
+    "display_name": "First Generation Mortgage Bank",
+    "country": "NG",
+    "key": "ng_first_generation_mtg_b",
+    "local_code": "070014",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "fc4261f1-972d-4374-85ef-69eeb2c268dc",
+    "display_name": "Brent Mortgage Bank",
+    "country": "NG",
+    "key": "ng_brent_mtg_bank",
+    "local_code": "070015",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "94f4180f-95ce-423e-9ddc-4cf2faeb1d8b",
+    "display_name": "Haggai Mortgage Bank Limited",
+    "country": "NG",
+    "key": "ng_haggai_mtg_bank",
+    "local_code": "070017",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "01a58931-28be-43ed-bf8b-6daf36804c22",
+    "display_name": "Mayfresh Mortgage Bank",
+    "country": "NG",
+    "key": "ng_mayfresh_mtg_bank",
+    "local_code": "070019",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1be550df-6641-4916-ac5a-16d64cd25fac",
+    "display_name": "Coop Mortgage Bank",
+    "country": "NG",
+    "key": "ng_coop_mtg_bank",
+    "local_code": "070021",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "03dd51cb-ab9a-410b-a224-aad86f51fc7f",
+    "display_name": "Jubilee-Life Mortgage  Bank",
+    "country": "NG",
+    "key": "ng_jubilee_life_mortgage",
+    "local_code": "090003",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "4cf8dde7-b09b-4c2b-8e64-043df3784e61",
+    "display_name": "Trustbond Mortgage Bank",
+    "country": "NG",
+    "key": "ng_trustbond_mtg_bank",
+    "local_code": "090005",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "3cda157a-cba3-4e1c-b59f-535b68e94bba",
+    "display_name": "SafeTrust ",
+    "country": "NG",
+    "key": "ng_safetrust",
+    "local_code": "090006",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d48cdc89-ba44-4cc6-9d8c-356ea013f069",
+    "display_name": "FBN Mortgages Limited",
+    "country": "NG",
+    "key": "ng_fbn_mortgages_ltd",
+    "local_code": "090107",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "ec99bb4c-fbeb-4ad0-af38-8df80630a59b",
+    "display_name": "Seed Capital Microfinance Bank",
+    "country": "NG",
+    "key": "ng_seed_capital_mfb",
+    "local_code": "090112",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "3dfd263d-7261-4938-9afd-60857f4a1f97",
+    "display_name": "Microvis Microfinance Bank",
+    "country": "NG",
+    "key": "ng_microvis_mfb",
+    "local_code": "090113",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "ff8d3a4d-d0c7-4cce-8ee6-a24201e4fc06",
+    "display_name": "Empire trust MFB",
+    "country": "NG",
+    "key": "ng_empire_trust_mfb",
+    "local_code": "090114",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f770e2e4-643a-47a5-b937-eaec9891d7a2",
+    "display_name": "AMML MFB",
+    "country": "NG",
+    "key": "ng_amml_mfb",
+    "local_code": "090116",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2f2b3f24-1d32-4066-8fe4-4c7adca03a85",
+    "display_name": "Boctrust Microfinance Bank",
+    "country": "NG",
+    "key": "ng_boctrust_mfb",
+    "local_code": "090117",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b7eee533-1bd3-4f1f-98d1-2f8e04daef34",
+    "display_name": "Ohafia Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ohafia_mfb",
+    "local_code": "090119",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "722399c0-67b0-4b6d-847d-33d215a99afd",
+    "display_name": "Wetland Microfinance Bank",
+    "country": "NG",
+    "key": "ng_wetland_mfb",
+    "local_code": "090120",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "bff486c4-ab42-4226-9e35-b8d65bbc2928",
+    "display_name": "Gowans Microfinance Bank",
+    "country": "NG",
+    "key": "ng_gowans_mfb",
+    "local_code": "090122",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "321fbe26-f21e-4353-bea1-62c5c75482f0",
+    "display_name": "Verite Microfinance Bank",
+    "country": "NG",
+    "key": "ng_verite_mfb",
+    "local_code": "090123",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "34bde509-f9e8-4ce0-b91b-468165d29cfc",
+    "display_name": "Xslnce Microfinance Bank",
+    "country": "NG",
+    "key": "ng_xslnce_mfb",
+    "local_code": "090124",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c11dacd0-5976-4559-85a0-c8b61a2df3ae",
+    "display_name": "Regent Microfinance Bank",
+    "country": "NG",
+    "key": "ng_regent_mfb",
+    "local_code": "090125",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "59d063ef-5807-4403-9e8e-aaca5156a85d",
+    "display_name": "Fidfund Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fidfund_mfb",
+    "local_code": "090126",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "5e16e3b2-e4a0-455d-8e55-0ea84a8579fd",
+    "display_name": "BC Kash Microfinance Bank",
+    "country": "NG",
+    "key": "ng_bc_kash_mfb",
+    "local_code": "090127",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "4ecea47c-a07f-40f9-a35c-78a5639ca225",
+    "display_name": "Ndiorah Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ndiorah_mfb",
+    "local_code": "090128",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d65dfc36-ce1a-4d82-a419-7bc8fec669bd",
+    "display_name": "Money Trust Microfinance Bank",
+    "country": "NG",
+    "key": "ng_money_trust_mfb",
+    "local_code": "090129",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6978bb02-d9f1-47a1-b072-a4fa67385154",
+    "display_name": "Allworkers Microfinance Bank",
+    "country": "NG",
+    "key": "ng_allworkers_mfb",
+    "local_code": "090131",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c787157e-f20b-4fc2-b18b-7d32b3802295",
+    "display_name": "Richway Microfinance Bank",
+    "country": "NG",
+    "key": "ng_richway_mfb",
+    "local_code": "090132",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "956e6708-80bc-43ad-9d23-de10e745c930",
+    "display_name": " AL-Barakah Microfinance Bank",
+    "country": "NG",
+    "key": "ng_al_barakah_mfb",
+    "local_code": "090133",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2732cfb6-ada1-437c-8658-d6c213837479",
+    "display_name": "Royal Exchange Microfinance Bank",
+    "country": "NG",
+    "key": "ng_royal_exchange_mfb",
+    "local_code": "090138",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "256b7e9a-81d6-49af-ae6d-f09da04aa084",
+    "display_name": "Visa Microfinance Bank",
+    "country": "NG",
+    "key": "ng_visa_mfb",
+    "local_code": "090139",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2b08cf13-3757-4a37-b57b-f6b7fad23ec3",
+    "display_name": "Sagamu Microfinance Bank",
+    "country": "NG",
+    "key": "ng_sagamu_mfb",
+    "local_code": "090140",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "fa9e9a2e-6d07-4bc1-8555-01a1580ff8f5",
+    "display_name": "Apeks Microfinance Bank",
+    "country": "NG",
+    "key": "ng_apeks_mfb",
+    "local_code": "090143",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "3110964e-584c-4f56-a566-b64961281b5a",
+    "display_name": "CIT Microfinance Bank",
+    "country": "NG",
+    "key": "ng_cit_mfb",
+    "local_code": "090144",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1007e8c8-e5fe-4331-b10e-181695dcb2f4",
+    "display_name": "Fullrange Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fullrange_mfb",
+    "local_code": "090145",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "70e762f2-03ce-4c1e-97b4-17c83fd8fc8a",
+    "display_name": "Trident Microfinance Bank",
+    "country": "NG",
+    "key": "ng_trident_mfb",
+    "local_code": "090146",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "259f5675-9ec2-41ce-b980-413b507f0fdb",
+    "display_name": "IRL Microfinance Bank",
+    "country": "NG",
+    "key": "ng_irl_mfb",
+    "local_code": "090149",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "98ed0047-2c61-4128-9812-cd857060461c",
+    "display_name": "Virtue Microfinance Bank",
+    "country": "NG",
+    "key": "ng_virtue_mfb",
+    "local_code": "090150",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "555b8c6e-1b1a-4a93-b757-0d03aaf0b032",
+    "display_name": "Mutual Trust Microfinance Bank",
+    "country": "NG",
+    "key": "ng_mutual_trust_mfb",
+    "local_code": "090151",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e824224d-d947-4666-8cc4-c3f7f479c6aa",
+    "display_name": "Nagarta Microfinance Bank",
+    "country": "NG",
+    "key": "ng_nagarta_mfb",
+    "local_code": "090152",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c60c75c7-66f8-4a42-986c-24d4293e7d45",
+    "display_name": "FFS Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ffs_mfb",
+    "local_code": "090153",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "56842c00-f424-45c4-91c5-9ebf7c85fae9",
+    "display_name": "La  Fayette Microfinance Bank",
+    "country": "NG",
+    "key": "ng_la_fayette_mfb",
+    "local_code": "090155",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d72fe41c-380e-4b62-a08c-05b5d63d6b6b",
+    "display_name": "e-Barcs Microfinance Bank",
+    "country": "NG",
+    "key": "ng_e_barcs_mfb",
+    "local_code": "090156",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "9e230785-7d23-4b64-85d6-a0a6666aa79a",
+    "display_name": "Futo Microfinance Bank",
+    "country": "NG",
+    "key": "ng_futo_mfb",
+    "local_code": "090158",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e7706b8a-9f10-4eb3-bc3a-5ba99bc657d3",
+    "display_name": "Credit Afrique Microfinance Bank",
+    "country": "NG",
+    "key": "ng_credit_afrique_mfb",
+    "local_code": "090159",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6722b275-1657-4367-9001-4531b0a31e2f",
+    "display_name": "Addosser Microfinance Bank",
+    "country": "NG",
+    "key": "ng_addosser_mfb",
+    "local_code": "090160",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "460905ff-a308-4742-aca9-b71fe567c4ca",
+    "display_name": "Okpoga Microfinance Bank",
+    "country": "NG",
+    "key": "ng_okpoga_mfb",
+    "local_code": "090161",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "56b714eb-0011-4de3-ade8-ef5d2cba5831",
+    "display_name": "First Multiple Microfinance Bank",
+    "country": "NG",
+    "key": "ng_first_multiple_mfb",
+    "local_code": "090163",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e72f6a76-fc28-4454-bd79-93f8d318eb4a",
+    "display_name": "Eso-E Microfinance Bank",
+    "country": "NG",
+    "key": "ng_eso_e_mfb",
+    "local_code": "090166",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d957bca6-cbeb-4980-9425-31ef0e0f1bb8",
+    "display_name": "Daylight Microfinance Bank",
+    "country": "NG",
+    "key": "ng_daylight_mfb",
+    "local_code": "090167",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b7d82e6b-3fb4-4d1d-8986-f070e26a04c4",
+    "display_name": "Gashua Microfinance Bank",
+    "country": "NG",
+    "key": "ng_gashua_mfb",
+    "local_code": "090168",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "9d345833-1f47-4f76-beae-65f70363a026",
+    "display_name": "Alpha Kapital Microfinance Bank",
+    "country": "NG",
+    "key": "ng_alpha_kapital_mfb",
+    "local_code": "090169",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6b1baabd-acf9-4351-9a47-c7c4372747c0",
+    "display_name": "Rahama Microfinance Bank",
+    "country": "NG",
+    "key": "ng_rahama_mfb",
+    "local_code": "090170",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "4f7d3d0d-396e-4da8-989e-22a19e04a6bc",
+    "display_name": "Reliance Microfinance Bank",
+    "country": "NG",
+    "key": "ng_reliance_mfb",
+    "local_code": "090173",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "907fb7e9-1dfc-41b1-84a2-3d7e4f60b52f",
+    "display_name": "Malachy Microfinance Bank",
+    "country": "NG",
+    "key": "ng_malachy_mfb",
+    "local_code": "090174",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "95c0580d-23a4-4dfc-9ce4-a6d1b0f235c9",
+    "display_name": "Lapo Microfinance Bank",
+    "country": "NG",
+    "key": "ng_lapo_mfb",
+    "local_code": "090177",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "0b9d1198-2211-44c3-8252-80d455da79d4",
+    "display_name": "GreenBank Microfinance Bank",
+    "country": "NG",
+    "key": "ng_greenbank_mfb",
+    "local_code": "090178",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "cf18cd20-d386-4f5a-ad1b-ed2b928092a8",
+    "display_name": "FAST Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fast_mfb",
+    "local_code": "090179",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "57db833f-d227-4e04-b508-cf3fc9ba4757",
+    "display_name": "Girei Microfinance Bank",
+    "country": "NG",
+    "key": "ng_girei_mfb",
+    "local_code": "090186",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "094728fb-6f77-4079-91d1-221bae5445af",
+    "display_name": "Esan Microfinance Bank",
+    "country": "NG",
+    "key": "ng_esan_mfb",
+    "local_code": "090189",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "288926d4-8ba3-4ccc-aa8b-074161b7b1d7",
+    "display_name": "KCMB Microfinance Bank",
+    "country": "NG",
+    "key": "ng_kcmb_mfb",
+    "local_code": "090191",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "73dbe1f3-e89a-4e0b-b661-3c132b8b53f4",
+    "display_name": "Midland Microfinance Bank",
+    "country": "NG",
+    "key": "ng_midland_mfb",
+    "local_code": "090192",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "306c55e5-d33f-40a5-a2d9-de2e04302c52",
+    "display_name": "NIRSAL Microfinance Bank",
+    "country": "NG",
+    "key": "ng_nirsal_mfb",
+    "local_code": "090194",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "02ab4109-f4dc-46ef-8dd6-9dbd58f02792",
+    "display_name": "Pennywise Microfinance Bank",
+    "country": "NG",
+    "key": "ng_pennywise_mfb",
+    "local_code": "090196",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e1829383-828e-49ca-a97e-0e8b8cb5cd3d",
+    "display_name": "RenMoney Microfinance Bank",
+    "country": "NG",
+    "key": "ng_renmoney_mfb",
+    "local_code": "090198",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b298656f-8f3a-4dd5-b80a-cca01bab1f84",
+    "display_name": "Xpress Payments",
+    "country": "NG",
+    "key": "ng_xpress_payments",
+    "local_code": "090201",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "40e77c06-235c-4e27-87f5-b5df9c5d5272",
+    "display_name": "Accelerex Network",
+    "country": "NG",
+    "key": "ng_accelerex_network",
+    "local_code": "090202",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "159fd00b-d9a8-48dc-bc83-b2f853948f0c",
+    "display_name": "New Dawn Microfinance Bank",
+    "country": "NG",
+    "key": "ng_new_dawn_mfb",
+    "local_code": "090205",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "cd2d25a9-8077-4759-b64a-d291e8735533",
+    "display_name": "Itex Integrated Services Limited",
+    "country": "NG",
+    "key": "ng_itex_integrated_servic",
+    "local_code": "090211",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6fb4e3ae-32b8-4bfd-bf94-36e782d80d63",
+    "display_name": "UNN MFB",
+    "country": "NG",
+    "key": "ng_unn_mfb",
+    "local_code": "090251",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "3eab3528-df79-4fd9-9b3c-98c4b69cb30e",
+    "display_name": "Yobe Microfinance Bank",
+    "country": "NG",
+    "key": "ng_yobe_mfb",
+    "local_code": "090252",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "90d660c6-9c02-4e02-91ae-244e398e0c28",
+    "display_name": "Imo State Microfinance Bank",
+    "country": "NG",
+    "key": "ng_imo_state_mfb",
+    "local_code": "090258",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d20c5b22-b852-4247-9cd8-02758d24f913",
+    "display_name": "Alekun Microfinance Bank",
+    "country": "NG",
+    "key": "ng_alekun_mfb",
+    "local_code": "090259",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "64f43214-b65c-4337-9d1d-ea0956718372",
+    "display_name": "Auchi Microfinance Bank",
+    "country": "NG",
+    "key": "ng_auchi_mfb",
+    "local_code": "090264",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e20cd28c-7c7c-4a39-99c5-91b88a0f79e2",
+    "display_name": "Lovonus Microfinance Bank",
+    "country": "NG",
+    "key": "ng_lovonus_mfb",
+    "local_code": "090265",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b46ec68a-ab04-48a2-80f5-b1d68ee4d279",
+    "display_name": "Uniben Microfinance Bank",
+    "country": "NG",
+    "key": "ng_uniben_mfb",
+    "local_code": "090266",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "83460804-38b6-4c8d-ac8d-13b3b2a98914",
+    "display_name": "Adeyemi College Staff Microfinance Bank",
+    "country": "NG",
+    "key": "ng_adeyemi_college_staff",
+    "local_code": "090268",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "620f2a7c-96aa-4a4c-bb5d-53f168a9bcd7",
+    "display_name": "Greenville Microfinance Bank",
+    "country": "NG",
+    "key": "ng_greenville_mfb",
+    "local_code": "090269",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "17eb907f-7970-4e29-ab5f-40c02c9a9d91",
+    "display_name": "AB Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ab_mfb",
+    "local_code": "090270",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "19e0702f-ef61-4418-84d5-3b5bb436fea7",
+    "display_name": "Lavender Microfinance Bank",
+    "country": "NG",
+    "key": "ng_lavender_mfb",
+    "local_code": "090271",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f4f149a6-b786-493a-be47-fb761f766ac7",
+    "display_name": "Olabisi Onabanjo University Microfinance Bank",
+    "country": "NG",
+    "key": "ng_olabisi_onabanjo_unive",
+    "local_code": "090272",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2144f7be-901e-4e83-b38d-79a40472ead2",
+    "display_name": "Emeralds Microfinance Bank",
+    "country": "NG",
+    "key": "ng_emeralds_mfb",
+    "local_code": "090273",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f03b4938-3dc0-426f-8f25-db813936907d",
+    "display_name": "Prestige Microfinance Bank",
+    "country": "NG",
+    "key": "ng_prestige_mfb",
+    "local_code": "090274",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f3250998-2aa0-4e6c-b030-a198597f4378",
+    "display_name": "Trustfund Microfinance Bank",
+    "country": "NG",
+    "key": "ng_trustfund_mfb",
+    "local_code": "090276",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c4359d42-8614-4773-b374-b06cb92a2991",
+    "display_name": "Al-Hayat Microfinance Bank",
+    "country": "NG",
+    "key": "ng_al_hayat_mfb",
+    "local_code": "090277",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "bf46fd33-1353-4577-aaf3-0fca10451580",
+    "display_name": "Glory Microfinance Bank ",
+    "country": "NG",
+    "key": "ng_glory_mfb",
+    "local_code": "090278",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "91c688ae-36d4-410f-abe9-d0ca9fba82ce",
+    "display_name": "Ikire Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ikire_mfb",
+    "local_code": "090279",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "37990eec-e1d1-49cf-a051-5bc50a8b4b41",
+    "display_name": "Megapraise Microfinance Bank",
+    "country": "NG",
+    "key": "ng_megapraise_mfb",
+    "local_code": "090280",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "06714076-8e82-4daa-bcf9-bda23e30e1ec",
+    "display_name": "Arise Microfinance Bank",
+    "country": "NG",
+    "key": "ng_arise_mfb",
+    "local_code": "090282",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "39034ee5-dbcf-4a4e-9fb7-eee2f8d5f7f6",
+    "display_name": "Thrive Microfinance Bank",
+    "country": "NG",
+    "key": "ng_thrive_mfb",
+    "local_code": "090283",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "0b3c2083-8f29-4a64-8391-c8239d2c1d3b",
+    "display_name": "First Option Microfinance Bank",
+    "country": "NG",
+    "key": "ng_first_option_mfb",
+    "local_code": "090285",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "24cd6f9f-24de-43ff-bc2e-b74e68f71c2d",
+    "display_name": "Assets Matrix Microfinance Bank",
+    "country": "NG",
+    "key": "ng_assets_matrix_mfb",
+    "local_code": "090287",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "771c8108-0e52-4a57-8eb3-a5659b1dc39e",
+    "display_name": "Pillar Microfinance Bank",
+    "country": "NG",
+    "key": "ng_pillar_mfb",
+    "local_code": "090289",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "a9e34f89-cda9-4c2c-b35a-7bd79fabb15a",
+    "display_name": "Fct Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fct_mfb",
+    "local_code": "090290",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "88ca9103-5b6b-40f8-8ff2-dda4c3605705",
+    "display_name": "Halacredit Microfinance Bank",
+    "country": "NG",
+    "key": "ng_halacredit_mfb",
+    "local_code": "090291",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e55e5bc8-e962-4398-97dc-5e8e846573f6",
+    "display_name": "Afekhafe Microfinance Bank",
+    "country": "NG",
+    "key": "ng_afekhafe_mfb",
+    "local_code": "090292",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d852dcf6-44fb-4381-bcaf-56537662cab3",
+    "display_name": "Brethren Microfinance Bank",
+    "country": "NG",
+    "key": "ng_brethren_mfb",
+    "local_code": "090293",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "513dd424-015e-4767-bb38-e65ee982afef",
+    "display_name": "Eagle Flight Microfinance Bank",
+    "country": "NG",
+    "key": "ng_eagle_flight_mfb",
+    "local_code": "090294",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "60058204-439b-424b-848c-3967be9c7f61",
+    "display_name": "Omiye Microfinance Bank",
+    "country": "NG",
+    "key": "ng_omiye_mfb",
+    "local_code": "090295",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2e265f75-9651-4b67-b76e-61ff4404d97f",
+    "display_name": "Alert Microfinance Bank",
+    "country": "NG",
+    "key": "ng_alert_mfb",
+    "local_code": "090297",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "fc1e91ff-2403-4e42-8306-c3cd78c98f1a",
+    "display_name": "Federalpoly Nasarawamfb",
+    "country": "NG",
+    "key": "ng_federalpoly_nasarawa_mfb",
+    "local_code": "090298",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "3d54de09-f177-4699-a7f9-574569686690",
+    "display_name": "Kontagora Microfinance Bank",
+    "country": "NG",
+    "key": "ng_kontagora_mfb",
+    "local_code": "090299",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d0e48398-3586-441a-a82f-c64c556239c6",
+    "display_name": "Sunbeam Microfinance Bank",
+    "country": "NG",
+    "key": "ng_sunbeam_mfb",
+    "local_code": "090302",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "26b24f4f-aabe-49fd-85a3-a2d9f1936d23",
+    "display_name": "Purplemoney Microfinance Bank",
+    "country": "NG",
+    "key": "ng_purplemoney_mfb",
+    "local_code": "090303",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2e77eecb-a835-41a5-8c57-64607fc84b7e",
+    "display_name": "Evangel Microfinance Bank",
+    "country": "NG",
+    "key": "ng_evangel_mfb",
+    "local_code": "090304",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1c31e85b-5b47-4c76-92ec-f821bf9df8ab",
+    "display_name": "Sulsap Microfinance Bank",
+    "country": "NG",
+    "key": "ng_sulsap_mfb",
+    "local_code": "090305",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "eb193ae5-f909-4052-ae84-590fe3519e45",
+    "display_name": "Brightway Microfinance Bank",
+    "country": "NG",
+    "key": "ng_brightway_mfb",
+    "local_code": "090308",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f97b8a6c-b749-4fa6-a007-f47642ae1418",
+    "display_name": "Edfin Microfinance Bank",
+    "country": "NG",
+    "key": "ng_edfin_mfb",
+    "local_code": "090310",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6a4aa3e7-42f5-4571-8de4-3de75fa05412",
+    "display_name": "Bayero Microfinance Bank",
+    "country": "NG",
+    "key": "ng_bayero_mfb",
+    "local_code": "090316",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "0619989a-0f7c-4049-afed-c6e34412aae3",
+    "display_name": "PatrickGold Microfinance Bank",
+    "country": "NG",
+    "key": "ng_patrickgold_mfb",
+    "local_code": "090317",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d9a92314-22fd-4cd1-a0d2-97d3c3870720",
+    "display_name": "Federal University Dutse  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_federal_university_dutse_mfb",
+    "local_code": "090318",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e52a62ee-dc76-4b69-9bb8-fde0e43014af",
+    "display_name": "Mainland Microfinance Bank",
+    "country": "NG",
+    "key": "ng_mainland_mfb",
+    "local_code": "090323",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "8ded29fc-db17-4913-a4a6-dff41c6ac95e",
+    "display_name": "Ikenne Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ikenne_mfb",
+    "local_code": "090324",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "010d410e-97c4-403e-9c97-646e20ae832b",
+    "display_name": "Balogun Gambari Microfinance Bank",
+    "country": "NG",
+    "key": "ng_balogun_gambari_mfb",
+    "local_code": "090326",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d1e96348-ab66-4918-80b5-b1d7dd0f9bcb",
+    "display_name": "Trust Microfinance Bank",
+    "country": "NG",
+    "key": "ng_trust_mfb",
+    "local_code": "090327",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "3e438d5b-5063-4277-be20-9105dc7e6d05",
+    "display_name": "Neptune Microfinance Bank",
+    "country": "NG",
+    "key": "ng_neptune_mfb",
+    "local_code": "090329",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6fe1aa2a-36af-4a1c-8969-e7c90d67111a",
+    "display_name": "Evergreen Microfinance Bank",
+    "country": "NG",
+    "key": "ng_evergreen_mfb",
+    "local_code": "090332",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "fe6a298b-2a0a-41a2-b998-a518fa832729",
+    "display_name": "Oche Microfinance Bank",
+    "country": "NG",
+    "key": "ng_oche_mfb",
+    "local_code": "090333",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "dc417c05-b7bb-458d-8520-07f52e47cec3",
+    "display_name": "Bipc Microfinance Bank",
+    "country": "NG",
+    "key": "ng_bipc_mfb",
+    "local_code": "090336",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "8c62606d-a543-41a6-b14c-db0a2bebae77",
+    "display_name": "Molusi Microfinance Bank",
+    "country": "NG",
+    "key": "ng_molusi_mfb",
+    "local_code": "090362",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1f26775d-3023-4e54-b199-1d7cba304f15",
+    "display_name": "Headway Microfinance Bank",
+    "country": "NG",
+    "key": "ng_headway_mfb",
+    "local_code": "090363",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "4adf045d-3dbf-4e0d-9bcc-d704bbb79e14",
+    "display_name": "Nuture Microfinance Bank",
+    "country": "NG",
+    "key": "ng_nuture_mfb",
+    "local_code": "090364",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c04bdde3-8944-4b76-8279-fa55a8e17686",
+    "display_name": "Seedvest Microfinance Bank",
+    "country": "NG",
+    "key": "ng_seedvest_mfb",
+    "local_code": "090369",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e97b0302-f22f-47b4-a30a-654345d38449",
+    "display_name": "Ilasan Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ilasan_mfb",
+    "local_code": "090370",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "713eb910-e1c0-456e-bbe7-58478d0c49f8",
+    "display_name": "Agosasa Microfinance Bank",
+    "country": "NG",
+    "key": "ng_agosasa_mfb",
+    "local_code": "090371",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "030221ce-1eb4-463d-a41d-4ffaa94ae421",
+    "display_name": "Legend Microfinance Bank",
+    "country": "NG",
+    "key": "ng_legend_mfb",
+    "local_code": "090372",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b34516d8-b1fa-4e71-a687-2129bc4f99b2",
+    "display_name": "Tf Microfinance Bank",
+    "country": "NG",
+    "key": "ng_tf_mfb",
+    "local_code": "090373",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "4dfdbd96-378b-422a-97ea-efb87b15af76",
+    "display_name": "Coastline Microfinance Bank",
+    "country": "NG",
+    "key": "ng_coastline_mfb",
+    "local_code": "090374",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "8934d00c-4549-4176-bf59-60d2c1ba03bb",
+    "display_name": "Apple  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_apple_mfb",
+    "local_code": "090376",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "0287682f-e8e0-4eb0-b2b3-4b0fb8cbc84a",
+    "display_name": "Isaleoyo Microfinance Bank",
+    "country": "NG",
+    "key": "ng_isaleoyo_mfb",
+    "local_code": "090377",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e06faba9-75a2-419c-9e5b-adedec806fe5",
+    "display_name": "New Golden Pastures Microfinance Bank",
+    "country": "NG",
+    "key": "ng_new_golden_pastures_mfb",
+    "local_code": "090378",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "404e25d3-a362-4a88-a5f1-ab9e868ba97b",
+    "display_name": "Manny Microfinance bank",
+    "country": "NG",
+    "key": "ng_manny_mfb",
+    "local_code": "090383",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "52ebd310-6e66-4c18-ac77-2e9d21d53346",
+    "display_name": "Interland Microfinance Bank",
+    "country": "NG",
+    "key": "ng_interland_mfb",
+    "local_code": "090386",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "af7a5ea3-5b25-44a4-b819-d125b39fe408",
+    "display_name": "Ek-Reliable Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ek_reliable_mfb",
+    "local_code": "090389",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2f49e6a1-0129-4f84-89b9-fd5d57303e3c",
+    "display_name": "Davodani  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_davodani_mfb",
+    "local_code": "090391",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "bd236607-987b-4169-8898-736c0d19b0d4",
+    "display_name": "Mozfin Microfinance Bank",
+    "country": "NG",
+    "key": "ng_mozfin_mfb",
+    "local_code": "090392",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "45d61c15-971c-4f13-9086-567034436682",
+    "display_name": "BRIDGEWAY MICROFINANCE BANK",
+    "country": "NG",
+    "key": "ng_bridgeway_mfb",
+    "local_code": "090393",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "73040a3c-1c8a-404b-94d2-3e8cf0450ddc",
+    "display_name": "Amac Microfinance Bank",
+    "country": "NG",
+    "key": "ng_amac_mfb",
+    "local_code": "090394",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f913d19f-3733-4345-92fb-fdb66880cd1f",
+    "display_name": "Borgu Microfinance Bank",
+    "country": "NG",
+    "key": "ng_borgu_mfb",
+    "local_code": "090395",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "63223b4e-4c58-4567-90bb-501c7efa80b4",
+    "display_name": "Oscotech Microfinance Bank",
+    "country": "NG",
+    "key": "ng_oscotech_mfb",
+    "local_code": "090396",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "7fd12184-fbc9-420e-8666-76fc0a4291f9",
+    "display_name": "Chanelle Bank",
+    "country": "NG",
+    "key": "ng_chanelle_bank",
+    "local_code": "090397",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "eb94cb9c-750b-44d2-87a3-a26c8d944396",
+    "display_name": "Federal Polytechnic Nekede Microfinance Bank",
+    "country": "NG",
+    "key": "ng_federal_polytechnic_nekede_mfb",
+    "local_code": "090398",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "735681aa-749c-439c-9f90-8470b5cef945",
+    "display_name": "Nwannegadi Microfinance Bank",
+    "country": "NG",
+    "key": "ng_nwannegadi_mfb",
+    "local_code": "090399",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1b836fca-c359-4fc7-9d99-4e258415e413",
+    "display_name": "Finca Microfinance Bank",
+    "country": "NG",
+    "key": "ng_finca_mfb",
+    "local_code": "090400",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b8863d66-9ccd-42be-8ac5-28cf29bc993b",
+    "display_name": "Shepherd Trust Microfinance Bank",
+    "country": "NG",
+    "key": "ng_shepherd_trust_mfb",
+    "local_code": "090401",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "83fe5038-b9a0-4f2c-8f81-1ce4d88b321b",
+    "display_name": "Olowolagba Microfinance Bank",
+    "country": "NG",
+    "key": "ng_olowolagba_mfb",
+    "local_code": "090404",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2171be3b-9406-4da2-bd52-2a769001fe89",
+    "display_name": "Business Support Microfinance Bank",
+    "country": "NG",
+    "key": "ng_business_support_mfb",
+    "local_code": "090406",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "bf2846b6-1e6c-4668-a02e-5ef895b502d9",
+    "display_name": "Gmb Microfinance Bank",
+    "country": "NG",
+    "key": "ng_gmb_mfb",
+    "local_code": "090408",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "9d009830-ac1d-4a33-bcc6-b0c5c96ab874",
+    "display_name": "Fcmb Microfinance Bank",
+    "country": "NG",
+    "key": "ng_fcmb_mfb",
+    "local_code": "090409",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "8911e821-395d-4947-a335-1f331085a463",
+    "display_name": "Maritime Microfinance Bank",
+    "country": "NG",
+    "key": "ng_maritime_mfb",
+    "local_code": "090410",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "1f595f37-4d1f-4682-8cbc-6f1a5a65be6d",
+    "display_name": "Giginya Microfinance Bank",
+    "country": "NG",
+    "key": "ng_giginya_mfb",
+    "local_code": "090411",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b7b44581-22d8-45ee-be63-9fd24145a67d",
+    "display_name": "Preeminent Microfinance Bank",
+    "country": "NG",
+    "key": "ng_preeminent_mfb",
+    "local_code": "090412",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "8fbd39ba-eedd-4aef-ba43-155e6a1d32a2",
+    "display_name": "Calabar Microfinance Bank",
+    "country": "NG",
+    "key": "ng_calabar_mfb",
+    "local_code": "090415",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "595b0495-d419-4893-b7bd-f328eca95ead",
+    "display_name": "Chibueze Microfinance Bank",
+    "country": "NG",
+    "key": "ng_chibueze_mfb",
+    "local_code": "090416",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "38324610-71cb-4c7e-8345-6405105ef448",
+    "display_name": "Highland Microfinance Bank",
+    "country": "NG",
+    "key": "ng_highland_mfb",
+    "local_code": "090418",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "84f49196-d1a4-493c-90df-bdbffd109dab",
+    "display_name": "Winview Bank",
+    "country": "NG",
+    "key": "ng_winview_bank",
+    "local_code": "090419",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "ac0b3ffb-fa57-4d37-a13d-638d3ea8e74d",
+    "display_name": "Izon Microfinance Bank",
+    "country": "NG",
+    "key": "ng_izon_mfb",
+    "local_code": "090421",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "5332b4d4-884e-4c66-84be-c1d9712f00e5",
+    "display_name": "Landgold  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_landgold_mfb",
+    "local_code": "090422",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "5038f475-9b6d-4178-93a3-0bc351e64eda",
+    "display_name": "MAUTECH Microfinance Bank",
+    "country": "NG",
+    "key": "ng_mautech_mfb",
+    "local_code": "090423",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "8185f857-25f0-4bc1-96f0-de4a64f510c0",
+    "display_name": "Abucoop  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_abucoop_mfb",
+    "local_code": "090424",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6f6c3bd1-c2a2-4e9c-a298-302798bac66a",
+    "display_name": "Banex Microfinance Bank",
+    "country": "NG",
+    "key": "ng_banex_mfb",
+    "local_code": "090425",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "2b3c8f15-aa71-4f79-b653-9bd934cb2674",
+    "display_name": "Ishie  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ishie_mfb",
+    "local_code": "090428",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "62db6a8a-2380-451a-b974-add02ea0c325",
+    "display_name": "Ilora Microfinance Bank",
+    "country": "NG",
+    "key": "ng_ilora_mfb",
+    "local_code": "090430",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "da9e13c4-a8ed-42d0-b868-726e5c236826",
+    "display_name": "Bluewhales  Microfinance Bank",
+    "country": "NG",
+    "key": "ng_bluewhales_mfb",
+    "local_code": "090431",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "5cf75351-75b5-452d-8b61-9260f053de40",
+    "display_name": "Gwong Microfinance Bank",
+    "country": "NG",
+    "key": "ng_gwong_mfb",
+    "local_code": "090500",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d3360cc4-a16c-4c78-b646-83225fc933ca",
+    "display_name": "Otech Microfinance Bank Ltd",
+    "country": "NG",
+    "key": "ng_otech_mfb",
+    "local_code": "090580",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6be8b2d3-900d-4b22-8e23-762687f3e879",
+    "display_name": "FET",
+    "country": "NG",
+    "key": "ng_fet",
+    "local_code": "100001",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "71dc42a2-89be-421d-a03a-f253b7744d8f",
+    "display_name": "Cellulant",
+    "country": "NG",
+    "key": "ng_cellulant",
+    "local_code": "100005",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "a2642e03-58f6-40a1-a915-974cd4d7a604",
+    "display_name": "eTranzact",
+    "country": "NG",
+    "key": "ng_etranzact",
+    "local_code": "100006",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e8754b3a-1501-44a2-94bf-36342362a9d9",
+    "display_name": "Ecobank Xpress Account",
+    "country": "NG",
+    "key": "ng_ecobank_xpress_account",
+    "local_code": "100008",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "61d68ada-bd90-4f1b-91ef-c24495046210",
+    "display_name": "GTMobile",
+    "country": "NG",
+    "key": "ng_gtmobile",
+    "local_code": "100009",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d653b40e-aa29-4095-b264-aad71036442d",
+    "display_name": "TeasyMobile",
+    "country": "NG",
+    "key": "ng_teasymobile",
+    "local_code": "100010",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b53af688-38ea-4370-8e0c-0cb444ebfac7",
+    "display_name": "Mkudi",
+    "country": "NG",
+    "key": "ng_mkudi",
+    "local_code": "100011",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e9afebec-0f1b-4fe3-be2d-c7e1f5f8e290",
+    "display_name": "VTNetworks",
+    "country": "NG",
+    "key": "ng_vtnetworks",
+    "local_code": "100012",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "96c538bd-a994-43fb-b469-816c489f86df",
+    "display_name": "AccessMobile",
+    "country": "NG",
+    "key": "ng_accessmobile",
+    "local_code": "100013",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "7109f91e-8ea6-403c-aa0f-a22543035136",
+    "display_name": "FBNMobile",
+    "country": "NG",
+    "key": "ng_fbnmobile",
+    "local_code": "100014",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "6a9b2a56-aa07-48c2-9992-94db1438407a",
+    "display_name": "FortisMobile",
+    "country": "NG",
+    "key": "ng_fortismobile",
+    "local_code": "100016",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f2bbca9f-30b2-4dfd-80d9-1e7a5b2597c3",
+    "display_name": "Hedonmark",
+    "country": "NG",
+    "key": "ng_hedonmark",
+    "local_code": "100017",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d0921c29-cd74-40c9-9c71-7f588fda4d6e",
+    "display_name": "ZenithMobile",
+    "country": "NG",
+    "key": "ng_zenithmobile",
+    "local_code": "100018",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "97e82097-b680-4b2a-8f8c-d20ae8c4f416",
+    "display_name": "Fidelity Mobile",
+    "country": "NG",
+    "key": "ng_fidelity_mobile",
+    "local_code": "100019",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f1821afd-47a8-42bc-a66b-8dce89805d0c",
+    "display_name": "MoneyBox",
+    "country": "NG",
+    "key": "ng_moneybox",
+    "local_code": "100020",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "9fadc014-a3f7-43d1-b730-a49167e8c271",
+    "display_name": "Eartholeum",
+    "country": "NG",
+    "key": "ng_eartholeum",
+    "local_code": "100021",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "5dc94b26-efb9-43fd-98c4-2c5dd8cbd1fe",
+    "display_name": "TagPay",
+    "country": "NG",
+    "key": "ng_tagpay",
+    "local_code": "100023",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "fd9832a6-b005-43d2-ac25-1b3b021b256a",
+    "display_name": "Intellifin",
+    "country": "NG",
+    "key": "ng_intellifin",
+    "local_code": "100027",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "854be8b4-bfa6-428c-b413-fe3f4a45ea19",
+    "display_name": "Innovectives Kesh",
+    "country": "NG",
+    "key": "ng_innovectives_kesh",
+    "local_code": "100029",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "0b60f085-f243-4ea7-8589-6e44d715f5fc",
+    "display_name": "FCMB Easy Account",
+    "country": "NG",
+    "key": "ng_fcmb_easy_account",
+    "local_code": "100031",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e7fb82ab-e03c-4c35-a255-325a22e48df3",
+    "display_name": "Contec Global Infotech Limited (NowNow)",
+    "country": "NG",
+    "key": "ng_contec_global_infotech",
+    "local_code": "100032",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "a39706ed-64e2-48c0-b538-f9ea740c055b",
+    "display_name": "Zwallet",
+    "country": "NG",
+    "key": "ng_zwallet",
+    "local_code": "100034",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "f2fc69f6-3196-433b-96c2-10eb87da09c1",
+    "display_name": "M36",
+    "country": "NG",
+    "key": "ng_m36",
+    "local_code": "100035",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d630cb24-9e4d-4866-a741-59396f02e5d5",
+    "display_name": "Beta-Access Yello",
+    "country": "NG",
+    "key": "ng_beta_access_yello",
+    "local_code": "100052",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "b5171ebe-2bfe-4b41-b3e9-bb1694c69c70",
+    "display_name": "PayAttitude Online",
+    "country": "NG",
+    "key": "ng_payattitude_online",
+    "local_code": "110001",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "41721dbd-bf5e-42a7-b014-0d3d26a007c2",
+    "display_name": "Interswitch Limited",
+    "country": "NG",
+    "key": "ng_interswitch_ltd",
+    "local_code": "110003",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "a8ba9fd7-e49f-41eb-99ec-fb2acd0677a3",
+    "display_name": "First Apple Limited",
+    "country": "NG",
+    "key": "ng_first_apple_ltd",
+    "local_code": "110004",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "c5bfec4b-7102-48e2-a2da-4389b673d546",
+    "display_name": "3Line Card Management Limited",
+    "country": "NG",
+    "key": "ng_3line_card_management",
+    "local_code": "110005",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "874ff05c-df68-4b77-a6c3-8546391db2b5",
+    "display_name": "TeamApt",
+    "country": "NG",
+    "key": "ng_teamapt",
+    "local_code": "110007",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "401b3df8-9676-4259-99de-5af0d6564a23",
+    "display_name": "Kadick Integration Limited",
+    "country": "NG",
+    "key": "ng_kadick_integration_ltd",
+    "local_code": "110008",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "d8ddf307-9517-4103-a2cb-3df41d80f0d2",
+    "display_name": "Venture Garden Nigeria Limited",
+    "country": "NG",
+    "key": "ng_venture_garden_nigeria",
+    "local_code": "110009",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "e9473300-8f05-4282-9122-c0220bdaab97",
+    "display_name": "Arca Payments",
+    "country": "NG",
+    "key": "ng_arca_payments",
+    "local_code": "110011",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "5fbe3bd6-6599-49fb-a049-07e8606722f4",
+    "display_name": "Qr Payments",
+    "country": "NG",
+    "key": "ng_qr_payments",
+    "local_code": "110013",
+    "local_code_type": "nip_code"
+  },
+  {
+    "id": "48a73cd3-aae2-40e0-a723-9bda82e6dfc7",
+    "display_name": "Cyberspace Limited",
+    "country": "NG",
+    "key": "ng_cyberspace_ltd",
+    "local_code": "110014",
+    "local_code_type": "nip_code"
+  }
+]

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -30,6 +31,38 @@ describe('createLedgerRecord - Integration Tests', () => {
   let testProjectId: string;
   let testBankAccountId: string;
 
+  async function createBankTransaction(amount: number, description: string) {
+    const [batch] = await trx('bank_transaction_batches')
+      .insert({
+        bank_account_id: testBankAccountId,
+        company_id: testCompanyId,
+        start_date: '2025-01-15',
+        end_date: '2025-01-15',
+        source: 'manual_entry',
+        fingerprint: randomUUID(),
+        import_row_count: 1,
+        created_by_id: testUserId,
+      })
+      .returning<{ id: string }[]>('id');
+
+    const [bankTransaction] = await trx('bank_transactions')
+      .insert({
+        bank_account_id: testBankAccountId,
+        company_id: testCompanyId,
+        bank_transaction_batch_id: batch.id,
+        transaction_date: '2025-01-15',
+        transaction_at: new Date('2025-01-15T12:00:00Z'),
+        amount,
+        description,
+        system_exchange_rate: 1,
+        idempotency_key: randomUUID(),
+        created_by_id: testUserId,
+      })
+      .returning('*');
+
+    return bankTransaction;
+  }
+
   beforeEach(async () => {
     // Use transaction for test isolation - will rollback in afterEach
     const db = getTestDb();
@@ -57,7 +90,7 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     if (!cashCoa || !expenseCoa) {
       throw new Error(
-        'Demo company missing required COAs. Ensure demo data is seeded with: pnpm demo:apply:test',
+        'Demo company missing required COAs. Seed test demo data with: NODE_ENV=test pnpm -F @accountable-books/api run demo apply',
       );
     }
 
@@ -72,8 +105,10 @@ describe('createLedgerRecord - Integration Tests', () => {
       [contact] = await trx('contacts')
         .insert({
           company_id: testCompanyId,
-          name: 'Test Vendor',
+          display_name: 'Test Vendor',
           normalized_name: 'testvendor',
+          created_by_id: testUserId,
+          updated_by_id: testUserId,
         })
         .returning('*');
     }
@@ -118,14 +153,11 @@ describe('createLedgerRecord - Integration Tests', () => {
         .insert({
           company_id: testCompanyId,
           display_name: 'Test Bank Account',
-          account_name: 'Test Bank Account',
           account_type: 'checkings_current',
-          account_number: '1234567890',
           business_or_personal: 'business',
           bank_id: bank.id,
           currency_id: testCurrencyId,
           coa_id: cashCoa.id,
-          connection_status: 'not_connected',
           created_by_id: testUserId,
           updated_by_id: testUserId,
         })
@@ -144,8 +176,9 @@ describe('createLedgerRecord - Integration Tests', () => {
   describe('Success Cases', () => {
     it('should create simple manual journal entry', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -185,16 +218,19 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(transaction).toBeTruthy();
       expect(transaction.company_id).toBe(testCompanyId);
 
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
       expect(entries).toHaveLength(2);
     });
 
     it('should create transaction with contact', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         contact_id: testContactId,
@@ -228,9 +264,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Verify contact cascade to entries
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       expect(entries.every((e) => e.contact_id === testContactId)).toBe(true);
       expect(entries.every((e) => e.contact_type === 'vendor')).toBe(true);
@@ -244,12 +282,14 @@ describe('createLedgerRecord - Integration Tests', () => {
           display_name: 'Entry Contact',
           normalized_name: 'entrycontact',
           created_by_id: testUserId,
+          review_status: 'unreviewed',
         })
         .returning('*');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         contact_id: testContactId, // Transaction-level contact
@@ -288,7 +328,7 @@ describe('createLedgerRecord - Integration Tests', () => {
       const resultData = result.data as CreateLedgerRecordResult;
       const entries = await trx('ledger_entries')
         .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false)
+        // .where('is_deleted', false)
         .orderBy('coa_id');
 
       // First entry (cash) should have transaction contact (no entry contact provided)
@@ -304,8 +344,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should create transaction with project on entry', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -337,9 +378,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(result.success).toBe(true);
 
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       const projectEntry = entries.find((e) => e.coa_id === testCoaIds.expense);
       expect(projectEntry?.project_id).toBe(testProjectId);
@@ -347,24 +390,14 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should create bank transaction with bank leg', async () => {
       // Create bank transaction first (within transaction)
-      const [bankTxn] = await trx('bank_transactions')
-        .insert({
-          bank_account_id: testBankAccountId,
-          date: '2025-01-15',
-          txn_at: new Date('2025-01-15T12:00:00Z'),
-          amount: -500,
-          description: 'Bank payment',
-          system_exchange_rate: 1,
-          created_by_id: testUserId,
-        })
-        .returning('*');
+      const bankTxn = await createBankTransaction(-500, 'Bank payment');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'ml',
         source_transaction_id: bankTxn.id,
-        source_transaction_date: new Date('2025-01-15'),
+        source_transaction_date: '2025-01-15',
         source_transaction_amount: -500,
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -396,9 +429,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(result.success).toBe(true);
 
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       const bankLeg = entries.find((e) => e.is_bank_leg);
       expect(bankLeg).toBeTruthy();
@@ -406,24 +441,14 @@ describe('createLedgerRecord - Integration Tests', () => {
     });
 
     it('should handle split entries (one bank leg, multiple categorizations)', async () => {
-      const [bankTxn] = await trx('bank_transactions')
-        .insert({
-          bank_account_id: testBankAccountId,
-          date: '2025-01-15',
-          txn_at: new Date('2025-01-15T12:00:00Z'),
-          amount: -1500,
-          description: 'Split payment',
-          system_exchange_rate: 1,
-          created_by_id: testUserId,
-        })
-        .returning('*');
+      const bankTxn = await createBankTransaction(-1500, 'Split payment');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'manual',
         source_transaction_id: bankTxn.id,
-        source_transaction_date: new Date('2025-01-15'),
+        source_transaction_date: '2025-01-15',
         source_transaction_amount: -1500,
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -462,9 +487,11 @@ describe('createLedgerRecord - Integration Tests', () => {
       expect(result.success).toBe(true);
 
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       expect(entries).toHaveLength(3);
       expect(entries.filter((e) => e.is_bank_leg)).toHaveLength(1);
@@ -490,15 +517,17 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Create exchange rate for EUR to USD (within transaction)
       await trx('exchange_rates').insert({
-        date: '2025-01-15',
-        from_currency_id: eurCurrency.id,
-        to_currency_id: testCurrencyId,
+        rate_date: '2025-01-15',
+        base_currency_id: eurCurrency.id,
+        price_currency_id: testCurrencyId,
         rate: 1.1, // System rate: 1 EUR = 1.10 USD
+        source: 'manual',
       });
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: eurCurrency.id,
         transactions: [
@@ -532,9 +561,11 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Verify entries were created with custom exchange rate
       const resultData = result.data as CreateLedgerRecordResult;
-      const entries = await trx('ledger_entries')
-        .where('ledger_transaction_id', resultData.ledgerTransactionId)
-        .where('is_deleted', false);
+      const entries = await trx('ledger_entries').where(
+        'ledger_transaction_id',
+        resultData.ledgerTransactionId,
+      );
+      // .where('is_deleted', false);
 
       // Both entries should have the custom exchange rate applied
       entries.forEach((entry) => {
@@ -554,7 +585,7 @@ describe('createLedgerRecord - Integration Tests', () => {
   describe('Validation Errors', () => {
     it('should fail with invalid Zod schema', async () => {
       const invalidData = {
-        date: 'not-a-date',
+        transaction_date: 'not-a-date',
         transaction_source: 'invalid_source',
         transactions: [],
       };
@@ -574,8 +605,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should fail with no entries', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [],
@@ -595,8 +627,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should fail when company not found', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -633,8 +666,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should fail with invalid contact ID', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         contact_id: '00000000-0000-0000-0000-000000000000', // Valid UUID format but non-existent
@@ -669,8 +703,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should fail with invalid project ID', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -705,8 +740,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should fail when entries do not sum to zero', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -739,24 +775,14 @@ describe('createLedgerRecord - Integration Tests', () => {
     });
 
     it('should fail when bank leg amount does not match bank transaction', async () => {
-      const [bankTxn] = await trx('bank_transactions')
-        .insert({
-          bank_account_id: testBankAccountId,
-          date: '2025-01-15',
-          txn_at: new Date('2025-01-15T12:00:00Z'),
-          amount: -1000,
-          description: 'Bank payment',
-          system_exchange_rate: 1,
-          created_by_id: testUserId,
-        })
-        .returning('*');
+      const bankTxn = await createBankTransaction(-1000, 'Bank payment');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'ml',
         source_transaction_id: bankTxn.id,
-        source_transaction_date: new Date('2025-01-15'),
+        source_transaction_date: '2025-01-15',
         source_transaction_amount: -1000,
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -790,24 +816,14 @@ describe('createLedgerRecord - Integration Tests', () => {
     });
 
     it('should fail when bank transaction already categorized (idempotency)', async () => {
-      const [bankTxn] = await trx('bank_transactions')
-        .insert({
-          bank_account_id: testBankAccountId,
-          date: '2025-01-15',
-          txn_at: new Date('2025-01-15T12:00:00Z'),
-          amount: -500,
-          description: 'Bank payment',
-          system_exchange_rate: 1,
-          created_by_id: testUserId,
-        })
-        .returning('*');
+      const bankTxn = await createBankTransaction(-500, 'Bank payment');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'ml',
         source_transaction_id: bankTxn.id,
-        source_transaction_date: new Date('2025-01-15'),
+        source_transaction_date: '2025-01-15',
         source_transaction_amount: -500,
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -850,24 +866,14 @@ describe('createLedgerRecord - Integration Tests', () => {
     });
 
     it('should fail when bank leg COA does not match bank account COA', async () => {
-      const [bankTxn] = await trx('bank_transactions')
-        .insert({
-          bank_account_id: testBankAccountId,
-          date: '2025-01-15',
-          txn_at: new Date('2025-01-15T12:00:00Z'),
-          amount: -500,
-          description: 'Bank payment',
-          system_exchange_rate: 1,
-          created_by_id: testUserId,
-        })
-        .returning('*');
+      const bankTxn = await createBankTransaction(-500, 'Bank payment');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'ml',
         source_transaction_id: bankTxn.id,
-        source_transaction_date: new Date('2025-01-15'),
+        source_transaction_date: '2025-01-15',
         source_transaction_amount: -500,
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -901,24 +907,14 @@ describe('createLedgerRecord - Integration Tests', () => {
     });
 
     it('should fail when bank transaction has no bank leg', async () => {
-      const [bankTxn] = await trx('bank_transactions')
-        .insert({
-          bank_account_id: testBankAccountId,
-          date: '2025-01-15',
-          txn_at: new Date('2025-01-15T12:00:00Z'),
-          amount: -500,
-          description: 'Bank payment',
-          system_exchange_rate: 1,
-          created_by_id: testUserId,
-        })
-        .returning('*');
+      const bankTxn = await createBankTransaction(-500, 'Bank payment');
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'bank_transaction',
         categorization_source: 'ml',
         source_transaction_id: bankTxn.id,
-        source_transaction_date: new Date('2025-01-15'),
+        source_transaction_date: '2025-01-15',
         source_transaction_amount: -500,
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -953,8 +949,9 @@ describe('createLedgerRecord - Integration Tests', () => {
 
     it('should fail when manual journal has bank leg', async () => {
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: testCurrencyId,
         transactions: [
@@ -1005,15 +1002,17 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Mock exchange rate (15000 NGN to 1 USD) (within transaction)
       await trx('exchange_rates').insert({
-        from_currency_id: ngnCurrency.id,
-        to_currency_id: testCurrencyId,
-        date: '2025-01-15',
+        base_currency_id: ngnCurrency.id,
+        price_currency_id: testCurrencyId,
+        rate_date: '2025-01-15',
         rate: 15000,
+        source: 'manual',
       });
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: ngnCurrency.id,
         transactions: [
@@ -1068,15 +1067,17 @@ describe('createLedgerRecord - Integration Tests', () => {
 
       // Create exchange rate (within transaction)
       await trx('exchange_rates').insert({
-        from_currency_id: eurCurrency.id,
-        to_currency_id: testCurrencyId,
-        date: '2025-01-15',
+        base_currency_id: eurCurrency.id,
+        price_currency_id: testCurrencyId,
+        rate_date: '2025-01-15',
         rate: 1.1,
+        source: 'manual',
       });
 
       const data: NewLedgerTransactionData = {
-        date: new Date('2025-01-15'),
+        transaction_date: '2025-01-15',
         transaction_source: 'manual_journal',
+        source_transaction_id: randomUUID(),
         categorization_source: 'manual',
         source_transaction_currency_id: eurCurrency.id,
         transactions: [

@@ -1,4 +1,5 @@
 import type {
+  AccountType,
   AuthGetResponse,
   LinkTokenCreateRequest,
   Transaction as PlaidTransaction,
@@ -10,26 +11,51 @@ import {
   PlaidApi,
   PlaidEnvironments,
   Products,
+  TransactionsUpdateStatus,
 } from 'plaid';
 
 import { ENV } from '../../../config/env.js';
-import { BankingProvider, TransactionSyncStrategy } from '../types/base.js';
+import { logger } from '../../../shared/utils/logger.js';
+import { BankingProvider } from '../types/base.js';
 import { mapPlaidAccountType } from '../utils/mappings.js';
 import { findOrCreateBankMapping } from '../utils/resolveBank.js';
+import { TransactionUpdateBuffer } from './provider-sync.utils.js';
 
 import type {
   ConnectionDetails,
+  FetchTransactionUpdateInput,
   ProviderAccount,
   ProviderError,
+  ProviderHistoryStatus,
   ProviderInstitution,
   ProviderTransaction,
-  TransactionSyncResult,
+  ProviderTransactionUpdate,
 } from '../types/base.js';
+
+const PLAID_PAGINATION_MUTATION =
+  'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION';
+const MAX_PAGINATION_ATTEMPTS = 3;
+
+function isPaginationMutationError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === PLAID_PAGINATION_MUTATION
+  );
+}
+
+function normalizeCurrentBalance(
+  current: number,
+  accountType: AccountType | undefined,
+): number {
+  return accountType === 'credit' ? -current : current;
+}
 
 export class PlaidProvider extends BankingProvider {
   readonly key = 'plaid';
   readonly name = 'Plaid';
-  readonly transactionSyncStrategy = TransactionSyncStrategy.CURSOR_BASED;
+  readonly initialTransactionHistoryDays = 730;
 
   private client: PlaidApi;
 
@@ -53,12 +79,13 @@ export class PlaidProvider extends BankingProvider {
   async createLinkToken({
     userId,
     companyId,
+    accessToken,
   }: {
     userId: string;
     companyId: string;
+    accessToken?: string;
   }): Promise<string> {
     try {
-      // get actual country code as retrieved from api, fallback to ENV or maybe env is simpler
       const countries = (ENV.PLAID_COUNTRY_CODES || 'US,CA').split(
         ',',
       ) as CountryCode[];
@@ -72,12 +99,13 @@ export class PlaidProvider extends BankingProvider {
         client_name: clientName,
         country_codes: countries,
         language: 'en',
-        products: products,
         webhook: `${ENV.BACKEND_URL}/webhooks/banking/plaid`,
-        // Configure transaction sync settings
-        transactions: {
-          days_requested: 730,
-        },
+        ...(accessToken
+          ? {
+              access_token: accessToken,
+              update: { account_selection_enabled: true },
+            }
+          : { products, transactions: { days_requested: 730 } }),
       };
 
       if (ENV.PLAID_REDIRECT_URI) {
@@ -100,8 +128,6 @@ export class PlaidProvider extends BankingProvider {
       const response = await this.client.itemPublicTokenExchange({
         public_token: publicToken,
       });
-
-      console.log('Exchange token response:', response.data);
 
       return {
         accessToken: response.data.access_token,
@@ -221,10 +247,12 @@ export class PlaidProvider extends BankingProvider {
     accessToken,
     countryCode,
     userId,
+    knownBankId,
   }: {
     accessToken: string;
     countryCode: string;
     userId: string;
+    knownBankId?: string;
   }): Promise<ConnectionDetails> {
     const item = await this.getItemDetails({ accessToken });
     const providerInstitutionId = item.institutionId;
@@ -236,13 +264,21 @@ export class PlaidProvider extends BankingProvider {
     });
 
     const bankAccounts = await this.fetchBankAccounts({ accessToken });
+    if (bankAccounts.length === 0 && !knownBankId) {
+      throw new Error('Provider returned no bank accounts');
+    }
 
-    const { bankId, bankLogoUrl, providerBankName } =
-      await findOrCreateBankMapping({
-        providerKey: this.key,
-        institution: i,
-        userId,
-      });
+    const bankMapping = knownBankId
+      ? {
+          bankId: knownBankId,
+          bankLogoUrl: i.logoUrl ?? null,
+          providerInstitutionName: i.name,
+        }
+      : await findOrCreateBankMapping({
+          providerKey: this.key,
+          institution: i,
+          userId,
+        });
 
     return {
       connection: {
@@ -251,9 +287,9 @@ export class PlaidProvider extends BankingProvider {
       },
       institution: {
         ...i,
-        name: institutionName || providerBankName,
-        logoUrl: bankLogoUrl,
-        systemInstitutionId: bankId,
+        name: institutionName || bankMapping.providerInstitutionName || i.name,
+        logoUrl: bankMapping.bankLogoUrl,
+        systemInstitutionId: bankMapping.bankId,
         providerInstitutionId,
       },
       bankAccounts,
@@ -286,6 +322,7 @@ export class PlaidProvider extends BankingProvider {
           type: account.type,
           subtype: account.subtype || undefined,
         });
+        const current = account.balances.current;
         return {
           accountId: account.account_id,
           displayName: account.name,
@@ -299,9 +336,15 @@ export class PlaidProvider extends BankingProvider {
             numberData,
             balances: account.balances,
           },
-          balance: (account.balances.current ||
-            account.balances.available) as number,
+          balance: typeof current === 'number' ? current : 0,
           balanceDate: new Date(timestamp),
+          reportedCurrentBalance:
+            typeof current === 'number'
+              ? {
+                  amount: normalizeCurrentBalance(current, account.type),
+                  asOf: new Date(timestamp),
+                }
+              : undefined,
         };
       });
   }
@@ -311,48 +354,127 @@ export class PlaidProvider extends BankingProvider {
     return true;
   }
 
-  async syncTransactions(params: {
-    accessToken: string;
-    cursor?: string;
-    fromDate?: Date;
-  }): Promise<TransactionSyncResult> {
-    try {
+  async fetchTransactionUpdate(
+    input: FetchTransactionUpdateInput,
+  ): Promise<ProviderTransactionUpdate> {
+    if (!input.providerBankAccountId) {
+      throw this.handleError(
+        new Error('Plaid transaction sync requires an account ID'),
+      );
+    }
+
+    // Plaid may mutate the transaction stream while we paginate; when it
+    // does, the whole update must restart from the original checkpoint.
+    for (let attempt = 1; attempt <= MAX_PAGINATION_ATTEMPTS; attempt++) {
+      try {
+        return await this.fetchAllTransactionPages(input);
+      } catch (error) {
+        if (
+          !isPaginationMutationError(error) ||
+          attempt === MAX_PAGINATION_ATTEMPTS
+        ) {
+          throw error;
+        }
+        logger.warn(
+          {
+            providerKey: this.key,
+            providerBankAccountId: input.providerBankAccountId,
+            attempt,
+          },
+          'Transaction stream changed during pagination; restarting from original checkpoint',
+        );
+      }
+    }
+    throw new Error('Transaction pagination attempts exhausted');
+  }
+
+  private async fetchAllTransactionPages(
+    input: FetchTransactionUpdateInput,
+  ): Promise<ProviderTransactionUpdate> {
+    const buffer = new TransactionUpdateBuffer({
+      providerKey: this.key,
+      providerBankAccountId: input.providerBankAccountId,
+    });
+    let cursor = input.checkpoint ?? undefined;
+    let historyStatus: ProviderHistoryStatus = 'collecting';
+
+    while (true) {
       const request: TransactionsSyncRequest = {
-        access_token: params.accessToken,
+        access_token: input.accessToken,
+        count: 500,
         options: {
+          account_id: input.providerBankAccountId,
           include_personal_finance_category: true,
           include_original_description: true,
         },
       };
+      if (cursor) {
+        request.cursor = cursor;
+      }
+      // The history window is fixed by days_requested at Link-token time.
 
-      // Add cursor if this is not the initial sync
-      if (params.cursor) {
-        request.cursor = params.cursor;
+      let data;
+      try {
+        const response = await this.client.transactionsSync(request);
+        data = response.data;
+      } catch (error) {
+        throw this.handleError(error);
       }
 
-      // For initial sync, Plaid will use the days_requested from Link token creation
-      // fromDate is handled at Link token creation time
+      buffer.addPage({
+        // Plaid classifies added vs modified, but shared code classifies
+        // observations itself — both flatten into one observed stream.
+        observedTransactions: this.mapPlaidTransactions([
+          ...data.added,
+          ...data.modified,
+        ]),
+        removedTransactionIds: data.removed.map((txn) => txn.transaction_id),
+      });
+      historyStatus =
+        data.transactions_update_status ===
+        TransactionsUpdateStatus.HistoricalUpdateComplete
+          ? 'complete'
+          : 'collecting';
 
-      const response = await this.client.transactionsSync(request);
-      const data = response.data;
-
-      const balances = data.accounts.map((account) => ({
-        providerBankAccountId: account.account_id,
-        closingBalance:
-          account.balances.current || account.balances.available || undefined,
-      }));
-
-      return {
-        transactions: {
-          added: this.mapPlaidTransactions(data.added),
-          modified: this.mapPlaidTransactions(data.modified),
-          removed: data.removed.map((txn) => txn.transaction_id),
-        },
-        nextCursor: data.next_cursor,
-        hasMore: data.has_more,
-      };
-    } catch (error) {
-      throw this.handleError(error);
+      if (!data.has_more) {
+        const nextCheckpoint = data.next_cursor ? data.next_cursor : null;
+        const observedTransactions = buffer.observedTransactions;
+        const removedTransactionIds = buffer.removedTransactionIds;
+        if (
+          !nextCheckpoint &&
+          (observedTransactions.length > 0 || removedTransactionIds.length > 0)
+        ) {
+          throw new Error(
+            'Plaid returned transaction updates without a checkpoint',
+          );
+        }
+        const account = data.accounts?.find(
+          (account) => account.account_id === input.providerBankAccountId,
+        );
+        const accountBalance = account?.balances?.current;
+        const reportedCurrentBalance =
+          typeof accountBalance === 'number'
+            ? {
+                amount: normalizeCurrentBalance(accountBalance, account?.type),
+                asOf: new Date(),
+              }
+            : undefined;
+        return {
+          observedTransactions,
+          removedTransactionIds,
+          nextCheckpoint,
+          historyStatus,
+          pageCount: buffer.pageCount,
+          approximatePayloadBytes: buffer.approximatePayloadBytes,
+          ...(reportedCurrentBalance ? { reportedCurrentBalance } : {}),
+        };
+      }
+      if (!data.next_cursor) {
+        throw new Error(
+          'Plaid reported more transaction pages without a cursor',
+        );
+      }
+      cursor = data.next_cursor;
     }
   }
 
@@ -397,12 +519,23 @@ export class PlaidProvider extends BankingProvider {
   }
 
   handleError(error: any): ProviderError {
-    if (error && typeof error === 'object' && 'error_code' in error) {
+    const plaidError =
+      error && typeof error === 'object'
+        ? 'error_code' in error
+          ? error
+          : error.response?.data
+        : null;
+
+    if (
+      plaidError &&
+      typeof plaidError === 'object' &&
+      'error_code' in plaidError
+    ) {
       return {
-        code: error.error_code,
-        message: error.error_message,
-        displayMessage: this.getDisplayMessage(error.error_code),
-        retryable: this.isRetryableError(error.error_code),
+        code: plaidError.error_code,
+        message: plaidError.error_message,
+        displayMessage: this.getDisplayMessage(plaidError.error_code),
+        retryable: this.isRetryableError(plaidError.error_code),
       };
     }
 
@@ -420,6 +553,7 @@ export class PlaidProvider extends BankingProvider {
       'RATE_LIMIT_EXCEEDED',
       'INTERNAL_SERVER_ERROR',
       'PLANNED_MAINTENANCE',
+      'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION',
     ];
     return retryableCodes.includes(errorCode);
   }

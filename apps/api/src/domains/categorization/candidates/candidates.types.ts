@@ -11,6 +11,28 @@ import { txnCategorizationSource } from '../categorization.types.js';
 export const candidateSplitType = z.enum(['amount', 'percentage', 'remainder']);
 export type CandidateSplitType = z.infer<typeof candidateSplitType>;
 
+export const candidateReviewState = z.enum(['pending_review', 'closed']);
+export type CandidateReviewState = z.infer<typeof candidateReviewState>;
+
+export const candidateDisposition = z.enum([
+  'created',
+  'ignored',
+  'replaced',
+  'rejected',
+  'posted',
+  'expired_source_posted',
+]);
+export type CandidateDisposition = z.infer<typeof candidateDisposition>;
+
+export const candidateOutcome = z.enum([
+  'accepted_as_suggested',
+  'posted_with_edits',
+  'independently_matched',
+  'different',
+  'not_comparable',
+]);
+export type CandidateOutcome = z.infer<typeof candidateOutcome>;
+
 const candidateLineDraft = z.object({
   fs_date: z.string(),
   transaction_side: debitCredit,
@@ -71,12 +93,14 @@ export type CandidateInput = z.infer<typeof candidateInput>;
 
 const newCandidate = z.object({
   ...candidateInput.omit({ candidate_lines: true }).shape,
+  run_id: z.uuid(),
   ...dbStandardFields.shape,
 });
 
 export const categorizationCandidate = z.object({
   ...newCandidate.shape,
   id: z.uuid(),
+  review_state: candidateReviewState,
   signed_reporting_amount: z.number(),
 });
 

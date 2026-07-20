@@ -26,8 +26,9 @@ const knexClient = knex({
   },
 });
 
-// Parse command line arguments
-const args = process.argv.slice(2);
+// Parse command line arguments (pnpm 11 may forward a literal `--` before subcommands)
+const rawArgs = process.argv.slice(2);
+const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
 const command = args[0];
 
 function parseFilters(args: string[]): DemoFilter | undefined {
@@ -130,8 +131,8 @@ Available Countries: ${Object.values(COUNTRY_CODES).join(', ')}
 Available Types: ${Object.values(COMPANY_TYPES).join(', ')}
 
 Workspace Commands (from project root):
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts apply --all
-  pnpm --filter @accountable-books/api exec tsx apps/api/seeds/demo/cli.ts status
+  pnpm -F @accountable-books/api run demo apply
+  pnpm -F @accountable-books/api run demo status
 `);
 }
 

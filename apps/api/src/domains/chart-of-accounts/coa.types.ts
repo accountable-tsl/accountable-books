@@ -7,14 +7,20 @@ import { type SnakeToCamelCaseObject } from '../../shared/utils/formatting.utils
 export const coaSource = z.enum(['user', 'system', 'template']);
 export type CoaSource = z.infer<typeof coaSource>;
 
-// coa
+export const coaNameInput = z.string().trim().min(1).max(256);
+export const coaCodeInput = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.string().max(256).nullable().optional());
+
 export const newCoaInput = z.object({
-  name: z.string().max(256),
+  name: coaNameInput,
   is_active: z.boolean().prefault(true).optional(),
-  code: z.string().nullish(),
+  code: coaCodeInput,
   description: z.string().max(512).nullish(),
-  locked: z.boolean().prefault(false).nullish(),
-  source: coaSource.prefault('user').nullish(),
+  locked: z.boolean().prefault(false).optional(),
+  source: coaSource.prefault('user').optional(),
 
   account_type_key: z.string().max(256),
 });
@@ -60,10 +66,10 @@ export const coaUpdateInput = z.object({
   id: z.string(),
 
   // Fields for edit action
-  code: z.string().max(256).nullish().optional(),
-  name: z.string().max(256).optional(),
+  code: coaCodeInput,
+  name: coaNameInput.optional(),
   description: z.string().max(512).nullish().optional(),
-  accountTypeKey: z.uuid().optional(),
+  accountTypeKey: z.string().trim().min(1).max(256).optional(),
   isActive: z.boolean().optional(),
   isDeleted: z.boolean().optional(),
 
@@ -94,6 +100,7 @@ export type SimpleCoaRecord = {
   isActive: boolean;
   isLocked: boolean;
   isDeleted: boolean;
+  isBankLinked: boolean;
 
   accountTypeId: string;
   accountTypeKey: string;
@@ -104,7 +111,122 @@ export type SimpleCoaRecord = {
 
 export type UpdateCoaResponse = {
   updatedAccounts: Array<{ id: string; name?: string }>;
-  errors: Array<{ id: string; error: string }>;
+  errors: Array<{
+    id: string;
+    error: string;
+    impact?: CoaLifecycleImpact;
+  }>;
+  warnings?: CoaLifecycleWarning[];
+  invalidatedDerivedData?: CoaDerivedDataInvalidation;
+};
+
+export type CoaLifecycleImpact = {
+  coaId: string;
+  bankAccounts: number;
+  draftJournals: number;
+  recurringTemplates: number;
+  categorizationRules: number;
+  predictions: number;
+  candidates: number;
+};
+
+export type CoaLifecycleWarning = {
+  id: string;
+  impact: CoaLifecycleImpact;
+};
+
+export type CoaDerivedDataInvalidation = {
+  predictions: number;
+  candidates: number;
+};
+
+export const coaLifecycleOperation = z.enum(['archive', 'delete']);
+export type CoaLifecycleOperation = z.infer<typeof coaLifecycleOperation>;
+
+export const coaLifecycleReferenceType = z.enum([
+  'draft_journal',
+  'recurring_template',
+  'categorization_rule',
+]);
+export type CoaLifecycleReferenceType = z.infer<
+  typeof coaLifecycleReferenceType
+>;
+
+export const coaLifecycleResolution = z.discriminatedUnion('referenceType', [
+  z.object({
+    referenceType: z.literal('draft_journal'),
+    sourceCoaId: z.uuid(),
+    referenceIds: z.array(z.uuid()).min(1),
+    action: z.enum(['replace', 'void']),
+    replacementCoaId: z.uuid().optional(),
+  }),
+  z.object({
+    referenceType: z.literal('recurring_template'),
+    sourceCoaId: z.uuid(),
+    referenceIds: z.array(z.uuid()).min(1),
+    action: z.enum(['replace', 'close']),
+    replacementCoaId: z.uuid().optional(),
+  }),
+  z.object({
+    referenceType: z.literal('categorization_rule'),
+    sourceCoaId: z.uuid(),
+    referenceIds: z.array(z.uuid()).min(1),
+    action: z.enum(['replace', 'disable']),
+    replacementCoaId: z.uuid().optional(),
+  }),
+]);
+export type CoaLifecycleResolution = z.infer<typeof coaLifecycleResolution>;
+
+export const coaLifecyclePreflightInput = z.object({
+  operation: coaLifecycleOperation,
+  accountIds: z.array(z.uuid()).min(1),
+});
+export type CoaLifecyclePreflightInput = z.infer<
+  typeof coaLifecyclePreflightInput
+>;
+
+export const coaLifecycleExecuteInput = coaLifecyclePreflightInput.extend({
+  impactFingerprint: z.string().length(64),
+  acknowledgeUnresolvedArchiveReferences: z.boolean().default(false).optional(),
+  resolutions: z.array(coaLifecycleResolution).default([]).optional(),
+});
+export type CoaLifecycleExecuteInput = z.infer<typeof coaLifecycleExecuteInput>;
+
+export type CoaLifecycleReference = {
+  id: string;
+  label: string;
+  resolvable?: boolean;
+};
+
+export type CoaLifecycleAccountPreflight = {
+  id: string;
+  name: string;
+  blockers: string[];
+  references: {
+    bankAccounts: CoaLifecycleReference[];
+    ledgerEntries: { count: number };
+    draftJournals: CoaLifecycleReference[];
+    recurringTemplates: CoaLifecycleReference[];
+    categorizationRules: CoaLifecycleReference[];
+    predictions: { count: number };
+    candidates: { count: number };
+  };
+  availableActions: Array<
+    | 'acknowledge_archive'
+    | 'replace_draft_journals'
+    | 'void_draft_journals'
+    | 'replace_recurring_templates'
+    | 'close_recurring_templates'
+    | 'replace_categorization_rules'
+    | 'disable_categorization_rules'
+  >;
+};
+
+export type CoaLifecyclePreflightResponse = {
+  operation: CoaLifecycleOperation;
+  impactFingerprint: string;
+  accounts: CoaLifecycleAccountPreflight[];
+  canExecuteWithoutResolution: boolean;
 };
 
 export type CoaResponse = {
@@ -144,6 +266,9 @@ export type CoaResponse = {
   isActive: boolean;
   isDeleted: boolean;
   hasTransactions: boolean;
+  isBankLinked: boolean;
+  canArchive: boolean;
+  canDelete: boolean;
   defaultMonetary: boolean;
 };
 

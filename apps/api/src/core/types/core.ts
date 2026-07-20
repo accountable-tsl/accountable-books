@@ -19,6 +19,13 @@ export const dbStandardFields = z.object({
 });
 export type StandardFields = z.infer<typeof dbStandardFields>;
 
+export const dbUserAuditFields = z.object({
+  created_by_id: z.uuid().nullish(),
+  updated_by_id: z.uuid().nullish(),
+  deleted_by_id: z.uuid().nullish(),
+});
+export type UserAuditFields = z.infer<typeof dbUserAuditFields>;
+
 export const dbBaseFields = z
   .object({ id: z.uuid() })
   .extend(dbStandardFields.shape);
@@ -41,7 +48,11 @@ export const zDateYMD = z.preprocess((val) => {
     val instanceof Date ||
     typeof val === 'number'
   ) {
-    return toYMD(val);
+    try {
+      return toYMD(val);
+    } catch {
+      return undefined;
+    }
   }
   return undefined;
 }, z.string());

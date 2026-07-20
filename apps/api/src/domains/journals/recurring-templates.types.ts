@@ -69,6 +69,13 @@ export type RecurringTemplateStatusInput = z.infer<
   typeof recurringTemplateStatusInput
 >;
 
+export const recurringTemplateDeleteInput = z.object({
+  id: z.uuid(),
+});
+export type RecurringTemplateDeleteInput = z.infer<
+  typeof recurringTemplateDeleteInput
+>;
+
 const recurringTemplatePreviewBase = z.object({
   start_date_ymd: zDateYMD,
   frequency: recurrenceFrequency,

@@ -11,10 +11,7 @@ import {
   postJournalRecord,
   reverseJournalRecord,
 } from '../../journals/journals.model.js';
-import {
-  bankBalanceService,
-  formatDateToYMD,
-} from '../bank-balance.service.js';
+import { updateBankCurrentBalance } from '../bank-current-balance.js';
 import { bankOpeningBalanceParams } from './opening-balance.types.js';
 import {
   asOfDateYmdFromCoverageStart,
@@ -32,10 +29,14 @@ import type {
 /**
  * Sets or updates the opening balance for a bank account.
  *
+ * Journals / user attestation only: bank-side derived balances live in
+ * `bank-balance-derivation.ts` and must not be written here.
+ *
  * Rules:
- * - The first-ever record becomes the baseline (journal posted at 00:00Z of coverage_start day).
- * - User-entered balances override the existing baseline (old journal reversed, old role → checkpoint).
- * - System-calculated or snapshot origins append checkpoint-only records (no journal).
+ * - The first-ever user-entered record becomes the baseline (journal posted).
+ * - User-entered balances override the existing baseline (old journal reversed).
+ * - Non-user origins are checkpoint-only (no journal); new system writes are
+ *   not created by bank sync/recalc.
  * - Once a company has a conversion_date, all opening balance writes are blocked.
  *
  * Date conventions:
@@ -240,9 +241,13 @@ export async function setBankOpeningBalance({
     let postJournal = false;
 
     if (!existingBaseline) {
-      // First-ever baseline, becomes the baseline
-      newRole = 'baseline';
-      postJournal = true;
+      if (origin === 'user_entered') {
+        newRole = 'baseline';
+        postJournal = true;
+      } else {
+        newRole = 'checkpoint';
+        postJournal = false;
+      }
     } else if (origin === 'user_entered') {
       // User-entered always becomes baseline, reverses old
       // We treat this as a deliberate correction — the new baseline overrides the old.
@@ -256,13 +261,12 @@ export async function setBankOpeningBalance({
       postJournal = false;
     }
 
-    console.log({
-      llg: 'thisisit',
-      existingBaseline,
-      newRole,
-      reverseOld,
-      postJournal,
-    });
+    if (postJournal && origin !== 'user_entered') {
+      throw new Error(
+        'Invariant violated: postJournal requires user_entered origin',
+      );
+    }
+
     // If replacing a baseline, flip old to checkpoint and reverse its journal (if any)
     // If a new baseline is being created, demote the old baseline to checkpoint
     // and reverse its journal (if one existed) to maintain a clean audit trail.
@@ -317,7 +321,7 @@ export async function setBankOpeningBalance({
       })
       .first();
     if (!x) {
-      await bankBalanceService.updateCurrentBalance({
+      await updateBankCurrentBalance({
         companyId: bankAccount.company_id,
         bankAccountId: bank_account_id,
         balance: amount,

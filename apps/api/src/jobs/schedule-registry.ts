@@ -2,12 +2,12 @@ import { scheduleDailyJournalAutoReversalScan } from '../domains/journals/auto-r
 import { scheduleRecurringTemplateScan } from '../domains/journals/recurring-templates.queue.js';
 import { scheduleNightlyAutoExtend } from '../domains/reporting/fiscal-calendar/index.js';
 import { scheduleTaskEvaluationSweep } from '../domains/tasks/task-evaluation.queue.js';
-import { scheduleDailySyncScan } from '../integrations/banking/jobs/transaction-sync.queue.js';
-import { getLogger } from '../shared/utils/logger.js';
 import {
-  scheduleDefaultPartitionDraining,
-  scheduleSmartPartitionMaintenance,
-} from './queues/partition-maintenance.queue.js';
+  scheduleBankingRetentionScan,
+  scheduleDailySyncScan,
+  scheduleHistoryImportExpiryScan,
+} from '../integrations/banking/jobs/transaction-sync.queue.js';
+import { getLogger } from '../shared/utils/logger.js';
 import { getJobSchedule } from './schedules.js';
 
 import type { JobSchedule, JobScheduleKey } from './schedules.js';
@@ -65,28 +65,21 @@ export const SCHEDULE_REGISTRY: ScheduleDefinition[] = [
     },
   },
   {
-    key: 'partitionMaintenance',
-    scheduleKey: 'partitionMaintenance',
-    label: 'Partition maintenance',
-    icon: '🗂️',
+    key: 'historyImportExpiry',
+    scheduleKey: 'historyImportExpiry',
+    label: 'History import expiry sweep',
+    icon: '⏳',
     run: async (schedule) => {
-      await scheduleSmartPartitionMaintenance(
-        {
-          yearsAhead: 3,
-          monthlyThreshold: 100000,
-          drainDefaults: false,
-        },
-        schedule.cron,
-      );
+      await scheduleHistoryImportExpiryScan(schedule.cron);
     },
   },
   {
-    key: 'partitionDrain',
-    scheduleKey: 'partitionDrain',
-    label: 'Partition drain defaults',
+    key: 'bankingRetention',
+    scheduleKey: 'bankingRetention',
+    label: 'Banking retention purge',
     icon: '🧹',
     run: async (schedule) => {
-      await scheduleDefaultPartitionDraining(schedule.cron);
+      await scheduleBankingRetentionScan(schedule.cron);
     },
   },
   {

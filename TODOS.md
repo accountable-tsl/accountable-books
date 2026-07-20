@@ -2,6 +2,7 @@
 
 ### CRITICAL (Must Fix Before Launch)
 
+- [ ] In CI/CD, we should make sure every DB extension required is available, app schema is used, and related stuff
 - [ ] Noone should be able to mistakenly access the staging environment mistakenly
 - [ ] Make sure noone can access or make a request to a company they do not have access to (special case for support and admin)
 - [ ] URL resolves to null subdomain in frontend, should resolve to app
@@ -24,9 +25,46 @@
 - [ ] Refactor getCategorizationTransactions to use cursor-based pagination instead of offset-based (like getJournalsByCursor). Current offset pagination can skip/duplicate rows if data changes between requests, especially problematic for infinite scroll in Cat Engine.
 - [ ] Privacy Policy, Terms of Use, GDPR,
 - [ ] We should (for now) verify firms manually before they are allowed to add clients
+- [ ] Should Cash basis companies need musthaveaccounts?
+- [ ] Client invite/self-serve onboarding must ask whether the client needs historical catch-up bookkeeping.
+- [ ] Conversion balance journals (including bank balances (both native and reporting currencies))
+- [ ] See if we can frontload 'time to dopamine' perhaps as demo or even build it into the product. For example, setup autopost, upload bank statement, and see it all categorized in cat engine, tbal, p&l, bsheet, and client portal all in one flow.
+- [ ] **Complete client intake and Work Queue V2 Engagement-activation handoff**
+  - Support all acquisition paths through one shared intake contract:
+    - firm invitation;
+    - firm-branded signup;
+    - direct platform signup and placement with a system-designated firm;
+    - referral review, acceptance, rejection and platform fallback;
+    - accepted transfer from another firm.
+  - Reuse one validation/domain path across the manual wizard, direct signup, CSV/bulk import and future chat-assisted intake.
+  - Preserve invitation, referral and transfer proposals as their own pending/rejected objects. Create the Firm–Client Engagement only after acceptance and all activation requirements are complete.
+  - Capture or derive:
+    - client company identity and contact;
+    - country, reporting currency, timezone and financial year-end;
+    - accounting basis and reporting framework;
+    - service domain (`bookkeeping`);
+    - responsible firm and effective cutover date;
+    - accounting conversion/opening-balance date;
+    - books-complete-through position;
+    - first managed monthly Fiscal Period;
+    - Client Lead;
+    - Primary Bookkeeper;
+    - whether historical catch-up is required;
+    - accepted catch-up range;
+    - Catch-up Packages of no more than 12 contiguous months;
+    - assignee and explicitly confirmed deadline for every Package.
+  - Apply the firm’s default Client Lead and Primary Bookkeeper when intake does not override them, falling back to an eligible Firm Admin only under the agreed provisioning rule.
+  - Respect firm referral acceptance mode, availability/capacity status and branded-signup ownership.
+  - For transfers, capture the cutover date, predecessor Engagement, receiving Lead/Bookkeeper and accepted historical responsibility without rewriting the former firm’s Close Versions.
+  - Present a final review screen that makes the firm, responsibilities, accounting boundary, first managed month and catch-up commitment unambiguous.
+  - Call the Work Queue V2 `activateEngagement` contract only when every required value is valid. Activation must atomically establish the Engagement, Lead/Bookkeeper coverage and any accepted Catch-up Packages.
+  - Provide resumable pending/error states so a failed invitation or incomplete setup cannot leave a partially activated client.
+  - Test every acquisition path, same-person Lead/Bookkeeper, separate roles, defaults, missing boundaries, catch-up/no-catch-up, transfer and forged cross-firm identifiers.
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
+- [ ] Bank accounts UI: surface API `syncHealth` so reconnect needed (`action_required`) is distinct from data delayed (`delayed`/`pending`), instead of only showing “Last updated … ago”.
+- [ ] Design and validate a product-owned headless table module after launch. Learn from TanStack Table, Tabulator, AG Grid, and other strong grids, but define the interface from our actual requirements: semantic table and div/grid renderers, virtualization, stable row identity, variable density, selection/expansion, keyboard navigation, accessible focus, inline editing with durable drafts, server filtering/sorting/pagination, infinite loading, pinned columns, and explicit performance budgets. Prototype the hardest Cat Engine workflow and one conventional table before committing to a full migration; keep rendering, remote data access, and accounting-specific behaviour behind separate seams.
 - [ ] Recurring templates: in template view mode, add a “Generated journals” section (show latest N with date/status/reference, link to open journal, plus “View all” once we add an API filter by `recurring_template_id`).
 - [ ] AI inline autocomplete (code-completion-style): ghost suggestion while typing (e.g. journal title/description/line description), accept with `Tab`, and telemetry for impressions/accepts/dismissals, latency, and cost.
 - [ ] Company identity middleware migration: keep current `req.companyContext` rollout stable for now, then consolidate to `req.company.uuid/shortCode/identifier` across all company-scoped routes.
@@ -34,6 +72,7 @@
 - [ ] Advanced filters (Cat Engine)
 - [ ] Bulk actions (Cat Engine)
 - [ ] Trial balance (ensure accuracy + export)
+- [ ] Accountant-grade exports: XLSX trial balance/GL in V1 where feasible, later formula-linked workbook and Google Sheets export with TB, GL, journals, P&L, balance sheet, notes, mappings, and traceability.
 - [ ] P&L (v1)
 - [ ] Balance sheet (v1)
 - [ ] Client invite flow
@@ -54,9 +93,11 @@
 - [ ] Make sure we are not allowing users to add heavy files and where relevant necessary, don't load large or many files into memory
 - [ ] Agent that connects to the company's Slack or email to auto-generate journals from invoices, bills, etc., and add them here as drafts. Especially helpful for companies using accrual accounting.
 - [ ] AI Gateways with Reversible PII Redaction, Zero-Trust Access Controls for RAG
+- [ ] Address (Google maps integration)
 
 ### LATER (Future Versions / Nice-to-Have)
 
+- [ ] If the internal table module proves reliable across the Cat Engine and multiple conventional tables, evaluate extracting and publishing its generic core as an open-source package. Treat documentation, accessibility guarantees, browser support, semantic versioning, framework adapters, examples, benchmarks, and long-term maintenance as explicit release requirements; do not expose Accountable-specific data or workflow concepts in the public interface.
 - [ ] Notification to deactivate account if not used after 45 days of sign up
 - [ ] Consider unifying timezone stuff (UTC everywhere)
 - [ ] REVIEW CONSTRAINTS AND THEIR TEST e.g Projects check is not fully setup etc
@@ -79,6 +120,7 @@
 - [ ] What if for personal finance, snapping and keeping receipts, people can get points
 - [ ] Consider adding chromatic or an alternative
 - [x] Plaid Webhook implementation
+- [ ] **Banking frontend (backend done, contract-typed):** wire the `historicalImport` block from `GET /bank-accounts` into (1) a "N older transactions available from {date}" banner with an earlier-date picker calling `POST /bank-accounts/:id/history-import/select`; (2) review surfaces for `bank.transaction_superseded_review` + `bank.transaction_removed_review` notifications and `providerRemovedReviewCount`; (3) real sync/history status on the connection success step (replace "syncing shortly"). Add the "choose before {expiresAt}" deadline once expiry ships.
 - [ ] Storage cleanup plan: delete orphaned uploaded blobs not referenced in DB after X hours/days (journals/ledger/bank). Consider also an on-discard cleanup endpoint for better UX.
 - [ ] Tenant-scoped file dedupe: store checksum/hash, reuse same blob key for identical content within a company, and maintain many-to-many attachments.
 - [ ] Once we're ready for lang and doc work, consider Google's oss langextract

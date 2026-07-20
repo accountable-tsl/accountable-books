@@ -49,7 +49,7 @@ export interface FinalizeDialogProps {
   finalizedByName: string;
   onFinalizedByNameChange: (value: string) => void;
   isFinalizing: boolean;
-  onFinalize: (name: string, sync: 'local' | 'cloud') => void;
+  onFinalize: (sync: 'local' | 'cloud') => void;
   currentRun: PayrollRun | null;
   computed: PayrollComputedRun | null;
   isMdScreen: boolean;
@@ -301,7 +301,7 @@ export function FinalizeDialog({
             <div className="flex flex-col items-center justify-center">
               <Button
                 type="button"
-                onClick={() => onFinalize(finalizedByName, 'local')}
+                onClick={() => onFinalize('local')}
                 disabled={isFinalizing}
                 variant="outline"
                 className="w-full rounded"

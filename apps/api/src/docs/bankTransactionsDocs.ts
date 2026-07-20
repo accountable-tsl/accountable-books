@@ -10,37 +10,22 @@ export const bankTransactionDocs = {
           'application/json': {
             schema: {
               type: 'object',
-              required: [
-                'startDate',
-                'endDate',
-                'bankAccountId',
-                'bankTransactions',
-                'createdById',
-              ],
+              required: ['source', 'bank_account_id', 'bank_transactions'],
               properties: {
-                startDate: {
-                  type: 'string',
-                  format: 'date',
-                  description: 'The start date for the transaction batch.',
-                },
-                endDate: {
-                  type: 'string',
-                  format: 'date',
-                  description: 'The end date for the transaction batch.',
-                },
                 source: {
                   type: 'string',
-                  enum: ['FILE_IMPORT', 'BANK_FEED', 'MANUAL_ENTRY'],
+                  enum: ['file_import', 'bank_feed', 'manual_entry'],
                   description: 'The source of the transactions.',
-                  default: 'FILE_IMPORT',
                 },
-                bankAccountId: {
+                bank_account_id: {
                   type: 'string',
+                  format: 'uuid',
                   description:
                     'The ID of the bank account the transactions are associated with.',
                 },
-                bankTransactions: {
+                bank_transactions: {
                   type: 'array',
+                  minItems: 1,
                   items: {
                     type: 'object',
                     required: ['date', 'amount'],
@@ -80,10 +65,10 @@ export const bankTransactionDocs = {
                     },
                   },
                 },
-                createdById: {
-                  type: 'string',
-                  description:
-                    'The ID of the user creating the transaction batch.',
+                source_metadata: {
+                  type: 'object',
+                  additionalProperties: true,
+                  description: 'Metadata describing the import source.',
                 },
               },
             },
@@ -147,6 +132,41 @@ export const bankTransactionDocs = {
       },
     },
   },
+  '/bank-accounts/transactions/batches/{batchId}/reverse': {
+    post: {
+      summary: 'Reverse an imported bank transaction batch',
+      parameters: [
+        {
+          name: 'batchId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', format: 'uuid' },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['reason'],
+              properties: {
+                reason: {
+                  type: 'string',
+                  minLength: 1,
+                  maxLength: 512,
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        200: { description: 'Bank transaction batch reversed.' },
+        400: { description: 'Invalid request or batch cannot be reversed.' },
+      },
+    },
+  },
 };
 
 export const bankTransactionSchemas = {
@@ -199,43 +219,45 @@ export const bankTransactionSchemas = {
     type: 'object',
     properties: {
       id: { type: 'string', description: 'Batch ID.' },
-      startDate: {
+      start_date: {
         type: 'string',
         format: 'date',
         description: 'Start date of the batch.',
       },
-      endDate: {
+      end_date: {
         type: 'string',
         format: 'date',
         description: 'End date of the batch.',
       },
       source: {
         type: 'string',
-        enum: ['FILE_IMPORT', 'BANK_FEED', 'MANUAL_ENTRY'],
+        enum: ['file_import', 'bank_feed', 'manual_entry'],
         description: 'Source of the transactions.',
       },
-      balanceBefore: {
-        type: 'number',
-        format: 'decimal',
-        description: 'Balance before the batch.',
-      },
-      balanceAfter: {
-        type: 'number',
-        format: 'decimal',
-        description: 'Balance after the batch.',
-      },
-      bankAccountId: {
+      bank_account_id: {
         type: 'string',
         description: 'Associated bank account ID.',
       },
-      createdById: {
+      created_by_id: {
         type: 'string',
         description: 'ID of the user who created the batch.',
       },
-      bankTransactions: {
-        type: 'array',
-        items: { $ref: '#/components/schemas/BankTransaction' },
-        description: 'List of transactions in the batch.',
+      status: {
+        type: 'string',
+        enum: ['active', 'reversed'],
+      },
+      reversed_by_id: {
+        type: 'string',
+        nullable: true,
+      },
+      reversed_at: {
+        type: 'string',
+        format: 'date-time',
+        nullable: true,
+      },
+      reversal_reason: {
+        type: 'string',
+        nullable: true,
       },
     },
   },

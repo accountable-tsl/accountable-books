@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Nuclear monorepo cleanup: deps, lockfiles, build artifacts, caches, Python venvs.
-# Does not remove .env files. Invoked from repo root via `make clean-all`.
+# Nuclear monorepo cleanup: deps, build artifacts, caches, Python venvs.
+# Does not remove lockfiles or .env files. Invoked from repo root via `make clean-all`.
 
 set -uo pipefail
 
@@ -29,14 +29,7 @@ shopt -s nullglob
 log '🗑️ Removing node_modules...'
 rm -rf node_modules apps/*/node_modules packages/*/node_modules || true
 
-log '🗑️ Removing JS lockfiles (pnpm / npm / yarn)...'
-find_prune -type f \( \
-  -name 'pnpm-lock.yaml' -o -name 'package-lock.json' -o -name 'yarn.lock' -o \
-  -name 'npm-shrinkwrap.json' \) -delete
-
-log '🗑️ Removing Python lockfiles (pipenv / uv / pdm)...'
-find_prune -type f \( \
-  -name 'Pipfile.lock' -o -name 'uv.lock' -o -name 'pdm.lock' \) -delete
+log '🔒 Preserving lockfiles...'
 
 log '🗑️ Removing build outputs, bundler caches, deploy metadata, generated trees...'
 rm -rf \
@@ -56,6 +49,7 @@ rm -rf \
   .vercel .netlify apps/*/.vercel packages/*/.vercel \
   logs reports htmlcov \
   packages/contracts/accountable_contracts/data/generated \
+  packages/contracts/accountable_contracts/schema/py \
   packages/api-types/src/generated \
   .pnpm-store .vscode \
   apps/*/coverage packages/*/coverage coverage \
@@ -78,23 +72,6 @@ pnpm store prune || true
 log '🐳 Cleaning Docker...'
 docker system prune -f || true
 
-# From here on, the tree is already wiped; install/check failures need a clear hint.
-on_exit() {
-  local ec=$?
-  [[ "$ec" -eq 0 ]] && return 0
-  printf '\n%b\n' "${RED}clean-all stopped with exit code ${ec} (see output above).${NC}"
-  printf '%b\n' "${YELLOW}Artifacts are already removed. After fixing the issue, run:${NC}"
-  printf '  %b\n' "${GREEN}pnpm install && make check${NC}"
-  exit "$ec"
-}
-trap on_exit EXIT
-
-log '📦 Reinstalling dependencies...'
-set -e
-pnpm install
-
-log '🔨 Running quality checks (make check)...'
-make check
-
-trap - EXIT
 log_ok '✅ Nuclear cleanup complete!'
+printf '\n%b\n' "${YELLOW}To restore the environment, run:${NC}"
+printf '  %b\n' "${GREEN}make setup${NC}"

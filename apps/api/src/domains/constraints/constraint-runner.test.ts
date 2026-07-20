@@ -28,9 +28,9 @@ vi.mock('../chart-of-accounts/index.js', () => ({
   }),
 }));
 
-// Mock getFiscalCalendar to avoid database calls in periodNotLocked constraint
+// Mock fiscal calendar coverage checks to avoid database calls in periodNotLocked constraint
 vi.mock('../reporting/fiscal-calendar/fiscal-calendar.service.js', () => ({
-  getFiscalCalendar: vi.fn().mockResolvedValue([]),
+  ensureAndFetchFiscalCalendar: vi.fn().mockResolvedValue({ rows: [] }),
 }));
 
 // Mock projects table queries to avoid database calls in projectExists constraint

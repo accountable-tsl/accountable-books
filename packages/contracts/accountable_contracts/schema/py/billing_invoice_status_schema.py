@@ -1,7 +1,0 @@
-from enum import Enum
-
-class BillingInvoiceStatusSchema(str, Enum):
-    PAID = "paid"
-    OPEN = "open"
-    VOID = "void"
-    UNCOLLECTIBLE = "uncollectible"

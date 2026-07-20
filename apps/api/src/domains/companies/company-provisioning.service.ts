@@ -16,11 +16,6 @@ import { resolvePartnerFirmForCompany } from '../accountingFirms/partner-firm.se
 import { provisionBillingForCompany } from '../billing/provisioning/provisioning.service.js';
 import { loadCoaTemplateForCompany } from '../chart-of-accounts/coa-template.model.js';
 import { createDefaultAccounts } from '../chart-of-accounts/coa.model.js';
-import {
-  getCountryFromCode,
-  getCountryFromId,
-} from '../countries/countries.utils.js';
-import { getCurrency } from '../currencies/currencies.utils.js';
 import { type RoleKey } from '../roles/roles.types.js';
 import { initializeCompanySettings } from '../settings/settings.service.js';
 import { upsertDirectCompanyRole } from '../user-roles/user-roles.model.js';
@@ -145,12 +140,21 @@ type ResolvedCompanyInsertInput = Omit<
   reporting_framework: NewCompany['reporting_framework'];
   workspace_class: WorkspaceClass;
   industry: string | null;
-  last_updated_by_id: string;
+  updated_by_id: string;
 };
 
 type ProvisioningRoleGrant = {
   userId: string;
   roleKey: RoleKey;
+};
+
+type ResolvedCountry = {
+  id: string;
+  code: string;
+};
+
+type ResolvedCurrency = {
+  id: string;
 };
 
 type ResolvedProvisioningPlan = {
@@ -228,6 +232,50 @@ async function generateUniqueShortCode(
   return shortCode;
 }
 
+async function resolveCountryForCompany(
+  trx: Knex.Transaction,
+  input: Pick<NewCompanyInput, 'country_code' | 'country_id'>,
+): Promise<ResolvedCountry | undefined> {
+  if (input.country_code) {
+    return trx('countries')
+      .whereRaw('UPPER(code) = ?', [input.country_code.trim().toUpperCase()])
+      .select('id', 'code')
+      .first<ResolvedCountry>();
+  }
+
+  if (input.country_id) {
+    return trx('countries')
+      .where({ id: input.country_id })
+      .select('id', 'code')
+      .first<ResolvedCountry>();
+  }
+
+  return undefined;
+}
+
+async function resolveCurrencyForCompany(
+  trx: Knex.Transaction,
+  input: Pick<
+    NewCompanyInput,
+    'reporting_currency_code' | 'reporting_currency_id'
+  >,
+): Promise<ResolvedCurrency | undefined> {
+  if (input.reporting_currency_id) {
+    return { id: input.reporting_currency_id };
+  }
+
+  if (input.reporting_currency_code) {
+    return trx('currencies')
+      .whereRaw('UPPER(code) = ?', [
+        input.reporting_currency_code.trim().toUpperCase(),
+      ])
+      .select('id')
+      .first<ResolvedCurrency>();
+  }
+
+  return undefined;
+}
+
 async function resolveCompanyInsertInput(
   trx: Knex.Transaction,
   input: NewCompanyInput,
@@ -260,6 +308,7 @@ async function resolveCompanyInsertInput(
 
   const {
     slug: _slug,
+    address,
     assigned_firm_id: _assignedFirmId,
     load_coa_template: _loadCoaTemplate,
     reporting_currency_id,
@@ -270,20 +319,19 @@ async function resolveCompanyInsertInput(
     ...rest
   } = validateInput.data;
 
-  const resolvedCountry = country_code
-    ? await getCountryFromCode(country_code)
-    : country_id
-      ? await getCountryFromId(country_id)
-      : undefined;
+  const resolvedCountry = await resolveCountryForCompany(trx, {
+    country_code,
+    country_id,
+  });
 
   const countryId = country_id ?? resolvedCountry?.id;
   const countryCode = country_code ?? resolvedCountry?.code;
 
-  const reportingCurrencyId = reporting_currency_id
-    ? reporting_currency_id
-    : reporting_currency_code
-      ? (await getCurrency(reporting_currency_code)).id
-      : undefined;
+  const resolvedCurrency = await resolveCurrencyForCompany(trx, {
+    reporting_currency_code,
+    reporting_currency_id,
+  });
+  const reportingCurrencyId = reporting_currency_id ?? resolvedCurrency?.id;
 
   if (!countryId) {
     throw new AppError('Country is required for company creation');
@@ -315,7 +363,8 @@ async function resolveCompanyInsertInput(
     year_end_month: rest.year_end_month || defaultYearEnd.year_end_month,
     reporting_framework: rest.reporting_framework ?? 'ifrs',
     created_by_id: creator.id,
-    last_updated_by_id: creator.id,
+    updated_by_id: creator.id,
+    address_line1: rest.address_line1 ?? address ?? null,
     accounting_basis: rest.accounting_basis ?? 'modified_cash_basis',
     workspace_class: rest.workspace_class ?? 'customer',
     industry:
@@ -581,6 +630,8 @@ export async function ensureAccountingFirmMeta({
         company_id: companyId,
         slug: meta.slug,
         firm_type: meta.firm_type,
+        created_by_id: actorUserId,
+        updated_by_id: actorUserId,
       })
       .returning(['company_id', 'slug']);
 
@@ -627,6 +678,7 @@ export async function ensureAccountingFirmMeta({
     .update({
       slug: meta.slug,
       firm_type: meta.firm_type ?? null,
+      updated_by_id: actorUserId,
     })
     .returning(['company_id', 'slug']);
 
@@ -700,7 +752,7 @@ export async function ensureCompanyFirmAssignment({
   }
 
   const existingAssignment = await trx('client_firm_assignments')
-    .where({ client_company_id: companyId })
+    .where({ client_company_id: companyId, is_deleted: false })
     .first<{ accounting_firm_company_id: string }>();
 
   const requiresAssignmentUpdate =
@@ -731,7 +783,7 @@ export async function ensureCompanyFirmAssignment({
     created = true;
   } else if (requiresAssignmentUpdate) {
     await trx('client_firm_assignments')
-      .where({ client_company_id: companyId })
+      .where({ client_company_id: companyId, is_deleted: false })
       .update({
         accounting_firm_company_id: targetFirmId,
         updated_by_id: actorUserId,
@@ -813,49 +865,47 @@ export async function ensureCompanyChartOfAccounts({
     .where({ company_id: companyId })
     .first(['id']);
 
-  if (existing) {
-    return { skipped: true, mode };
-  }
-
   const company = await loadProvisionedCompany(trx, companyId);
 
   if (!company.reporting_currency_id) {
     throw new AppError(`Company ${companyId} missing reporting currency`);
   }
 
-  if (mode === 'default') {
-    const response = await createDefaultAccounts({
-      trx,
-      companyUUID: companyId,
-      userId,
-      reportingCurrencyId: company.reporting_currency_id,
+  if (!existing && mode === 'template') {
+    const response = await loadCoaTemplateForCompany(trx, {
+      companyId,
+      created_by_id: userId,
+      template_name: templateName,
+      use_code: true,
     });
 
     if (!response.success) {
       throw new AppError(
-        response.message || 'Failed to create default chart of accounts',
+        response.message || 'Failed to provision chart of accounts',
         response.error,
       );
     }
-
-    return { skipped: false, mode };
   }
 
-  const response = await loadCoaTemplateForCompany(trx, {
-    companyId,
-    created_by_id: userId,
-    template_name: templateName,
-    use_code: true,
+  const defaults = await createDefaultAccounts({
+    trx,
+    companyUUID: companyId,
+    userId,
   });
 
-  if (!response.success) {
+  if (!defaults.success) {
     throw new AppError(
-      response.message || 'Failed to provision chart of accounts',
-      response.error,
+      defaults.message || 'Failed to ensure required chart of accounts',
+      defaults.error,
     );
   }
 
-  return { skipped: false, mode };
+  const createdRequiredAccounts =
+    Array.isArray(defaults.data) && defaults.data.length > 0;
+  return {
+    skipped: Boolean(existing) && !createdRequiredAccounts,
+    mode,
+  };
 }
 
 export async function ensureCompanySettings({

@@ -1,6 +1,9 @@
 import type { ActionItem } from '@/components/AutocompleteDropdown';
 import type { Contacts } from '@/modules/contacts/model/types';
-import type { NewProject } from '@/modules/projects/model/types';
+import type {
+  NewProject,
+  NewProjectFormInput,
+} from '@/modules/projects/model/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteDropdown } from '@/components/AutocompleteDropdown';
 import { CenteredLoader } from '@/components/CenteredLoader';
@@ -90,16 +93,23 @@ export function AddProject({
     formState: { errors, isValid },
     handleSubmit,
     reset,
-  } = useForm<NewProject>({
+  } = useForm<NewProjectFormInput, unknown, NewProject>({
     resolver: standardSchemaResolver(newProject),
     defaultValues: {
       name: '',
+      code: null,
+      description: null,
       status: 'in_draft',
+      contactId: null,
+      startDate: null,
+      endDate: null,
     },
     mode: 'onChange',
   });
 
   const watchedStartDate = useWatch({ control, name: 'startDate' });
+  const emptyStringToNull = (value: unknown) => (value === '' ? null : value);
+
   const onSubmit = useCallback(
     async (data: NewProject) => {
       const input = Array.isArray(data) ? data : [data];
@@ -172,7 +182,10 @@ export function AddProject({
                   error={errors.code?.message}
                   labelClassName={labelClassName}
                 >
-                  <Input {...register('code')} placeholder="PROJ-001" />
+                  <Input
+                    {...register('code', { setValueAs: emptyStringToNull })}
+                    placeholder="PROJ-001"
+                  />
                 </FormField>
                 <Controller
                   name="status"
@@ -212,14 +225,13 @@ export function AddProject({
                   <FormField
                     id="contact"
                     label="Contact"
-                    required
                     error={fieldState.error?.message}
                     labelClassName={labelClassName}
                   >
                     <AutocompleteDropdown
                       items={contactOptions}
-                      onValueChange={field.onChange}
-                      value={field.value}
+                      onValueChange={(value) => field.onChange(value || null)}
+                      value={typeof field.value === 'string' ? field.value : ''}
                       async={useAsyncContacts}
                       isLoading={contactLoading}
                       hasMore={contactPagination?.hasNext || false}
@@ -296,7 +308,9 @@ export function AddProject({
                 labelClassName={labelClassName}
               >
                 <Textarea
-                  {...register('description')}
+                  {...register('description', {
+                    setValueAs: emptyStringToNull,
+                  })}
                   className="resize-none"
                   placeholder="This is new day's project description..."
                 />

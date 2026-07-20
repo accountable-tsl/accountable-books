@@ -1,23 +1,7 @@
 import { z } from 'zod';
 
-import { dbBaseFields } from '../../core/types/core.js';
 import { type Company } from '../companies/companies.types.js';
 
-export const loadCoaTemplate = z.object({
-  companyId: z.uuid(),
-  created_by_id: z.uuid(),
-  template_name: z.string().optional(),
-  use_code: z.boolean().optional(),
-  additional_info: z.string().optional(),
-});
-export type LoadCoaTemplateInput = z.infer<typeof loadCoaTemplate>;
-
-export const coaTemplateSelection = z.object({
-  companyId: z.uuid(),
-  description: z.string().optional(),
-  additionalNotes: z.string().optional(),
-});
-export type CoaTemplateSelection = z.infer<typeof coaTemplateSelection>;
 export const coaTemplateCompanyTypes = ['ind', 'biz', 'acc'] as const;
 export const coaTemplateIndustries = [
   'none',
@@ -118,20 +102,41 @@ export const coaTemplateName = z
       .regex(templateNameRegex, 'Invalid template name format or values'),
   );
 
+export const loadCoaTemplate = z.object({
+  companyId: z.uuid(),
+  created_by_id: z.uuid(),
+  template_name: coaTemplateName.optional(),
+  use_code: z.boolean().optional(),
+  additional_info: z.string().optional(),
+});
+export type LoadCoaTemplateInput = z.infer<typeof loadCoaTemplate>;
+
+export const coaTemplateSelection = z.object({
+  companyId: z.uuid(),
+  description: z.string().optional(),
+  additionalNotes: z.string().optional(),
+});
+export type CoaTemplateSelection = z.infer<typeof coaTemplateSelection>;
+
 export const newCoaTemplate = z.object({
   template_name: coaTemplateName,
   name: z
     .string()
     .trim()
-    .min(1, 'Name is required')
+    .min(2, 'Name is required')
     .max(256, 'Max account name length exceeded'),
-  code: z.string().min(1, 'Code is required').max(256).nullish(),
-  description: z.string().max(512).nullish(),
+  code: z.string().trim().min(1).max(256).nullish(),
+  description: z.string().trim().min(2).max(512).nullish(),
   account_type_id: z.uuid('Account Type ID is required'),
   is_active: z.boolean().prefault(true),
   locked: z.boolean().prefault(false),
 });
-export const coaTemplate = newCoaTemplate.merge(dbBaseFields);
+
+export const coaTemplate = newCoaTemplate.extend({
+  id: z.uuid(),
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+});
 
 export type CoaTemplateName = z.infer<typeof coaTemplateName>;
 export type NewCoaTemplateInput = z.infer<typeof newCoaTemplate>;

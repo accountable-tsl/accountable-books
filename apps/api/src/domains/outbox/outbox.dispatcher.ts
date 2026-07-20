@@ -1,0 +1,225 @@
+import type { Knex } from 'knex';
+
+import { knexClient } from '../../db/knexClient.js';
+import { executeLeasedBankSync } from '../../integrations/banking/transaction-sync.outbox.js';
+import { getLogger } from '../../shared/utils/logger.js';
+import { dispatchActivityEventRequested } from '../activity/activity.model.js';
+import { handleGlBalanceRecalcOutbox } from '../balances/gl-balance.outbox.js';
+import { alertProviderWebhookQuarantined } from '../banking/bank-provider-webhook-events/provider-webhook.alerts.js';
+import {
+  processProviderWebhookReceived,
+  quarantineProviderWebhookAfterDeadLetter,
+} from '../banking/bank-provider-webhook-events/provider-webhook.processor.js';
+import {
+  dispatchNotificationAttentionResolved,
+  dispatchNotificationCommsRequested,
+  dispatchNotificationRequested,
+} from '../notifications/notification-dispatcher.js';
+import { handleCloseSignalEvalOutbox } from '../reporting/close-readiness/signals/close-signal.outbox.js';
+import { materializeWork } from '../work/work-materialization.js';
+import { workMaterializationPayloadSchema } from '../work/work.types.js';
+import { OUTBOX_INTENT } from './intents.js';
+import { alertOutboxDeadLetter } from './outbox.alerts.js';
+import {
+  claimLeasedIntent,
+  claimNextPendingIntent,
+  deferIntent,
+  markIntentProcessed,
+  recordIntentFailure,
+} from './outbox.model.js';
+
+import type { OutboxClaimFilter, OutboxRow } from './outbox.model.js';
+
+const logger = getLogger({ component: 'outbox-dispatcher' });
+
+export type DispatchFilter = OutboxClaimFilter;
+
+class DeferSignal extends Error {
+  constructor(public readonly intentId: string) {
+    super('outbox intent deferred');
+    this.name = 'DeferSignal';
+  }
+}
+
+type IntentOutcome = 'processed' | 'deferred' | 'failed' | 'empty';
+
+type QuarantineAlert = {
+  eventId: string;
+  reason: string;
+  lastError?: string | null;
+};
+
+type DispatchIntentResult = {
+  status: 'done' | 'deferred';
+  quarantineAlert?: QuarantineAlert;
+};
+
+function filterAllowsBankSync(filter?: DispatchFilter): boolean {
+  if (
+    filter?.intentType &&
+    filter.intentType !== OUTBOX_INTENT.BANK_SYNC_REQUESTED
+  ) {
+    return false;
+  }
+  if (
+    filter?.intentTypes?.length &&
+    !filter.intentTypes.includes(OUTBOX_INTENT.BANK_SYNC_REQUESTED)
+  ) {
+    return false;
+  }
+  if (filter?.excludeIntentTypes?.includes(OUTBOX_INTENT.BANK_SYNC_REQUESTED)) {
+    return false;
+  }
+  return true;
+}
+
+async function dispatchIntent(
+  trx: Knex.Transaction,
+  row: OutboxRow,
+): Promise<DispatchIntentResult> {
+  switch (row.intent_type) {
+    case OUTBOX_INTENT.WORK_MATERIALIZATION_REQUESTED: {
+      const payload = workMaterializationPayloadSchema.parse(row.payload);
+      const result = await materializeWork(payload.scope, trx);
+      return { status: result.status === 'deferred' ? 'deferred' : 'done' };
+    }
+    case OUTBOX_INTENT.ACTIVITY_EVENT_REQUESTED:
+      await dispatchActivityEventRequested(row.payload, trx);
+      return { status: 'done' };
+    case OUTBOX_INTENT.NOTIFICATION_REQUESTED:
+      await dispatchNotificationRequested(row.payload);
+      return { status: 'done' };
+    case OUTBOX_INTENT.NOTIFICATION_ATTENTION_RESOLVED:
+      await dispatchNotificationAttentionResolved(row.payload);
+      return { status: 'done' };
+    case OUTBOX_INTENT.NOTIFICATION_COMMS_REQUESTED:
+      await dispatchNotificationCommsRequested(row.payload);
+      return { status: 'done' };
+    case OUTBOX_INTENT.GL_BALANCE_RECALC_REQUESTED:
+      await handleGlBalanceRecalcOutbox(row.payload, trx);
+      return { status: 'done' };
+    case OUTBOX_INTENT.CLOSE_SIGNAL_EVAL_REQUESTED:
+      await handleCloseSignalEvalOutbox(row.payload, trx);
+      return { status: 'done' };
+    case OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED: {
+      const result = await processProviderWebhookReceived(row.payload, trx);
+      return {
+        status: 'done',
+        quarantineAlert: result.quarantineAlert,
+      };
+    }
+    default:
+      throw new Error(`Unknown outbox intent_type: ${row.intent_type}`);
+  }
+}
+
+async function processOneIntent(
+  filter?: DispatchFilter,
+): Promise<IntentOutcome> {
+  if (filterAllowsBankSync(filter)) {
+    const leased = await knexClient.transaction(async (trx) =>
+      claimLeasedIntent(trx, {
+        ...filter,
+        intentType: OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+      }),
+    );
+    if (leased) {
+      const outcome = await executeLeasedBankSync(leased);
+      if (outcome === 'failed') {
+        return 'failed';
+      }
+      return outcome;
+    }
+  }
+
+  const result = await knexClient.transaction(
+    async (
+      trx,
+    ): Promise<{
+      outcome: IntentOutcome;
+      deadLetter?: { row: OutboxRow; error: unknown };
+      quarantineAlert?: QuarantineAlert;
+    }> => {
+      const row = await claimNextPendingIntent(trx, {
+        ...filter,
+        excludeIntentTypes: [
+          ...(filter?.excludeIntentTypes ?? []),
+          OUTBOX_INTENT.BANK_SYNC_REQUESTED,
+        ],
+      });
+      if (!row) {
+        return { outcome: 'empty' };
+      }
+
+      try {
+        let quarantineAlert: QuarantineAlert | undefined;
+        await trx.transaction(async (effectTrx) => {
+          const dispatch = await dispatchIntent(effectTrx, row);
+          if (dispatch.status === 'deferred') {
+            throw new DeferSignal(row.id);
+          }
+          quarantineAlert = dispatch.quarantineAlert;
+        });
+        await markIntentProcessed(trx, row.id);
+        return { outcome: 'processed', quarantineAlert };
+      } catch (error) {
+        if (error instanceof DeferSignal) {
+          await deferIntent(error.intentId, trx);
+          return { outcome: 'deferred' };
+        }
+        const { deadLettered } = await recordIntentFailure(row.id, error, trx);
+        return {
+          outcome: 'failed',
+          deadLetter: deadLettered ? { row, error } : undefined,
+        };
+      }
+    },
+  );
+
+  // Alert after commit so the notification is never inside the dispatch transaction.
+  if (result.deadLetter) {
+    await alertOutboxDeadLetter(result.deadLetter.row, result.deadLetter.error);
+    if (
+      result.deadLetter.row.intent_type ===
+      OUTBOX_INTENT.PROVIDER_WEBHOOK_RECEIVED
+    ) {
+      const message =
+        result.deadLetter.error instanceof Error
+          ? result.deadLetter.error.message
+          : String(result.deadLetter.error);
+      await quarantineProviderWebhookAfterDeadLetter(
+        result.deadLetter.row.payload,
+        message,
+      );
+    }
+  } else if (result.quarantineAlert) {
+    await alertProviderWebhookQuarantined(result.quarantineAlert);
+  }
+
+  return result.outcome;
+}
+
+export async function dispatchPendingIntents(
+  maxIntents = 100,
+  filter?: DispatchFilter,
+): Promise<{ processed: number; deferred: number; failed: number }> {
+  let processed = 0;
+  let deferred = 0;
+  let failed = 0;
+
+  for (let i = 0; i < maxIntents; i += 1) {
+    const outcome = await processOneIntent(filter);
+    if (outcome === 'empty') {
+      break;
+    }
+    if (outcome === 'processed') processed += 1;
+    else if (outcome === 'deferred') deferred += 1;
+    else failed += 1;
+  }
+
+  if (processed || deferred || failed) {
+    logger.info({ processed, deferred, failed }, 'Outbox dispatch batch done');
+  }
+
+  return { processed, deferred, failed };
+}
