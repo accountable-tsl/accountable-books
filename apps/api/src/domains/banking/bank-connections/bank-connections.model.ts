@@ -142,12 +142,12 @@ export async function getBankConnectionReauthorizationContext({
         'feed.bank_connection_id',
         'bc.id',
       )
-      .leftJoin('bank_accounts as account', 'account.id', 'feed.bank_account_id')
       .leftJoin(
-        'banks as account_bank',
-        'account_bank.id',
-        'account.bank_id',
+        'bank_accounts as account',
+        'account.id',
+        'feed.bank_account_id',
       )
+      .leftJoin('banks as account_bank', 'account_bank.id', 'account.bank_id')
       .leftJoin(
         'countries as account_bank_country',
         'account_bank_country.id',
@@ -160,15 +160,7 @@ export async function getBankConnectionReauthorizationContext({
         authorization_status: string;
         country_code: string;
         bank_id: string | null;
-      }>(
-        'bfp.key as provider_key',
-        'bc.provider_item_id',
-        'bc.authorization_status',
-        knexClient.raw('COALESCE(bank.id, account_bank.id) as bank_id'),
-        knexClient.raw(
-          'COALESCE(bank_country.code, account_bank_country.code, company_country.code) as country_code',
-        ),
-      );
+      }>('bfp.key as provider_key', 'bc.provider_item_id', 'bc.authorization_status', knexClient.raw('COALESCE(bank.id, account_bank.id) as bank_id'), knexClient.raw('COALESCE(bank_country.code, account_bank_country.code, company_country.code) as country_code'));
 
     if (!row || row.authorization_status === 'revoked') {
       return errorResponse('Bank connection cannot be reauthorized', null, {

@@ -103,11 +103,16 @@ jobs:
       - name: Generate environment files
         run: pnpm --filter @accountable-books/${{ matrix.package }} generate-env
 
-      - name: Create test database
+      - name: Provision databases
         if: matrix.package == 'api'
-        run: |
-          PGPASSWORD=password psql -h localhost -p 5433 -U user -d accountable_books -c "CREATE DATABASE accountable_books_test;"
-        continue-on-error: true
+        env:
+          PGHOST: localhost
+          PGPORT: '5433'
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: accountable_books
+          EXPECTED_POSTGRES_DB: accountable_books
+        run: bash infra/postgres/image/01-setup-databases.sh
 
       - name: Run database migrations
         if: matrix.package == 'api'
