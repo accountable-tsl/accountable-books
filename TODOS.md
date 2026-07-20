@@ -28,6 +28,38 @@
 - [ ] Should Cash basis companies need musthaveaccounts?
 - [ ] Client invite/self-serve onboarding must ask whether the client needs historical catch-up bookkeeping.
 - [ ] Conversion balance journals (including bank balances (both native and reporting currencies))
+- [ ] See if we can frontload 'time to dopamine' perhaps as demo or even build it into the product. For example, setup autopost, upload bank statement, and see it all categorized in cat engine, tbal, p&l, bsheet, and client portal all in one flow.
+- [ ] **Complete client intake and Work Queue V2 Engagement-activation handoff**
+  - Support all acquisition paths through one shared intake contract:
+    - firm invitation;
+    - firm-branded signup;
+    - direct platform signup and placement with a system-designated firm;
+    - referral review, acceptance, rejection and platform fallback;
+    - accepted transfer from another firm.
+  - Reuse one validation/domain path across the manual wizard, direct signup, CSV/bulk import and future chat-assisted intake.
+  - Preserve invitation, referral and transfer proposals as their own pending/rejected objects. Create the Firm–Client Engagement only after acceptance and all activation requirements are complete.
+  - Capture or derive:
+    - client company identity and contact;
+    - country, reporting currency, timezone and financial year-end;
+    - accounting basis and reporting framework;
+    - service domain (`bookkeeping`);
+    - responsible firm and effective cutover date;
+    - accounting conversion/opening-balance date;
+    - books-complete-through position;
+    - first managed monthly Fiscal Period;
+    - Client Lead;
+    - Primary Bookkeeper;
+    - whether historical catch-up is required;
+    - accepted catch-up range;
+    - Catch-up Packages of no more than 12 contiguous months;
+    - assignee and explicitly confirmed deadline for every Package.
+  - Apply the firm’s default Client Lead and Primary Bookkeeper when intake does not override them, falling back to an eligible Firm Admin only under the agreed provisioning rule.
+  - Respect firm referral acceptance mode, availability/capacity status and branded-signup ownership.
+  - For transfers, capture the cutover date, predecessor Engagement, receiving Lead/Bookkeeper and accepted historical responsibility without rewriting the former firm’s Close Versions.
+  - Present a final review screen that makes the firm, responsibilities, accounting boundary, first managed month and catch-up commitment unambiguous.
+  - Call the Work Queue V2 `activateEngagement` contract only when every required value is valid. Activation must atomically establish the Engagement, Lead/Bookkeeper coverage and any accepted Catch-up Packages.
+  - Provide resumable pending/error states so a failed invitation or incomplete setup cannot leave a partially activated client.
+  - Test every acquisition path, same-person Lead/Bookkeeper, separate roles, defaults, missing boundaries, catch-up/no-catch-up, transfer and forged cross-firm identifiers.
 
 ### NEAR-TERM (Post-Launch, High Impact)
 
