@@ -155,7 +155,7 @@ jobs:
           APP_ENC_KEYS: ${{ secrets.APP_ENC_KEYS }}
         run: |
           echo "🔄 Bootstrapping application workspaces..."
-          pnpm -F @accountable-books/api run bootstrap:staging:remote
+          NODE_ENV=staging pnpm -F @accountable-books/api exec tsx scripts/bootstrap-catalog.ts
           echo "✅ Workspace bootstrap completed"
 
   # Step 2: Deploy API only after migrations succeed

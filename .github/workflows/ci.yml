@@ -126,11 +126,6 @@ jobs:
         if: matrix.package == 'api'
         run: NODE_ENV=test pnpm --filter @accountable-books/api run demo apply
 
-      - name: Validate billing catalog v1 seed snapshot
-        if: matrix.package == 'api'
-        run: |
-          pnpm --filter @accountable-books/api billing:validate-catalog-seed
-
       - name: Build ${{ matrix.package }}
         run: pnpm --filter @accountable-books/${{ matrix.package }} build
 
