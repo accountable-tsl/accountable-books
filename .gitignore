@@ -60,11 +60,7 @@ reports
 prisma*
 prisma/*
 packages/contracts/dist/
-CLAUDE.md
-CLAUDE.local.md
-GEMINI.md
-AGENTS.md
-AGENT.md
+
 
 
 apps/ml-engine/.testmondata
@@ -80,6 +76,7 @@ count.txt
 .wrangler
 .claude
 .fallow/
+.scratch/
 
 # Contracts generated artifacts — run: pnpm -F @accountable-books/contracts build
 packages/contracts/accountable_contracts/data/generated/

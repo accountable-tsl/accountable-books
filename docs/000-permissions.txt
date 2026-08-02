@@ -1,0 +1,25 @@
+# Permissions inventory
+
+Living list of permissions this application needs.
+Add entries as we encounter features during implementation.
+Eventually used to seed `permissions` and map grants in `role_permissions`.
+
+Format matches the DB: `resource` + `action` (key = `resource:action`).
+
+Do not organize by role here — list each permission once.
+Role grants come later, in one place, from this inventory.
+
+| Resource | Action | Notes |
+|---|---|---|
+| `queue` | `firm_oversight` | Firm-wide queue scope when requested |
+| `client` | `add` | Open intake / add client |
+| `period_close` | `submit` | Submit close prep / version |
+| `period_close` | `approve` | Approve submitted close version |
+| `period_close` | `reject` | Reject submitted close version |
+| `close_package` | `manage` | Create/split/replace/reassign/change deadline for catch-up packages |
+| `period_reopen` | `decide` | Approve or reject a period reopen request |
+| `finding` | `decide_professional` | Accept a professional finding treatment |
+| `close_version` | `read_historical` | Read immutable submitted version from a past engagement |
+| `engagement` | `manage_responsibilities` | Replace Client Lead / Primary Bookkeeper / Contributors |
+| `engagement` | `assign_contributor` | Add or remove a Contributor |
+

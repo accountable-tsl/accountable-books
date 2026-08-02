@@ -1,0 +1,3486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accountable — Categorization Engine Prototype</title>
+    <!--
+      THROWAWAY PROTOTYPE
+      One faithful standalone replica of the existing categorization engine,
+      using fake data and in-memory interactions only.
+    -->
+    <style>
+      :root {
+        --background: #ffffff;
+        --foreground: #101828;
+        --muted: #f1f5f9;
+        --muted-2: #f8fafc;
+        --muted-foreground: #667085;
+        --border: #e2e8f0;
+        --border-strong: #cbd5e1;
+        --sidebar: #f8fafc;
+        --accent: #f1f5f9;
+        --destructive: #dc2626;
+        --success: #15803d;
+        --sky: #0284c7;
+        --radius: 7px;
+        --sidebar-width: 48px;
+        --sidebar-width-expanded: 236px;
+        --sidebar-width-collapsed: 48px;
+        --row-height: 36px;
+        --drawer-width: 410px;
+        font-family:
+          'IBM Plex Sans',
+          'Inter',
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        font-size: 14px;
+        color: var(--foreground);
+        background: var(--background);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        background: var(--background);
+        font-size: 14px;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      svg {
+        display: block;
+      }
+      .hidden {
+        display: none !important;
+      }
+
+      .icon {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .icon-sm {
+        width: 14px;
+        height: 14px;
+      }
+      .icon-lg {
+        width: 19px;
+        height: 19px;
+      }
+
+      .app {
+        height: 100dvh;
+        display: flex;
+        min-width: 1024px;
+        --sidebar-width: var(--sidebar-width-collapsed);
+      }
+      .app:not(.sidebar-collapsed) {
+        --sidebar-width: var(--sidebar-width-expanded);
+      }
+      .app.focus .app-sidebar {
+        display: none;
+      }
+      .app.focus .sidebar-gap {
+        display: none;
+      }
+      .app-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: var(--sidebar-width);
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        background: var(--sidebar);
+        border-right: 1px solid var(--border);
+        transition: width 0.18s ease;
+      }
+      .sidebar-gap {
+        width: var(--sidebar-width);
+        flex: 0 0 var(--sidebar-width);
+        transition: width 0.18s ease;
+      }
+      .sidebar-brand {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        padding: 0 13px;
+        border-bottom: 1px solid var(--border);
+        gap: 9px;
+        overflow: hidden;
+      }
+      .brand-mark {
+        width: 21px;
+        height: 21px;
+        flex: 0 0 auto;
+        border: 1.5px solid #344054;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 700;
+        transform: rotate(-12deg);
+      }
+      .brand-name {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .sidebar-scroll {
+        padding: 8px;
+        min-height: 0;
+        flex: 1;
+        overflow: hidden auto;
+      }
+      .nav-label {
+        height: 26px;
+        display: flex;
+        align-items: center;
+        padding: 0 8px;
+        color: var(--muted-foreground);
+        font-size: 11px;
+      }
+      .nav-separator {
+        height: 1px;
+        background: var(--border);
+        margin: 8px;
+      }
+      .nav-item,
+      .nav-subitem {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        height: 32px;
+        border-radius: 6px;
+        color: #344054;
+        padding: 0 8px;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .nav-item:hover,
+      .nav-subitem:hover {
+        background: var(--accent);
+      }
+      .nav-item.active {
+        background: #e9eef5;
+        color: #111827;
+        font-weight: 500;
+      }
+      .nav-item svg {
+        flex: 0 0 auto;
+      }
+      .nav-item span,
+      .nav-subitem span,
+      .nav-label span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .nav-sub {
+        margin: 2px 0 7px 16px;
+        padding-left: 13px;
+        border-left: 1px solid var(--border-strong);
+      }
+      .nav-subitem {
+        height: 28px;
+        padding-left: 8px;
+        font-size: 13px;
+      }
+      .nav-subitem.active {
+        background: var(--accent);
+        color: #0f172a;
+        font-weight: 500;
+      }
+      .sidebar-footer {
+        padding: 8px;
+        border-top: 1px solid var(--border);
+      }
+      .user-avatar {
+        width: 27px;
+        height: 27px;
+        flex: 0 0 auto;
+        border-radius: 6px;
+        color: white;
+        background: #172033;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        font-weight: 650;
+      }
+      .user-copy {
+        min-width: 0;
+        line-height: 1.15;
+      }
+      .user-copy strong,
+      .user-copy small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .user-copy small {
+        color: var(--muted-foreground);
+        margin-top: 3px;
+        font-size: 10px;
+      }
+      .sidebar-collapsed .brand-name,
+      .sidebar-collapsed .nav-label,
+      .sidebar-collapsed .nav-item span,
+      .sidebar-collapsed .nav-sub,
+      .sidebar-collapsed .user-copy,
+      .sidebar-collapsed .nav-chevron {
+        display: none;
+      }
+      .sidebar-collapsed .nav-item,
+      .sidebar-collapsed .sidebar-brand {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .sidebar-collapsed .sidebar-scroll,
+      .sidebar-collapsed .sidebar-footer {
+        padding-left: 6px;
+        padding-right: 6px;
+      }
+      .sidebar-collapsed .nav-separator {
+        margin-left: 4px;
+        margin-right: 4px;
+      }
+
+      .shell {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+      }
+      .app-header {
+        position: relative;
+        z-index: 10;
+        height: 48px;
+        flex: 0 0 48px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.96);
+      }
+      .header-button {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        background: transparent;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        color: #475467;
+      }
+      .header-button:hover {
+        background: var(--accent);
+      }
+      .header-sep {
+        width: 1px;
+        height: 16px;
+        background: var(--border);
+        margin: 0 3px;
+      }
+      .breadcrumbs {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 13px;
+        color: var(--muted-foreground);
+      }
+      .breadcrumbs b {
+        color: #344054;
+        font-weight: 500;
+      }
+      .signed-in {
+        position: absolute;
+        left: 50%;
+        bottom: 0;
+        transform: translate(-50%, 52%);
+        padding: 0 6px;
+        background: white;
+        font-size: 10px;
+        color: var(--muted-foreground);
+        white-space: nowrap;
+      }
+      .signed-in strong {
+        color: #344054;
+      }
+      .theme-toggle {
+        margin-left: auto;
+      }
+
+      .workspace {
+        min-height: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 16px 16px 8px;
+        overflow: hidden;
+      }
+      .toolbar {
+        min-height: 30px;
+        height: 30px;
+        margin-bottom: 16px;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 10px;
+      }
+      .toolbar-left,
+      .toolbar-center,
+      .toolbar-right {
+        display: flex;
+        height: 30px;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .toolbar-center {
+        justify-content: center;
+      }
+      .toolbar-right {
+        justify-content: flex-end;
+      }
+      .icon-button {
+        position: relative;
+        width: 26px;
+        height: 26px;
+        padding: 2px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 5px;
+        display: grid;
+        place-items: center;
+        color: var(--muted-foreground);
+      }
+      .icon-button:hover {
+        background: var(--background);
+        color: var(--foreground);
+      }
+      .icon-button.active {
+        background: var(--background);
+        color: var(--foreground);
+        border-color: var(--border);
+        opacity: 1;
+      }
+      [data-tooltip]:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        z-index: 100;
+        top: calc(100% + 7px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #172033;
+        color: #fff;
+        padding: 5px 7px;
+        font-size: 11px;
+        white-space: nowrap;
+        border-radius: 5px;
+        pointer-events: none;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+      }
+      .segmented {
+        display: flex;
+        align-items: center;
+        height: 30px;
+        background: var(--muted);
+        border-radius: 6px;
+        gap: 4px;
+        padding: 2px 4px;
+        color: var(--muted-foreground);
+      }
+      .segmented-label {
+        padding-left: 2px;
+        font-size: 13px;
+        white-space: nowrap;
+        line-height: 1;
+      }
+      .segmented .icon-button {
+        width: auto;
+        height: auto;
+        min-width: 22px;
+        min-height: 22px;
+        border-color: var(--muted);
+        border-radius: 4px;
+        opacity: 0.5;
+      }
+      .segmented .icon-button:hover {
+        opacity: 0.85;
+        border-color: transparent;
+      }
+      .segmented .icon-button.active {
+        opacity: 1;
+        background: var(--background);
+        border-color: var(--border);
+        color: var(--foreground);
+      }
+      .divider-tiny {
+        color: #98a2b3;
+        padding: 0 2px;
+        line-height: 1;
+        user-select: none;
+      }
+      .search {
+        width: 240px;
+        height: 30px;
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        padding: 0 10px;
+        outline: none;
+        background: white;
+      }
+      .search:focus,
+      .control:focus,
+      .cell-input:focus {
+        border-color: #94a3b8;
+        box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.14);
+      }
+      .control {
+        height: 30px;
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        background: white;
+        padding: 0 9px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #344054;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .bank-filter {
+        width: 192px;
+        justify-content: space-between;
+      }
+      .date-filter {
+        min-width: 210px;
+        justify-content: flex-start;
+        gap: 8px;
+        font-size: 13px;
+      }
+      .date-filter .date-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .toolbar-left > .icon-button {
+        width: 30px;
+        height: 30px;
+        border-color: transparent;
+        color: var(--muted-foreground);
+      }
+      .toolbar-left > .icon-button:hover {
+        background: var(--muted);
+        border-color: transparent;
+      }
+
+      .engine-body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        gap: 8px;
+        overflow: hidden;
+      }
+      .table-card {
+        min-height: 0;
+        flex: 1;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: white;
+        scrollbar-width: thin;
+      }
+      table {
+        width: max-content;
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+      }
+      thead {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: var(--muted-2);
+      }
+      th {
+        height: 34px;
+        color: #475467;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+        background: var(--muted-2);
+      }
+      th.right,
+      td.right {
+        text-align: right;
+      }
+      tbody tr {
+        position: relative;
+        height: var(--row-height);
+        cursor: pointer;
+        background: white;
+        transition: background 0.05s;
+      }
+      tbody tr:hover,
+      tbody tr.active {
+        background: var(--muted);
+      }
+      tbody tr.active {
+        box-shadow: inset 0 0 0 1px #d5dce7;
+      }
+      td {
+        height: var(--row-height);
+        padding: 0 8px;
+        border-bottom: 1px solid #edf1f5;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background: inherit;
+      }
+      td.status-stripe {
+        width: 5px;
+        padding: 0;
+        position: sticky;
+      }
+      td.status-stripe::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: rgba(148, 163, 184, 0.35);
+      }
+      tr[data-status='proposed'] td.status-stripe::before {
+        background: rgba(56, 189, 248, 0.35);
+      }
+      tr[data-status='posted'] td.status-stripe::before {
+        background: rgba(74, 222, 128, 0.38);
+      }
+
+      /* Pinned columns — left: status, select, bank, date, description; right: spent, received, account, actions */
+      .pin-left,
+      .pin-right {
+        position: sticky;
+        z-index: 2;
+        background: white;
+      }
+      thead .pin-left,
+      thead .pin-right {
+        z-index: 6;
+        background: var(--muted-2);
+      }
+      tbody tr:hover .pin-left,
+      tbody tr:hover .pin-right,
+      tbody tr.active .pin-left,
+      tbody tr.active .pin-right {
+        background: var(--muted);
+      }
+
+      th.pin-l-status,
+      td.pin-l-status {
+        left: 0;
+        width: 5px;
+        min-width: 5px;
+        max-width: 5px;
+        padding: 0;
+        z-index: 3;
+      }
+      thead th.pin-l-status {
+        z-index: 7;
+      }
+      th.pin-l-check,
+      td.pin-l-check {
+        left: 5px;
+        width: 34px;
+        min-width: 34px;
+        max-width: 34px;
+        text-align: center;
+      }
+      th.pin-l-bank,
+      td.pin-l-bank {
+        left: 39px;
+        width: 102px;
+        min-width: 102px;
+        max-width: 102px;
+      }
+      th.pin-l-date,
+      td.pin-l-date {
+        left: 141px;
+        width: 96px;
+        min-width: 96px;
+        max-width: 96px;
+      }
+      th.pin-l-desc,
+      td.pin-l-desc {
+        left: 237px;
+        width: 190px;
+        min-width: 175px;
+        max-width: 220px;
+        border-right: 1px solid var(--border);
+        box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.12);
+      }
+
+      th.pin-r-spent,
+      td.pin-r-spent {
+        right: 334px;
+        width: 116px;
+        min-width: 116px;
+        max-width: 116px;
+        border-left: 1px solid var(--border);
+        box-shadow: -4px 0 8px -4px rgba(15, 23, 42, 0.12);
+      }
+      th.pin-r-received,
+      td.pin-r-received {
+        right: 218px;
+        width: 116px;
+        min-width: 116px;
+        max-width: 116px;
+      }
+      th.pin-r-account,
+      td.pin-r-account {
+        right: 28px;
+        width: 190px;
+        min-width: 160px;
+        max-width: 220px;
+      }
+      th.pin-r-actions,
+      td.pin-r-actions {
+        right: 0;
+        width: 28px;
+        min-width: 28px;
+        max-width: 28px;
+        padding: 0;
+      }
+
+      /* Review mode hides actions column — shift right pins */
+      .app.mode-review th.pin-r-spent,
+      .app.mode-review td.pin-r-spent {
+        right: 306px;
+      }
+      .app.mode-review th.pin-r-received,
+      .app.mode-review td.pin-r-received {
+        right: 190px;
+      }
+      .app.mode-review th.pin-r-account,
+      .app.mode-review td.pin-r-account {
+        right: 0;
+      }
+      .app.mode-review th.pin-r-actions,
+      .app.mode-review td.pin-r-actions,
+      .app.mode-review col.col-actions {
+        display: none;
+      }
+
+      .check-cell {
+        text-align: center;
+      }
+      .row-check {
+        width: 14px;
+        height: 14px;
+        vertical-align: middle;
+        accent-color: #172033;
+      }
+      .bank-cell {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+      .bank-logo {
+        width: 22px;
+        height: 22px;
+        flex: 0 0 22px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--border);
+        border-radius: 50%;
+        background: #fff;
+        font-size: 8px;
+        font-weight: 700;
+        color: #344054;
+      }
+      .bank-name {
+        color: var(--muted-foreground);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .muted {
+        color: var(--muted-foreground);
+      }
+      .money-out {
+        color: var(--destructive);
+      }
+      .money-in {
+        color: var(--success);
+      }
+      .dash {
+        color: #98a2b3;
+      }
+      .account-cell {
+        padding: 0 4px;
+      }
+      .cell-input,
+      .cell-select {
+        width: 100%;
+        height: 27px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 4px;
+        padding: 0 6px;
+        outline: none;
+        text-overflow: ellipsis;
+      }
+      .cell-input:hover,
+      .cell-select:hover {
+        background: white;
+        border-color: var(--border);
+      }
+      .cell-select {
+        appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, #98a2b3 50%),
+          linear-gradient(135deg, #98a2b3 50%, transparent 50%);
+        background-position:
+          calc(100% - 10px) 11px,
+          calc(100% - 7px) 11px;
+        background-size:
+          3px 3px,
+          3px 3px;
+        background-repeat: no-repeat;
+        padding-right: 16px;
+      }
+      .actions {
+        width: 28px;
+        padding: 0;
+        text-align: center;
+      }
+      .dots {
+        border: 0;
+        background: transparent;
+        color: var(--muted-foreground);
+        width: 25px;
+        height: 25px;
+        border-radius: 4px;
+      }
+      .dots:hover {
+        background: #e2e8f0;
+      }
+      .split-tag {
+        display: inline-flex;
+        gap: 4px;
+        align-items: center;
+        color: var(--muted-foreground);
+      }
+      .confidence {
+        font-size: 10px;
+        color: var(--sky);
+        margin-left: 4px;
+      }
+
+      /* Confidence accordion (group view) */
+      .table-panel {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .group-open-header,
+      .group-closed-headers {
+        flex: 0 0 auto;
+      }
+      .group-open-header.hidden,
+      .group-closed-headers.hidden {
+        display: none;
+      }
+      .accordion-trigger {
+        width: 100%;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        background: transparent;
+        padding: 0 8px;
+        text-align: left;
+        color: var(--muted-foreground);
+        font-weight: 300;
+      }
+      .group-closed-headers .accordion-trigger:last-child {
+        border-bottom: 0;
+      }
+      .accordion-trigger:hover .accordion-title {
+        text-decoration: underline;
+      }
+      .accordion-trigger .accordion-chevron {
+        color: var(--muted-foreground);
+        flex: 0 0 auto;
+        transition: transform 0.15s ease;
+      }
+      .accordion-trigger.open .accordion-chevron {
+        transform: rotate(0deg);
+      }
+      .accordion-trigger:not(.open) .accordion-chevron {
+        transform: rotate(-90deg);
+      }
+      .accordion-title {
+        font-size: 14px;
+        font-weight: 300;
+      }
+      .accordion-trigger.open .accordion-title {
+        font-weight: 500;
+        text-decoration: underline;
+      }
+      .accordion-trigger[data-tone='uncategorized'].open .accordion-title {
+        color: #374151;
+      }
+      .accordion-trigger[data-tone='high'].open .accordion-title {
+        color: #047857;
+      }
+      .accordion-trigger[data-tone='medium'].open .accordion-title {
+        color: #b45309;
+      }
+      .accordion-trigger[data-tone='low'].open .accordion-title {
+        color: #be123c;
+      }
+      .accordion-trigger[data-tone='reviewed'].open .accordion-title {
+        color: #0369a1;
+      }
+      .badge-count {
+        min-width: 22px;
+        height: 20px;
+        padding: 0 6px;
+        border: 1px solid var(--border-strong);
+        border-radius: 999px;
+        display: inline-grid;
+        place-items: center;
+        font-size: 11px;
+        color: var(--muted-foreground);
+        background: white;
+        font-weight: 500;
+      }
+      .accordion-trigger.open .badge-count {
+        background: #172033;
+        color: white;
+        border-color: #172033;
+      }
+      .accordion-trigger[data-tone='high'].open .badge-count {
+        background: #047857;
+        border-color: #047857;
+      }
+      .accordion-trigger[data-tone='medium'].open .badge-count {
+        background: #b45309;
+        border-color: #b45309;
+      }
+      .accordion-trigger[data-tone='low'].open .badge-count {
+        background: #be123c;
+        border-color: #be123c;
+      }
+      .accordion-trigger[data-tone='reviewed'].open .badge-count {
+        background: #0369a1;
+        border-color: #0369a1;
+      }
+
+      .app.view-group .status-filter {
+        display: none;
+      }
+      .app.view-group .table-card {
+        border-radius: 0;
+        border-left: 0;
+        border-right: 0;
+        border-top: 0;
+      }
+      .app.view-group .table-panel {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: white;
+        overflow: hidden;
+      }
+
+      /* Review-mode details pane */
+      .drawer {
+        width: var(--drawer-width);
+        flex: 0 0 var(--drawer-width);
+        min-height: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: white;
+        font-size: 14px;
+      }
+      .drawer-header {
+        height: 40px;
+        min-height: 40px;
+        padding: 0 12px 0 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex: 0 0 auto;
+      }
+      .drawer-header-title {
+        font-size: 14px;
+        color: var(--foreground);
+      }
+      .drawer-header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .status-badge {
+        border: 1px solid var(--border-strong);
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        text-transform: capitalize;
+        color: #475467;
+        background: white;
+        white-space: nowrap;
+      }
+      .status-badge.proposed {
+        color: #0369a1;
+        border-color: #bae6fd;
+        background: #f0f9ff;
+      }
+      .status-badge.uncategorized {
+        color: #4b5563;
+        border-color: #e5e7eb;
+        background: #f9fafb;
+      }
+      .status-badge.posted {
+        color: #047857;
+        border-color: #a7f3d0;
+        background: #ecfdf5;
+      }
+      .close-drawer {
+        border: 0;
+        background: transparent;
+        padding: 4px;
+        border-radius: 5px;
+        color: var(--muted-foreground);
+        display: grid;
+        place-items: center;
+      }
+      .close-drawer:hover {
+        background: var(--muted);
+        color: var(--foreground);
+      }
+
+      .drawer-body {
+        min-height: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .drawer-summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px 16px;
+        padding: 14px 16px 16px;
+        flex: 0 0 auto;
+      }
+      .field-label {
+        display: block;
+        color: var(--muted-foreground);
+        font-size: 12px;
+        margin-bottom: 2px;
+        line-height: 1.2;
+      }
+      .amount-large {
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .drawer-bank {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .drawer-bank .bank-logo {
+        width: 32px;
+        height: 32px;
+        flex-basis: 32px;
+        background: var(--muted);
+      }
+      .drawer-bank-name {
+        color: var(--muted-foreground);
+        font-size: 12px;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .span-2 {
+        grid-column: span 2;
+        min-width: 0;
+      }
+      .ellipsis {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .summary-value {
+        font-size: 14px;
+        color: var(--foreground);
+      }
+
+      .drawer-scroll {
+        min-height: 0;
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px 16px;
+        border-top: 1px solid var(--border);
+        scrollbar-width: thin;
+      }
+      .section-kicker {
+        color: var(--muted-foreground);
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+
+      .entry {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 10px;
+        background: white;
+      }
+      .entry.bank-leg {
+        border-width: 2px;
+        padding: 4px;
+        margin-bottom: 10px;
+      }
+      .entry-header {
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 10px;
+        background: var(--muted);
+        cursor: default;
+      }
+      .entry:not(.bank-leg) .entry-header {
+        cursor: pointer;
+      }
+      .entry:not(.bank-leg) .entry-header:hover {
+        background: #e8edf3;
+      }
+      .bank-leg .entry-header {
+        border-radius: 4px;
+        min-height: 30px;
+        padding: 6px 8px;
+        cursor: default;
+      }
+      .entry-title {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 5px;
+        flex: 1;
+      }
+      .entry-code {
+        color: var(--muted-foreground);
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .entry-account-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+      .entry-amount {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+        font-size: 14px;
+      }
+      .entry-chevron {
+        color: var(--muted-foreground);
+        flex: 0 0 auto;
+        transition: transform 0.15s ease;
+      }
+      .entry.collapsed .entry-chevron {
+        transform: rotate(0deg);
+      }
+      .entry:not(.collapsed) .entry-chevron {
+        transform: rotate(180deg);
+      }
+      .entry.collapsed .entry-details {
+        display: none;
+      }
+
+      .entry-details {
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+        border-top: 1px solid var(--border);
+      }
+      .form-row {
+        display: grid;
+        gap: 4px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .form-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .confidence-label {
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+
+      .editable-display {
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        background: #f8fafc;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.1s;
+      }
+      .editable-display:hover {
+        background: #f1f5f9;
+      }
+      .editable-display .pencil {
+        color: var(--muted-foreground);
+        opacity: 0;
+        flex: 0 0 auto;
+        transition: opacity 0.1s;
+      }
+      .editable-display:hover .pencil {
+        opacity: 1;
+      }
+      .editable-display .placeholder {
+        color: var(--muted-foreground);
+      }
+      .editable-display.textarea-like {
+        min-height: 54px;
+        align-items: flex-start;
+        white-space: pre-wrap;
+      }
+
+      .editable-edit {
+        display: flex;
+        align-items: flex-start;
+        gap: 4px;
+      }
+      .editable-edit .form-control {
+        flex: 1;
+        min-width: 0;
+      }
+      .edit-actions {
+        display: flex;
+        gap: 1px;
+        flex: 0 0 auto;
+        padding-top: 2px;
+      }
+      .edit-action {
+        border: 0;
+        background: transparent;
+        padding: 6px;
+        border-radius: 4px;
+        color: var(--muted-foreground);
+        display: grid;
+        place-items: center;
+      }
+      .edit-action:hover {
+        background: var(--muted);
+      }
+      .edit-action.ok {
+        color: #16a34a;
+      }
+      .edit-action.cancel {
+        color: #ef4444;
+      }
+
+      .form-control {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid var(--border-strong);
+        border-radius: 5px;
+        background: #f8fafc;
+        padding: 6px 8px;
+        outline: none;
+        font-size: 13px;
+      }
+      .form-control:focus {
+        border-color: #94a3b8;
+        box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.14);
+        background: white;
+      }
+      textarea.form-control {
+        min-height: 64px;
+        resize: vertical;
+      }
+      select.form-control {
+        appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, #98a2b3 50%),
+          linear-gradient(135deg, #98a2b3 50%, transparent 50%);
+        background-position:
+          calc(100% - 12px) 15px,
+          calc(100% - 9px) 15px;
+        background-size:
+          3px 3px,
+          3px 3px;
+        background-repeat: no-repeat;
+        padding-right: 22px;
+      }
+
+      .ai-note {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        font-size: 13px;
+        cursor: default;
+        line-height: 1.4;
+      }
+      .ai-note .pencil {
+        color: var(--muted-foreground);
+        opacity: 0;
+        flex: 0 0 auto;
+        margin-top: 2px;
+      }
+      .ai-note:hover .pencil {
+        opacity: 1;
+      }
+
+      .upload {
+        border: 1px dashed var(--border-strong);
+        border-radius: 5px;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12px;
+        background: #f8fafc;
+        cursor: pointer;
+        color: #475467;
+      }
+      .upload:hover {
+        background: var(--muted);
+      }
+      .attach-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      .delete-entry {
+        color: #f87171;
+        border: 0;
+        background: transparent;
+        width: 100%;
+        padding: 6px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-radius: 5px;
+      }
+      .delete-entry:hover {
+        background: rgba(239, 68, 68, 0.08);
+      }
+      .add-entry {
+        width: 100%;
+        min-height: 34px;
+        border: 1px dashed var(--border-strong);
+        border-radius: 5px;
+        background: white;
+        color: #475467;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        font-size: 13px;
+      }
+      .add-entry:hover {
+        background: var(--muted-2);
+      }
+
+      .drawer-footer {
+        flex: 0 0 auto;
+        border-top: 1px solid var(--border);
+        padding: 8px;
+        background: white;
+      }
+      .balance-warning {
+        background: #fef2f2;
+        color: #dc2626;
+        text-align: center;
+        font-size: 12px;
+        padding: 4px 6px;
+        margin-bottom: 6px;
+        border-radius: 4px;
+      }
+      .totals {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .total {
+        text-align: center;
+        padding: 2px 8px;
+      }
+      .total + .total {
+        border-left: 1px solid var(--border);
+      }
+      .total strong {
+        display: block;
+        font-size: 17px;
+        font-weight: 400;
+        margin-top: 1px;
+      }
+      .review-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .btn {
+        min-height: 32px;
+        border: 1px solid var(--border-strong);
+        background: white;
+        border-radius: 5px;
+        padding: 0 12px;
+        font-size: 13px;
+      }
+      .btn:hover:not(:disabled) {
+        background: var(--muted-2);
+      }
+      .btn-primary {
+        background: #172033;
+        color: #fff;
+        border-color: #172033;
+        flex: 1;
+      }
+      .btn-primary:hover:not(:disabled) {
+        background: #0f172a;
+      }
+      .btn:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+
+      .engine-footer {
+        min-height: 24px;
+        padding-top: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        color: rgba(71, 84, 103, 0.75);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .footer-left,
+      .footer-right {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+      }
+      .footer-right b {
+        color: #475467;
+        font-weight: 500;
+      }
+      .bullet {
+        color: #c0c7d2;
+      }
+      .autosave-toast {
+        position: fixed;
+        z-index: 200;
+        right: 18px;
+        bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        background: #172033;
+        color: white;
+        border-radius: 7px;
+        padding: 10px 13px;
+        box-shadow: 0 12px 35px rgba(15, 23, 42, 0.2);
+        font-size: 12px;
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+        transition: 0.2s ease;
+      }
+      .autosave-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .autosave-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #4ade80;
+      }
+      .popover {
+        position: fixed;
+        z-index: 80;
+        min-width: 245px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 7px;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+      }
+      .popover.h3-reset h3 {
+        font-size: 13px;
+        margin: 0 0 6px;
+        font-weight: 600;
+      }
+      .popover p {
+        margin: 0;
+        color: var(--muted-foreground);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .popover.menu {
+        min-width: 170px;
+        padding: 5px;
+      }
+      .menu button {
+        display: flex;
+        width: 100%;
+        gap: 8px;
+        align-items: center;
+        height: 30px;
+        border: 0;
+        background: transparent;
+        border-radius: 4px;
+        text-align: left;
+        font-size: 12px;
+      }
+      .menu button:hover {
+        background: var(--muted);
+      }
+
+      /* Date range popover */
+      .popover.date-range {
+        padding: 0;
+        min-width: 0;
+        width: auto;
+        overflow: hidden;
+      }
+      .date-range-body {
+        display: flex;
+      }
+      .date-presets {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px;
+        border-right: 1px solid var(--border);
+        min-width: 128px;
+      }
+      .date-presets button {
+        border: 0;
+        background: transparent;
+        text-align: left;
+        height: 30px;
+        padding: 0 10px;
+        border-radius: 5px;
+        font-size: 13px;
+        color: #344054;
+      }
+      .date-presets button:hover {
+        background: var(--muted);
+      }
+      .date-presets button.active {
+        background: var(--accent);
+        font-weight: 500;
+      }
+      .date-calendars {
+        display: flex;
+        gap: 8px;
+        padding: 12px;
+      }
+      .cal-month {
+        width: 232px;
+      }
+      .cal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        padding: 0 2px;
+      }
+      .cal-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #344054;
+      }
+      .cal-nav {
+        width: 26px;
+        height: 26px;
+        border: 0;
+        background: transparent;
+        border-radius: 5px;
+        display: grid;
+        place-items: center;
+        color: var(--muted-foreground);
+      }
+      .cal-nav:hover {
+        background: var(--muted);
+        color: var(--foreground);
+      }
+      .cal-nav.invisible {
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .cal-weekdays,
+      .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+      }
+      .cal-weekdays span {
+        height: 24px;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        color: var(--muted-foreground);
+        font-weight: 500;
+      }
+      .cal-day {
+        height: 30px;
+        border: 0;
+        background: transparent;
+        border-radius: 5px;
+        font-size: 12px;
+        color: #344054;
+        display: grid;
+        place-items: center;
+      }
+      .cal-day:hover:not(:disabled):not(.empty) {
+        background: var(--muted);
+      }
+      .cal-day:disabled,
+      .cal-day.empty {
+        color: transparent;
+        pointer-events: none;
+      }
+      .cal-day.outside {
+        color: #98a2b3;
+      }
+      .cal-day.in-range {
+        background: #eef2f7;
+        border-radius: 0;
+      }
+      .cal-day.range-start,
+      .cal-day.range-end,
+      .cal-day.range-only {
+        background: #172033;
+        color: white;
+        border-radius: 5px;
+        font-weight: 500;
+      }
+      .cal-day.range-start.in-range {
+        border-radius: 5px 0 0 5px;
+      }
+      .cal-day.range-end.in-range {
+        border-radius: 0 5px 5px 0;
+      }
+      .date-range-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 12px;
+        border-top: 1px solid var(--border);
+        background: var(--muted-2);
+      }
+      .date-range-footer .range-summary {
+        font-size: 12px;
+        color: #475467;
+      }
+      .date-range-footer .btn {
+        min-height: 28px;
+        font-size: 12px;
+      }
+
+      .small-screen {
+        display: none;
+      }
+      @media (max-width: 1023px) {
+        .app {
+          display: none;
+        }
+        .small-screen {
+          display: grid;
+          height: 100dvh;
+          place-items: center;
+          padding: 30px;
+          text-align: center;
+        }
+        .small-screen svg {
+          margin: 0 auto 14px;
+          width: 30px;
+          height: 30px;
+          color: var(--muted-foreground);
+        }
+        .small-screen h1 {
+          font-size: 18px;
+          margin: 0 0 5px;
+        }
+        .small-screen p {
+          color: var(--muted-foreground);
+          margin: 0;
+        }
+      }
+      @media (max-width: 1310px) {
+        .toolbar {
+          grid-template-columns: 1fr auto;
+        }
+        .toolbar-center {
+          display: none;
+        }
+        .search {
+          width: 190px;
+        }
+        .date-filter {
+          min-width: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" aria-hidden="true" style="position: absolute">
+      <symbol id="i-menu" viewBox="0 0 24 24">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </symbol>
+      <symbol id="i-dashboard" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </symbol>
+      <symbol id="i-calculator" viewBox="0 0 24 24">
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <path
+          d="M8 6h8v4H8zM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"
+        />
+      </symbol>
+      <symbol id="i-briefcase" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" />
+      </symbol>
+      <symbol id="i-list" viewBox="0 0 24 24">
+        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+      </symbol>
+      <symbol id="i-message" viewBox="0 0 24 24">
+        <path
+          d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"
+        />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.15.37.38.7.7 1 .31.28.7.43 1.1.4h.1v4h-.1c-.4-.03-.79.12-1.1.4-.32.3-.55.63-.7 1z"
+        />
+      </symbol>
+      <symbol id="i-help" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.7 9a2.4 2.4 0 0 1 4.6 1c0 2-2.3 2.1-2.3 4M12 18h.01" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-4-4" />
+      </symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24">
+        <path d="m6 9 6 6 6-6" />
+      </symbol>
+      <symbol id="i-chevron-right" viewBox="0 0 24 24">
+        <path d="m9 18 6-6-6-6" />
+      </symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16m5-11 3 3-3 3" />
+      </symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24">
+        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+        <circle cx="12" cy="12" r="2.5" />
+      </symbol>
+      <symbol id="i-autosave" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 1 1-2.3-5.7L20 7.6" />
+        <path d="M20 3v5h-5M9 12l2 2 4-4" />
+      </symbol>
+      <symbol id="i-zap" viewBox="0 0 24 24">
+        <path d="m13 2-9 12h8l-1 8 9-12h-8z" />
+      </symbol>
+      <symbol id="i-check-circle" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m8 12 2.5 2.5L16 9" />
+      </symbol>
+      <symbol id="i-table" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 9h18M8 9v11M15 9v11" />
+      </symbol>
+      <symbol id="i-rows" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="4" rx="1" />
+        <rect x="3" y="10" width="18" height="4" rx="1" />
+        <rect x="3" y="16" width="18" height="4" rx="1" />
+      </symbol>
+      <symbol id="i-focus" viewBox="0 0 24 24">
+        <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+      </symbol>
+      <symbol id="i-calendar" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M16 3v4M8 3v4M3 10h18" />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24">
+        <path d="M20.5 15.5A9 9 0 0 1 8.5 3.5 9 9 0 1 0 20.5 15.5z" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="m6 6 12 12M18 6 6 18" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" />
+      </symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24">
+        <path d="M12 16V4m0 0L7 9m5-5 5 5M4 17v3h16v-3" />
+      </symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24">
+        <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m5 12 5 5L20 7" />
+      </symbol>
+      <symbol id="i-chevron-up" viewBox="0 0 24 24">
+        <path d="m18 15-6-6-6 6" />
+      </symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+        <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+      </symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="14" rx="2" />
+        <path d="M8 22h8M12 18v4" />
+      </symbol>
+    </svg>
+
+    <div class="small-screen">
+      <div>
+        <svg class="icon"><use href="#i-monitor"></use></svg>
+        <h1>A larger screen is required</h1>
+        <p>
+          The categorization engine is optimized for screens at least 1024px
+          wide.
+        </p>
+      </div>
+    </div>
+
+    <div class="app sidebar-collapsed mode-review" id="app">
+      <aside class="app-sidebar" aria-label="Primary navigation">
+        <div class="sidebar-brand">
+          <div class="brand-mark">A</div>
+          <span class="brand-name">Northstar Accounting</span>
+        </div>
+        <div class="sidebar-scroll">
+          <div class="nav-label"><span>Practice</span></div>
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-briefcase"></use></svg
+            ><span>Queue</span></a
+          >
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-list"></use></svg
+            ><span>Clients</span></a
+          >
+          <div class="nav-separator"></div>
+          <div class="nav-label"><span>Company</span></div>
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-dashboard"></use></svg
+            ><span>Dashboard</span></a
+          >
+          <button class="nav-item active">
+            <svg class="icon"><use href="#i-calculator"></use></svg
+            ><span>Accounting</span
+            ><svg class="icon icon-sm nav-chevron" style="margin-left: auto">
+              <use href="#i-chevron-down"></use>
+            </svg>
+          </button>
+          <div class="nav-sub">
+            <a class="nav-subitem" href="#"><span>Home</span></a>
+            <a class="nav-subitem active" href="#"><span>Cat Engine</span></a>
+            <a class="nav-subitem" href="#"><span>Trial Balance</span></a>
+            <a class="nav-subitem" href="#"><span>Ledger</span></a>
+            <a class="nav-subitem" href="#"><span>Journals</span></a>
+            <a class="nav-subitem" href="#"><span>Notes</span></a>
+          </div>
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-message"></use></svg
+            ><span>Messages</span></a
+          >
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-list"></use></svg
+            ><span>Reports</span></a
+          >
+          <div style="margin-top: auto"></div>
+        </div>
+        <div class="sidebar-footer">
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-settings"></use></svg
+            ><span>Settings</span></a
+          >
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-help"></use></svg
+            ><span>Get Help</span></a
+          >
+          <a class="nav-item" href="#"
+            ><svg class="icon"><use href="#i-search"></use></svg
+            ><span>Search</span></a
+          >
+          <button class="nav-item" style="margin-top: 5px">
+            <div class="user-avatar">TA</div>
+            <span class="user-copy"
+              ><strong>Temi A.</strong><small>temi@example.com</small></span
+            ><svg class="icon icon-sm nav-chevron" style="margin-left: auto">
+              <use href="#i-more"></use>
+            </svg>
+          </button>
+        </div>
+      </aside>
+      <div class="sidebar-gap"></div>
+
+      <main class="shell">
+        <header class="app-header">
+          <button
+            class="header-button"
+            id="sidebarToggle"
+            aria-label="Toggle sidebar"
+          >
+            <svg class="icon"><use href="#i-panel"></use></svg>
+          </button>
+          <span class="header-sep"></span>
+          <div class="breadcrumbs">
+            <span>Accounting</span><span>›</span><b>Cat Engine</b>
+          </div>
+          <div class="signed-in">
+            You are signed into
+            <strong>Demo Company → Acme Creative Ltd</strong> 🇬🇧
+          </div>
+          <button class="header-button theme-toggle" aria-label="Theme">
+            <svg class="icon"><use href="#i-moon"></use></svg>
+          </button>
+        </header>
+
+        <section class="workspace">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <button
+                class="icon-button"
+                id="advancedFilter"
+                data-tooltip="Advanced Filters"
+                aria-label="Advanced Filters"
+              >
+                <svg class="icon"><use href="#i-panel"></use></svg>
+              </button>
+              <div class="segmented" aria-label="Categorization mode">
+                <span class="segmented-label">Mode:</span>
+                <button
+                  class="icon-button active"
+                  data-mode="review"
+                  data-tooltip="Review Mode - Manual save required"
+                  aria-label="Review mode"
+                >
+                  <svg class="icon"><use href="#i-eye"></use></svg>
+                </button>
+                <button
+                  class="icon-button"
+                  data-mode="autosave"
+                  data-tooltip="Autosave Mode - Changes are saved automatically"
+                  aria-label="Autosave mode"
+                >
+                  <svg class="icon"><use href="#i-autosave"></use></svg>
+                </button>
+              </div>
+              <input
+                class="search"
+                id="searchInput"
+                type="search"
+                placeholder="Search..."
+                aria-label="Search transactions"
+              />
+            </div>
+            <div class="toolbar-center">
+              <button class="control bank-filter" id="bankFilter">
+                <span>All Banks</span
+                ><svg class="icon icon-sm">
+                  <use href="#i-chevron-down"></use>
+                </svg>
+              </button>
+              <div class="segmented status-filter">
+                <button
+                  class="icon-button active"
+                  data-status-filter="uncategorized"
+                  data-tooltip="Uncategorized"
+                >
+                  <svg class="icon"><use href="#i-help"></use></svg>
+                </button>
+                <button
+                  class="icon-button active"
+                  data-status-filter="proposed"
+                  data-tooltip="Auto-categorized"
+                >
+                  <svg class="icon"><use href="#i-zap"></use></svg>
+                </button>
+                <button
+                  class="icon-button active"
+                  data-status-filter="posted"
+                  data-tooltip="Posted"
+                >
+                  <svg class="icon"><use href="#i-check-circle"></use></svg>
+                </button>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <button class="control date-filter" id="dateFilter">
+                <svg class="icon icon-sm"><use href="#i-calendar"></use></svg
+                ><span class="date-label" id="dateFilterLabel"
+                  >23 Jan 2026 – 23 Jul 2026</span
+                >
+              </button>
+              <div class="segmented">
+                <span class="segmented-label">Row:</span>
+                <button
+                  class="icon-button"
+                  data-height="28"
+                  data-tooltip="Compact Row Height"
+                >
+                  <svg class="icon"><use href="#i-menu"></use></svg>
+                </button>
+                <button
+                  class="icon-button active"
+                  data-height="36"
+                  data-tooltip="Medium Row Height"
+                >
+                  <svg class="icon" style="stroke-width: 2.7">
+                    <use href="#i-menu"></use>
+                  </svg>
+                </button>
+                <button
+                  class="icon-button"
+                  data-height="48"
+                  data-tooltip="Large Row Height"
+                >
+                  <svg class="icon" style="stroke-width: 3.8">
+                    <use href="#i-menu"></use>
+                  </svg>
+                </button>
+                <span class="divider-tiny">|</span>
+                <button
+                  class="icon-button active"
+                  data-view="table"
+                  data-tooltip="Table View"
+                >
+                  <svg class="icon"><use href="#i-table"></use></svg>
+                </button>
+                <button
+                  class="icon-button"
+                  data-view="group"
+                  data-tooltip="View by Confidence"
+                >
+                  <svg class="icon"><use href="#i-rows"></use></svg>
+                </button>
+                <button
+                  class="icon-button"
+                  id="focusToggle"
+                  data-tooltip="Focus"
+                >
+                  <svg class="icon"><use href="#i-focus"></use></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="engine-body">
+            <div class="table-panel" id="tablePanel">
+              <div id="groupOpenHeader" class="group-open-header hidden"></div>
+              <div
+                class="table-card"
+                id="tableCard"
+                tabindex="0"
+                aria-label="Categorization transactions"
+              >
+                <table>
+                  <colgroup>
+                    <col style="width: 5px" />
+                    <col style="width: 34px" />
+                    <col style="width: 102px" />
+                    <col style="width: 96px" />
+                    <col style="width: 190px" />
+                    <col style="width: 96px" />
+                    <col style="width: 125px" />
+                    <col style="width: 108px" />
+                    <col style="width: 112px" />
+                    <col style="width: 55px" />
+                    <col style="width: 116px" />
+                    <col style="width: 76px" />
+                    <col style="width: 116px" />
+                    <col style="width: 116px" />
+                    <col style="width: 190px" />
+                    <col class="col-actions" style="width: 28px" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th class="pin-left pin-l-status"></th>
+                      <th class="check-cell pin-left pin-l-check">
+                        <input
+                          class="row-check"
+                          id="selectAll"
+                          type="checkbox"
+                          aria-label="Select all"
+                        />
+                      </th>
+                      <th class="pin-left pin-l-bank">Bank</th>
+                      <th class="pin-left pin-l-date">Date ↕</th>
+                      <th class="pin-left pin-l-desc">Description</th>
+                      <th>FS Date</th>
+                      <th>Contact</th>
+                      <th>Reference</th>
+                      <th>Project</th>
+                      <th>Curr</th>
+                      <th class="right">Bank Amount</th>
+                      <th>Exr</th>
+                      <th class="right pin-right pin-r-spent">Spent (GBP)</th>
+                      <th class="right pin-right pin-r-received">
+                        Received (GBP)
+                      </th>
+                      <th class="pin-right pin-r-account">Account</th>
+                      <th class="pin-right pin-r-actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="transactionRows"></tbody>
+                </table>
+              </div>
+              <div
+                id="groupClosedHeaders"
+                class="group-closed-headers hidden"
+              ></div>
+            </div>
+            <aside
+              class="drawer hidden"
+              id="detailsDrawer"
+              aria-label="Transaction details"
+            ></aside>
+          </div>
+
+          <footer class="engine-footer">
+            <div class="footer-left" id="footerCurrent"></div>
+            <div class="footer-right">
+              Total: <b>21</b> uncategorized, <b>38</b> AI suggestions
+            </div>
+          </footer>
+        </section>
+      </main>
+    </div>
+    <div class="autosave-toast" id="toast">
+      <span class="autosave-dot"></span
+      ><span id="toastText">Changes saved automatically</span>
+    </div>
+    <div class="popover hidden" id="popover"></div>
+
+    <script>
+      const transactions = [
+        {
+          id: 1,
+          bank: 'Barclays',
+          short: 'B',
+          date: '23 Jul 2026',
+          fsDate: '23 Jul 2026',
+          description: 'FIGMA *SUBSCRIPTION 88219',
+          contact: 'Figma, Inc.',
+          reference: 'INV-88219',
+          project: 'Design systems',
+          currency: 'GBP',
+          bankAmount: -144,
+          exr: 1,
+          spent: 144,
+          received: 0,
+          account: 'Software subscriptions',
+          status: 'proposed',
+          confidence: 0.96,
+          explanation:
+            'This merchant has been categorized as software in 11 prior transactions.',
+        },
+        {
+          id: 2,
+          bank: 'Monzo',
+          short: 'M',
+          date: '22 Jul 2026',
+          fsDate: '22 Jul 2026',
+          description: 'TRANSFER FROM STRIPE PAYMENTS',
+          contact: 'Stripe Payments',
+          reference: 'PY-240722',
+          project: '',
+          currency: 'GBP',
+          bankAmount: 8420.5,
+          exr: 1,
+          spent: 0,
+          received: 8420.5,
+          account: 'Sales revenue',
+          status: 'proposed',
+          confidence: 0.92,
+          explanation:
+            'The description and transaction direction match customer receipts.',
+        },
+        {
+          id: 3,
+          bank: 'HSBC',
+          short: 'HS',
+          date: '21 Jul 2026',
+          fsDate: '21 Jul 2026',
+          description: 'AWS EMEA SARL AWS.AMAZON.CO',
+          contact: 'Amazon Web Services',
+          reference: '',
+          project: 'Platform',
+          currency: 'USD',
+          bankAmount: -612.74,
+          exr: 0.7721,
+          spent: 473.17,
+          received: 0,
+          account: 'Cloud hosting',
+          status: 'proposed',
+          confidence: 0.84,
+          explanation:
+            'Suggested from merchant history and similar cloud infrastructure charges.',
+        },
+        {
+          id: 4,
+          bank: 'Barclays',
+          short: 'B',
+          date: '19 Jul 2026',
+          fsDate: '19 Jul 2026',
+          description: 'PAYMENT TO VENDOR - PENDING',
+          contact: '',
+          reference: '',
+          project: '',
+          currency: 'GBP',
+          bankAmount: -2750,
+          exr: 1,
+          spent: 2750,
+          received: 0,
+          account: 'Not set',
+          status: 'uncategorized',
+          confidence: null,
+          explanation: '',
+        },
+        {
+          id: 5,
+          bank: 'Wise',
+          short: 'W',
+          date: '18 Jul 2026',
+          fsDate: '18 Jul 2026',
+          description: 'ADOBE CREATIVE CLOUD',
+          contact: 'Adobe',
+          reference: 'ADB-77261',
+          project: 'Brand refresh',
+          currency: 'EUR',
+          bankAmount: -203.99,
+          exr: 0.8647,
+          spent: 176.39,
+          received: 0,
+          account: 'Software subscriptions',
+          status: 'posted',
+          confidence: 1,
+          explanation: 'Reviewed and posted by Temi A.',
+        },
+        {
+          id: 6,
+          bank: 'Monzo',
+          short: 'M',
+          date: '17 Jul 2026',
+          fsDate: '17 Jul 2026',
+          description: 'UBER *TRIP HELP.UBER.COM',
+          contact: 'Uber',
+          reference: '',
+          project: 'Client workshop',
+          currency: 'GBP',
+          bankAmount: -38.6,
+          exr: 1,
+          spent: 38.6,
+          received: 0,
+          account: 'Travel — local',
+          status: 'proposed',
+          confidence: 0.68,
+          explanation: 'Likely local travel based on merchant and amount.',
+        },
+        {
+          id: 7,
+          bank: 'HSBC',
+          short: 'HS',
+          date: '15 Jul 2026',
+          fsDate: '15 Jul 2026',
+          description: 'SALARY PAYMENTS JUL 2026',
+          contact: 'Team payroll',
+          reference: 'PAY-JUL-26',
+          project: '',
+          currency: 'GBP',
+          bankAmount: -18750,
+          exr: 1,
+          spent: 18750,
+          received: 0,
+          account: 'Payroll control',
+          status: 'posted',
+          confidence: 1,
+          explanation: 'Reviewed and posted.',
+        },
+        {
+          id: 8,
+          bank: 'Barclays',
+          short: 'B',
+          date: '14 Jul 2026',
+          fsDate: '14 Jul 2026',
+          description: 'HMRC VAT DD',
+          contact: 'HMRC',
+          reference: 'VAT-Q2',
+          project: '',
+          currency: 'GBP',
+          bankAmount: -3240.18,
+          exr: 1,
+          spent: 3240.18,
+          received: 0,
+          account: 'VAT liability',
+          status: 'proposed',
+          confidence: 0.94,
+          explanation:
+            'Direct debit payee and reference indicate a VAT payment.',
+        },
+        {
+          id: 9,
+          bank: 'Wise',
+          short: 'W',
+          date: '12 Jul 2026',
+          fsDate: '12 Jul 2026',
+          description: 'CLIENT RECEIPT — NORTH & CO',
+          contact: 'North & Co',
+          reference: 'AC-0198',
+          project: 'Retainer',
+          currency: 'USD',
+          bankAmount: 12000,
+          exr: 0.7754,
+          spent: 0,
+          received: 9304.8,
+          account: 'Sales revenue',
+          status: 'proposed',
+          confidence: 0.88,
+          explanation: 'Receipt matched to North & Co from contact history.',
+        },
+        {
+          id: 10,
+          bank: 'Monzo',
+          short: 'M',
+          date: '10 Jul 2026',
+          fsDate: '10 Jul 2026',
+          description: 'TRAINLINE.COM 812991',
+          contact: 'Trainline',
+          reference: '',
+          project: 'Manchester pitch',
+          currency: 'GBP',
+          bankAmount: -124.7,
+          exr: 1,
+          spent: 124.7,
+          received: 0,
+          account: 'Travel — rail',
+          status: 'uncategorized',
+          confidence: null,
+          explanation: '',
+        },
+        {
+          id: 11,
+          bank: 'Barclays',
+          short: 'B',
+          date: '08 Jul 2026',
+          fsDate: '08 Jul 2026',
+          description: 'OFFICE RENT JULY',
+          contact: 'Workspace Group',
+          reference: 'RENT-JUL',
+          project: '',
+          currency: 'GBP',
+          bankAmount: -4250,
+          exr: 1,
+          spent: 4250,
+          received: 0,
+          account: 'Rent and rates',
+          status: 'posted',
+          confidence: 1,
+          explanation: 'Reviewed and posted.',
+        },
+        {
+          id: 12,
+          bank: 'HSBC',
+          short: 'HS',
+          date: '06 Jul 2026',
+          fsDate: '06 Jul 2026',
+          description: 'CURRENCY CLOUD SETTLEMENT',
+          contact: 'Currencycloud',
+          reference: 'FX-7741',
+          project: '',
+          currency: 'EUR',
+          bankAmount: 5500,
+          exr: 0.8612,
+          spent: 0,
+          received: 4736.6,
+          account: 'Foreign exchange clearing',
+          status: 'uncategorized',
+          confidence: null,
+          explanation: '',
+          split: true,
+        },
+      ];
+
+      const state = {
+        mode:
+          new URLSearchParams(location.search).get('mode') === 'autosave'
+            ? 'autosave'
+            : 'review',
+        view: 'table',
+        group: 'uncategorized',
+        rowHeight: 36,
+        selectedId: null,
+        statuses: new Set(['uncategorized', 'proposed', 'posted']),
+        search: '',
+        dirty: false,
+        dateFrom: new Date(2026, 0, 23),
+        dateTo: new Date(2026, 6, 23),
+        datePreset: null,
+        datePick: null,
+        calMonth: new Date(2026, 6, 1),
+      };
+      const GROUP_META = [
+        { id: 'uncategorized', title: 'Uncategorized', tone: 'uncategorized' },
+        { id: 'high', title: 'High Confidence', tone: 'high' },
+        { id: 'medium', title: 'Medium Confidence', tone: 'medium' },
+        { id: 'low', title: 'Low Confidence', tone: 'low' },
+        { id: 'reviewed', title: 'Reviewed & Posted', tone: 'reviewed' },
+      ];
+      const DATE_PRESETS = [
+        {
+          id: 'today',
+          label: 'Today',
+          range: () => {
+            const t = startOfDay(new Date());
+            return [t, t];
+          },
+        },
+        {
+          id: 'yesterday',
+          label: 'Yesterday',
+          range: () => {
+            const t = startOfDay(addDays(new Date(), -1));
+            return [t, t];
+          },
+        },
+        { id: 'this-week', label: 'This Week', range: () => weekRange(0) },
+        { id: 'last-week', label: 'Last Week', range: () => weekRange(-1) },
+        {
+          id: 'last-7',
+          label: 'Last 7 Days',
+          range: () => [
+            startOfDay(addDays(new Date(), -6)),
+            startOfDay(new Date()),
+          ],
+        },
+        { id: 'this-month', label: 'This Month', range: () => monthRange(0) },
+        { id: 'last-month', label: 'Last Month', range: () => monthRange(-1) },
+        {
+          id: 'this-year',
+          label: 'This Year',
+          range: () => {
+            const y = new Date().getFullYear();
+            return [new Date(y, 0, 1), new Date(y, 11, 31)];
+          },
+        },
+        {
+          id: 'last-year',
+          label: 'Last Year',
+          range: () => {
+            const y = new Date().getFullYear() - 1;
+            return [new Date(y, 0, 1), new Date(y, 11, 31)];
+          },
+        },
+      ];
+      const rowsEl = document.getElementById('transactionRows');
+      const drawer = document.getElementById('detailsDrawer');
+      const app = document.getElementById('app');
+      const popover = document.getElementById('popover');
+      const toast = document.getElementById('toast');
+      const groupOpenHeader = document.getElementById('groupOpenHeader');
+      const groupClosedHeaders = document.getElementById('groupClosedHeaders');
+
+      function icon(id, cls = 'icon icon-sm') {
+        return `<svg class="${cls}" aria-hidden="true"><use href="#${id}"></use></svg>`;
+      }
+      function money(value) {
+        return new Intl.NumberFormat('en-GB', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(Math.abs(value));
+      }
+      function editableInput(value, field, type = 'text') {
+        return `<input class="cell-input" type="${type}" value="${String(value).replaceAll('"', '&quot;')}" data-field="${field}" aria-label="${field}">`;
+      }
+      function accountSelect(value) {
+        const opts = [
+          'Not set',
+          'Software subscriptions',
+          'Sales revenue',
+          'Cloud hosting',
+          'Travel — local',
+          'Payroll control',
+          'VAT liability',
+          'Travel — rail',
+          'Rent and rates',
+          'Foreign exchange clearing',
+        ];
+        return `<select class="cell-select" data-field="account" aria-label="Account">${opts.map((o) => `<option${o === value ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+      }
+      function startOfDay(d) {
+        const x = new Date(d);
+        x.setHours(0, 0, 0, 0);
+        return x;
+      }
+      function addDays(d, n) {
+        const x = new Date(d);
+        x.setDate(x.getDate() + n);
+        return x;
+      }
+      function weekRange(offsetWeeks) {
+        const today = startOfDay(new Date());
+        const day = (today.getDay() + 6) % 7;
+        const monday = addDays(today, -day + offsetWeeks * 7);
+        return [monday, addDays(monday, 6)];
+      }
+      function monthRange(offsetMonths) {
+        const now = new Date();
+        const start = new Date(
+          now.getFullYear(),
+          now.getMonth() + offsetMonths,
+          1,
+        );
+        const end = new Date(
+          now.getFullYear(),
+          now.getMonth() + offsetMonths + 1,
+          0,
+        );
+        return [start, end];
+      }
+      function formatDateLabel(d) {
+        return d.toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+      }
+      function sameDay(a, b) {
+        return (
+          a &&
+          b &&
+          a.getFullYear() === b.getFullYear() &&
+          a.getMonth() === b.getMonth() &&
+          a.getDate() === b.getDate()
+        );
+      }
+      function isBetween(d, from, to) {
+        if (!from || !to) return false;
+        const t = startOfDay(d).getTime();
+        return t > startOfDay(from).getTime() && t < startOfDay(to).getTime();
+      }
+      function updateDateFilterLabel() {
+        document.getElementById('dateFilterLabel').textContent =
+          `${formatDateLabel(state.dateFrom)} – ${formatDateLabel(state.dateTo)}`;
+      }
+
+      function baseFilteredTransactions() {
+        const q = state.search.toLowerCase();
+        return transactions.filter(
+          (t) =>
+            state.statuses.has(t.status) &&
+            (!q || Object.values(t).join(' ').toLowerCase().includes(q)),
+        );
+      }
+
+      function filteredTransactions() {
+        const items = baseFilteredTransactions();
+        if (state.view !== 'group') return items;
+        return items.filter((t) =>
+          state.group === 'uncategorized'
+            ? t.status === 'uncategorized'
+            : state.group === 'high'
+              ? t.status === 'proposed' && t.confidence >= 0.9
+              : state.group === 'medium'
+                ? t.status === 'proposed' &&
+                  t.confidence >= 0.75 &&
+                  t.confidence < 0.9
+                : state.group === 'low'
+                  ? t.status === 'proposed' && t.confidence < 0.75
+                  : t.status === 'posted',
+        );
+      }
+
+      function rowTemplate(t) {
+        const auto = state.mode === 'autosave';
+        const account = auto
+          ? accountSelect(t.account)
+          : `<span class="${t.account === 'Not set' ? 'muted' : ''}">${t.split ? `<span class="split-tag">${icon('i-rows')} 2 entries</span>` : t.account}${t.confidence && t.status === 'proposed' ? `<span class="confidence">${Math.round(t.confidence * 100)}%</span>` : ''}</span>`;
+        return `<tr data-id="${t.id}" data-status="${t.status}" class="${state.selectedId === t.id ? 'active' : ''}" aria-selected="${state.selectedId === t.id}">
+          <td class="status-stripe pin-left pin-l-status"></td>
+          <td class="check-cell pin-left pin-l-check"><input class="row-check" type="checkbox" aria-label="Select ${t.description}"></td>
+          <td class="pin-left pin-l-bank"><div class="bank-cell"><span class="bank-logo">${t.short}</span><span class="bank-name">${t.bank}</span></div></td>
+          <td class="pin-left pin-l-date">${t.date}</td>
+          <td class="pin-left pin-l-desc" title="${t.description}">${auto ? editableInput(t.description, 'description') : t.description}</td>
+          <td>${auto ? editableInput(t.fsDate, 'fsDate') : t.fsDate}</td>
+          <td>${auto ? editableInput(t.contact, 'contact') : t.contact || '<span class="dash">-</span>'}</td>
+          <td>${auto ? editableInput(t.reference, 'reference') : t.reference || '<span class="dash">-</span>'}</td>
+          <td>${auto ? editableInput(t.project, 'project') : t.project || '<span class="dash">-</span>'}</td>
+          <td class="muted">${t.currency}</td>
+          <td class="right ${t.bankAmount < 0 ? 'money-out' : 'money-in'}">${t.bankAmount < 0 ? '−' : '+'}${money(t.bankAmount)}</td>
+          <td>${auto ? editableInput(t.exr, 'exr', 'number') : Number(t.exr).toFixed(t.exr === 1 ? 2 : 4)}</td>
+          <td class="right pin-right pin-r-spent ${t.spent ? 'money-out' : 'dash'}">${t.spent ? money(t.spent) : '-'}</td>
+          <td class="right pin-right pin-r-received ${t.received ? 'money-in' : 'dash'}">${t.received ? money(t.received) : '-'}</td>
+          <td class="account-cell pin-right pin-r-account">${account}</td>
+          <td class="actions pin-right pin-r-actions">${auto ? `<button class="dots" aria-label="More actions" data-actions="${t.id}">${icon('i-more')}</button>` : ''}</td>
+        </tr>`;
+      }
+
+      function renderRows() {
+        const items = filteredTransactions();
+        const allItems = baseFilteredTransactions();
+        rowsEl.innerHTML =
+          items.map(rowTemplate).join('') ||
+          `<tr><td colspan="16" style="height:160px;text-align:center;color:var(--muted-foreground)">No transactions match these filters.</td></tr>`;
+        const counts = { uncategorized: 0, proposed: 0, posted: 0 };
+        allItems.forEach((t) => counts[t.status]++);
+        document.getElementById('footerCurrent').innerHTML =
+          `<span>Showing ${items.length}</span><span class="bullet">•</span><span>${counts.uncategorized} uncategorized</span><span class="bullet">|</span><span>${counts.proposed} AI suggestions</span><span class="bullet">|</span><span>${counts.posted} posted</span>`;
+        renderGroups(counts);
+      }
+
+      function groupCounts() {
+        const all = transactions;
+        return {
+          uncategorized: all.filter((t) => t.status === 'uncategorized').length,
+          high: all.filter(
+            (t) => t.status === 'proposed' && t.confidence >= 0.9,
+          ).length,
+          medium: all.filter(
+            (t) =>
+              t.status === 'proposed' &&
+              t.confidence >= 0.75 &&
+              t.confidence < 0.9,
+          ).length,
+          low: all.filter(
+            (t) =>
+              t.status === 'proposed' &&
+              t.confidence != null &&
+              t.confidence < 0.75,
+          ).length,
+          reviewed: all.filter((t) => t.status === 'posted').length,
+        };
+      }
+
+      function accordionTriggerHtml(item, count, open) {
+        return `<button class="accordion-trigger ${open ? 'open' : ''}" data-group="${item.id}" data-tone="${item.tone}" type="button">
+          ${icon('i-chevron-down', 'icon icon-sm accordion-chevron')}
+          <span class="accordion-title">${item.title}</span>
+          <span class="badge-count">${count}</span>
+        </button>`;
+      }
+
+      function renderGroups() {
+        const inGroup = state.view === 'group';
+        app.classList.toggle('view-group', inGroup);
+        groupOpenHeader.classList.toggle('hidden', !inGroup);
+        groupClosedHeaders.classList.toggle('hidden', !inGroup);
+        if (!inGroup) {
+          groupOpenHeader.innerHTML = '';
+          groupClosedHeaders.innerHTML = '';
+          return;
+        }
+        const counts = groupCounts();
+        const open =
+          GROUP_META.find((g) => g.id === state.group) || GROUP_META[0];
+        const closed = GROUP_META.filter((g) => g.id !== open.id);
+        groupOpenHeader.innerHTML = accordionTriggerHtml(
+          open,
+          counts[open.id],
+          true,
+        );
+        groupClosedHeaders.innerHTML = closed
+          .map((g) => accordionTriggerHtml(g, counts[g.id], false))
+          .join('');
+      }
+
+      function setView(view) {
+        state.view = view;
+        document
+          .querySelectorAll('[data-view]')
+          .forEach((b) =>
+            b.classList.toggle('active', b.dataset.view === view),
+          );
+        renderRows();
+      }
+
+      function currencySymbol(code) {
+        return code === 'GBP'
+          ? '£'
+          : code === 'USD'
+            ? '$'
+            : code === 'EUR'
+              ? '€'
+              : code + ' ';
+      }
+
+      function statusLabel(status) {
+        return status === 'proposed' ? 'auto-categorized' : status;
+      }
+
+      function editableField({
+        label,
+        value,
+        field,
+        type = 'text',
+        confidence,
+        options,
+        textarea,
+        placeholder,
+      }) {
+        const conf =
+          confidence != null
+            ? `<span class="confidence-label">Confidence: ${Math.round(confidence * 100)}%</span>`
+            : '';
+        const showPlaceholder = !value || value === 'Not set';
+        const displayHtml = showPlaceholder
+          ? `<span class="placeholder">${placeholder || 'Not set'}</span>`
+          : value.replaceAll('<', '&lt;');
+        if (options) {
+          return `<div class="form-row" data-editable-field="${field}">
+            <div class="form-label-row"><span class="field-label">${label}</span>${conf}</div>
+            <div class="editable-display" data-edit-trigger="${field}"><span class="ellipsis">${displayHtml}</span>${icon('i-pencil', 'icon icon-sm pencil')}</div>
+            <div class="editable-edit hidden" data-edit-panel="${field}">
+              <select class="form-control drawer-field" data-field="${field}">${options.map((o) => `<option value="${String(o).replaceAll('"', '&quot;')}"${o === value ? ' selected' : ''}>${o || '—'}</option>`).join('')}</select>
+              <div class="edit-actions">
+                <button type="button" class="edit-action ok" data-edit-save="${field}" aria-label="Save">${icon('i-check')}</button>
+                <button type="button" class="edit-action cancel" data-edit-cancel="${field}" aria-label="Cancel">${icon('i-x')}</button>
+              </div>
+            </div>
+          </div>`;
+        }
+        if (textarea) {
+          const notesDisplay = value
+            ? value.replaceAll('<', '&lt;')
+            : `<span class="placeholder">${placeholder || 'Add notes…'}</span>`;
+          return `<div class="form-row" data-editable-field="${field}">
+            <div class="form-label-row"><span class="field-label">${label}</span></div>
+            <div class="editable-display textarea-like" data-edit-trigger="${field}"><span>${notesDisplay}</span>${icon('i-pencil', 'icon icon-sm pencil')}</div>
+            <div class="editable-edit hidden" data-edit-panel="${field}">
+              <textarea class="form-control drawer-field" data-field="${field}" placeholder="${placeholder || ''}">${value || ''}</textarea>
+              <div class="edit-actions">
+                <button type="button" class="edit-action ok" data-edit-save="${field}" aria-label="Save">${icon('i-check')}</button>
+                <button type="button" class="edit-action cancel" data-edit-cancel="${field}" aria-label="Cancel">${icon('i-x')}</button>
+              </div>
+            </div>
+          </div>`;
+        }
+        return `<div class="form-row" data-editable-field="${field}">
+          <div class="form-label-row"><span class="field-label">${label}</span>${conf}</div>
+          <div class="editable-display" data-edit-trigger="${field}"><span class="ellipsis">${displayHtml}</span>${icon('i-pencil', 'icon icon-sm pencil')}</div>
+          <div class="editable-edit hidden" data-edit-panel="${field}">
+            <input class="form-control drawer-field" type="${type}" data-field="${field}" value="${String(value || '').replaceAll('"', '&quot;')}" placeholder="${placeholder || ''}">
+            <div class="edit-actions">
+              <button type="button" class="edit-action ok" data-edit-save="${field}" aria-label="Save">${icon('i-check')}</button>
+              <button type="button" class="edit-action cancel" data-edit-cancel="${field}" aria-label="Cancel">${icon('i-x')}</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function amountField(label, value, field) {
+        return `<div class="form-row" data-editable-field="${field}">
+          <span class="field-label">${label}</span>
+          <div class="editable-display" data-edit-trigger="${field}"><span>${value ? money(value) : `<span class="placeholder">0.00</span>`}</span>${icon('i-pencil', 'icon icon-sm pencil')}</div>
+          <div class="editable-edit hidden" data-edit-panel="${field}">
+            <input class="form-control drawer-field" type="text" inputmode="decimal" data-field="${field}" value="${value ? money(value) : ''}">
+            <div class="edit-actions">
+              <button type="button" class="edit-action ok" data-edit-save="${field}" aria-label="Save">${icon('i-check')}</button>
+              <button type="button" class="edit-action cancel" data-edit-cancel="${field}" aria-label="Cancel">${icon('i-x')}</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      const ACCOUNT_OPTIONS = [
+        'Not set',
+        'Software subscriptions',
+        'Sales revenue',
+        'Cloud hosting',
+        'Travel — local',
+        'Payroll control',
+        'VAT liability',
+        'Travel — rail',
+        'Rent and rates',
+        'Foreign exchange clearing',
+        'Professional fees',
+      ];
+      const CONTACT_OPTIONS = [
+        '',
+        'Figma, Inc.',
+        'Stripe Payments',
+        'Amazon Web Services',
+        'Adobe',
+        'Uber',
+        'Team payroll',
+        'HMRC',
+        'North & Co',
+        'Trainline',
+        'Workspace Group',
+        'Currencycloud',
+      ];
+      const PROJECT_OPTIONS = [
+        '',
+        'Design systems',
+        'Platform',
+        'Brand refresh',
+        'Client workshop',
+        'Retainer',
+        'Manchester pitch',
+      ];
+
+      function entryCardHtml(t, entry, { expanded = true, index = 0 } = {}) {
+        const account = entry.account || 'Not set';
+        const amt = entry.amount; // positive = DR, negative = CR (category legs)
+        const isDebit = amt >= 0;
+        const abs = Math.abs(amt);
+        const debit = isDebit ? abs : 0;
+        const credit = isDebit ? 0 : abs;
+        const fx = t.currency !== 'GBP';
+        const sym = currencySymbol(t.currency);
+        return `<div class="entry ${expanded ? '' : 'collapsed'}" data-entry-id="${entry.id}">
+          <div class="entry-header" data-toggle-entry="${entry.id}">
+            <div class="entry-title">
+              <span class="entry-code">${isDebit ? 'DR' : 'CR'}</span>
+              <span class="entry-account-name">${account === 'Not set' ? 'Select account…' : account}</span>
+            </div>
+            <div class="entry-amount ${isDebit ? 'money-in' : 'money-out'}">
+              <span>${isDebit ? '+' : '−'}${sym}${money(abs)}</span>
+              ${icon('i-chevron-down', 'icon icon-sm entry-chevron')}
+            </div>
+          </div>
+          <div class="entry-details">
+            ${editableField({ label: 'Account', value: account, field: `account-${entry.id}`, options: ACCOUNT_OPTIONS, confidence: entry.confidence, placeholder: 'Select account…' })}
+            <div class="form-grid">
+              ${amountField(`Debit${fx ? ` (${t.currency})` : ''}`, debit, `debit-${entry.id}`)}
+              ${amountField(`Credit${fx ? ` (${t.currency})` : ''}`, credit, `credit-${entry.id}`)}
+            </div>
+            ${fx && debit ? `<div class="field-label" style="margin-top:-6px">≃ £${money((t.spent || abs * t.exr) / (t.split ? 2 : 1))}</div>` : ''}
+            ${fx && credit ? `<div class="field-label" style="margin-top:-6px">≃ £${money((t.received || abs * t.exr) / (t.split ? 2 : 1))}</div>` : ''}
+            ${editableField({ label: 'Description', value: entry.description || t.description, field: `description-${entry.id}` })}
+            ${editableField({ label: 'Contact', value: entry.contact || '', field: `contact-${entry.id}`, options: CONTACT_OPTIONS, placeholder: 'Select contact…' })}
+            ${editableField({ label: 'Project', value: entry.project || '', field: `project-${entry.id}`, options: PROJECT_OPTIONS, placeholder: 'Select project…' })}
+            ${editableField({ label: 'Reference', value: entry.reference || '', field: `reference-${entry.id}`, placeholder: '—' })}
+            ${t.explanation && index === 0 ? `<div class="ai-note"><span>${t.explanation}</span>${icon('i-pencil', 'icon icon-sm pencil')}</div>` : ''}
+            ${editableField({ label: 'Review Notes', value: '', field: `notes-${entry.id}`, textarea: true, placeholder: 'Add review notes...' })}
+            <div>
+              <div class="attach-meta"><span class="field-label" style="margin:0">Attachments</span><span class="field-label" style="margin:0">0/5 files</span></div>
+              <label class="upload">${icon('i-upload')} Upload files<input type="file" hidden multiple></label>
+            </div>
+            <button class="delete-entry" type="button" data-delete-entry="${entry.id}">${icon('i-x')} Delete Entry</button>
+          </div>
+        </div>`;
+      }
+
+      function buildEntries(t) {
+        // Category legs use opposite sign convention to bank: expense bank (−) → DR entry (+)
+        if (t.split) {
+          const half = Math.abs(t.bankAmount) / 2;
+          const signed = t.bankAmount < 0 ? half : -half;
+          return [
+            {
+              id: 'e1',
+              account: 'Foreign exchange clearing',
+              amount: signed,
+              description: t.description + ' (leg 1)',
+              contact: t.contact,
+              project: t.project,
+              reference: t.reference,
+              confidence: null,
+            },
+            {
+              id: 'e2',
+              account: 'Sales revenue',
+              amount: signed,
+              description: t.description + ' (leg 2)',
+              contact: t.contact,
+              project: t.project,
+              reference: 'FX-7741-B',
+              confidence: null,
+            },
+          ];
+        }
+        return [
+          {
+            id: 'e1',
+            account: t.account,
+            amount:
+              t.bankAmount < 0
+                ? Math.abs(t.bankAmount)
+                : -Math.abs(t.bankAmount),
+            description: t.description,
+            contact: t.contact,
+            project: t.project,
+            reference: t.reference,
+            confidence: t.status === 'proposed' ? t.confidence : null,
+          },
+        ];
+      }
+
+      function drawerTemplate(t) {
+        const sym = currencySymbol(t.currency);
+        const bankName = `${t.bank} Business Current`;
+        const bankSide = t.bankAmount < 0 ? 'CR' : 'DR';
+        const entries = buildEntries(t);
+        const abs = Math.abs(t.bankAmount);
+
+        return `<div class="drawer-header">
+            <span class="drawer-header-title">Transaction Details</span>
+            <div class="drawer-header-actions">
+              <span class="status-badge ${t.status}">${statusLabel(t.status)}</span>
+              <button class="close-drawer" id="closeDrawer" aria-label="Close details">${icon('i-x')}</button>
+            </div>
+          </div>
+          <div class="drawer-body">
+            <div class="drawer-summary">
+              <div>
+                <span class="field-label">Bank amount</span>
+                <div class="amount-large ${t.bankAmount < 0 ? 'money-out' : 'money-in'}">${t.bankAmount < 0 ? '−' : '+'}${sym}${money(t.bankAmount)}</div>
+              </div>
+              <div class="drawer-bank">
+                <span class="bank-logo">${t.short}</span>
+                <span class="drawer-bank-name">${bankName}</span>
+              </div>
+              <div>
+                <span class="field-label">Exchange Rate</span>
+                <span class="summary-value">${Number(t.exr).toFixed(t.exr === 1 ? 2 : 4)}</span>
+              </div>
+              <div>
+                <span class="field-label">Date</span>
+                <span class="summary-value">${t.date}</span>
+              </div>
+              <div class="span-2">
+                <span class="field-label">Description</span>
+                <div class="ellipsis summary-value" title="${t.description.replaceAll('"', '&quot;')}">${t.description}</div>
+              </div>
+              ${
+                t.split
+                  ? ''
+                  : `
+              <div>
+                <span class="field-label">Contact</span>
+                <span class="summary-value">${t.contact || '—'}</span>
+              </div>
+              <div>
+                <span class="field-label">Reference</span>
+                <span class="summary-value">${t.reference || '—'}</span>
+              </div>`
+              }
+            </div>
+            <div class="drawer-scroll">
+              ${
+                t.currency !== 'GBP'
+                  ? `<div class="form-row" style="margin-bottom:14px">
+                <span class="field-label">Exchange Rate (1 ${t.currency} = ? GBP)</span>
+                <div class="editable-display"><span>${Number(t.exr).toFixed(4)}</span>${icon('i-pencil', 'icon icon-sm pencil')}</div>
+                <div class="field-label" style="margin-top:4px">Affects all entries in this transaction</div>
+              </div>`
+                  : ''
+              }
+              <div class="section-kicker">Entries</div>
+              <div class="entry bank-leg">
+                <div class="entry-header">
+                  <div class="entry-title">
+                    <span class="entry-code">${bankSide}</span>
+                    <span class="entry-account-name" title="${bankName}">${bankName}</span>
+                    <span class="entry-code">(Bank Leg)</span>
+                  </div>
+                  <div class="entry-amount ${t.bankAmount < 0 ? 'money-out' : 'money-in'}">
+                    <span>${t.bankAmount < 0 ? '−' : '+'}${sym}${money(t.bankAmount)}</span>
+                  </div>
+                </div>
+              </div>
+              ${entries.map((e, i) => entryCardHtml(t, e, { expanded: true, index: i })).join('')}
+              <button class="add-entry" type="button" id="addEntry">${icon('i-plus')} Add Entry</button>
+            </div>
+            <div class="drawer-footer">
+              <div class="totals">
+                <div class="total"><span class="field-label">Total Debit</span><strong>${sym}${money(abs)}</strong></div>
+                <div class="total"><span class="field-label">Total Credit</span><strong>${sym}${money(abs)}</strong></div>
+              </div>
+              <div class="review-actions">
+                <button class="btn" id="discardChanges" disabled>Discard</button>
+                <button class="btn btn-primary" id="saveChanges" disabled>Save changes</button>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function markDrawerDirty() {
+        state.dirty = true;
+        const save = document.getElementById('saveChanges');
+        const discard = document.getElementById('discardChanges');
+        if (save) save.disabled = false;
+        if (discard) discard.disabled = false;
+      }
+
+      function closeEditable(fieldRoot) {
+        const trigger = fieldRoot.querySelector('[data-edit-trigger]');
+        const panel = fieldRoot.querySelector('[data-edit-panel]');
+        if (trigger) trigger.classList.remove('hidden');
+        if (panel) panel.classList.add('hidden');
+      }
+
+      function openEditable(fieldRoot) {
+        drawer.querySelectorAll('[data-editable-field]').forEach(closeEditable);
+        const trigger = fieldRoot.querySelector('[data-edit-trigger]');
+        const panel = fieldRoot.querySelector('[data-edit-panel]');
+        if (trigger) trigger.classList.add('hidden');
+        if (panel) panel.classList.remove('hidden');
+        const input = panel?.querySelector('.form-control');
+        if (input) {
+          input.focus();
+          if (input.select) input.select();
+        }
+      }
+
+      function openDrawer(id) {
+        if (state.mode !== 'review') return;
+        state.selectedId = state.selectedId === id ? null : id;
+        state.dirty = false;
+        if (state.selectedId) {
+          const t = transactions.find((x) => x.id === state.selectedId);
+          drawer.innerHTML = drawerTemplate(t);
+          drawer.classList.remove('hidden');
+        } else {
+          drawer.classList.add('hidden');
+          drawer.innerHTML = '';
+        }
+        renderRows();
+      }
+
+      function updateMode(mode) {
+        state.mode = mode;
+        state.selectedId = null;
+        drawer.classList.add('hidden');
+        drawer.innerHTML = '';
+        app.classList.toggle('mode-review', mode === 'review');
+        app.classList.toggle('mode-autosave', mode === 'autosave');
+        document
+          .querySelectorAll('[data-mode]')
+          .forEach((b) =>
+            b.classList.toggle('active', b.dataset.mode === mode),
+          );
+        const url = new URL(location.href);
+        url.searchParams.set('mode', mode);
+        history.replaceState({}, '', url);
+        renderRows();
+        showToast(
+          mode === 'autosave'
+            ? 'Autosave mode — changes save automatically'
+            : 'Review mode — manual save required',
+        );
+      }
+
+      function showToast(message) {
+        document.getElementById('toastText').textContent = message;
+        toast.classList.add('show');
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(
+          () => toast.classList.remove('show'),
+          1800,
+        );
+      }
+      function showPopover(anchor, html, className = '') {
+        popover.className = `popover ${className}`.trim();
+        popover.innerHTML = html;
+        popover.classList.remove('hidden');
+        const r = anchor.getBoundingClientRect();
+        const width = popover.offsetWidth || 280;
+        const left = Math.min(
+          Math.max(8, r.right - width),
+          innerWidth - width - 12,
+        );
+        popover.style.left = `${left}px`;
+        popover.style.top = `${r.bottom + 7}px`;
+      }
+      function hidePopover() {
+        popover.classList.add('hidden');
+        popover.innerHTML = '';
+      }
+
+      function calendarMonthHtml(
+        year,
+        month,
+        { showPrev = false, showNext = false } = {},
+      ) {
+        const first = new Date(year, month, 1);
+        const startPad = (first.getDay() + 6) % 7;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const title = first.toLocaleDateString('en-GB', {
+          month: 'long',
+          year: 'numeric',
+        });
+        const from = state.datePick || state.dateFrom;
+        const to = state.datePick ? null : state.dateTo;
+        let cells = '';
+        for (let i = 0; i < startPad; i++)
+          cells += `<button class="cal-day empty" type="button" disabled></button>`;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const d = new Date(year, month, day);
+          const isStart = sameDay(d, from);
+          const isEnd = to && sameDay(d, to);
+          const inRange = to && isBetween(d, from, to);
+          const only = isStart && (!to || sameDay(from, to));
+          const classes = [
+            'cal-day',
+            only || (state.datePick && isStart) ? 'range-only' : '',
+            isStart && to && !only ? 'range-start' : '',
+            isEnd && !only ? 'range-end' : '',
+            inRange ? 'in-range' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+          cells += `<button class="${classes}" type="button" data-date="${year}-${month}-${day}">${day}</button>`;
+        }
+        return `<div class="cal-month">
+          <div class="cal-header">
+            <button class="cal-nav ${showPrev ? '' : 'invisible'}" type="button" data-cal-nav="-1" aria-label="Previous month"><svg class="icon icon-sm" style="transform:rotate(180deg)" aria-hidden="true"><use href="#i-chevron-right"></use></svg></button>
+            <div class="cal-title">${title}</div>
+            <button class="cal-nav ${showNext ? '' : 'invisible'}" type="button" data-cal-nav="1" aria-label="Next month">${icon('i-chevron-right')}</button>
+          </div>
+          <div class="cal-weekdays"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+          <div class="cal-grid">${cells}</div>
+        </div>`;
+      }
+
+      function dateRangePopoverHtml() {
+        const left = new Date(
+          state.calMonth.getFullYear(),
+          state.calMonth.getMonth(),
+          1,
+        );
+        const right = new Date(
+          state.calMonth.getFullYear(),
+          state.calMonth.getMonth() + 1,
+          1,
+        );
+        const summaryFrom = state.datePick || state.dateFrom;
+        const summaryTo = state.datePick ? '…' : formatDateLabel(state.dateTo);
+        return `<div class="date-range-body">
+          <div class="date-presets">${DATE_PRESETS.map((p) => `<button type="button" data-date-preset="${p.id}" class="${state.datePreset === p.id ? 'active' : ''}">${p.label}</button>`).join('')}</div>
+          <div class="date-calendars">
+            ${calendarMonthHtml(left.getFullYear(), left.getMonth(), { showPrev: true })}
+            ${calendarMonthHtml(right.getFullYear(), right.getMonth(), { showNext: true })}
+          </div>
+        </div>
+        <div class="date-range-footer">
+          <span class="range-summary">${formatDateLabel(summaryFrom)} – ${summaryTo}</span>
+          <button class="btn" type="button" id="dateRangeDone">Done</button>
+        </div>`;
+      }
+
+      function openDateRangePopover(anchor) {
+        state.calMonth = new Date(
+          state.dateFrom.getFullYear(),
+          state.dateFrom.getMonth(),
+          1,
+        );
+        state.datePick = null;
+        showPopover(anchor, dateRangePopoverHtml(), 'date-range');
+      }
+
+      function refreshDateRangePopover() {
+        if (
+          popover.classList.contains('hidden') ||
+          !popover.classList.contains('date-range')
+        )
+          return;
+        const anchor = document.getElementById('dateFilter');
+        popover.innerHTML = dateRangePopoverHtml();
+        const r = anchor.getBoundingClientRect();
+        const width = popover.offsetWidth;
+        popover.style.left = `${Math.min(Math.max(8, r.right - width), innerWidth - width - 12)}px`;
+        popover.style.top = `${r.bottom + 7}px`;
+      }
+
+      document.addEventListener('click', (e) => {
+        const mode = e.target.closest('[data-mode]');
+        if (mode) {
+          updateMode(mode.dataset.mode);
+          return;
+        }
+        const row = e.target.closest('tbody tr[data-id]');
+        if (
+          row &&
+          !e.target.matches('input,select,button') &&
+          !e.target.closest('button')
+        ) {
+          openDrawer(Number(row.dataset.id));
+          return;
+        }
+        if (e.target.closest('#closeDrawer')) {
+          state.selectedId = null;
+          drawer.classList.add('hidden');
+          renderRows();
+          return;
+        }
+        const status = e.target.closest('[data-status-filter]');
+        if (status) {
+          const s = status.dataset.statusFilter;
+          state.statuses.has(s)
+            ? state.statuses.delete(s)
+            : state.statuses.add(s);
+          status.classList.toggle('active', state.statuses.has(s));
+          renderRows();
+          return;
+        }
+        const height = e.target.closest('[data-height]');
+        if (height) {
+          state.rowHeight = Number(height.dataset.height);
+          document.documentElement.style.setProperty(
+            '--row-height',
+            `${state.rowHeight}px`,
+          );
+          document
+            .querySelectorAll('[data-height]')
+            .forEach((b) => b.classList.toggle('active', b === height));
+          return;
+        }
+        const view = e.target.closest('[data-view]');
+        if (view) {
+          setView(view.dataset.view);
+          return;
+        }
+        const group = e.target.closest('[data-group]');
+        if (group) {
+          state.group = group.dataset.group;
+          renderRows();
+          return;
+        }
+        if (e.target.closest('#focusToggle')) {
+          app.classList.toggle('focus');
+          e.target.closest('#focusToggle').classList.toggle('active');
+          return;
+        }
+        if (e.target.closest('#sidebarToggle')) {
+          app.classList.toggle('sidebar-collapsed');
+          return;
+        }
+        if (e.target.closest('#advancedFilter')) {
+          showPopover(
+            e.target.closest('#advancedFilter'),
+            "<h3 style='margin:0 0 6px;font-size:13px'>Advanced Filters</h3><p>Coming soon: filter by amount range, confidence, contact, project, etc.</p>",
+          );
+          return;
+        }
+        if (e.target.closest('#bankFilter')) {
+          showPopover(
+            e.target.closest('#bankFilter'),
+            `<div class="menu"><button>✓ All Banks</button><button>○ Barclays Business Current</button><button>○ Monzo Business</button><button>○ HSBC Operating</button><button>○ Wise Multi-currency</button></div>`,
+            'menu',
+          );
+          return;
+        }
+        if (e.target.closest('#dateFilter')) {
+          openDateRangePopover(e.target.closest('#dateFilter'));
+          return;
+        }
+        const preset = e.target.closest('[data-date-preset]');
+        if (preset) {
+          const p = DATE_PRESETS.find(
+            (x) => x.id === preset.dataset.datePreset,
+          );
+          if (p) {
+            const [from, to] = p.range();
+            state.dateFrom = startOfDay(from);
+            state.dateTo = startOfDay(to);
+            state.datePreset = p.id;
+            state.datePick = null;
+            state.calMonth = new Date(from.getFullYear(), from.getMonth(), 1);
+            updateDateFilterLabel();
+            refreshDateRangePopover();
+          }
+          return;
+        }
+        const calNav = e.target.closest('[data-cal-nav]');
+        if (calNav) {
+          state.calMonth = new Date(
+            state.calMonth.getFullYear(),
+            state.calMonth.getMonth() + Number(calNav.dataset.calNav),
+            1,
+          );
+          refreshDateRangePopover();
+          return;
+        }
+        const calDay = e.target.closest('[data-date]');
+        if (calDay) {
+          const [y, m, d] = calDay.dataset.date.split('-').map(Number);
+          const picked = new Date(y, m, d);
+          if (!state.datePick) {
+            state.datePick = picked;
+            state.datePreset = null;
+          } else {
+            let from = state.datePick;
+            let to = picked;
+            if (to < from) [from, to] = [to, from];
+            state.dateFrom = startOfDay(from);
+            state.dateTo = startOfDay(to);
+            state.datePick = null;
+            state.datePreset = null;
+            updateDateFilterLabel();
+          }
+          refreshDateRangePopover();
+          return;
+        }
+        if (e.target.closest('#dateRangeDone')) {
+          hidePopover();
+          return;
+        }
+        const actions = e.target.closest('[data-actions]');
+        if (actions) {
+          showPopover(
+            actions,
+            "<div class='menu'><button>Edit transaction</button><button>Split transaction</button><button>Mark as reviewed</button><button style='color:#dc2626'>Delete draft</button></div>",
+            'menu',
+          );
+          return;
+        }
+
+        const toggleEntry = e.target.closest('[data-toggle-entry]');
+        if (toggleEntry) {
+          const card = toggleEntry.closest('.entry');
+          if (card && !card.classList.contains('bank-leg'))
+            card.classList.toggle('collapsed');
+          return;
+        }
+        const editTrigger = e.target.closest('[data-edit-trigger]');
+        if (editTrigger) {
+          openEditable(editTrigger.closest('[data-editable-field]'));
+          return;
+        }
+        const editSave = e.target.closest('[data-edit-save]');
+        if (editSave) {
+          const root = editSave.closest('[data-editable-field]');
+          const input = root.querySelector('.form-control');
+          const label = root.querySelector('[data-edit-trigger] > span');
+          if (input && label) {
+            const next = input.value;
+            const isEmpty = !next || next === 'Not set';
+            if (isEmpty) {
+              const ph =
+                input.tagName === 'SELECT'
+                  ? input.dataset.field?.startsWith('account')
+                    ? 'Select account…'
+                    : 'Select…'
+                  : root.querySelector('textarea')
+                    ? 'Add notes…'
+                    : '—';
+              label.innerHTML = `<span class="placeholder">${ph}</span>`;
+            } else {
+              label.textContent = next;
+            }
+            if (input.dataset.field?.startsWith('account-')) {
+              const name = root
+                .closest('.entry')
+                ?.querySelector('.entry-account-name');
+              if (name) name.textContent = isEmpty ? 'Select account…' : next;
+            }
+          }
+          markDrawerDirty();
+          closeEditable(root);
+          return;
+        }
+        const editCancel = e.target.closest('[data-edit-cancel]');
+        if (editCancel) {
+          closeEditable(editCancel.closest('[data-editable-field]'));
+          return;
+        }
+        if (e.target.closest('#addEntry')) {
+          markDrawerDirty();
+          showToast('Entry added (prototype)');
+          return;
+        }
+        if (e.target.closest('[data-delete-entry]')) {
+          markDrawerDirty();
+          showToast('Entry marked for deletion');
+          return;
+        }
+
+        if (e.target.closest('#saveChanges')) {
+          state.dirty = false;
+          document.getElementById('saveChanges').disabled = true;
+          document.getElementById('discardChanges').disabled = true;
+          showToast('Transaction changes saved');
+          return;
+        }
+        if (e.target.closest('#discardChanges')) {
+          const t = transactions.find((x) => x.id === state.selectedId);
+          state.dirty = false;
+          drawer.innerHTML = drawerTemplate(t);
+          showToast('Changes discarded');
+          return;
+        }
+        if (!e.target.closest('#popover') && !e.target.closest('#dateFilter'))
+          hidePopover();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (!e.target.closest('#detailsDrawer')) return;
+        const root = e.target.closest('[data-editable-field]');
+        if (!root) return;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeEditable(root);
+          return;
+        }
+        if (e.key === 'Enter' && !e.target.matches('textarea')) {
+          e.preventDefault();
+          root.querySelector('[data-edit-save]')?.click();
+        }
+      });
+
+      document.addEventListener('input', (e) => {
+        if (e.target.id === 'searchInput') {
+          state.search = e.target.value;
+          renderRows();
+          return;
+        }
+        if (e.target.matches('.cell-input,.cell-select')) {
+          const row = e.target.closest('tr');
+          const t = transactions.find((x) => x.id === Number(row.dataset.id));
+          t[e.target.dataset.field] =
+            e.target.type === 'number'
+              ? Number(e.target.value)
+              : e.target.value;
+          showToast('Saving…');
+          clearTimeout(e.target.saveTimer);
+          e.target.saveTimer = setTimeout(
+            () => showToast('All changes saved'),
+            550,
+          );
+        }
+        if (e.target.matches('.drawer-field')) {
+          markDrawerDirty();
+        }
+      });
+      document
+        .getElementById('selectAll')
+        .addEventListener('change', (e) =>
+          document
+            .querySelectorAll('tbody .row-check')
+            .forEach((c) => (c.checked = e.target.checked)),
+        );
+      document.getElementById('tableCard').addEventListener('keydown', (e) => {
+        if (
+          !['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key) ||
+          e.target.matches('input,select,textarea')
+        )
+          return;
+        const visible = filteredTransactions();
+        let idx = visible.findIndex((t) => t.id === state.selectedId);
+        if (e.key === 'Escape') {
+          state.selectedId = null;
+          drawer.classList.add('hidden');
+          renderRows();
+          return;
+        }
+        if (e.key === 'Enter' && idx >= 0) {
+          openDrawer(visible[idx].id);
+          return;
+        }
+        e.preventDefault();
+        idx =
+          e.key === 'ArrowDown'
+            ? Math.min(idx + 1, visible.length - 1)
+            : Math.max(idx < 0 ? 0 : idx - 1, 0);
+        if (visible[idx]) {
+          state.selectedId = visible[idx].id;
+          if (state.mode === 'review') {
+            drawer.innerHTML = drawerTemplate(visible[idx]);
+            drawer.classList.remove('hidden');
+          }
+          renderRows();
+        }
+      });
+
+      document
+        .querySelectorAll('[data-mode]')
+        .forEach((b) =>
+          b.classList.toggle('active', b.dataset.mode === state.mode),
+        );
+      app.classList.toggle('mode-review', state.mode === 'review');
+      app.classList.toggle('mode-autosave', state.mode === 'autosave');
+      updateDateFilterLabel();
+      renderRows();
+    </script>
+  </body>
+</html>

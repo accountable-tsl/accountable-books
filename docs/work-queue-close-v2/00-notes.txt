@@ -1,0 +1,14 @@
+Phase 0
+- Briefly list everything currently connected to the old assignments
+- Build the new engagement system beside them
+- Make the new work system use engagements only
+- Test it thoroughly
+- Switch the remaining users of the old assignments, then delete them
+
+
+
+
+---
+We'll probably need a small module that answers: What is this user allowed to do or see for this client right now?
+It'll look up their firm role, and firm-scoped permissions, active engagement for that firm+client, and the user's responsibilities on that engagement; then it'll return a small actor object roughtly firm role + firm permissions, engagement id (or none), responsibilities on that client.
+It can also have helpers e.g canApproveClose, canDoX
